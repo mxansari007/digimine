@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+/* Base styles for admin */
+@layer base {
+    html {
+        @apply scroll-smooth;
+    }
+
+    body {
+        @apply font-sans antialiased text-gray-900 bg-gray-100;
+    }
+}
+
+/* Admin-specific utilities */
+@layer components {
+    .sidebar-link {
+        @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors;
+    }
+
+    .sidebar-link-active {
+        @apply bg-primary-50 text-primary-700;
+    }
+
+    .sidebar-link-inactive {
+        @apply text-gray-600 hover:bg-gray-50 hover:text-gray-900;
+    }
+}

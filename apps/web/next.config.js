@@ -1,0 +1,51 @@
+/** @type {import('next').NextConfig} */
+const path = require('path');
+
+const nextConfig = {
+    reactStrictMode: true,
+    transpilePackages: ["@digimine/ui", "@digimine/config", "@digimine/utils"],
+    images: {
+        domains: ["firebasestorage.googleapis.com"],
+    },
+    webpack: (config, { isServer }) => {
+        // Fix for Firebase/undici compatibility with Next.js 14
+        if (!isServer) {
+            // CLIENT-SIDE CONFIGURATION
+
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                net: false,
+                tls: false,
+                dns: false,
+                child_process: false,
+                undici: false,
+            };
+
+            // Alias undici to a mock file to prevent parsing errors
+            config.resolve.alias['undici'] = path.join(__dirname, 'src/mocks/undici.js');
+
+            // Force usage of browser-compatible builds for Firebase to avoid pulling in Node deps
+            try {
+                const authPkg = require.resolve('@firebase/auth/package.json');
+                const authDir = path.dirname(authPkg);
+                config.resolve.alias['@firebase/auth'] = path.join(authDir, 'dist/esm2017/index.js');
+            } catch (e) {
+                console.warn('Could not resolve @firebase/auth browser path, fallback to default resolution');
+            }
+        } else {
+            // SERVER-SIDE CONFIGURATION
+
+            // Mark undici as external so Webpack doesn't try to parse it (and fail on private class fields)
+            // It will be required at runtime by Node.js, which handles it fine.
+            config.externals = [...(config.externals || []), 'undici'];
+        }
+
+        return config;
+    },
+    experimental: {
+        serverComponentsExternalPackages: ["undici"],
+    },
+};
+
+module.exports = nextConfig;

@@ -1,0 +1,49 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidFileSize(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+
+    // Default rule for all paths
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Product images - admins can upload, everyone can read
+    match /products/{productId}/images/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImageType() && isValidFileSize(10);
+    }
+
+    // Product files (digital downloads) - only authenticated users who purchased can read
+    match /products/{productId}/files/{fileId} {
+      // Read access controlled by Cloud Functions with signed URLs
+      allow read: if false;
+      allow write: if isAdmin() && isValidFileSize(100);
+    }
+
+    // User avatars
+    match /users/{userId}/avatar/{fileName} {
+      allow read: if true;
+      allow write: if request.auth.uid == userId && isValidImageType() && isValidFileSize(5);
+    }
+  }
+}

@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // "God Mode" for Bootstrap Admins - Bypasses all DB lookups
+    function isBootstrapAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == 'admin@digimine.com' || 
+              request.auth.token.email == 'maazansari@digimine.com');
+    }
+    
+    // Standard Admin check (Lookup) - used for non-bootstrap admins later
+    function isDatabaseAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+    }
+
+    // Consolidated Admin Check
+    function isAdmin() {
+      return isBootstrapAdmin() || isDatabaseAdmin();
+    }
+
+    // --- Collection Rules ---
+
+    // Users collection
+    match /users/{userId} {
+      // READ: Users can read own profile OR Bootstrap Admin can read everything (for management)
+      allow read: if isOwner(userId) || isBootstrapAdmin();
+      
+      // CREATE: Users can create their own profile
+      allow create: if isOwner(userId);
+      
+      // UPDATE: 
+      // 1. Bootstrap admin can update ANYONE (including their own role)
+      // 2. Regular users can update non-sensitive fields
+      allow update: if isBootstrapAdmin() 
+                    || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      
+      // DELETE: Only bootstrap admin
+      allow delete: if isBootstrapAdmin();
+    }
+
+    // Check if user has purchased a specific product
+    function hasPurchased(productId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             productId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.purchasedProducts;
+    }
+
+    // Products collection - Public details (name, price, thumbnail, etc.)
+    match /products/{productId} {
+      // Read: Public can see published products (but files array should be excluded in app logic)
+      allow read: if resource.data.status == 'published' || isAdmin();
+      // Write: Admins only
+      allow create, update, delete: if isAdmin();
+      
+      // Product Files subcollection - Buyers and Admins only
+      match /files/{fileId} {
+        allow read: if isAdmin() || hasPurchased(productId);
+        allow write: if isAdmin();
+      }
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      // Guest Checkout: Public Create
+      allow create: if true;
+      // Public Read (needed for success page immediate access)
+      allow read: if true; 
+      
+      // Update Rule for "Claiming" Orders:
+      // A user can update an order (e.g. to set userId) IF:
+      // 1. They are authenticated
+      // 2. The order currently has NO userId (it's a guest order)
+      // 3. The order's customerEmail matches the user's auth email
+      // 4. They are only updating the 'userId' field
+      allow update: if isAdmin() 
+                    || (isAuthenticated() 
+                        && resource.data.userId == null 
+                        && resource.data.customerEmail == request.auth.token.email
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
+                        && request.resource.data.userId == request.auth.uid);
+                        
+      // Admin management for other writes
+      allow delete: if isAdmin();
+    }
+  }
+}

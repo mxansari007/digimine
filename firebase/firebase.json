@@ -1,0 +1,43 @@
+{
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "storage": {
+        "rules": "storage.rules"
+    },
+    "functions": {
+        "source": "functions"
+    },
+    "hosting": [
+        {
+            "target": "web",
+            "public": "../apps/web/.next",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ],
+            "rewrites": [
+                {
+                    "source": "**",
+                    "function": "nextWebApp"
+                }
+            ]
+        },
+        {
+            "target": "admin",
+            "public": "../apps/admin/.next",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ],
+            "rewrites": [
+                {
+                    "source": "**",
+                    "function": "nextAdminApp"
+                }
+            ]
+        }
+    ]
+}
