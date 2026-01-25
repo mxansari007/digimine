@@ -5,7 +5,20 @@ const nextConfig = {
     reactStrictMode: true,
     transpilePackages: ["@digimine/ui", "@digimine/config", "@digimine/utils"],
     images: {
-        domains: ["firebasestorage.googleapis.com", "randomuser.me"],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'firebasestorage.googleapis.com',
+                port: '',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'randomuser.me',
+                port: '',
+                pathname: '/**',
+            },
+        ],
     },
     webpack: (config, { isServer }) => {
         // Fix for Firebase/undici compatibility with Next.js 14

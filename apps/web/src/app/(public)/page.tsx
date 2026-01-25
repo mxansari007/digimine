@@ -93,6 +93,7 @@ export default function HomePage() {
                                         alt={`User ${i + 1}`}
                                         width={40}
                                         height={40}
+                                        unoptimized
                                         className="rounded-full border-2 border-gray-900 object-cover bg-gray-800"
                                     />
                                 ))}

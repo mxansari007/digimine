@@ -426,6 +426,7 @@ export default function SuccessPage() {
                                     alt={`User ${i + 1}`}
                                     width={40}
                                     height={40}
+                                    unoptimized
                                     className="rounded-full border-2 border-white object-cover bg-gray-200"
                                 />
                             ))}
