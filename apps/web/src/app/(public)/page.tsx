@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button, Card } from "@digimine/ui";
 import { ProductCard } from "@/components/products/ProductCard";
 import { getProducts, getAllReviewStats } from "@/lib/firestore";
 import { type Product } from "@digimine/types";
-import { formatCurrency } from "@digimine/utils";
+
 
 export default function HomePage() {
     const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -86,11 +87,13 @@ export default function HomePage() {
                                     "https://randomuser.me/api/portraits/women/68.jpg",
                                     "https://randomuser.me/api/portraits/men/46.jpg"
                                 ].map((src, i) => (
-                                    <img
+                                    <Image
                                         key={i}
                                         src={src}
                                         alt={`User ${i + 1}`}
-                                        className="w-10 h-10 rounded-full border-2 border-gray-900 object-cover bg-gray-800"
+                                        width={40}
+                                        height={40}
+                                        className="rounded-full border-2 border-gray-900 object-cover bg-gray-800"
                                     />
                                 ))}
                                 <div className="w-10 h-10 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br from-primary-600 to-accent-600 relative z-10">

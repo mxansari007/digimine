@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getProductBySlug, getProductReviewStats } from "@/lib/firestore";
 import { Button } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
@@ -26,7 +27,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     const router = useRouter();
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [selectedImageIndex] = useState(0);
     const [showFloatingCTA, setShowFloatingCTA] = useState(false);
     const [ratingStats, setRatingStats] = useState<{ averageRating: number; reviewCount: number }>({ averageRating: 0, reviewCount: 0 });
     const ctaRef = useRef<HTMLDivElement>(null);
@@ -104,7 +105,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50">
                 <div className="text-6xl mb-4">😕</div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h1>
-                <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+                <p className="text-gray-600 mb-6">The product you&apos;re looking for doesn&apos;t exist.</p>
                 <Button onClick={() => router.push("/products")}>Browse Products</Button>
             </div>
         );
@@ -115,7 +116,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     const savingsPercent = hasDiscount
         ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
         : 0;
-    const savingsAmount = hasDiscount ? product.compareAtPrice! - product.price : 0;
+
 
     // Build gallery images
     const galleryImages = product.images?.length > 0
@@ -254,11 +255,13 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         <div className="relative">
                             <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-gray-900/10 border-4 border-white/50 bg-white group hover:scale-[1.02] transition-transform duration-500">
                                 {currentImage ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
+
+                                    <Image
                                         src={currentImage}
                                         alt={product.name}
-                                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-1000 ease-out"
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                        className="object-cover transform group-hover:scale-110 transition-transform duration-1000 ease-out"
                                     />
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center text-gray-300 bg-gray-50">
@@ -336,7 +339,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         <div className="container-page">
                             <div className="text-center max-w-3xl mx-auto mb-16">
                                 <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6">Everything You Need to Succeed</h2>
-                                <p className="text-xl text-gray-600">This isn't just a product. It's a complete toolkit designed to help you achieve your goals faster.</p>
+                                <p className="text-xl text-gray-600">This isn&apos;t just a product. It&apos;s a complete toolkit designed to help you achieve your goals faster.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -391,10 +394,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                         Peek Inside
                                     </div>
                                     <h2 className="text-3xl lg:text-5xl font-bold font-display leading-tight">
-                                        What's Included in Your Download?
+                                        What&apos;s Included in Your Download?
                                     </h2>
                                     <p className="text-lg text-gray-400 leading-relaxed max-w-xl">
-                                        Stop guessing. Here's exactly what you'll find inside. Everything is organized, labeled, and ready to use immediately.
+                                        Stop guessing. Here&apos;s exactly what you&apos;ll find inside. Everything is organized, labeled, and ready to use immediately.
                                     </p>
                                     <ul className="space-y-4 pt-4">
                                         <li className="flex items-center gap-3 text-gray-300">
@@ -449,7 +452,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                     </span>
                                 </summary>
                                 <div className="px-6 pb-6 text-gray-600 leading-relaxed animate-fadeIn">
-                                    After purchase, you'll receive an email with a secure download link. You can also log in to your dashboard to access your files anytime.
+                                    After purchase, you&apos;ll receive an email with a secure download link. You can also log in to your dashboard to access your files anytime.
                                 </div>
                             </details>
 
@@ -476,25 +479,25 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                         </span>
                                     </summary>
                                     <div className="px-6 pb-6 text-gray-600 leading-relaxed animate-fadeIn">
-                                        We offer a hassle-free {product.moneyBackGuarantee}-day money-back guarantee. If you're not completely satisfied, just email us and we'll refund you.
+                                        We offer a hassle-free {product.moneyBackGuarantee}-day money-back guarantee. If you&apos;re not completely satisfied, just email us and we&apos;ll refund you.
                                     </div>
                                 </details>
                             )}
                         </div>
                     </div>
-                </div>
-            </section>
+                </div >
+            </section >
 
             {/* SECTION 6: REVIEWS */}
-            <div className="bg-gray-50/50 py-10">
+            < div className="bg-gray-50/50 py-10" >
                 <ReviewSection
                     productId={product.id}
                     isPurchaser={!!user?.purchasedProducts?.some(p => (typeof p === 'string' ? p === product.id : p.productId === product.id))}
                 />
-            </div>
+            </div >
 
             {/* SECTION 7: FINAL CTA - The Closer */}
-            <section className="py-24 bg-primary-900 text-white relative overflow-hidden">
+            < section className="py-24 bg-primary-900 text-white relative overflow-hidden" >
                 <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black/30" />
 
@@ -538,19 +541,20 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         )}
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* Floating CTA Bar - Keep existing */}
-            <div
+            < div
                 className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_30px_rgba(0,0,0,0.15)] z-[100] transition-transform duration-500 ease-in-out pb-safe ${showFloatingCTA ? "translate-y-0" : "translate-y-full"
-                    }`}
+                    }`
+                }
             >
                 <div className="container-page py-3 md:py-4">
                     <div className="flex items-center justify-between gap-3 sm:gap-4">
                         {/* Desktop: Product Info */}
                         <div className="hidden md:flex items-center gap-4">
                             {product.thumbnailURL && (
-                                <img src={product.thumbnailURL} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100" />
+                                <Image src={product.thumbnailURL} alt="" width={48} height={48} className="rounded-lg object-cover bg-gray-100" />
                             )}
                             <div>
                                 <p className="font-bold text-gray-900 line-clamp-1 text-sm sm:text-base">{product.name}</p>
@@ -603,7 +607,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
         </div >
     );
 }

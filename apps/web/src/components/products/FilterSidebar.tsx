@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { type ProductType, type PurchaseType } from "@digimine/types";
 import { Button } from "@digimine/ui";
 

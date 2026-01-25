@@ -1,0 +1,59 @@
+
+> @digimine/web@0.0.0 build
+> next build
+
+   ▲ Next.js 14.0.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+ ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config
+
+Failed to compile.
+
+./src/app/(dashboard)/dashboard/downloads/page.tsx
+66:8  Warning: React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/(dashboard)/dashboard/page.tsx
+43:59  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+223:41  Error: Definition for rule 'next/no-img-element' was not found.  next/no-img-element
+
+./src/app/(public)/checkout/page.tsx
+291:49  Error: Definition for rule 'next/no-img-element' was not found.  next/no-img-element
+
+./src/app/(public)/page.tsx
+9:10  Error: 'formatCurrency' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/products/[slug]/page.tsx
+38:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+44:100  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+257:37  Error: Definition for rule 'next/no-img-element' was not found.  next/no-img-element
+
+./src/app/(public)/products/page.tsx
+9:10  Error: 'formatCurrency' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+170:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+175:77  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/auth/otp/send/route.ts
+63:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/orders/secure-access/route.ts
+31:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+45:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+46:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/auth/action/page.tsx
+52:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+79:60  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/reviews/ReviewSection.tsx
+89:8  Warning: React Hook useEffect has a missing dependency: 'loadReviews'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+101:8  Warning: React Hook useEffect has a missing dependency: 'checkUserStatus'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/lib/email.ts
+54:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+88:79  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules

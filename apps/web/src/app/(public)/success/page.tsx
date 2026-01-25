@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { doc, getDoc, collection, getDocs, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { Button, Card } from "@digimine/ui";
@@ -20,9 +21,8 @@ interface ProductFile {
 
 export default function SuccessPage() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const orderId = searchParams.get("orderId");
-    const { firebaseUser, user, loading: authLoading } = useAuthContext();
+    const { firebaseUser, loading: authLoading } = useAuthContext();
 
     const [order, setOrder] = useState<Order | null>(null);
     const [files, setFiles] = useState<ProductFile[]>([]);
@@ -37,14 +37,40 @@ export default function SuccessPage() {
     const [accountError, setAccountError] = useState("");
     const [accountCreated, setAccountCreated] = useState(false);
 
-    const [verificationStatus, setVerificationStatus] = useState<"verifying" | "success" | "failed" | "pending" | null>(null);
+    const [, setVerificationStatus] = useState<"verifying" | "success" | "failed" | "pending" | null>(null);
     const hasVerified = useRef(false);
 
-    const [otp, setOtp] = useState(""); // Kept for type safety if referenced elsewhere, but likely unused
     const [accessKeyInput, setAccessKeyInput] = useState("");
     const [accessKeyError, setAccessKeyError] = useState("");
     const [requiresVerification, setRequiresVerification] = useState(false);
     const [isVerifyingKey, setIsVerifyingKey] = useState(false);
+
+    const verifyAccessKey = useCallback(async (key: string) => {
+        setIsVerifyingKey(true);
+        setAccessKeyError("");
+        try {
+            const res = await fetch("/api/orders/secure-access", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId, accessKey: key }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setOrder(data.order);
+                setFiles(data.files);
+                setRequiresVerification(false);
+            } else {
+                setAccessKeyError(data.error || "Invalid Access Key");
+                setRequiresVerification(true);
+            }
+        } catch (err) {
+            setAccessKeyError("Failed to verify key");
+            setRequiresVerification(true);
+        } finally {
+            setIsVerifyingKey(false);
+            setLoading(false);
+        }
+    }, [orderId]);
 
     // Initial check for key in URL
     useEffect(() => {
@@ -52,7 +78,7 @@ export default function SuccessPage() {
         if (keyFromUrl && orderId) {
             verifyAccessKey(keyFromUrl);
         }
-    }, [searchParams, orderId]);
+    }, [searchParams, orderId, verifyAccessKey]);
 
     // Main verification logic
     useEffect(() => {
@@ -142,35 +168,10 @@ export default function SuccessPage() {
         if (!keyFromUrl) {
             verifyAndFetchOrder();
         }
-    }, [orderId, authLoading, firebaseUser]);
+    }, [orderId, authLoading, firebaseUser, searchParams, verifyAccessKey]);
 
 
-    const verifyAccessKey = async (key: string) => {
-        setIsVerifyingKey(true);
-        setAccessKeyError("");
-        try {
-            const res = await fetch("/api/orders/secure-access", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId, accessKey: key }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setOrder(data.order);
-                setFiles(data.files);
-                setRequiresVerification(false);
-            } else {
-                setAccessKeyError(data.error || "Invalid Access Key");
-                setRequiresVerification(true); // Ensure form is shown if URL key failed
-            }
-        } catch (err) {
-            setAccessKeyError("Failed to verify key");
-            setRequiresVerification(true);
-        } finally {
-            setIsVerifyingKey(false);
-            setLoading(false); // Ensure loading stops
-        }
-    };
+
 
     const handleKeySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -200,13 +201,7 @@ export default function SuccessPage() {
     };
 
     // Link order to user when authenticated
-    useEffect(() => {
-        if (firebaseUser && order && !order.userId) {
-            linkOrderToUser();
-        }
-    }, [firebaseUser, order]);
-
-    const linkOrderToUser = async () => {
+    const linkOrderToUser = useCallback(async () => {
         if (!firebaseUser || !order) return;
 
         try {
@@ -233,7 +228,16 @@ export default function SuccessPage() {
         } catch (err) {
             console.error("Error linking order to user:", err);
         }
-    };
+    }, [firebaseUser, order]);
+
+    // Link order to user when authenticated
+    useEffect(() => {
+        if (firebaseUser && order && !order.userId) {
+            linkOrderToUser();
+        }
+    }, [firebaseUser, order, linkOrderToUser]);
+
+
 
     // Render Logic update
     if (loading) return <div className="p-20 text-center">Loading...</div>;
@@ -416,11 +420,13 @@ export default function SuccessPage() {
                                 "https://randomuser.me/api/portraits/women/68.jpg",
                                 "https://randomuser.me/api/portraits/men/46.jpg"
                             ].map((src, i) => (
-                                <img
+                                <Image
                                     key={i}
                                     src={src}
                                     alt={`User ${i + 1}`}
-                                    className="w-10 h-10 rounded-full border-2 border-white object-cover bg-gray-200"
+                                    width={40}
+                                    height={40}
+                                    className="rounded-full border-2 border-white object-cover bg-gray-200"
                                 />
                             ))}
                             <div className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-primary-600 to-accent-600 flex items-center justify-center text-xs font-bold text-white relative z-10">

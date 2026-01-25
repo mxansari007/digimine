@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
@@ -218,10 +219,9 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                         {products.map((product) => (
                             <div key={product.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-primary-200 transition-colors">
-                                <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                                <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative">
                                     {product.thumbnailURL ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={product.thumbnailURL} alt={product.name} className="w-full h-full object-cover" />
+                                        <Image src={product.thumbnailURL} alt={product.name} fill sizes="64px" className="object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center">
                                             <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

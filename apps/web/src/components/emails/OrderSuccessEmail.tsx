@@ -6,7 +6,6 @@ import {
     Head,
     Heading,
     Html,
-    Img,
     Link,
     Preview,
     Row,
@@ -54,7 +53,7 @@ export const OrderSuccessEmail = ({
                             Hello {customerName},
                         </Text>
                         <Text className="text-black text-[14px] leading-[24px]">
-                            We've received your order <strong>#{orderId}</strong>.
+                            We&apos;ve received your order <strong>#{orderId}</strong>.
                         </Text>
 
                         {accessKey && (

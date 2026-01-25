@@ -6,7 +6,7 @@ import { Button, Card } from "@digimine/ui";
 import { ProductCard } from "@/components/products/ProductCard";
 import { getProducts, getAllReviewStats } from "@/lib/firestore";
 import { type Product, type ProductType } from "@digimine/types";
-import { formatCurrency } from "@digimine/utils";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { FilterSidebar, type ProductFilters } from "@/components/products/FilterSidebar";
 import { FilterDrawer } from "@/components/products/FilterDrawer";

@@ -42,7 +42,7 @@ export const OrderOtpEmail = ({
                             </Text>
                         </Section>
                         <Text className="text-black text-[14px] leading-[24px]">
-                            This code will expire in 10 minutes. If you didn't request this code, you can safely ignore this email.
+                            This code will expire in 10 minutes. If you didn&apos;t request this code, you can safely ignore this email.
                         </Text>
                     </Container>
                 </Body>

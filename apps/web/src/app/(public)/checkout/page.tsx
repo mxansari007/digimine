@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
@@ -34,7 +35,7 @@ export default function CheckoutPage() {
         setGuestId(id);
 
         if (productId) {
-            async function fetchProduct() {
+            const fetchProduct = async () => {
                 try {
                     const p = await getProduct(productId as string);
                     setDirectProduct(p);
@@ -286,10 +287,9 @@ export default function CheckoutPage() {
                             <div className="space-y-4 mb-6">
                                 {displayItems.map((item, i) => (
                                     <div key={i} className="flex gap-3">
-                                        <div className="w-12 h-12 bg-gray-100 rounded-md flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-md flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200 relative">
                                             {item.productImage ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
+                                                <Image src={item.productImage} alt={item.productName} fill sizes="48px" className="object-cover" />
                                             ) : (
                                                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

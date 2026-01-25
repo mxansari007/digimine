@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { type Product } from "@digimine/types";
 import { formatCurrency } from "@digimine/utils";
 
@@ -21,10 +22,12 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                 {/* Image Container */}
                 <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
                     {product.thumbnailURL ? (
-                        <img
+                        <Image
                             src={product.thumbnailURL}
                             alt={product.name}
-                            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 ease-out"
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className="object-cover transform group-hover:scale-105 transition-transform duration-500 ease-out"
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-gray-300 bg-gray-50">

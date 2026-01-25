@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card, Button } from "@digimine/ui";
+import Image from "next/image";
+import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -115,7 +116,13 @@ export default function DownloadsPage() {
                                 {/* Product Thumbnail */}
                                 <div className="w-28 h-28 md:w-full md:h-48 bg-gray-100 relative flex-shrink-0">
                                     {product.thumbnailURL ? (
-                                        <img src={product.thumbnailURL} alt={product.name} className="w-full h-full object-cover" />
+                                        <Image
+                                            src={product.thumbnailURL}
+                                            alt={product.name}
+                                            fill
+                                            sizes="(max-width: 768px) 112px, (max-width: 1200px) 50vw, 33vw"
+                                            className="object-cover"
+                                        />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
                                             <svg className="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
