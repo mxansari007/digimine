@@ -251,11 +251,11 @@ export default function HomePage() {
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <Link href="/products">
-                            <Button
-                                className="bg-primary-500 hover:bg-primary-400 text-white text-lg px-8 py-4 shadow-lg shadow-primary-500/30"
+                            <span
+                                className="inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary-500 hover:bg-primary-400 text-white text-lg px-8 py-4 shadow-lg shadow-primary-500/30"
                             >
                                 Browse All Products
-                            </Button>
+                            </span>
                         </Link>
                     </div>
                 </div>

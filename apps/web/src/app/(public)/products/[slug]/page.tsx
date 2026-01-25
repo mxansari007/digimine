@@ -209,10 +209,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                                 </svg>
                                                 <span className="text-green-800 font-bold">You own this product</span>
                                             </div>
-                                            <Link href="/dashboard/downloads">
-                                                <Button size="lg" variant="primary" className="w-full text-xl py-6 shadow-xl shadow-primary-500/30">
-                                                    Access Content
-                                                </Button>
+                                            <Link href="/dashboard/downloads" className="inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary-600 text-white hover:bg-primary-700 w-full text-xl py-6 shadow-xl shadow-primary-500/30">
+                                                Access Content
                                             </Link>
                                         </div>
                                     ) : (
@@ -512,13 +510,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     <div className="flex flex-col items-center gap-6">
                         {!hasAccess ? (
                             <>
-                                <Button
-                                    size="lg"
-                                    className="px-12 py-6 text-2xl font-bold shadow-2xl shadow-primary-500/50 hover:shadow-white/20 hover:scale-105 transition-all bg-white text-primary-900 hover:bg-white hover:opacity-90 ring-4 ring-white/10"
+                                <button
+                                    className="inline-flex items-center justify-center rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 px-12 py-6 text-2xl font-bold shadow-2xl shadow-primary-500/50 hover:shadow-white/20 hover:scale-105 transition-all bg-white text-primary-900 hover:bg-white hover:opacity-90 ring-4 ring-white/10"
                                     onClick={handleBuyNow}
                                 >
                                     Get Instant Access Now
-                                </Button>
+                                </button>
                                 <div className="flex items-center gap-6 text-primary-200 text-sm font-medium">
                                     <span className="flex items-center gap-2">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -533,10 +530,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                 </div>
                             </>
                         ) : (
-                            <Link href="/dashboard/downloads">
-                                <Button size="lg" className="px-12 py-6 text-xl bg-white text-primary-900 hover:bg-gray-100">
-                                    Go to Dashboard
-                                </Button>
+                            <Link href="/dashboard/downloads" className="inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 px-12 py-6 text-xl bg-white text-primary-900 hover:bg-gray-100">
+                                Go to Dashboard
                             </Link>
                         )}
                     </div>
@@ -573,9 +568,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             {hasAccess ? (
                                 <Link href="/dashboard/downloads" className="w-full md:w-auto relative group">
                                     <div className="absolute -inset-0.5 bg-green-500 rounded-lg blur opacity-30 group-hover:opacity-60 transition duration-200 animate-pulse"></div>
-                                    <Button variant="primary" size="md" className="w-full md:w-auto shadow-lg shadow-primary-500/20 relative">
+                                    <span className="inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary-600 text-white hover:bg-primary-700 w-full md:w-auto px-4 py-2 text-base shadow-lg shadow-primary-500/20 relative">
                                         Access Content
-                                    </Button>
+                                    </span>
                                 </Link>
                             ) : (
                                 <>
