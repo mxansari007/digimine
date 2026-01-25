@@ -11,8 +11,19 @@ import {
     sendSignInLinkToEmail,
     isSignInWithEmailLink,
     signInWithEmailLink,
+    GoogleAuthProvider,
+    signInWithPopup,
 } from "firebase/auth";
 import { auth } from "@digimine/config";
+
+const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Sign in with Google
+ */
+export async function signInWithGoogle(): Promise<UserCredential> {
+    return signInWithPopup(auth, googleProvider);
+}
 
 /**
  * Sign in with email and password

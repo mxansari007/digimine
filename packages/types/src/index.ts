@@ -9,3 +9,6 @@ export * from "./order";
 
 // Checkout types
 export * from "./checkout";
+
+// Review types
+export * from "./review";

@@ -9,7 +9,7 @@ export type OrderStatus = "pending" | "completed" | "refunded" | "failed";
 /**
  * Payment method types
  */
-export type PaymentMethod = "stripe" | "paypal" | "razorpay";
+export type PaymentMethod = "stripe" | "paypal" | "razorpay" | "cashfree";
 
 /**
  * Order item interface
@@ -29,6 +29,7 @@ export interface Order {
     id: string;
     userId: string | null; // Optional for guest checkout
     customerEmail: string; // Required for all orders (primary key for guests)
+    customerPhone?: string; // Phone number for delivery/contact
     guestId?: string; // Optional session ID for tracking
     items: OrderItem[];
     subtotal: number;

@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { CartProvider } from "@/contexts/CartContext";
 
 const inter = Inter({
     subsets: ["latin"],
     variable: "--font-inter",
 });
 
-const outfit = Outfit({
+const jakarta = Plus_Jakarta_Sans({
     subsets: ["latin"],
-    variable: "--font-outfit",
+    variable: "--font-jakarta",
 });
 
 export const metadata: Metadata = {
@@ -56,10 +55,10 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+        <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
             <body className="font-sans antialiased">
                 <AuthProvider>
-                    <CartProvider>{children}</CartProvider>
+                    {children}
                 </AuthProvider>
             </body>
         </html>

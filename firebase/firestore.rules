@@ -83,16 +83,31 @@ service cloud.firestore {
       // A user can update an order (e.g. to set userId) IF:
       // 1. They are authenticated
       // 2. The order currently has NO userId (it's a guest order)
-      // 3. The order's customerEmail matches the user's auth email
-      // 4. They are only updating the 'userId' field
+      // 3. They are only updating allowed fields (userId, updatedAt)
       allow update: if isAdmin() 
                     || (isAuthenticated() 
                         && resource.data.userId == null 
-                        && resource.data.customerEmail == request.auth.token.email
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId', 'updatedAt'])
                         && request.resource.data.userId == request.auth.uid);
                         
       // Admin management for other writes
+      allow delete: if isAdmin();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      // Read: Anyone can read reviews
+      allow read: if true;
+      
+      // Create: Admins can create fake reviews, authenticated users can create verified reviews
+      allow create: if isAdmin() 
+                    || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      
+      // Update: Users can only update their own reviews
+      allow update: if isAdmin()
+                    || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      
+      // Delete: Admins only
       allow delete: if isAdmin();
     }
   }

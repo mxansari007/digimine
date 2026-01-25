@@ -1,5 +1,4 @@
 import { Header, Footer } from "@/components/layout";
-import { CartDrawer } from "@/components/cart";
 
 export default function PublicLayout({
     children,
@@ -11,7 +10,6 @@ export default function PublicLayout({
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />
-            <CartDrawer />
         </div>
     );
 }

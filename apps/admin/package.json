@@ -14,10 +14,12 @@
         "@digimine/types": "workspace:*",
         "@digimine/ui": "workspace:*",
         "@digimine/utils": "workspace:*",
+        "@types/uuid": "^11.0.0",
         "firebase": "^10.14.1",
         "next": "14.0.4",
         "react": "^18.2.0",
-        "react-dom": "^18.2.0"
+        "react-dom": "^18.2.0",
+        "uuid": "^13.0.0"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",

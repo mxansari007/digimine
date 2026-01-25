@@ -6,7 +6,12 @@ export type ProductStatus = "draft" | "published" | "archived";
 /**
  * Product type - digital product categories
  */
-export type ProductType = "ebook" | "course" | "template" | "software" | "asset" | "other";
+export type ProductType = "ebook" | "course" | "template" | "software" | "asset" | "spreadsheet" | "ai-prompt" | "resource" | "subscription" | "other";
+
+/**
+ * Purchase type - how the product is accessed
+ */
+export type PurchaseType = "downloadable" | "subscription";
 
 /**
  * Delivery format options for digital products
@@ -46,6 +51,8 @@ export interface Product {
     price: number;
     compareAtPrice?: number; // Original price for strikethrough
     type: ProductType;
+    purchaseType: PurchaseType; // downloadable or subscription
+    subscriptionDuration?: number; // Days for subscription (30, 90, 365)
     status: ProductStatus;
     thumbnailURL: string | null;
     images: string[];
@@ -74,6 +81,8 @@ export interface CreateProductInput {
     price: number;
     compareAtPrice?: number;
     type: ProductType;
+    purchaseType?: PurchaseType; // defaults to "downloadable"
+    subscriptionDuration?: number;
     status?: ProductStatus;
     thumbnailURL?: string;
     images?: string[];

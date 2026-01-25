@@ -1,148 +1,205 @@
-import { Card } from "@digimine/ui";
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-    title: "Downloads",
-};
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Card, Button } from "@digimine/ui";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import type { Product } from "@digimine/types";
+
+interface ProductWithFiles {
+    product: Product;
+    files: {
+        id: string;
+        name: string;
+        url: string;
+        size?: string;
+    }[];
+}
 
 export default function DownloadsPage() {
+    const { user } = useAuthContext();
+    const [purchasedItems, setPurchasedItems] = useState<ProductWithFiles[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user?.purchasedProducts || user.purchasedProducts.length === 0) {
+            setLoading(false);
+            return;
+        }
+
+        async function fetchDownloads() {
+            try {
+                const items: ProductWithFiles[] = [];
+
+                for (const purchase of user!.purchasedProducts) {
+                    const productId = typeof purchase === 'string' ? purchase : purchase.productId;
+
+                    // Get product details
+                    const productDoc = await getDoc(doc(db, "products", productId));
+                    if (!productDoc.exists()) continue;
+
+                    const product = productDoc.data() as Product;
+
+                    // Get product files
+                    const filesSnapshot = await getDocs(collection(db, "products", productId, "files"));
+                    const files = filesSnapshot.docs.map(fileDoc => ({
+                        id: fileDoc.id,
+                        name: fileDoc.data().name || "File",
+                        url: fileDoc.data().url,
+                        size: fileDoc.data().size,
+                    }));
+
+                    items.push({ product: { ...product, id: productDoc.id }, files });
+                }
+
+                setPurchasedItems(items);
+            } catch (err) {
+                console.error("Error fetching downloads:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchDownloads();
+    }, [user?.purchasedProducts]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <div className="text-gray-500 animate-pulse">Loading your library...</div>
+            </div>
+        );
+    }
+
+    const userName = user?.firstName || user?.displayName?.split(' ')[0] || "there";
+
     return (
-        <div>
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="font-display text-2xl font-bold text-gray-900 mb-2">
-                    Downloads
+        <div className="space-y-8">
+            {/* Personalized Header */}
+            <div>
+                <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">
+                    Welcome back, {userName} 👋
                 </h1>
-                <p className="text-gray-600">
-                    Download your purchased digital products
+                <p className="text-gray-600 text-lg">
+                    Access your premium content and assets below.
                 </p>
             </div>
 
-            {/* Downloads List */}
-            <Card padding="lg">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-display text-lg font-semibold text-gray-900">
-                        Available Downloads
-                    </h2>
-                    <div className="text-sm text-gray-500">0 items</div>
-                </div>
-
-                {/* Empty State */}
-                <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg
-                            className="w-8 h-8 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
+            {/* Content Grid */}
+            {purchasedItems.length === 0 ? (
+                <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-6">
+                        <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No downloads available
-                    </h3>
-                    <p className="text-gray-500 mb-6">
-                        Downloads will appear here after you purchase a product.
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
+                    <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                        Your library is empty. Discover premium templates, courses, and assets in our marketplace.
                     </p>
-                    <a
-                        href="/products"
-                        className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                        Browse Products
-                        <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 8l4 4m0 0l-4 4m4-4H3"
-                            />
-                        </svg>
-                    </a>
+                    <Link href="/products">
+                        <Button variant="primary" size="lg" className="shadow-xl shadow-primary-500/20">
+                            Explore Marketplace
+                        </Button>
+                    </Link>
                 </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {purchasedItems.map(({ product, files }) => (
+                        <div key={product.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col">
 
-                {/* Download items would be listed here */}
-                {/* Example download item structure:
-        <div className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-500">...</svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">Product Name</h3>
-              <p className="text-sm text-gray-500">PDF • 2.4 MB</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm">Download</Button>
-        </div>
-        */}
-            </Card>
+                            {/* Mobile Layout: Row for header, then files below */}
+                            <div className="flex md:flex-col">
+                                {/* Product Thumbnail */}
+                                <div className="w-28 h-28 md:w-full md:h-48 bg-gray-100 relative flex-shrink-0">
+                                    {product.thumbnailURL ? (
+                                        <img src={product.thumbnailURL} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
+                                            <svg className="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    <div className="hidden md:block absolute top-3 right-3">
+                                        <span className="bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded-md text-gray-900 shadow-sm">
+                                            {product.purchaseType === 'subscription' ? 'Sub' : 'Owned'}
+                                        </span>
+                                    </div>
+                                </div>
 
-            {/* Download Instructions */}
-            <Card padding="lg" className="mt-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Download Tips</h3>
-                <ul className="space-y-3 text-gray-600">
-                    <li className="flex items-start gap-3">
-                        <svg
-                            className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                            />
-                        </svg>
-                        <span>
-                            Download links are available for lifetime access after purchase.
-                        </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                        <svg
-                            className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                            />
-                        </svg>
-                        <span>
-                            Some products may have multiple files. Make sure to download all
-                            of them.
-                        </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                        <svg
-                            className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                            />
-                        </svg>
-                        <span>
-                            If you have any issues downloading, please contact support.
-                        </span>
-                    </li>
-                </ul>
-            </Card>
+                                {/* Header Info (Mobile Right / Desktop Below) */}
+                                <div className="p-3 md:p-5 flex-1 flex flex-col justify-center min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-base md:text-lg text-gray-900 line-clamp-2 md:line-clamp-1 leading-tight">{product.name}</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="md:hidden bg-gray-100 text-[10px] font-bold px-1.5 py-0.5 rounded text-gray-600 uppercase tracking-wide">
+                                            {product.purchaseType === 'subscription' ? 'Sub' : 'Owned'}
+                                        </span>
+                                        <p className="text-xs text-gray-500">{files.length} {files.length === 1 ? 'File' : 'Files'}</p>
+                                    </div>
+
+                                    {/* Mobile: View Details Link inside header to save space */}
+                                    <div className="mt-2 md:hidden">
+                                        <Link href={`/products/${product.id}`} className="text-xs text-primary-600 font-medium">
+                                            View Details →
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Divider on mobile only */}
+                            <div className="h-px bg-gray-100 md:hidden" />
+
+                            {/* File List Section - Always visible */}
+                            <div className="p-3 md:p-5 pt-0 md:pt-0 flex-1 flex flex-col bg-gray-50/30 md:bg-white">
+                                <div className="space-y-2 mt-3 md:mt-2">
+                                    {files.map(file => (
+                                        <div key={file.id} className="flex items-center justify-between p-2 md:p-3 bg-white border border-gray-100 rounded-lg group hover:border-primary-200 hover:shadow-sm transition-all shadow-sm md:shadow-none">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                                                    {file.size ? <p className="text-xs text-gray-400">{file.size}</p> : null}
+                                                </div>
+                                            </div>
+
+                                            <a
+                                                href={file.url}
+                                                download
+                                                className="flex-shrink-0 p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
+                                                title="Download File"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                </svg>
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-4 pt-3 border-t border-gray-100 hidden md:block">
+                                    <Link href={`/products/${product.id}`} className="text-xs text-gray-500 hover:text-primary-600 flex items-center justify-center gap-1 group">
+                                        View Product Details
+                                        <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

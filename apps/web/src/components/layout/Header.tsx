@@ -4,14 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { useCart } from "@/contexts/CartContext";
 import { signOut } from "@/lib/firebase/auth";
-
 export function Header() {
     const { isAuthenticated, user, loading } = useAuthContext();
-    const { items, openDrawer } = useCart();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -48,13 +44,13 @@ export function Header() {
 
     return (
         <>
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+            <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
                 <div className="container-page">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-2">
-                            <span className="font-display text-xl font-bold text-gray-900">
-                                <span className="text-primary-600">Digi</span>mine
+                            <span className="font-display text-xl font-bold text-white">
+                                <span className="text-primary-500">Digi</span>mine
                             </span>
                         </Link>
 
@@ -64,7 +60,7 @@ export function Header() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                                    className="text-gray-200 hover:text-white font-medium transition-colors"
                                 >
                                     {link.label}
                                 </Link>
@@ -73,42 +69,26 @@ export function Header() {
 
                         {/* Right side actions */}
                         <div className="flex items-center gap-2 md:gap-4">
-                            {/* Cart Button - Always visible */}
-                            <button
-                                onClick={openDrawer}
-                                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-                                aria-label="Open cart"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                                {itemCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                                        {itemCount > 9 ? "9+" : itemCount}
-                                    </span>
-                                )}
-                            </button>
-
                             {/* Desktop Auth buttons */}
                             <div className="hidden md:flex items-center gap-2">
                                 {loading ? (
-                                    <div className="w-20 h-9 bg-gray-100 animate-pulse rounded-lg" />
+                                    <div className="w-20 h-9 bg-gray-800 animate-pulse rounded-lg" />
                                 ) : isAuthenticated ? (
                                     <div className="flex items-center gap-3">
                                         <Link
                                             href="/dashboard"
-                                            className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                                            className="text-white hover:text-primary-400 font-semibold transition-colors"
                                         >
                                             {user?.displayName || "Dashboard"}
                                         </Link>
-                                        <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                                        <Button variant="ghost" size="sm" onClick={handleSignOut} className="!text-white hover:bg-white/10 font-medium">
                                             Sign Out
                                         </Button>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <Link href="/login">
-                                            <Button variant="ghost" size="sm">Sign In</Button>
+                                            <Button variant="ghost" size="sm" className="!text-white hover:bg-white/10 font-medium">Sign In</Button>
                                         </Link>
                                         <Link href="/register">
                                             <Button variant="primary" size="sm">Get Started</Button>
@@ -120,7 +100,7 @@ export function Header() {
                             {/* Mobile Menu Button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                                className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
                                 aria-label="Toggle menu"
                             >
                                 {isMobileMenuOpen ? (

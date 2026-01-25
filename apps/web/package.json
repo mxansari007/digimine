@@ -10,14 +10,20 @@
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
+        "@aws-sdk/client-ses": "^3.975.0",
+        "@cashfreepayments/cashfree-js": "^1.0.5",
         "@digimine/config": "workspace:*",
         "@digimine/types": "workspace:*",
         "@digimine/ui": "workspace:*",
         "@digimine/utils": "workspace:*",
+        "@react-email/components": "^1.0.6",
+        "@react-email/render": "^2.0.4",
         "firebase": "^10.14.1",
+        "firebase-admin": "^11.11.0",
         "next": "14.0.4",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
+        "resend": "^6.8.0",
         "uuid": "^13.0.0"
     },
     "devDependencies": {

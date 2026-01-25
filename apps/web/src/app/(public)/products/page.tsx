@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card } from "@digimine/ui";
-import { getProducts } from "@/lib/firestore";
-import { type Product } from "@digimine/types";
+import { Button, Card } from "@digimine/ui";
+import { ProductCard } from "@/components/products/ProductCard";
+import { getProducts, getAllReviewStats } from "@/lib/firestore";
+import { type Product, type ProductType } from "@digimine/types";
 import { formatCurrency } from "@digimine/utils";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { FilterSidebar, type ProductFilters } from "@/components/products/FilterSidebar";
+import { FilterDrawer } from "@/components/products/FilterDrawer";
 
 interface ProductsPageProps {
     searchParams: { type?: string; search?: string };
@@ -13,19 +17,34 @@ interface ProductsPageProps {
 
 export default function ProductsPage({ searchParams }: ProductsPageProps) {
     const { type, search } = searchParams;
-    const [products, setProducts] = useState<Product[]>([]);
+    const { user } = useAuthContext();
+    const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all fetched
+    const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]); // Store filtered
     const [loading, setLoading] = useState(true);
+    const [reviewStats, setReviewStats] = useState<Map<string, { averageRating: number; reviewCount: number }>>(new Map());
+    const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
+    // Initialize filters from URL if present
+    const [filters, setFilters] = useState<ProductFilters>({
+        categories: type ? [type as ProductType] : [],
+        purchaseType: "all",
+        priceRange: { min: 0, max: null }
+    });
+
+    // Fetch Initial Data
     useEffect(() => {
         async function fetchProducts() {
             setLoading(true);
             try {
-                const results = await getProducts({ type });
-                // Simple client-side search filtering for now
-                const filtered = search
-                    ? results.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase()))
-                    : results;
-                setProducts(filtered);
+                // Fetch ALL published products initially to allow client-side filtering
+                // This is efficient enough for catalog size < 1000 items
+                const [results, stats] = await Promise.all([
+                    getProducts(),
+                    getAllReviewStats()
+                ]);
+
+                setAllProducts(results);
+                setReviewStats(stats);
             } catch (error) {
                 console.error("Error fetching products:", error);
             } finally {
@@ -33,7 +52,41 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
             }
         }
         fetchProducts();
-    }, [type, search]);
+    }, []); // Only fetch once on mount
+
+    // Apply Filters whenever filters or search changes
+    useEffect(() => {
+        if (loading) return;
+
+        let filtered = [...allProducts];
+
+        // 1. Search Filter
+        if (search) {
+            const query = search.toLowerCase();
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                p.description.toLowerCase().includes(query)
+            );
+        }
+
+        // 2. Category Filter (Sidebar)
+        // If filters selected, match ANY of them. If none, match all (unless URL type was set initially but we treat that as filter state now)
+        if (filters.categories.length > 0) {
+            filtered = filtered.filter(p => filters.categories.includes(p.type));
+        }
+
+        // 3. Purchase Type Filter
+        if (filters.purchaseType !== "all") {
+            filtered = filtered.filter(p => p.purchaseType === filters.purchaseType);
+        }
+
+        setDisplayedProducts(filtered);
+    }, [allProducts, filters, search, loading]);
+
+    const handleFilterChange = (newFilters: ProductFilters) => {
+        setFilters(newFilters);
+        // Optionally update URL to reflect state (omitted for now to keep simple)
+    };
 
     return (
         <div className="bg-gray-50 min-h-screen">
@@ -51,74 +104,20 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Filters Sidebar */}
-                    <aside className="w-full lg:w-64 flex-shrink-0">
+                    {/* Filters Sidebar - Desktop Only */}
+                    <aside className="hidden lg:block w-64 flex-shrink-0">
                         <Card padding="lg">
-                            <h3 className="font-semibold text-gray-900 mb-4">Categories</h3>
-                            <ul className="space-y-2">
-                                <li>
-                                    <Link
-                                        href="/products"
-                                        className={`block px-3 py-2 rounded-lg transition-colors ${!type
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        All Products
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        href="/products?type=ebook"
-                                        className={`block px-3 py-2 rounded-lg transition-colors ${type === "ebook"
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        eBooks
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        href="/products?type=course"
-                                        className={`block px-3 py-2 rounded-lg transition-colors ${type === "course"
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        Courses
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        href="/products?type=template"
-                                        className={`block px-3 py-2 rounded-lg transition-colors ${type === "template"
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        Templates
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link
-                                        href="/products?type=software"
-                                        className={`block px-3 py-2 rounded-lg transition-colors ${type === "software"
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        Software
-                                    </Link>
-                                </li>
-                            </ul>
+                            <FilterSidebar
+                                onFilterChange={handleFilterChange}
+                                initialFilters={filters}
+                            />
                         </Card>
                     </aside>
 
                     {/* Products Grid */}
                     <div className="flex-1">
-                        {/* Search Bar */}
-                        <form className="mb-6" onSubmit={(e) => {
+                        {/* Search Bar - Hidden on mobile if needed, or simplified */}
+                        <form className="mb-6 sticky top-20 z-10 lg:static lg:z-0" onSubmit={(e) => {
                             e.preventDefault();
                             const query = (e.currentTarget.elements.namedItem("search") as HTMLInputElement).value;
                             const params = new URLSearchParams();
@@ -152,10 +151,10 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
 
                         {/* Products Grid */}
                         {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
                                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                                    <Card key={i} hoverable padding="none" className="overflow-hidden">
-                                        <div className="aspect-video bg-gray-200 animate-pulse" />
+                                    <Card key={i} hoverable padding="none" className="overflow-hidden border-0 shadow-sm">
+                                        <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
                                         <div className="p-4">
                                             <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
                                             <div className="h-3 bg-gray-100 rounded animate-pulse w-2/3 mb-3" />
@@ -164,43 +163,31 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                                     </Card>
                                 ))}
                             </div>
-                        ) : products.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                                {products.map((product) => (
-                                    <Link href={`/products/${product.slug}`} key={product.id}>
-                                        <Card hoverable padding="none" className="overflow-hidden h-full flex flex-col">
-                                            <div className="aspect-video bg-gray-100 relative overflow-hidden">
-                                                {product.thumbnailURL ? (
-                                                    <img
-                                                        src={product.thumbnailURL}
-                                                        alt={product.name}
-                                                        className="w-full h-full object-cover px-1"
-                                                    />
-                                                ) : (
-                                                    <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                                                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="p-4 flex-1 flex flex-col">
-                                                <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-full w-fit mb-2">
-                                                    {product.type.toUpperCase()}
-                                                </span>
-                                                <h3 className="font-semibold text-gray-900 line-clamp-1 mb-1">
-                                                    {product.name}
-                                                </h3>
-                                                <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
-                                                    {product.shortDescription || "No description available."}
-                                                </p>
-                                                <div className="font-bold text-gray-900">
-                                                    {formatCurrency(product.price)}
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    </Link>
-                                ))}
+                        ) : displayedProducts.length > 0 ? (
+                            <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
+                                {displayedProducts.map((product) => {
+                                    const purchases = user?.purchasedProducts || [];
+                                    const isOwned = purchases.some((p: any) => {
+                                        if (typeof p === 'string') return p === product.id;
+                                        return p.productId === product.id;
+                                    }) && product.purchaseType !== 'subscription';
+
+                                    const isSubscribed = purchases.some((p: any) => {
+                                        if (typeof p === 'string') return false;
+                                        return p.productId === product.id && (p.expiresAt === null || new Date(p.expiresAt) > new Date());
+                                    }) && product.purchaseType === 'subscription';
+
+                                    return (
+                                        <ProductCard
+                                            key={product.id}
+                                            product={product}
+                                            rating={reviewStats.get(product.id)?.averageRating}
+                                            reviewCount={reviewStats.get(product.id)?.reviewCount}
+                                            isOwned={isOwned}
+                                            isSubscribed={isSubscribed}
+                                        />
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center py-20 px-4 bg-white rounded-2xl border border-dashed border-gray-200">
@@ -213,6 +200,33 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Filter Button */}
+            <div className="fixed bottom-6 right-6 z-40 lg:hidden">
+                <Button
+                    className="shadow-xl bg-gray-900 text-white rounded-full px-6 py-3 flex items-center gap-2 hover:bg-gray-800"
+                    onClick={() => setIsFilterDrawerOpen(true)}
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Filters
+                    {(filters.categories.length > 0 || filters.purchaseType !== "all") && (
+                        <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+                        </span>
+                    )}
+                </Button>
+            </div>
+
+            {/* Mobile Filter Drawer */}
+            <FilterDrawer
+                isOpen={isFilterDrawerOpen}
+                onClose={() => setIsFilterDrawerOpen(false)}
+                onFilterChange={handleFilterChange}
+                initialFilters={filters}
+            />
         </div>
     );
 }
