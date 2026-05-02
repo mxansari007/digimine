@@ -104,6 +104,14 @@ export function Footer() {
                                     Refunds & Cancellations
                                 </Link>
                             </li>
+                            <li>
+                                <Link
+                                    href="/shipping-policy"
+                                    className="hover:text-white transition-colors"
+                                >
+                                    Shipping & Delivery
+                                </Link>
+                            </li>
                         </ul>
                     </div>
                 </div>
