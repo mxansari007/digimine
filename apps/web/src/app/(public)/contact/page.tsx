@@ -11,7 +11,7 @@ export default function ContactPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="max-w-md mx-auto">
                     <Card padding="lg">
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Get in Touch</h2>
                         <div className="space-y-4 text-gray-600">
@@ -25,16 +25,6 @@ export default function ContactPage() {
                                 <p className="font-semibold text-gray-900">Operating Hours</p>
                                 <p>Monday to Friday: 9:00 AM - 6:00 PM IST</p>
                             </div>
-                        </div>
-                    </Card>
-
-                    <Card padding="lg">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Registered Office</h2>
-                        <div className="space-y-2 text-gray-600">
-                            <p className="font-bold text-gray-900">Digimine</p>
-                            <p>Plot No. 123, Tech Park</p>
-                            <p>Bangalore, Karnataka - 560100</p>
-                            <p>India</p>
                         </div>
                     </Card>
                 </div>
