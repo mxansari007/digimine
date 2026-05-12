@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import type { Order, OrderStatus, PaymentMethod, OrderItem } from "@digimine/types";
+import type { OrderStatus, PaymentMethod, OrderItem } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase-admin/firestore";
 
