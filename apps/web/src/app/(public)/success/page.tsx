@@ -95,17 +95,13 @@ export default function SuccessPage() {
 
         async function verifyAndFetchOrder() {
             try {
-                // First, verify payment with Instamojo
+                // First, verify payment with Cashfree
                 setVerificationStatus("verifying");
 
-                // Extract Instamojo redirect params
-                const paymentId = searchParams.get("payment_id");
-                const paymentRequestId = searchParams.get("payment_request_id");
-
-                const verifyResponse = await fetch("/api/instamojo/verify", {
+                const verifyResponse = await fetch("/api/cashfree/verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ orderId, paymentId, paymentRequestId }),
+                    body: JSON.stringify({ orderId }),
                 });
 
                 const verifyData = await verifyResponse.json();
