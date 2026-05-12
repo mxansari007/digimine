@@ -25,6 +25,10 @@ export default function ContactPage() {
                                 <p className="font-semibold text-gray-900">Operating Hours</p>
                                 <p>Monday to Friday: 9:00 AM - 6:00 PM IST</p>
                             </div>
+                            <div>
+                                <p className="font-semibold text-gray-900">Legal Owner</p>
+                                <p>Mohd Maaz Ansari</p>
+                            </div>
                         </div>
                     </Card>
                 </div>

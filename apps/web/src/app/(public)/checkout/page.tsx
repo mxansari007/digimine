@@ -9,7 +9,6 @@ import { formatCurrency } from "@digimine/utils";
 import { getProduct } from "@/lib/firestore";
 import type { Product, OrderItem } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
-import { load } from "@cashfreepayments/cashfree-js";
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
@@ -101,8 +100,8 @@ export default function CheckoutPage() {
         setPaymentError(null);
 
         try {
-            // Step 1: Create order via API
-            const createOrderResponse = await fetch("/api/cashfree/create-order", {
+            // Step 1: Create order and get Instamojo payment URL
+            const createOrderResponse = await fetch("/api/instamojo/create-order", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -119,34 +118,14 @@ export default function CheckoutPage() {
                 throw new Error(errorData.error || "Failed to create order");
             }
 
-            const { orderId, paymentSessionId } = await createOrderResponse.json();
+            const { paymentUrl } = await createOrderResponse.json();
 
-            // Step 2: Initialize Cashfree SDK
-            const cashfree = await load({
-                mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
-            });
-
-            // Step 3: Open Cashfree checkout
-            const checkoutOptions: { paymentSessionId: string; redirectTarget: "_self" } = {
-                paymentSessionId: paymentSessionId,
-                redirectTarget: "_self",
-            };
-
-            const result = await cashfree.checkout(checkoutOptions);
-
-            if (result.error) {
-                // Payment was closed or failed
-                console.error("Cashfree checkout error:", result.error);
-                setPaymentError(result.error.message || "Payment was cancelled or failed");
-            } else if (result.paymentDetails) {
-                // Payment completed, redirect to verify
-                router.push(`/success?orderId=${orderId}`);
-            }
+            // Step 2: Redirect to Instamojo payment page
+            window.location.href = paymentUrl;
 
         } catch (error) {
             console.error("Payment error:", error);
             setPaymentError(error instanceof Error ? error.message : "Payment failed. Please try again.");
-        } finally {
             setIsProcessing(false);
         }
     };
@@ -226,7 +205,7 @@ export default function CheckoutPage() {
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                             </svg>
-                                            <span className="font-medium">Secure Payment via Cashfree</span>
+                                            <span className="font-medium">Secure Payment via Instamojo</span>
                                         </div>
                                         <p className="text-sm text-green-600 mt-1">
                                             Pay securely with UPI, Cards, Net Banking, or Wallets
@@ -258,7 +237,7 @@ export default function CheckoutPage() {
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                 </svg>
-                                                Processing...
+                                                Redirecting to payment...
                                             </span>
                                         ) : (
                                             `Pay ${formatCurrency(displaySubtotal)}`
@@ -272,7 +251,7 @@ export default function CheckoutPage() {
                                     <div className="flex items-center justify-center gap-4 pt-4 border-t border-gray-100">
                                         <span className="text-xs text-gray-400">Powered by</span>
                                         <div className="flex items-center gap-2">
-                                            <div className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">Cashfree</div>
+                                            <div className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">Instamojo</div>
                                         </div>
                                     </div>
                                 </div>

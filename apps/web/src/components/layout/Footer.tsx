@@ -119,7 +119,8 @@ export function Footer() {
                 {/* Bottom bar */}
                 <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-gray-500">
-                        © {currentYear} Digimine. All rights reserved.
+                        © {currentYear} Digimine. All rights reserved.{" "}
+                        <span className="text-gray-600">Owned by Mohd Maaz Ansari.</span>
                     </p>
                     <div className="flex items-center gap-4">
                         <a
