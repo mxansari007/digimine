@@ -9,7 +9,7 @@ export type OrderStatus = "pending" | "completed" | "refunded" | "failed";
 /**
  * Payment method types
  */
-export type PaymentMethod = "stripe" | "paypal" | "razorpay" | "cashfree";
+export type PaymentMethod = "stripe" | "paypal" | "razorpay" | "instamojo";
 
 /**
  * Order item interface

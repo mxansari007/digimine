@@ -107,7 +107,7 @@ importers:
         version: 3.975.0
       '@cashfreepayments/cashfree-js':
         specifier: ^1.0.5
-        version: 1.0.5
+        version: 1.0.7
       '@digimine/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -741,8 +741,8 @@ packages:
     dev: false
     optional: true
 
-  /@cashfreepayments/cashfree-js@1.0.5:
-    resolution: {integrity: sha512-fP9wi9mseXJmESGIkD9vb6RAKdSZw42jXiQY2LUt5A2STyEqMv0mYLgK2zqpMNSbdK9QdN1c4YnEv9mmyxC8mg==}
+  /@cashfreepayments/cashfree-js@1.0.7:
+    resolution: {integrity: sha512-WRhjGdUgkPdWbq0YoMsi6hRqyT4XTIGUMNnATQsfz0GIDFP2sjtVon/kcihDVtO6pzEZrjded62Do9xK2VkjPQ==}
     dev: false
 
   /@emnapi/core@1.8.1:
