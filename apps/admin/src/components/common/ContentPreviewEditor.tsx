@@ -113,7 +113,7 @@ export function ContentPreviewEditor({ items, onChange }: ContentPreviewEditorPr
 
             {items.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">
-                    No items added yet. Add files and folders to show customers what's included.
+                    No items added yet. Add files and folders to show customers what&apos;s included.
                 </p>
             )}
         </div>

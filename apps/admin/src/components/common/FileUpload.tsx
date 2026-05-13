@@ -65,7 +65,6 @@ export function FileUpload({
                     <div className="relative w-full mb-4">
                         {/* If image, show preview */}
                         {accept.includes("image") ? (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={preview} alt="Preview" className="h-32 mx-auto object-contain rounded-md" />
                         ) : (
                             <div className="text-sm text-gray-900 break-all font-medium bg-white p-2 rounded border">

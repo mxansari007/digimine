@@ -136,7 +136,6 @@ export default function ProductsPage() {
                                             <div className="flex items-center">
                                                 <div className="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
                                                     {product.thumbnailURL ? (
-                                                        // eslint-disable-next-line @next/next/no-img-element
                                                         <img src={product.thumbnailURL} alt="" className="h-full w-full object-cover" />
                                                     ) : (
                                                         <div className="h-full w-full flex items-center justify-center text-gray-400">?</div>

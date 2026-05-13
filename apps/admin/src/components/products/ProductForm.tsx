@@ -249,7 +249,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
 
                         {/* Content Preview Section */}
                         <Card padding="lg">
-                            <h3 className="font-semibold text-gray-900 mb-4">What's Included</h3>
+                            <h3 className="font-semibold text-gray-900 mb-4">What&apos;s Included</h3>
                             <p className="text-sm text-gray-500 mb-4">
                                 Define the files and folders customers will receive. This will be shown on the product page with a lock icon.
                             </p>

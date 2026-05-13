@@ -85,7 +85,6 @@ export function GalleryUpload({
                             key={url}
                             className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200"
                         >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={url}
                                 alt={`Gallery ${index + 1}`}

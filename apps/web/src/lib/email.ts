@@ -2,23 +2,14 @@ import { render } from "@react-email/render";
 import { OrderSuccessEmail } from "@/components/emails/OrderSuccessEmail";
 import { OrderOtpEmail } from "@/components/emails/OrderOtpEmail";
 import { adminDb } from "@/lib/firebase/admin";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+// Brevo Configuration
+const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL || "noreply@digimine.shop";
+const FROM_NAME = process.env.BREVO_FROM_NAME || "Digimine";
 
-// AWS SES Configuration
-const REGION = process.env.AWS_REGION || "ap-south-1"; // e.g., "us-east-1"
-const FROM_EMAIL = process.env.AWS_FROM_EMAIL || "noreply@digimine.com";
-
-const sesClient = new SESClient({
-    region: REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-    },
-});
-
-async function sendViaSes(to: string, subject: string, html: string) {
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-        console.warn("AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set. Skipping email.");
+async function sendViaBrevo(to: string, subject: string, html: string) {
+    if (!BREVO_API_KEY) {
+        console.warn("BREVO_API_KEY is not set. Skipping email.");
         if (process.env.NODE_ENV === "development") {
             console.log("----------------- EMAIL SIMULATION -----------------");
             console.log(`To: ${to}`);
@@ -28,47 +19,33 @@ async function sendViaSes(to: string, subject: string, html: string) {
         return { success: false, error: "Missing Credentials" };
     }
 
-    const command = new SendEmailCommand({
-        Destination: {
-            ToAddresses: [to],
-        },
-        Message: {
-            Body: {
-                Html: {
-                    Charset: "UTF-8",
-                    Data: html,
-                },
-            },
-            Subject: {
-                Charset: "UTF-8",
-                Data: subject,
-            },
-        },
-        Source: FROM_EMAIL,
-    });
-
     try {
-        const response = await sesClient.send(command);
-        console.log(`Email sent successfully via AWS SES to ${to}. MessageId: ${response.MessageId}`);
-        return { success: true, data: response };
-    } catch (error: any) {
-        // Handle SES Sandbox Restriction
-        if (error.Code === 'MessageRejected' && error.message?.includes('Email address is not verified')) {
-            console.warn(`
-            ----------------------------------------------------------------
-            [AWS SES SANDBOX WARNING] 
-            You are in SES Sandbox mode. You can ONLY send email to verified addresses.
-            Failed to send to: ${to}
-            
-            Action: Go to AWS Console -> SES -> Email Addresses -> Verify ${to}
-            OR Request Production Access to send to anyone.
-            ----------------------------------------------------------------
-            `);
-            // Return fake success so the UI flow continues for testing
-            return { success: true, warning: "Sandbox mode restriction" };
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "accept": "application/json",
+                "api-key": BREVO_API_KEY,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                sender: { email: FROM_EMAIL, name: FROM_NAME },
+                to: [{ email: to }],
+                subject: subject,
+                htmlContent: html,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            console.error("Brevo API Error:", errorData || response.statusText);
+            throw new Error(`Brevo API responded with status ${response.status}`);
         }
 
-        console.error("Failed to send AWS SES email:", error);
+        const data = await response.json();
+        console.log(`Email sent successfully via Brevo to ${to}. MessageId: ${data.messageId}`);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Failed to send Brevo email:", error);
         throw error;
     }
 }
@@ -104,7 +81,7 @@ export async function sendOrderEmail(orderId: string) {
         );
 
         // 4. Send
-        await sendViaSes(order.customerEmail, `Order Confirmation #${orderId}`, emailHtml);
+        await sendViaBrevo(order.customerEmail, `Order Confirmation #${orderId}`, emailHtml);
 
     } catch (error) {
         console.error("Failed to send order email:", error);
@@ -120,7 +97,7 @@ export async function sendOtpEmail(email: string, otp: string, orderId: string) 
             })
         );
 
-        await sendViaSes(email, `Verify Access to Order #${orderId}`, emailHtml);
+        await sendViaBrevo(email, `Verify Access to Order #${orderId}`, emailHtml);
 
     } catch (error) {
         console.error("Failed to send OTP email:", error);

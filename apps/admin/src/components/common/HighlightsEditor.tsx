@@ -35,7 +35,7 @@ export function HighlightsEditor({ highlights, onChange }: HighlightsEditorProps
 
         const lines = pastedText
             .split(/\r?\n/)
-            .map(line => line.replace(/^[\d\.\-\•\*\s]+/, '').trim())
+            .map(line => line.replace(/^[\d.\-•*\s]+/, '').trim())
             .filter(line => line.length > 0);
 
         if (lines.length > 1) {
