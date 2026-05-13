@@ -7,7 +7,7 @@ import {
     type UploadTask,
 } from "firebase/storage";
 import { storage } from "./client"; // Use local init
-import { formatFileSize as formatBytes } from "@digimine/utils";
+
 export interface UploadProgress {
     progress: number;
     downloadUrl?: string;

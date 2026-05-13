@@ -111,25 +111,7 @@ export async function createProduct(
     return docRef.id;
 }
 
-// Helper to recursively remove undefined values from objects
-function removeUndefined(obj: any): any {
-    if (obj === null || obj === undefined) {
-        return null;
-    }
-    if (Array.isArray(obj)) {
-        return obj.map(item => removeUndefined(item));
-    }
-    if (typeof obj === 'object' && !(obj instanceof Date) && !(obj instanceof Timestamp)) {
-        const cleaned: Record<string, any> = {};
-        for (const [key, value] of Object.entries(obj)) {
-            if (value !== undefined) {
-                cleaned[key] = removeUndefined(value);
-            }
-        }
-        return cleaned;
-    }
-    return obj;
-}
+
 
 export async function updateProduct(
     productId: string,
