@@ -10,8 +10,8 @@ const config: Config = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ["var(--font-inter)", "sans-serif"],
-                display: ["var(--font-jakarta)", "sans-serif"],
+                sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+                display: ["var(--font-outfit)", "system-ui", "sans-serif"],
             },
             keyframes: {
                 shimmer: {

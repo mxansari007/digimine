@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/common/Logo";
 
 export default function AuthLayout({
     children,
@@ -10,10 +11,8 @@ export default function AuthLayout({
             {/* Minimal Header */}
             <header className="py-6">
                 <div className="container-page">
-                    <Link href="/" className="inline-block">
-                        <span className="font-display text-2xl font-bold text-gray-900">
-                            <span className="text-primary-600">Digi</span>mine
-                        </span>
+                    <Link href="/" className="inline-flex items-center">
+                        <Logo variant="dark" iconSize={28} />
                     </Link>
                 </div>
             </header>

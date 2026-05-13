@@ -20,21 +20,29 @@ export default function RegisterPage() {
     const [email, setEmail] = useState(prefillEmail);
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; email?: string; password?: string }>({});
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setFieldErrors({});
 
         // Validation
-        if (!isValidEmail(email)) {
-            setError("Please enter a valid email address");
-            return;
+        const errors: { firstName?: string; lastName?: string; email?: string; password?: string } = {};
+        
+        if (!firstName.trim()) errors.firstName = "First name is required";
+        if (!lastName.trim()) errors.lastName = "Last name is required";
+        if (!email || !isValidEmail(email)) errors.email = "Please enter a valid email address";
+        if (!password) {
+            errors.password = "Password is required";
+        } else if (password.length < 6) {
+            errors.password = "Password must be at least 6 characters";
         }
 
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters");
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
             return;
         }
 
@@ -175,11 +183,19 @@ export default function RegisterPage() {
                             id="firstName"
                             type="text"
                             value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            required
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                            onChange={(e) => {
+                                setFirstName(e.target.value);
+                                if (fieldErrors.firstName) setFieldErrors({ ...fieldErrors, firstName: undefined });
+                            }}
+                            className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.firstName ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                             placeholder="John"
                         />
+                        {fieldErrors.firstName && (
+                            <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                {fieldErrors.firstName}
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label
@@ -192,11 +208,19 @@ export default function RegisterPage() {
                             id="lastName"
                             type="text"
                             value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            required
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                            onChange={(e) => {
+                                setLastName(e.target.value);
+                                if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: undefined });
+                            }}
+                            className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.lastName ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                             placeholder="Doe"
                         />
+                        {fieldErrors.lastName && (
+                            <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                {fieldErrors.lastName}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -211,11 +235,19 @@ export default function RegisterPage() {
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.email ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                         placeholder="you@example.com"
                     />
+                    {fieldErrors.email && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            {fieldErrors.email}
+                        </p>
+                    )}
                 </div>
 
                 <div>
@@ -229,12 +261,19 @@ export default function RegisterPage() {
                         id="password"
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: undefined });
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.password ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                         placeholder="At least 6 characters"
                     />
+                    {fieldErrors.password && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            {fieldErrors.password}
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex items-start gap-2">

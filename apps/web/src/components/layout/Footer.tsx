@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/common/Logo";
 
 export function Footer() {
     const currentYear = new Date().getFullYear();
@@ -9,10 +10,8 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Brand */}
                     <div className="col-span-1 md:col-span-2">
-                        <Link href="/" className="inline-block mb-4">
-                            <span className="font-display text-2xl font-bold text-white">
-                                <span className="text-primary-400">Digi</span>mine
-                            </span>
+                        <Link href="/" className="inline-flex items-center mb-4">
+                            <Logo variant="light" iconSize={28} />
                         </Link>
                         <p className="text-gray-400 max-w-sm">
                             Your marketplace for premium digital products. Discover eBooks,

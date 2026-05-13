@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { Logo } from "@/components/common/Logo";
 
 // Simple SVG Icons
 const HomeIcon = () => (
@@ -58,15 +59,10 @@ export function AdminSidebar() {
             <div className="p-6 border-b border-slate-800/50 flex items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent opacity-50" />
                 <div className="relative z-10 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/20 border border-primary-400/50">
-                        <span className="text-white font-display font-bold text-lg leading-none">D</span>
-                    </div>
-                    <h1 className="text-xl font-display font-bold text-white tracking-tight flex items-center gap-2">
-                        DIGIMINE
-                        <span className="text-[10px] font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full border border-primary-500/20">
-                            ADMIN
-                        </span>
-                    </h1>
+                    <Logo variant="light" iconSize={26} />
+                    <span className="text-[10px] font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full border border-primary-500/20">
+                        ADMIN
+                    </span>
                 </div>
             </div>
 

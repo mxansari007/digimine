@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getAuth, type Auth } from "firebase-admin/auth";
 
 // Initialize Firebase Admin for server-side usage
 function initializeFirebaseAdmin(): App {
@@ -29,19 +30,22 @@ function initializeFirebaseAdmin(): App {
 
 let adminApp: App;
 let adminDb: Firestore;
+let adminAuth: Auth;
 
 try {
     adminApp = initializeFirebaseAdmin();
     adminDb = getFirestore(adminApp);
+    adminAuth = getAuth(adminApp);
 } catch (error) {
     console.error("Firebase Admin initialization error:", error);
     // Best effort fallback
     if (getApps().length > 0) {
         adminApp = getApp();
         adminDb = getFirestore(adminApp);
+        adminAuth = getAuth(adminApp);
     } else {
         throw error;
     }
 }
 
-export { adminApp, adminDb };
+export { adminApp, adminDb, adminAuth };

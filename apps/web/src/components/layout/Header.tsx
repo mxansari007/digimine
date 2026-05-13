@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
+import { Logo } from "@/components/common/Logo";
 export function Header() {
     const { isAuthenticated, user, loading } = useAuthContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -48,10 +49,8 @@ export function Header() {
                 <div className="container-page">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2">
-                            <span className="font-display text-xl font-bold text-white">
-                                <span className="text-primary-500">Digi</span>mine
-                            </span>
+                        <Link href="/" className="flex items-center">
+                            <Logo variant="light" iconSize={24} />
                         </Link>
 
                         {/* Desktop Navigation */}
@@ -60,7 +59,7 @@ export function Header() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className="text-gray-200 hover:text-white font-medium transition-colors"
+                                    className="text-sm text-gray-300 hover:text-white font-medium transition-colors tracking-wide"
                                 >
                                     {link.label}
                                 </Link>
@@ -132,9 +131,7 @@ export function Header() {
             >
                 {/* Mobile Menu Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                    <span className="font-display text-lg font-bold text-gray-900">
-                        <span className="text-primary-600">Digi</span>mine
-                    </span>
+                    <Logo variant="dark" iconSize={22} />
                     <button
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="p-2 text-gray-500 hover:text-gray-700"

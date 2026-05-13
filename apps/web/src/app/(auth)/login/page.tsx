@@ -17,12 +17,31 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setFieldErrors({});
+
+        // Basic validation
+        const errors: { email?: string; password?: string } = {};
+        if (!email || !/\S+@\S+\.\S+/.test(email)) {
+            errors.email = "Please enter a valid email address";
+        }
+        if (!password) {
+            errors.password = "Please enter your password";
+        } else if (password.length < 6) {
+            errors.password = "Password must be at least 6 characters";
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -140,11 +159,19 @@ export default function LoginPage() {
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.email ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                         placeholder="you@example.com"
                     />
+                    {fieldErrors.email && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            {fieldErrors.email}
+                        </p>
+                    )}
                 </div>
 
                 <div>
@@ -166,11 +193,19 @@ export default function LoginPage() {
                         id="password"
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: undefined });
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.password ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                         placeholder="••••••••"
                     />
+                    {fieldErrors.password && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            {fieldErrors.password}
+                        </p>
+                    )}
                 </div>
 
                 <Button

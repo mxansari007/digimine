@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -10,6 +10,8 @@ import { getProduct } from "@/lib/firestore";
 import type { Product, OrderItem } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
 import Script from "next/script";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
@@ -21,8 +23,11 @@ export default function CheckoutPage() {
     const [localEmail, setLocalEmail] = useState("");
     const [guestId, setGuestId] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+    const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone?: string }>({});
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
     const [paymentError, setPaymentError] = useState<string | null>(null);
+    const paymentCompletedRef = useRef(false);
 
     useEffect(() => {
         // Init guest ID
@@ -90,14 +95,38 @@ export default function CheckoutPage() {
 
     const handleContactSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (localEmail && phoneNumber) {
-            setStep("payment");
+        setFieldErrors({});
+        
+        const errors: { email?: string; phone?: string } = {};
+        
+        if (!localEmail || !/\S+@\S+\.\S+/.test(localEmail)) {
+            errors.email = "Please enter a valid email address";
         }
+        
+        // Basic phone validation (react-international-phone handles format, but we check if it's too short)
+        if (!phoneNumber || phoneNumber.length < 8) {
+            errors.phone = "Please enter a valid phone number";
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+
+        setStep("payment");
     };
 
     const handlePayment = async () => {
         setIsProcessing(true);
         setPaymentError(null);
+        paymentCompletedRef.current = false;
+
+        // Check Razorpay script is loaded
+        if (!(window as any).Razorpay) {
+            setPaymentError("Payment gateway is still loading. Please wait a moment and try again.");
+            setIsProcessing(false);
+            return;
+        }
 
         try {
             // Step 1: Create order via API
@@ -129,6 +158,9 @@ export default function CheckoutPage() {
                 description: "Purchase from Digimine",
                 order_id: razorpayOrderId,
                 handler: async function (response: any) {
+                    paymentCompletedRef.current = true;
+                    setIsVerifying(true);
+                    setIsProcessing(true);
                     try {
                         const verifyRes = await fetch("/api/razorpay/verify-payment", {
                             method: "POST",
@@ -142,14 +174,15 @@ export default function CheckoutPage() {
                         });
                         const verifyData = await verifyRes.json();
                         if (verifyData.success) {
-                            // Using window.location to ensure fresh load after payment modal
                             window.location.href = `/success?orderId=${orderId}&accessKey=${verifyData.accessKey}`;
                         } else {
-                            setPaymentError(verifyData.error || "Payment verification failed");
+                            setPaymentError(verifyData.error || "Payment verification failed. Please contact support.");
+                            setIsVerifying(false);
                             setIsProcessing(false);
                         }
                     } catch (error) {
-                        setPaymentError("Payment verification failed");
+                        setPaymentError("Payment verification failed. Please contact support if money was deducted.");
+                        setIsVerifying(false);
                         setIsProcessing(false);
                     }
                 },
@@ -160,26 +193,41 @@ export default function CheckoutPage() {
                 theme: {
                     color: "#0F172A",
                 },
+                modal: {
+                    ondismiss: function () {
+                        if (!paymentCompletedRef.current) {
+                            setPaymentError("Payment was cancelled. You can try again whenever you're ready.");
+                            setIsProcessing(false);
+                            setIsVerifying(false);
+                        }
+                    },
+                    confirm_close: true,
+                },
             };
 
             const rzp1 = new (window as any).Razorpay(options);
-            rzp1.on('payment.failed', function (response: any){
-                setPaymentError(response.error.description || "Payment failed");
-                setIsProcessing(false);
-            });
-            
-            // Handle modal close
-            options.modal = {
-                ondismiss: function() {
-                    setIsProcessing(false);
+
+            rzp1.on("payment.failed", function (response: any) {
+                const errorDesc = response.error?.description || "Payment failed";
+                const errorReason = response.error?.reason || "";
+                let userMessage = errorDesc;
+
+                if (errorReason === "payment_cancelled") {
+                    userMessage = "Payment was cancelled. You can try again whenever you're ready.";
+                } else if (errorReason === "payment_failed") {
+                    userMessage = "Payment failed. Please try a different payment method or try again later.";
                 }
-            };
-            
+
+                setPaymentError(userMessage);
+                setIsProcessing(false);
+                setIsVerifying(false);
+            });
+
             rzp1.open();
 
         } catch (error) {
             console.error("Payment error:", error);
-            setPaymentError(error instanceof Error ? error.message : "Payment failed. Please try again.");
+            setPaymentError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
             setIsProcessing(false);
         }
     };
@@ -208,25 +256,46 @@ export default function CheckoutPage() {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                                         <input
                                             type="email"
-                                            required
                                             value={localEmail}
-                                            onChange={(e) => setLocalEmail(e.target.value)}
+                                            onChange={(e) => {
+                                                setLocalEmail(e.target.value);
+                                                if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                                            }}
                                             placeholder="you@example.com"
-                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                                            className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.email ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">We&apos;ll send your receipt and download links here.</p>
+                                        {fieldErrors.email ? (
+                                            <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                                {fieldErrors.email}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 mt-1">We&apos;ll send your receipt and download links here.</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            required
+                                        <PhoneInput
+                                            defaultCountry="in"
                                             value={phoneNumber}
-                                            onChange={(e) => setPhoneNumber(e.target.value)}
-                                            placeholder="+91 98765 43210"
-                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                                            onChange={(phone) => {
+                                                setPhoneNumber(phone);
+                                                if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined });
+                                            }}
+                                            inputClassName={`!w-full !px-4 !py-3 !rounded-r-lg !border-y !border-r ${fieldErrors.phone ? "!border-red-500 focus:!ring-red-200" : "!border-gray-300 focus:!ring-primary-200"} focus:!ring-2 !outline-none !transition-all !text-base`}
+                                            countrySelectorStyleProps={{
+                                                buttonClassName: `!px-3 !py-3 ${fieldErrors.phone ? "!border-red-500" : "!border-gray-300"} !rounded-l-lg hover:!bg-gray-50 !transition-all`,
+                                            }}
+                                            className="!w-full"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">For order updates and delivery notifications.</p>
+                                        {fieldErrors.phone ? (
+                                            <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                                {fieldErrors.phone}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 mt-1">For order updates and delivery notifications.</p>
+                                        )}
                                     </div>
                                     <div className="pt-2">
                                         <Button type="submit" variant="primary" className="w-full" size="lg">Continue to Payment</Button>
@@ -286,13 +355,21 @@ export default function CheckoutPage() {
                                         className="w-full"
                                         disabled={isProcessing}
                                     >
-                                        {isProcessing ? (
+                                        {isVerifying ? (
                                             <span className="flex items-center justify-center gap-2">
                                                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                 </svg>
-                                                Redirecting to payment...
+                                                Verifying Payment...
+                                            </span>
+                                        ) : isProcessing ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                                Opening Razorpay...
                                             </span>
                                         ) : (
                                             `Pay ${formatCurrency(displaySubtotal)}`

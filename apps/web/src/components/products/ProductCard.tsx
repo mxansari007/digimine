@@ -81,7 +81,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-display text-sm md:text-lg font-bold text-gray-900 mb-1 line-clamp-2 leading-tight group-hover:text-primary-600 transition-colors">
+                    <h3 className="font-display text-sm md:text-base font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors" style={{ lineHeight: '1.3', letterSpacing: '-0.01em' }}>
                         {product.name}
                     </h3>
 
@@ -100,13 +100,13 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                                     </svg>
                                 ))}
                             </div>
-                            <span className="text-[10px] md:text-xs text-gray-500">({reviewCount})</span>
+                            <span className="text-[10px] md:text-xs text-slate-400">({reviewCount})</span>
                         </div>
                     )}
 
 
                     {/* Description */}
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+                    <p className="text-xs text-slate-400 line-clamp-2 mb-3" style={{ lineHeight: '1.6' }}>
                         {product.shortDescription || "Premium digital resource."}
                     </p>
 

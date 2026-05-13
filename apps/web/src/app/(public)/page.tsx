@@ -54,14 +54,14 @@ export default function HomePage() {
                             Premium Digital Resources
                         </div>
 
-                        <h1 className="font-display text-5xl md:text-7xl font-bold text-white leading-tight">
+                        <h1 className="font-display text-5xl md:text-7xl font-bold text-white" style={{ lineHeight: '1.05', letterSpacing: '-0.03em' }}>
                             Master Your <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-primary-200 to-accent-300 filter drop-shadow-lg">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-primary-200 to-accent-300">
                                 Creative Craft
                             </span>
                         </h1>
 
-                        <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                        <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
                             Discover high-quality eBooks, courses, and templates to accelerate your career.
                             <span className="text-white font-medium"> Instant access. Lifetime value.</span>
                         </p>
@@ -69,7 +69,7 @@ export default function HomePage() {
                         <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
                             <Link href="/products">
                                 <Button
-                                    className="!bg-white !text-gray-900 hover:bg-gray-100 hover:scale-105 transition-all duration-300 text-lg px-8 py-4 shadow-xl shadow-white/10"
+                                    className="!bg-primary-600 !text-white hover:!bg-primary-500 hover:scale-105 transition-all duration-300 text-lg px-8 py-4 shadow-xl shadow-primary-500/25 border-none"
                                 >
                                     Explore Products
                                 </Button>
@@ -110,10 +110,11 @@ export default function HomePage() {
             <section className="py-24 bg-gray-50">
                 <div className="container-page">
                     <div className="text-center mb-16">
-                        <h2 className="font-display text-4xl font-bold text-gray-900 mb-4">
+                        <span className="section-eyebrow">Categories</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 mb-4">
                             Everything You Need to Scale
                         </h2>
-                        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                        <p className="text-lg text-slate-500 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
                             Hand-picked categories to help you learn faster and build better.
                         </p>
                     </div>
@@ -169,8 +170,8 @@ export default function HomePage() {
                 <div className="container-page">
                     <div className="flex items-end justify-between mb-12">
                         <div>
-                            <span className="text-primary-600 font-semibold tracking-wider text-sm uppercase mb-2 block">Premium Selection</span>
-                            <h2 className="font-display text-3xl md:text-4xl font-bold text-gray-900">
+                            <span className="section-eyebrow">Premium Selection</span>
+                            <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900">
                                 Trending Products
                             </h2>
                         </div>
@@ -243,10 +244,10 @@ export default function HomePage() {
                 </svg>
 
                 <div className="container-page text-center relative z-10">
-                    <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-6">
+                    <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-6" style={{ letterSpacing: '-0.03em', lineHeight: '1.1' }}>
                         Ready to Level Up?
                     </h2>
-                    <p className="text-gray-300 text-xl mb-10 max-w-2xl mx-auto">
+                    <p className="text-gray-300 text-lg mb-10 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
                         Join 10,000+ others accelerating their growth. Get instant access to the tools you need to succeed.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
