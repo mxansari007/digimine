@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
-import { isValidEmail } from "@digimine/utils";
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState("");

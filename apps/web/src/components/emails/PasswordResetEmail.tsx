@@ -34,7 +34,7 @@ export const PasswordResetEmail = ({
                         <Heading style={h2}>Reset Password Request</Heading>
                         <Text style={text}>
                             We received a request to reset your password for your Digimine account. 
-                            If you didn't make this request, you can safely ignore this email.
+                            If you didn&apos;t make this request, you can safely ignore this email.
                         </Text>
                         
                         <Section style={buttonContainer}>
