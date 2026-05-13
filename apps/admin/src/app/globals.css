@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 /* Base styles for admin */
 @layer base {
@@ -12,21 +12,42 @@
     }
 
     body {
-        @apply font-sans antialiased text-gray-900 bg-gray-100;
+        @apply font-sans antialiased text-slate-900 bg-slate-50;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        @apply font-display tracking-tight;
+    }
+
+    /* Custom Scrollbar for elegance */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
     }
 }
 
 /* Admin-specific utilities */
 @layer components {
     .sidebar-link {
-        @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors;
+        @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 relative;
     }
 
     .sidebar-link-active {
-        @apply bg-primary-50 text-primary-700;
+        @apply bg-primary-500/10 text-primary-400;
     }
 
     .sidebar-link-inactive {
-        @apply text-gray-600 hover:bg-gray-50 hover:text-gray-900;
+        @apply text-slate-400 hover:bg-slate-800/50 hover:text-slate-100;
+    }
+
+    .bg-grid-pattern {
+        background-size: 40px 40px;
+        background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
     }
 }

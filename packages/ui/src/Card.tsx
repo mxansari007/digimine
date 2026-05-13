@@ -34,10 +34,10 @@ export function Card({
     className = "",
     ...props
 }: CardProps): React.JSX.Element {
-    const baseClasses = "bg-white rounded-xl border border-gray-200 transition-all duration-200";
-    const elevatedClasses = elevated ? "shadow-sm" : "";
+    const baseClasses = "bg-white rounded-2xl border border-slate-200/60 transition-all duration-300";
+    const elevatedClasses = elevated ? "shadow-[0_8px_30px_rgb(0,0,0,0.04)]" : "";
     const hoverClasses = hoverable
-        ? "hover:shadow-md hover:border-gray-300 cursor-pointer"
+        ? "hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:border-slate-300 hover:-translate-y-0.5 cursor-pointer"
         : "";
 
     return (

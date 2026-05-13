@@ -134,11 +134,11 @@ export default function ProductsPage() {
                                     <tr key={product.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
-                                                <div className="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+                                                <div className="h-10 w-10 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border border-slate-200/60 shadow-sm">
                                                     {product.thumbnailURL ? (
                                                         <img src={product.thumbnailURL} alt="" className="h-full w-full object-cover" />
                                                     ) : (
-                                                        <div className="h-full w-full flex items-center justify-center text-gray-400">?</div>
+                                                        <div className="h-full w-full flex items-center justify-center text-slate-400">?</div>
                                                     )}
                                                 </div>
                                                 <div className="ml-4">
@@ -154,9 +154,9 @@ export default function ProductsPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                                             {product.type}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 capitalize">
                                             {product.purchaseType === 'subscription' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20">
                                                     Sub ({product.subscriptionDuration}d)
                                                 </span>
                                             ) : 'One-time'}
@@ -165,9 +165,9 @@ export default function ProductsPage() {
                                             {formatCurrency(product.price)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.status === 'published' ? 'bg-green-100 text-green-800' :
-                                                product.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                                                    'bg-red-100 text-red-800'
+                                            <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-md border ${product.status === 'published' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                                                product.status === 'draft' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                                    'bg-red-500/10 text-red-600 border-red-500/20'
                                                 }`}>
                                                 {product.status}
                                             </span>

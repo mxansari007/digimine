@@ -32,11 +32,14 @@ export default function AdminLoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-            <div className="max-w-md w-full">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
-                    <p className="text-gray-600">Secure access for Digimine implementation</p>
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 bg-grid-pattern px-4 relative z-0">
+            <div className="max-w-md w-full relative z-10">
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/20 border border-primary-400/50 mb-4">
+                        <span className="text-white font-display font-bold text-2xl leading-none">D</span>
+                    </div>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Digimine Admin</h1>
+                    <p className="text-slate-500 mt-2">Secure access for portal management</p>
                 </div>
 
                 <Card padding="lg">
