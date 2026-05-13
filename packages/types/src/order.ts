@@ -38,6 +38,7 @@ export interface Order {
     status: OrderStatus;
     paymentMethod: PaymentMethod;
     paymentId: string | null;
+    accessKey?: string;
     createdAt: Date;
     updatedAt: Date;
 }

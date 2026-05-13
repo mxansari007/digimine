@@ -29,6 +29,22 @@ export function HighlightsEditor({ highlights, onChange }: HighlightsEditorProps
         onChange(newHighlights);
     };
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (!pastedText) return;
+
+        const lines = pastedText
+            .split(/\r?\n/)
+            .map(line => line.replace(/^[\d\.\-\•\*\s]+/, '').trim())
+            .filter(line => line.length > 0);
+
+        if (lines.length > 1) {
+            e.preventDefault();
+            onChange([...highlights, ...lines]);
+            setNewHighlight("");
+        }
+    };
+
     return (
         <div className="space-y-3">
             {/* Existing highlights */}
@@ -87,6 +103,7 @@ export function HighlightsEditor({ highlights, onChange }: HighlightsEditorProps
                     type="text"
                     value={newHighlight}
                     onChange={(e) => setNewHighlight(e.target.value)}
+                    onPaste={handlePaste}
                     placeholder="Add a key benefit or feature..."
                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 outline-none"
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addHighlight())}

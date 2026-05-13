@@ -16,7 +16,9 @@ service cloud.firestore {
     function isBootstrapAdmin() {
       return isAuthenticated() && 
              (request.auth.token.email == 'admin@digimine.com' || 
-              request.auth.token.email == 'maazansari@digimine.com');
+              request.auth.token.email == 'maazansari@digimine.com' ||
+              request.auth.token.email == 'mxansari007@gmail.com' ||
+              request.auth.token.email == 'admin@digimine.shop');
     }
     
     // Standard Admin check (Lookup) - used for non-bootstrap admins later

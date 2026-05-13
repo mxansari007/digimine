@@ -3,18 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
 import { getProduct } from "@/lib/firestore";
 import type { Product, OrderItem } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
-import { load } from "@cashfreepayments/cashfree-js";
+import Script from "next/script";
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
     const productId = searchParams.get("productId");
-    const router = useRouter();
 
     const [directProduct, setDirectProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(!!productId);
@@ -102,7 +101,7 @@ export default function CheckoutPage() {
 
         try {
             // Step 1: Create order via API
-            const createOrderResponse = await fetch("/api/cashfree/create-order", {
+            const createOrderResponse = await fetch("/api/razorpay/create-order", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -119,38 +118,75 @@ export default function CheckoutPage() {
                 throw new Error(errorData.error || "Failed to create order");
             }
 
-            const { orderId, paymentSessionId } = await createOrderResponse.json();
+            const { orderId, razorpayOrderId, amount, currency } = await createOrderResponse.json();
 
-            // Step 2: Initialize Cashfree SDK
-            const cashfree = await load({
-                mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
-            });
-
-            // Step 3: Open Cashfree checkout
-            const checkoutOptions: { paymentSessionId: string; redirectTarget: "_self" } = {
-                paymentSessionId: paymentSessionId,
-                redirectTarget: "_self",
+            // Step 2: Open Razorpay checkout
+            const options: any = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                amount: amount,
+                currency: currency,
+                name: "Digimine",
+                description: "Purchase from Digimine",
+                order_id: razorpayOrderId,
+                handler: async function (response: any) {
+                    try {
+                        const verifyRes = await fetch("/api/razorpay/verify-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                orderId: orderId,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                            }),
+                        });
+                        const verifyData = await verifyRes.json();
+                        if (verifyData.success) {
+                            // Using window.location to ensure fresh load after payment modal
+                            window.location.href = `/success?orderId=${orderId}&accessKey=${verifyData.accessKey}`;
+                        } else {
+                            setPaymentError(verifyData.error || "Payment verification failed");
+                            setIsProcessing(false);
+                        }
+                    } catch (error) {
+                        setPaymentError("Payment verification failed");
+                        setIsProcessing(false);
+                    }
+                },
+                prefill: {
+                    email: localEmail,
+                    contact: phoneNumber,
+                },
+                theme: {
+                    color: "#0F172A",
+                },
             };
 
-            const result = await cashfree.checkout(checkoutOptions);
-
-            if (result.error) {
-                console.error("Cashfree checkout error:", result.error);
-                setPaymentError(result.error.message || "Payment was cancelled or failed");
-            } else if (result.paymentDetails) {
-                router.push(`/success?orderId=${orderId}`);
-            }
+            const rzp1 = new (window as any).Razorpay(options);
+            rzp1.on('payment.failed', function (response: any){
+                setPaymentError(response.error.description || "Payment failed");
+                setIsProcessing(false);
+            });
+            
+            // Handle modal close
+            options.modal = {
+                ondismiss: function() {
+                    setIsProcessing(false);
+                }
+            };
+            
+            rzp1.open();
 
         } catch (error) {
             console.error("Payment error:", error);
             setPaymentError(error instanceof Error ? error.message : "Payment failed. Please try again.");
-        } finally {
             setIsProcessing(false);
         }
     };
 
     return (
         <div className="bg-gray-50 min-h-screen py-8">
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
             <div className="container-page">
                 <div className="mb-8">
                     <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
@@ -224,7 +260,7 @@ export default function CheckoutPage() {
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                             </svg>
-                                            <span className="font-medium">Secure Payment via Cashfree</span>
+                                            <span className="font-medium">Secure Payment via Razorpay</span>
                                         </div>
                                         <p className="text-sm text-green-600 mt-1">
                                             Pay securely with UPI, Cards, Net Banking, or Wallets
@@ -270,7 +306,7 @@ export default function CheckoutPage() {
                                     <div className="flex items-center justify-center gap-4 pt-4 border-t border-gray-100">
                                         <span className="text-xs text-gray-400">Powered by</span>
                                         <div className="flex items-center gap-2">
-                                            <div className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">Cashfree</div>
+                                            <div className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">Razorpay</div>
                                         </div>
                                     </div>
                                 </div>

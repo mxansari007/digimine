@@ -8,10 +8,18 @@ import {
     type ReactNode,
 } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client"; // Use local init to avoid dual package hazard
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 import type { User as AppUser } from "@digimine/types";
 import { useRouter, usePathname } from "next/navigation";
+
+// ─── Admin emails — no Firestore read needed for the gate ───────────────────
+const ADMIN_EMAILS = [
+    "mxansari007@gmail.com",
+    "admin@digimine.com",
+    "maazansari@digimine.com",
+    "admin@digimine.shop",
+];
 
 interface AdminAuthContextValue {
     firebaseUser: FirebaseUser | null;
@@ -22,9 +30,7 @@ interface AdminAuthContextValue {
     signOut: () => Promise<void>;
 }
 
-const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(
-    undefined
-);
+const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
     const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -43,85 +49,52 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         const unsubscribeAuth = onAuthStateChanged(
             auth,
             async (currentUser) => {
-                setFirebaseUser(currentUser);
-
-                if (currentUser) {
-                    // Subscribe to user profile in Firestore
-                    const userDocRef = doc(db, "users", currentUser.uid);
-                    const unsubscribeSnapshot = onSnapshot(
-                        userDocRef,
-                        async (docSnapshot) => {
-                            if (docSnapshot.exists()) {
-                                const userData = {
-                                    id: docSnapshot.id,
-                                    ...docSnapshot.data(),
-                                } as AppUser;
-                                setUser(userData);
-
-                                // Strict Role Check
-                                if (userData.role !== "admin" && userData.role !== "super_admin") {
-                                    console.log(`❌ Unauthorized User UID: ${currentUser.uid}, Email: ${currentUser.email}, Role: ${userData.role}`);
-
-                                    // AUTO-FIX: If email is admin@digimine.com, promote to admin automatically
-                                    if (currentUser.email === "admin@digimine.com" || currentUser.email === "maazansari@digimine.com") {
-                                        console.log("🔧 Auto-promoting admin user...");
-                                        try {
-                                            // Importing setDoc dynamically to avoid circular dependency issues if any
-                                            const { setDoc } = await import("firebase/firestore");
-                                            await setDoc(userDocRef, { role: "admin" }, { merge: true });
-                                            console.log("✅ Auto-promotion successful! Snapshot should update...");
-                                            return; // Wait for next snapshot
-                                        } catch (fixErr) {
-                                            console.error("🔥 Auto-promotion FAILED:", fixErr);
-                                            // Fall through to show error
-                                        }
-                                    }
-
-                                    setError(new Error("Unauthorized: Admin access required"));
-                                } else {
-                                    console.log("✅ User authorized:", userData.role);
-                                    setError(null);
-                                }
-                            } else {
-                                // User document doesn't exist, create it relative to auth user
-                                console.log(`ℹ️ User document does not exist for UID: ${currentUser.uid}`);
-                                if (currentUser.email === "admin@digimine.com") {
-                                    console.log("🔧 Creating admin user profile...");
-                                    try {
-                                        const { setDoc, Timestamp } = await import("firebase/firestore");
-                                        await setDoc(userDocRef, {
-                                            email: currentUser.email,
-                                            displayName: currentUser.displayName || "Admin User",
-                                            role: "admin",
-                                            createdAt: Timestamp.now(),
-                                            updatedAt: Timestamp.now(),
-                                        });
-                                        console.log("✅ Admin profile created! Snapshot should update...");
-                                        return;
-                                    } catch (createErr) {
-                                        console.error("🔥 Profile creation FAILED:", createErr);
-                                        setError(new Error("Failed to create admin profile: " + createErr));
-                                        setUser(null);
-                                    }
-                                } else {
-                                    setUser(null);
-                                    setError(new Error("User profile not found"));
-                                }
-                            }
-                            setLoading(false);
-                        },
-                        (err) => {
-                            console.error("Error fetching user profile:", err);
-                            setError(err);
-                            setLoading(false);
-                        }
-                    );
-
-                    return () => unsubscribeSnapshot();
-                } else {
+                if (!currentUser) {
+                    setFirebaseUser(null);
                     setUser(null);
                     setLoading(false);
+                    return;
                 }
+
+                // ── Gate: check email first, no Firestore needed ──────────────
+                const email = (currentUser.email || "").toLowerCase();
+                if (!ADMIN_EMAILS.includes(email)) {
+                    setFirebaseUser(currentUser);
+                    setUser(null);
+                    setError(new Error("Unauthorized: Admin access required"));
+                    setLoading(false);
+                    return;
+                }
+
+                // ── Fetch profile from Firestore (best-effort, non-blocking) ──
+                try {
+                    const snap = await getDoc(doc(db, "users", currentUser.uid));
+                    if (snap.exists()) {
+                        setUser({ id: snap.id, ...snap.data() } as AppUser);
+                    } else {
+                        // Build a minimal profile from auth token
+                        setUser({
+                            id: currentUser.uid,
+                            email,
+                            displayName: currentUser.displayName || "Admin",
+                            role: "admin",
+                            purchasedProducts: [],
+                        } as unknown as AppUser);
+                    }
+                } catch {
+                    // Firestore read failed — still allow access (email is the gate)
+                    setUser({
+                        id: currentUser.uid,
+                        email,
+                        displayName: currentUser.displayName || "Admin",
+                        role: "admin",
+                        purchasedProducts: [],
+                    } as unknown as AppUser);
+                }
+
+                setFirebaseUser(currentUser);
+                setError(null);
+                setLoading(false);
             },
             (err) => {
                 console.error("Auth error:", err);
@@ -133,24 +106,36 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         return () => unsubscribeAuth();
     }, []);
 
-    // Protected Route Logic
+    // ── Route protection — only after auth fully resolved ───────────────────
     useEffect(() => {
-        if (!loading) {
-            const isLoginPage = pathname === "/login";
-            const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+        if (loading) return;
 
-            if (!firebaseUser && !isLoginPage) {
-                router.push("/login");
-            } else if (firebaseUser && !isAdmin && !isLoginPage) {
-                // console.log("⚠️ Would redirect to /login?error=unauthorized, but PAUSED for debugging.");
-                router.push("/login?error=unauthorized");
-            } else if (firebaseUser && isAdmin && isLoginPage) {
-                router.push("/");
-            }
+        const isLoginPage = pathname === "/login";
+        const email = (firebaseUser?.email || "").toLowerCase();
+        const adminVerified = !!firebaseUser && ADMIN_EMAILS.includes(email);
+
+        console.log("🔐 Route Protection Check:", {
+            pathname,
+            isLoginPage,
+            hasFirebaseUser: !!firebaseUser,
+            email,
+            adminVerified,
+            adminEmails: ADMIN_EMAILS
+        });
+
+        if (!firebaseUser && !isLoginPage) {
+            console.log("🔄 Redirecting to /login (no user)");
+            router.push("/login");
+        } else if (firebaseUser && !adminVerified && !isLoginPage) {
+            console.log("🚫 Redirecting to /login?error=unauthorized (not admin)");
+            router.push("/login?error=unauthorized");
+        } else if (firebaseUser && adminVerified && isLoginPage) {
+            console.log("✅ Redirecting to / (is admin on login page)");
+            router.push("/");
         }
-    }, [firebaseUser, user, loading, pathname, router]);
+    }, [firebaseUser, loading, pathname, router]);
 
-    const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+    const isAdmin = !!firebaseUser && ADMIN_EMAILS.includes(firebaseUser.email || "");
 
     return (
         <AdminAuthContext.Provider

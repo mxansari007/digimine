@@ -2,20 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-    const session = request.cookies.get("__session");
-
-    // Protect all routes except login and static assets
-    if (!session && !request.nextUrl.pathname.startsWith("/login")) {
-        const loginUrl = new URL("/login", request.url);
-        loginUrl.searchParams.set("from", request.nextUrl.pathname);
-        return NextResponse.redirect(loginUrl);
-    }
-
-    // Redirect authenticated users away from login page
-    if (session && request.nextUrl.pathname.startsWith("/login")) {
-        return NextResponse.redirect(new URL("/", request.url));
-    }
-
+    // Auth protection is handled client-side by AdminAuthContext (Firestore role check).
+    // The middleware just passes through — no server-side session cookie is issued
+    // by the Firebase client SDK, so checking __session here would always block.
     return NextResponse.next();
 }
 
