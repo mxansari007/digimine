@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getProductBySlug, getProductReviewStats } from "@/lib/firestore";
+import { viewContent, addToCart } from "@/lib/fpixel";
 import { Button } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -51,8 +52,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             try {
                 const p = await getProductBySlug(params.slug);
                 setProduct(p);
-                // Fetch rating stats if product exists
+                // Fire ViewContent event
                 if (p) {
+                    viewContent({
+                        id: p.id,
+                        name: p.name,
+                        category: p.type,
+                        price: p.price,
+                    });
                     const stats = await getProductReviewStats(p.id);
                     setRatingStats(stats);
                 }
@@ -84,6 +91,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
     const handleBuyNow = () => {
         if (!product) return;
+        // Fire AddToCart event before navigating to checkout
+        addToCart({
+            id: product.id,
+            name: product.name,
+            category: product.type,
+            price: product.price,
+            quantity: 1,
+        });
         router.push(`/checkout?productId=${product.id}`);
     };
 

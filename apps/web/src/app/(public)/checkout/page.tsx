@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import Script from "next/script";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
+import { initiateCheckout, addPaymentInfo } from "@/lib/fpixel";
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
@@ -43,6 +44,14 @@ export default function CheckoutPage() {
                 try {
                     const p = await getProduct(productId as string);
                     setDirectProduct(p);
+                    // Fire InitiateCheckout when product is loaded
+                    if (p) {
+                        initiateCheckout({
+                            value: p.price,
+                            contentIds: [p.id],
+                            numItems: 1,
+                        });
+                    }
                 } catch (err) {
                     console.error("Error fetching product for checkout:", err);
                 } finally {
@@ -112,6 +121,12 @@ export default function CheckoutPage() {
             setFieldErrors(errors);
             return;
         }
+
+        // Fire AddPaymentInfo event
+        addPaymentInfo({
+            value: displaySubtotal,
+            contentIds: displayItems.map((item) => item.productId),
+        });
 
         setStep("payment");
     };

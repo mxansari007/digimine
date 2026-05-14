@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { ProductCard } from "@/components/products/ProductCard";
 import { getProducts, getAllReviewStats } from "@/lib/firestore";
+import { trackSearch } from "@/lib/fpixel";
 import { type Product, type ProductType } from "@digimine/types";
 
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -82,6 +83,13 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
 
         setDisplayedProducts(filtered);
     }, [allProducts, filters, search, loading]);
+
+    // Fire Meta Pixel Search event when a search query is active
+    useEffect(() => {
+        if (!loading && search) {
+            trackSearch(search, displayedProducts.length);
+        }
+    }, [search, displayedProducts.length, loading]);
 
     const handleFilterChange = (newFilters: ProductFilters) => {
         setFilters(newFilters);
