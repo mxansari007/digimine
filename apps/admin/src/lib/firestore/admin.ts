@@ -40,6 +40,14 @@ export async function getUser(userId: string): Promise<User | null> {
     return mapDoc<User>(snapshot);
 }
 
+export async function updateUserRole(userId: string, role: "customer" | "admin"): Promise<void> {
+    const docRef = doc(usersCollection, userId);
+    await updateDoc(docRef, {
+        role,
+        updatedAt: Timestamp.now(),
+    });
+}
+
 // --- Products ---
 
 export async function getAllProducts(filters?: { type?: string; purchaseType?: string }): Promise<Product[]> {

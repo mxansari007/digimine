@@ -318,7 +318,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             <span className="font-semibold">Instant Digital Download</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="font-bold text-2xl tracking-tighter">stripe</span>
+                            <span className="font-bold text-2xl tracking-tighter text-blue-800">Razorpay</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-2xl tracking-tighter italic">PayPal</span>
@@ -391,7 +391,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                                         Peek Inside
                                     </div>
-                                    <h2 className="text-3xl lg:text-5xl font-bold font-display leading-tight">
+                                    <h2 className="text-3xl lg:text-5xl font-bold font-display leading-tight text-white">
                                         What&apos;s Included in Your Download?
                                     </h2>
                                     <p className="text-lg text-gray-400 leading-relaxed max-w-xl">
@@ -500,7 +500,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black/30" />
 
                 <div className="container-page relative z-10 text-center max-w-4xl mx-auto">
-                    <h2 className="text-4xl lg:text-6xl font-bold font-display mb-6 tracking-tight">
+                    <h2 className="text-4xl lg:text-6xl font-bold font-display mb-6 tracking-tight text-white">
                         Ready to Level Up?
                     </h2>
                     <p className="text-xl text-primary-100 mb-12 max-w-2xl mx-auto">

@@ -13,7 +13,7 @@ import { auth, db } from "@/lib/firebase/client";
 import type { User as AppUser } from "@digimine/types";
 import { useRouter, usePathname } from "next/navigation";
 
-// ─── Admin emails — no Firestore read needed for the gate ───────────────────
+// ─── Admin emails — fast gate for initial check ────────────────────────────
 const ADMIN_EMAILS = [
     "mxansari007@gmail.com",
     "admin@digimine.com",
@@ -21,11 +21,16 @@ const ADMIN_EMAILS = [
     "admin@digimine.shop",
 ];
 
+const SUPER_ADMIN_EMAILS = [
+    "mxansari007@gmail.com",
+];
+
 interface AdminAuthContextValue {
     firebaseUser: FirebaseUser | null;
     user: AppUser | null;
     loading: boolean;
     isAdmin: boolean;
+    isSuperAdmin: boolean;
     error: Error | null;
     signOut: () => Promise<void>;
 }
@@ -56,9 +61,25 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                // ── Gate: check email first, no Firestore needed ──────────────
                 const email = (currentUser.email || "").toLowerCase();
-                if (!ADMIN_EMAILS.includes(email)) {
+                let fetchedUser: AppUser | null = null;
+
+                // ── Fetch profile from Firestore ──
+                try {
+                    const snap = await getDoc(doc(db, "users", currentUser.uid));
+                    if (snap.exists()) {
+                        fetchedUser = { id: snap.id, ...snap.data() } as AppUser;
+                    }
+                } catch (err) {
+                    console.error("Firestore read error:", err);
+                }
+
+                // ── Gate Check ──────────────
+                const isHardcodedAdmin = ADMIN_EMAILS.includes(email);
+                const isFirestoreAdmin = fetchedUser?.role === "admin" || fetchedUser?.role === "super_admin";
+                const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(email) || fetchedUser?.role === "super_admin";
+
+                if (!isHardcodedAdmin && !isFirestoreAdmin) {
                     setFirebaseUser(currentUser);
                     setUser(null);
                     setError(new Error("Unauthorized: Admin access required"));
@@ -66,32 +87,20 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                // ── Fetch profile from Firestore (best-effort, non-blocking) ──
-                try {
-                    const snap = await getDoc(doc(db, "users", currentUser.uid));
-                    if (snap.exists()) {
-                        setUser({ id: snap.id, ...snap.data() } as AppUser);
-                    } else {
-                        // Build a minimal profile from auth token
-                        setUser({
-                            id: currentUser.uid,
-                            email,
-                            displayName: currentUser.displayName || "Admin",
-                            role: "admin",
-                            purchasedProducts: [],
-                        } as unknown as AppUser);
-                    }
-                } catch {
-                    // Firestore read failed — still allow access (email is the gate)
-                    setUser({
+                // ── Finalize User Object ──
+                if (!fetchedUser) {
+                    fetchedUser = {
                         id: currentUser.uid,
                         email,
                         displayName: currentUser.displayName || "Admin",
-                        role: "admin",
+                        role: isSuperAdmin ? "super_admin" : "admin",
                         purchasedProducts: [],
-                    } as unknown as AppUser);
+                    } as unknown as AppUser;
+                } else if (isSuperAdmin && fetchedUser.role !== "super_admin") {
+                    fetchedUser.role = "super_admin";
                 }
 
+                setUser(fetchedUser);
                 setFirebaseUser(currentUser);
                 setError(null);
                 setLoading(false);
@@ -106,40 +115,42 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         return () => unsubscribeAuth();
     }, []);
 
-    // ── Route protection — only after auth fully resolved ───────────────────
+    // ── Route protection ───────────────────
     useEffect(() => {
         if (loading) return;
 
         const isLoginPage = pathname === "/login";
         const email = (firebaseUser?.email || "").toLowerCase();
-        const adminVerified = !!firebaseUser && ADMIN_EMAILS.includes(email);
-
-        console.log("🔐 Route Protection Check:", {
-            pathname,
-            isLoginPage,
-            hasFirebaseUser: !!firebaseUser,
-            email,
-            adminVerified,
-            adminEmails: ADMIN_EMAILS
-        });
+        
+        const adminVerified = !!firebaseUser && (
+            ADMIN_EMAILS.includes(email) || 
+            user?.role === "admin" || 
+            user?.role === "super_admin"
+        );
 
         if (!firebaseUser && !isLoginPage) {
-            console.log("🔄 Redirecting to /login (no user)");
             router.push("/login");
         } else if (firebaseUser && !adminVerified && !isLoginPage) {
-            console.log("🚫 Redirecting to /login?error=unauthorized (not admin)");
             router.push("/login?error=unauthorized");
         } else if (firebaseUser && adminVerified && isLoginPage) {
-            console.log("✅ Redirecting to / (is admin on login page)");
             router.push("/");
         }
-    }, [firebaseUser, loading, pathname, router]);
+    }, [firebaseUser, loading, pathname, router, user]);
 
-    const isAdmin = !!firebaseUser && ADMIN_EMAILS.includes(firebaseUser.email || "");
+    const isAdmin = !!firebaseUser && (
+        ADMIN_EMAILS.includes(firebaseUser.email || "") || 
+        user?.role === "admin" || 
+        user?.role === "super_admin"
+    );
+
+    const isSuperAdmin = !!firebaseUser && (
+        SUPER_ADMIN_EMAILS.includes(firebaseUser.email || "") || 
+        user?.role === "super_admin"
+    );
 
     return (
         <AdminAuthContext.Provider
-            value={{ firebaseUser, user, loading, isAdmin, error, signOut }}
+            value={{ firebaseUser, user, loading, isAdmin, isSuperAdmin, error, signOut }}
         >
             {children}
         </AdminAuthContext.Provider>

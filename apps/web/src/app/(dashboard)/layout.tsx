@@ -6,19 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
+import { Logo } from "@/components/common/Logo";
 
 const navItems = [
     {
-        label: "My Products",
+        label: "My Library",
         href: "/dashboard",
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
         ),
     },
@@ -27,26 +23,16 @@ const navItems = [
         href: "/dashboard/downloads",
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
         ),
     },
     {
-        label: "Profile",
+        label: "Profile & Settings",
         href: "/dashboard/profile",
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
         ),
     },
@@ -68,14 +54,8 @@ export default function DashboardLayout({
         }
     }, [loading, isAuthenticated, router]);
 
-    if (loading) {
-        return <PageLoading />;
-    }
-
-    // Redirect to login handled by middleware, but show loading as fallback
-    if (!isAuthenticated) {
-        return <PageLoading />;
-    }
+    if (loading) return <PageLoading />;
+    if (!isAuthenticated) return <PageLoading />;
 
     const handleSignOut = async () => {
         try {
@@ -86,44 +66,40 @@ export default function DashboardLayout({
         }
     };
 
+    const userInitial = user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U";
+    const userName = user?.displayName || user?.email || "User";
+
     const SidebarContent = () => (
-        <>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex flex-col h-full">
+            {/* Logo */}
+            <div className="p-6 flex items-center justify-between border-b border-white/10">
                 <Link href="/">
-                    <span className="font-display text-xl font-bold text-gray-900">
-                        <span className="text-primary-600">Digi</span>mine
-                    </span>
+                    <Logo variant="light" iconSize={26} />
                 </Link>
-                {/* Close button for mobile */}
                 <button
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="md:hidden text-gray-500 hover:text-gray-900"
+                    className="md:hidden text-white/60 hover:text-white p-1 rounded"
                 >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
-            {/* User Info */}
-            <div className="p-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-primary-600 font-semibold">
-                            {user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U"}
-                        </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                            {user?.displayName || "User"}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">{user?.email}</p>
-                    </div>
+            {/* User profile chip */}
+            <div className="p-4 mx-3 mt-4 rounded-xl bg-white/10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0 shadow-lg">
+                    {userInitial}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white truncate text-sm">{userName}</p>
+                    <span className="text-xs px-2 py-0.5 bg-primary-500/30 text-primary-200 rounded-full font-medium">Customer</span>
                 </div>
             </div>
 
             {/* Navigation */}
-            <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
+            <nav className="p-3 mt-4 flex-1 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30 px-3 mb-3">Menu</p>
                 {navItems.map((item) => {
                     const isActive = pathname === item.href;
                     return (
@@ -131,74 +107,53 @@ export default function DashboardLayout({
                             key={item.href}
                             href={item.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${isActive
-                                ? "bg-primary-50 text-primary-700"
-                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                }`}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
+                                isActive
+                                    ? "bg-white text-gray-900 shadow-lg shadow-black/20"
+                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                            }`}
                         >
-                            {item.icon}
+                            <span className={isActive ? "text-primary-600" : ""}>{item.icon}</span>
                             {item.label}
                         </Link>
                     );
                 })}
             </nav>
 
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-gray-100 mt-auto">
+            {/* Bottom actions */}
+            <div className="p-3 border-t border-white/10 space-y-1">
                 <Link
                     href="/"
-                    className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 text-white/60 hover:bg-white/10 hover:text-white rounded-xl transition-all text-sm font-medium"
                 >
-                    <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                        />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                     Back to Store
                 </Link>
                 <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-all text-sm font-medium"
                 >
-                    <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                     Sign Out
                 </button>
             </div>
-        </>
+        </div>
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        <div className="min-h-screen bg-gray-50 flex">
             {/* Mobile Header */}
-            <div className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-30">
+            <div className="md:hidden fixed top-0 left-0 right-0 bg-gray-900 border-b border-white/10 px-4 py-3 flex items-center justify-between z-30 h-14">
                 <Link href="/">
-                    <span className="font-display text-xl font-bold text-gray-900">
-                        <span className="text-primary-600">Digi</span>mine
-                    </span>
+                    <Logo variant="light" iconSize={22} />
                 </Link>
                 <button
                     onClick={() => setIsMobileMenuOpen(true)}
-                    className="p-2 text-gray-600 hover:text-gray-900"
+                    className="p-2 text-white/70 hover:text-white rounded-lg"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -207,29 +162,28 @@ export default function DashboardLayout({
             </div>
 
             {/* Desktop Sidebar */}
-            <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 fixed h-full flex-col">
+            <aside className="hidden md:flex w-64 bg-gray-900 fixed h-full flex-col shadow-xl z-20">
                 <SidebarContent />
             </aside>
 
             {/* Mobile Sidebar Drawer */}
             <div className={`md:hidden fixed inset-0 z-40 ${isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
-                {/* Overlay */}
                 <div
-                    className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`}
+                    className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                 />
-
-                {/* Drawer */}
                 <div
-                    className={`absolute top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white transition-transform duration-300 ease-out transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} flex flex-col overflow-hidden`}
+                    className={`absolute top-0 left-0 bottom-0 w-72 bg-gray-900 transition-transform duration-300 ease-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} overflow-hidden shadow-2xl`}
                 >
                     <SidebarContent />
                 </div>
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-64 p-4 md:p-8 w-full">
-                {children}
+            <main className="flex-1 md:ml-64 pt-14 md:pt-0 min-h-screen">
+                <div className="p-6 md:p-8 max-w-6xl mx-auto">
+                    {children}
+                </div>
             </main>
         </div>
     );
