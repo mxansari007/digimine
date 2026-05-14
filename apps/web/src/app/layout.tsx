@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { FacebookPixel } from "@/components/common";
 
 const inter = Inter({
     subsets: ["latin"],
@@ -62,6 +63,7 @@ export default function RootLayout({
     return (
         <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
             <body className="font-sans antialiased">
+                <FacebookPixel />
                 <AuthProvider>
                     {children}
                 </AuthProvider>
