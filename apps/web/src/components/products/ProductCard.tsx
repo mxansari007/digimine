@@ -81,7 +81,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-display text-sm md:text-base font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors" style={{ lineHeight: '1.3', letterSpacing: '-0.01em' }}>
+                    <h3 className="font-display text-base md:text-lg font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors" style={{ lineHeight: '1.3', letterSpacing: '-0.01em' }}>
                         {product.name}
                     </h3>
 
@@ -106,7 +106,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
 
 
                     {/* Description */}
-                    <p className="text-xs text-slate-400 line-clamp-2 mb-3" style={{ lineHeight: '1.6' }}>
+                    <p className="text-sm text-slate-500 line-clamp-2 mb-3" style={{ lineHeight: '1.6' }}>
                         {product.shortDescription || "Premium digital resource."}
                     </p>
 
@@ -118,7 +118,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                                 {formatCurrency(product.price)}
                             </span>
                             {hasDiscount && (
-                                <span className="textxs md:text-xs text-gray-400 line-through font-medium">
+                                <span className="text-xs md:text-sm text-gray-400 line-through font-medium">
                                     {formatCurrency(product.compareAtPrice!)}
                                 </span>
                             )}

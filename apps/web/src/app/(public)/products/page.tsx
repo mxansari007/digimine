@@ -98,13 +98,13 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
 
     return (
         <div className="bg-gray-50 min-h-screen">
-            <div className="container-page py-8">
+            <div className="container-page py-4 lg:py-8">
                 {/* Page Header */}
-                <div className="mb-8">
-                    <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">
+                <div className="mb-6 md:mb-8">
+                    <h1 className="font-display text-2xl md:text-3xl font-bold text-gray-900 mb-2 tracking-tight">
                         {type ? `${type.charAt(0).toUpperCase() + type.slice(1)}s` : "All Products"}
                     </h1>
-                    <p className="text-gray-600">
+                    <p className="text-sm md:text-base text-gray-600">
                         {search
                             ? `Search results for "${search}"`
                             : "Discover premium digital products from creators worldwide"}
@@ -159,7 +159,7 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
 
                         {/* Products Grid */}
                         {loading ? (
-                            <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                                 {[1, 2, 3, 4, 5, 6].map((i) => (
                                     <Card key={i} hoverable padding="none" className="overflow-hidden border-0 shadow-sm">
                                         <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
@@ -172,7 +172,7 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                                 ))}
                             </div>
                         ) : displayedProducts.length > 0 ? (
-                            <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                                 {displayedProducts.map((product) => {
                                     const purchases = user?.purchasedProducts || [];
                                     const isOwned = purchases.some((p: any) => {

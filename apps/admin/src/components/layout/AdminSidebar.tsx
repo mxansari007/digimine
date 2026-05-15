@@ -41,7 +41,7 @@ const navigation = [
     { name: "Settings", href: "/settings", icon: CogIcon },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ isOpen = false, onClose }: { isOpen?: boolean; onClose?: () => void }) {
     const pathname = usePathname();
     const { user, signOut } = useAdminAuth();
 
@@ -54,17 +54,35 @@ export function AdminSidebar() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 w-64 fixed left-0 top-0 bottom-0 z-10 shadow-2xl">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-800/50 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent opacity-50" />
-                <div className="relative z-10 flex items-center gap-3">
-                    <Logo variant="light" iconSize={26} />
-                    <span className="text-[10px] font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full border border-primary-500/20">
-                        ADMIN
-                    </span>
+        <>
+            {/* Mobile Overlay */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300"
+                    onClick={onClose}
+                />
+            )}
+
+            <div className={`flex flex-col h-full bg-slate-950 border-r border-slate-800 w-64 fixed left-0 top-0 bottom-0 z-40 shadow-2xl transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                {/* Header */}
+                <div className="p-6 border-b border-slate-800/50 flex items-center justify-between lg:justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent opacity-50" />
+                    <div className="relative z-10 flex items-center gap-3">
+                        <Logo variant="light" iconSize={26} />
+                        <span className="text-[10px] font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full border border-primary-500/20 hidden sm:inline-block">
+                            ADMIN
+                        </span>
+                    </div>
+                    {/* Mobile Close Button */}
+                    <button 
+                        onClick={onClose}
+                        className="lg:hidden relative z-10 p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
-            </div>
 
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
@@ -76,6 +94,7 @@ export function AdminSidebar() {
                         <Link
                             key={item.name}
                             href={item.href}
+                            onClick={onClose}
                             className={isActive ? "sidebar-link sidebar-link-active" : "sidebar-link sidebar-link-inactive"}
                         >
                             <Icon />
@@ -110,6 +129,7 @@ export function AdminSidebar() {
                     Sign Out
                 </button>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

@@ -35,7 +35,7 @@ export default function HomePage() {
     return (
         <div className="bg-white">
             {/* Hero Section */}
-            <section className="relative overflow-hidden bg-gray-900 py-32 lg:py-48">
+            <section className="relative overflow-hidden bg-gray-900 py-16 lg:py-48">
                 {/* Dynamic Background */}
                 <div className="absolute inset-0 z-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-primary-900/50" />
@@ -54,14 +54,14 @@ export default function HomePage() {
                             Premium Digital Resources
                         </div>
 
-                        <h1 className="font-display text-5xl md:text-7xl font-bold text-white" style={{ lineHeight: '1.05', letterSpacing: '-0.03em' }}>
+                        <h1 className="font-display text-4xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight" style={{ lineHeight: '1.1' }}>
                             Master Your <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-primary-200 to-accent-300">
                                 Creative Craft
                             </span>
                         </h1>
 
-                        <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
+                        <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto" style={{ lineHeight: '1.6' }}>
                             Discover high-quality eBooks, courses, and templates to accelerate your career.
                             <span className="text-white font-medium"> Instant access. Lifetime value.</span>
                         </p>
@@ -107,14 +107,14 @@ export default function HomePage() {
             </section>
 
             {/* Categories Section - "Bento" Style Grid */}
-            <section className="py-24 bg-gray-50">
+            <section className="py-16 lg:py-24 bg-gray-50">
                 <div className="container-page">
                     <div className="text-center mb-16">
                         <span className="section-eyebrow">Categories</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+                        <h2 className="font-display text-2xl md:text-4xl font-bold text-slate-900 mb-3 md:mb-4 tracking-tight">
                             Everything You Need to Scale
                         </h2>
-                        <p className="text-lg text-slate-500 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
+                        <p className="text-base md:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
                             Hand-picked categories to help you learn faster and build better.
                         </p>
                     </div>
@@ -129,8 +129,8 @@ export default function HomePage() {
                                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20 group-hover:rotate-6 transition-transform">
                                     <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">eBooks & Guides</h3>
-                                <p className="text-gray-500">Expert knowledge distilled into actionable guides. Learn at your own pace.</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3 group-hover:text-blue-600 transition-colors">eBooks & Guides</h3>
+                                <p className="text-sm md:text-base text-gray-500">Expert knowledge distilled into actionable guides. Learn at your own pace.</p>
                             </div>
                         </Link>
 
@@ -143,8 +143,8 @@ export default function HomePage() {
                                 <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20 group-hover:-rotate-6 transition-transform">
                                     <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Video Courses</h3>
-                                <p className="text-gray-500">Structured learning paths with high-quality video content from pros.</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3 group-hover:text-purple-600 transition-colors">Video Courses</h3>
+                                <p className="text-sm md:text-base text-gray-500">Structured learning paths with high-quality video content from pros.</p>
                             </div>
                         </Link>
 
@@ -157,8 +157,8 @@ export default function HomePage() {
                                 <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 group-hover:rotate-6 transition-transform">
                                     <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-emerald-600 transition-colors">Templates & Assets</h3>
-                                <p className="text-gray-500">Save time with ready-to-use Notion templates, UI kits, and spreadsheets.</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3 group-hover:text-emerald-600 transition-colors">Templates & Assets</h3>
+                                <p className="text-sm md:text-base text-gray-500">Save time with ready-to-use Notion templates, UI kits, and spreadsheets.</p>
                             </div>
                         </Link>
                     </div>
@@ -166,12 +166,12 @@ export default function HomePage() {
             </section>
 
             {/* Featured Products with Modern Cards */}
-            <section className="py-24 bg-white">
+            <section className="py-16 lg:py-24 bg-white">
                 <div className="container-page">
                     <div className="flex items-end justify-between mb-12">
                         <div>
-                            <span className="section-eyebrow">Premium Selection</span>
-                            <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900">
+                            <span className="section-eyebrow text-xs md:text-sm">Premium Selection</span>
+                            <h2 className="font-display text-2xl md:text-4xl font-bold text-slate-900 tracking-tight">
                                 Trending Products
                             </h2>
                         </div>
@@ -184,7 +184,7 @@ export default function HomePage() {
                         </Link>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                         {loading ? (
                             [1, 2, 3, 4].map((i) => (
                                 <Card key={i} hoverable padding="none" className="overflow-hidden border-0 shadow-lg">
@@ -227,7 +227,7 @@ export default function HomePage() {
             </section>
 
             {/* Newsletter / CTA Section */}
-            <section className="relative py-24 bg-gray-900 overflow-hidden isolate">
+            <section className="relative py-16 lg:py-24 bg-gray-900 overflow-hidden isolate">
                 {/* Background Effects */}
                 <svg
                     viewBox="0 0 1024 1024"
@@ -244,10 +244,10 @@ export default function HomePage() {
                 </svg>
 
                 <div className="container-page text-center relative z-10">
-                    <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-6" style={{ letterSpacing: '-0.03em', lineHeight: '1.1' }}>
+                    <h2 className="font-display text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6 tracking-tight" style={{ lineHeight: '1.1' }}>
                         Ready to Level Up?
                     </h2>
-                    <p className="text-gray-300 text-lg mb-10 max-w-2xl mx-auto" style={{ lineHeight: '1.7' }}>
+                    <p className="text-base md:text-lg text-gray-300 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed">
                         Join 10,000+ others accelerating their growth. Get instant access to the tools you need to succeed.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">

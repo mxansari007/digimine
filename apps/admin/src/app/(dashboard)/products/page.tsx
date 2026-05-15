@@ -36,7 +36,7 @@ export default function ProductsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">Products</h1>
                 <Link href="/products/create">
                     <Button variant="primary" className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export default function ProductsPage() {
             </div>
 
             {/* Filters */}
-            <Card padding="md" className="flex flex-wrap gap-4">
+            <Card padding="md" className="flex flex-col sm:flex-row flex-wrap gap-4">
                 <div className="w-full sm:w-auto">
                     <label htmlFor="filterType" className="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
                     <select

@@ -54,7 +54,7 @@ export default function UsersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
                 <div className="text-sm text-gray-500">
                     Total Users: {users.length}

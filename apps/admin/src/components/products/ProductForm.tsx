@@ -264,7 +264,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
                         <Card padding="lg">
                             <h3 className="font-semibold text-gray-900 mb-4">Pricing & Status</h3>
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Price (₹)
