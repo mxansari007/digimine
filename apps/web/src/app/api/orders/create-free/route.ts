@@ -31,7 +31,7 @@ export async function POST(req: Request) {
             subtotal: 0,
             discount: 0,
             total: 0,
-            status: "paid", // Instantly paid since it's free
+            status: "completed", // Instantly completed since it's free
             customerEmail,
             customerPhone,
             paymentMethod: "free",

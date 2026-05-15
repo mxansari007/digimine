@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         const accessKey = uuidv4();
         
         const updateData: any = {
-            status: "paid",
+            status: "completed",
             paymentId: razorpay_payment_id,
         };
 
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             updateData.accessKey = accessKey;
         }
 
-        if (orderData.status !== "paid") {
+        if (orderData.status !== "completed") {
             await orderRef.update(updateData);
             
             // Send order success email
