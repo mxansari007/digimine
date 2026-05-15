@@ -201,7 +201,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             <div className="flex flex-col items-center lg:items-start gap-6 pt-4">
                                 <div className="flex items-end gap-3">
                                     <span className="text-6xl font-bold text-gray-900 tracking-tighter">
-                                        {formatCurrency(product.price)}
+                                        {product.price === 0 ? "Free" : formatCurrency(product.price)}
                                     </span>
                                     {hasDiscount && (
                                         <div className="flex flex-col items-start mb-2">
@@ -238,7 +238,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                             >
                                                 <div className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/40 to-transparent z-10" />
                                                 <span className="relative z-20 font-bold flex items-center justify-center gap-2">
-                                                    Get Instant Access
+                                                    {product.price === 0 ? "Get Instant Access for Free" : "Get Instant Access"}
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                                     </svg>
@@ -574,7 +574,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
                         {/* Mobile: Compact Price */}
                         <div className="md:hidden flex flex-col justify-center min-w-[60px]">
-                            <p className="font-bold text-gray-900 text-lg leading-none">{formatCurrency(product.price)}</p>
+                            <p className="font-bold text-gray-900 text-lg leading-none">{product.price === 0 ? "Free" : formatCurrency(product.price)}</p>
                             {hasDiscount && <p className="text-xs text-gray-500 line-through leading-none mt-0.5">{formatCurrency(product.compareAtPrice!)}</p>}
                         </div>
 
@@ -590,7 +590,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             ) : (
                                 <>
                                     <div className="hidden md:block">
-                                        <span className="font-bold text-xl text-gray-900 mr-4">{formatCurrency(product.price)}</span>
+                                        <span className="font-bold text-xl text-gray-900 mr-4">{product.price === 0 ? "Free" : formatCurrency(product.price)}</span>
                                     </div>
 
 
@@ -604,8 +604,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                         >
                                             <div className="absolute inset-x-0 h-full w-20 -skew-x-12 bg-white/20 -translate-x-40 group-hover/btn:animate-[shimmer_2s_infinite] z-10" />
                                             <span className="relative z-20 flex items-center justify-center gap-2 text-sm md:text-base whitespace-nowrap">
-                                                <span className="md:hidden">Get Access</span>
-                                                <span className="hidden md:inline">Get Instant Access</span>
+                                                <span className="md:hidden">{product.price === 0 ? "Get for Free" : "Get Access"}</span>
+                                                <span className="hidden md:inline">{product.price === 0 ? "Get Instant Access for Free" : "Get Instant Access"}</span>
                                                 <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                                 </svg>

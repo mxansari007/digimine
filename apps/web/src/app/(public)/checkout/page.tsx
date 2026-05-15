@@ -136,6 +136,35 @@ export default function CheckoutPage() {
         setPaymentError(null);
         paymentCompletedRef.current = false;
 
+        if (displaySubtotal === 0) {
+            try {
+                const createOrderResponse = await fetch("/api/orders/create-free", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        items: displayItems,
+                        subtotal: displaySubtotal,
+                        customerEmail: localEmail,
+                        customerPhone: phoneNumber,
+                        guestId: guestId,
+                    }),
+                });
+
+                if (!createOrderResponse.ok) {
+                    const errorData = await createOrderResponse.json();
+                    throw new Error(errorData.error || "Failed to create order");
+                }
+
+                const { orderId, accessKey } = await createOrderResponse.json();
+                window.location.href = `/success?orderId=${orderId}&accessKey=${accessKey}`;
+            } catch (error) {
+                console.error("Order error:", error);
+                setPaymentError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+                setIsProcessing(false);
+            }
+            return;
+        }
+
         // Check Razorpay script is loaded
         if (!(window as any).Razorpay) {
             setPaymentError("Payment gateway is still loading. Please wait a moment and try again.");
@@ -387,7 +416,7 @@ export default function CheckoutPage() {
                                                 Opening Razorpay...
                                             </span>
                                         ) : (
-                                            `Pay ${formatCurrency(displaySubtotal)}`
+                                            displaySubtotal === 0 ? "Get Free Access" : `Pay ${formatCurrency(displaySubtotal)}`
                                         )}
                                     </Button>
                                     <p className="text-xs text-center text-gray-500 mt-2">

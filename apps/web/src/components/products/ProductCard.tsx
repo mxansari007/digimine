@@ -115,7 +115,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                     <div className="flex items-center justify-between pt-2 md:pt-4 border-t border-gray-50 mt-auto">
                         <div className="flex items-baseline gap-1.5 md:gap-2">
                             <span className="font-display text-lg md:text-xl font-bold text-gray-900">
-                                {formatCurrency(product.price)}
+                                {product.price === 0 ? "Free" : formatCurrency(product.price)}
                             </span>
                             {hasDiscount && (
                                 <span className="text-xs md:text-sm text-gray-400 line-through font-medium">

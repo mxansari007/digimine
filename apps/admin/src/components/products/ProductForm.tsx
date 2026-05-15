@@ -279,6 +279,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
                                             onChange={handleChange}
                                             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-100 outline-none transition-all"
                                         />
+                                        <p className="text-xs text-gray-500 mt-1">Set to 0 to make the product free.</p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">

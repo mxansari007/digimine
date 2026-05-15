@@ -162,7 +162,7 @@ export default function ProductsPage() {
                                             ) : 'One-time'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                            {formatCurrency(product.price)}
+                                            {product.price === 0 ? <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Free</span> : formatCurrency(product.price)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-md border ${product.status === 'published' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
