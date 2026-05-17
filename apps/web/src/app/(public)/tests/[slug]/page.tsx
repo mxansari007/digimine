@@ -9,6 +9,7 @@ import {
     getTestsInSeries, 
     hasUserPurchasedTest,
     getUserTestAttempts,
+    getResumableAttemptsFromList,
     enrollInFreeTestSeries
 } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -100,7 +101,8 @@ export default function TestSeriesDetailPage() {
 
     const isUnlocked = hasPurchased;
     const firstAvailableTest = tests[0] || null;
-    const activeAttempt = attempts.find((attempt) => attempt.status === "in_progress");
+    const resumableAttempts = getResumableAttemptsFromList(attempts);
+    const activeAttempt = resumableAttempts[0] || null;
     const activeAttemptSeriesTest = activeAttempt
         ? tests.find((test) => test.id === activeAttempt.testId)
         : null;
@@ -187,9 +189,11 @@ export default function TestSeriesDetailPage() {
                                 tests.map((test, index) => {
                                     // Find the most recent attempt for this specific test
                                     const testAttempts = attempts.filter(a => a.testId === test.id);
-                                    const latestAttempt = testAttempts[0] || null;
-                                    const hasInProgress = latestAttempt?.status === 'in_progress';
-                                    const hasCompleted = latestAttempt?.status === 'completed' || latestAttempt?.status === 'timed_out';
+                                    const resumableAttempt = resumableAttempts.find(a => a.testId === test.id) || null;
+                                    const latestFinalizedAttempt = testAttempts.find(a => a.status === 'completed' || a.status === 'timed_out') || null;
+                                    const latestAttempt = resumableAttempt || latestFinalizedAttempt || testAttempts[0] || null;
+                                    const hasInProgress = !!resumableAttempt;
+                                    const hasCompleted = !!latestFinalizedAttempt;
 
                                     return (
                                         <Card key={test.id} className="p-6">
@@ -210,8 +214,8 @@ export default function TestSeriesDetailPage() {
                                                 </div>
                                                 {isUnlocked ? (
                                                     <div className="flex flex-col sm:flex-row gap-2">
-                                                        {hasInProgress && latestAttempt ? (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${latestAttempt.id}`}>
+                                                        {hasInProgress && resumableAttempt ? (
+                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}`}>
                                                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full">
                                                                     <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                                                                     Continue Test

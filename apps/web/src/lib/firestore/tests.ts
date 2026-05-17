@@ -16,7 +16,7 @@ import {
     runTransaction,
     type DocumentData,
 } from "firebase/firestore";
-import { db } from "../firebase/client";
+import { auth, db } from "../firebase/client";
 import type { 
     TestSeries, 
     Test,
@@ -102,12 +102,22 @@ export const getPublishedTests = getPublishedTestSeries;
 
 export async function getTestSeriesBySlug(slug: string): Promise<TestSeries | null> {
     const docRef = doc(testsCollection, slug);
-    const snapshot = await getDoc(docRef);
-    if (snapshot.exists()) {
-        return mapDoc<TestSeries>(snapshot);
+    try {
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+            return mapDoc<TestSeries>(snapshot);
+        }
+    } catch {
+        // If the route slug is not the document ID, Firestore can deny the
+        // direct document read before the slug query below has a chance to run.
     }
 
-    const slugQuery = query(testsCollection, where("slug", "==", slug), limit(1));
+    const slugQuery = query(
+        testsCollection,
+        where("slug", "==", slug),
+        where("status", "==", "published"),
+        limit(1)
+    );
     const slugSnapshot = await getDocs(slugQuery);
     if (slugSnapshot.empty) return null;
 
@@ -180,6 +190,49 @@ export async function getTestPurchaseByOrderId(orderId: string): Promise<TestPur
 
 // --- Test Attempts ---
 
+function toMillis(value: Date | undefined): number {
+    return value?.getTime?.() ?? 0;
+}
+
+function getAttemptStartMillis(attempt: TestAttempt): number {
+    return toMillis(attempt.startedAt) || toMillis(attempt.createdAt) || toMillis(attempt.updatedAt);
+}
+
+function getAttemptFinalizedMillis(attempt: TestAttempt): number {
+    return toMillis(attempt.completedAt) || toMillis(attempt.updatedAt) || toMillis(attempt.createdAt);
+}
+
+function isFinalizedAttempt(attempt: TestAttempt): boolean {
+    return attempt.status === "completed" || attempt.status === "timed_out";
+}
+
+function normalizeAttemptAnswersForSubmit(attempt: TestAttempt): TestAnswerInput[] {
+    return (attempt.answers || [])
+        .map((answer: any) => ({
+            questionId: answer.questionId,
+            selectedOptionId: answer.selectedOptionId ?? answer.answer ?? "",
+            timeSpent: answer.timeSpent ?? 0,
+        }))
+        .filter((answer) => answer.questionId);
+}
+
+export function isTestAttemptResumable(attempt: TestAttempt, allAttempts: TestAttempt[]): boolean {
+    if (attempt.status !== "in_progress") return false;
+    if ((attempt.remainingTime ?? 1) <= 0) return false;
+
+    const startedAt = getAttemptStartMillis(attempt);
+    return !allAttempts.some((other) => {
+        if (other.id === attempt.id) return false;
+        if (other.userId !== attempt.userId || other.testId !== attempt.testId) return false;
+        if (!isFinalizedAttempt(other)) return false;
+        return getAttemptFinalizedMillis(other) >= startedAt;
+    });
+}
+
+export function getResumableAttemptsFromList(attempts: TestAttempt[]): TestAttempt[] {
+    return attempts.filter((attempt) => isTestAttemptResumable(attempt, attempts));
+}
+
 /**
  * Sync remaining time and auto-submit expired in-progress attempts.
  * Returns true if the attempt was timed out.
@@ -199,10 +252,11 @@ async function syncAndTimeoutAttempt(attempt: TestAttempt): Promise<boolean> {
     attempt.remainingTime = remaining;
 
     if (remaining <= 0) {
-        // Auto-submit with empty answers
+        // Auto-submit using the latest saved answers so a timer expiry does
+        // not wipe progress that was already autosaved.
         try {
             await submitTestAttempt(attempt.id, {
-                answers: [],
+                answers: normalizeAttemptAnswersForSubmit(attempt),
                 remainingTime: 0,
                 finalStatus: "timed_out",
             });
@@ -243,7 +297,13 @@ export async function startTestAttempt(
         const attempt = existingThisTest;
         const wasTimedOut = await syncAndTimeoutAttempt(attempt);
         if (!wasTimedOut) {
-            return attempt;
+            if (isTestAttemptResumable(attempt, userAttempts)) {
+                return attempt;
+            }
+            await abandonTestAttempt(attempt.id).catch((error) => {
+                console.warn("Failed to abandon stale same-test attempt:", error);
+            });
+            attempt.status = "abandoned";
         }
         // If timed out, fall through to create a new attempt
     }
@@ -254,10 +314,17 @@ export async function startTestAttempt(
         const otherAttempt = otherActiveAttempt;
         const wasTimedOut = await syncAndTimeoutAttempt(otherAttempt);
         if (!wasTimedOut) {
-            // Another test is still active and not timed out
-            throw new Error(
-                `You already have an active test: "${otherAttempt.title}". Please finish or submit it before starting a new one.`
-            );
+            if (!isTestAttemptResumable(otherAttempt, userAttempts)) {
+                await abandonTestAttempt(otherAttempt.id).catch((error) => {
+                    console.warn("Failed to abandon stale active attempt:", error);
+                });
+                otherAttempt.status = "abandoned";
+            } else {
+                // Another test is still active and not timed out
+                throw new Error(
+                    `You already have an active test: "${otherAttempt.title}". Please finish or submit it before starting a new one.`
+                );
+            }
         }
         // If timed out, we can proceed to create a new attempt
     }
@@ -391,6 +458,26 @@ export async function getUserTestAttempts(userId: string, seriesId?: string, tes
     }
 
     return attempts;
+}
+
+export async function getResumableTestAttempts(userId: string, seriesId?: string): Promise<TestAttempt[]> {
+    const attempts = await getUserTestAttempts(userId, seriesId);
+    const staleInProgress = attempts.filter(
+        (attempt) => attempt.status === "in_progress" && !isTestAttemptResumable(attempt, attempts)
+    );
+
+    // Best-effort cleanup: if a completed/timed_out attempt already exists for
+    // the same test after this in-progress one started, the in-progress doc is
+    // an orphan from a race or interrupted submit and should not keep showing.
+    await Promise.all(
+        staleInProgress.map((attempt) =>
+            abandonTestAttempt(attempt.id).catch((error) => {
+                console.warn("Failed to abandon stale in-progress attempt:", error);
+            })
+        )
+    );
+
+    return getResumableAttemptsFromList(attempts);
 }
 
 export async function updateTestAttempt(
@@ -888,42 +975,36 @@ export async function createTestPurchase(
 }
 
 export async function enrollInFreeTestSeries(userId: string, seriesId: string): Promise<TestPurchase> {
-    const existingPurchase = await getUserActiveTestPurchase(userId, seriesId);
-    if (existingPurchase) {
-        return existingPurchase;
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error("Please sign in to enroll in this test series.");
+    }
+    if (currentUser.uid !== userId) {
+        throw new Error("Your session does not match this enrollment request. Please sign out and sign in again.");
     }
 
-    const purchaseId = `${userId}_${seriesId}`;
-    const purchaseRef = doc(testPurchasesCollection, purchaseId);
-    const existingRefSnapshot = await getDoc(purchaseRef);
-    if (existingRefSnapshot.exists()) {
-        const existing = mapDoc<TestPurchase>(existingRefSnapshot);
-        if (existing.status === "active") {
-            return existing;
-        }
+    const token = await currentUser.getIdToken();
+    const response = await fetch("/api/tests/free-enrollment", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, seriesId }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.error || "Failed to enroll in this free test series.");
     }
 
-    const now = Timestamp.now();
-    
-    const purchaseData: Omit<TestPurchase, "id"> = {
-        userId,
-        seriesId,
-        orderId: "free-enrollment",
-        price: 0,
-        purchasedAt: now.toDate(),
-        status: "active",
-        createdAt: now.toDate(),
-        updatedAt: now.toDate(),
-    };
-    
-    await setDoc(purchaseRef, purchaseData);
-    await setDoc(doc(db, "users", userId), {
-        purchasedTests: arrayUnion(seriesId),
-        purchasedTestSeriesIds: arrayUnion(seriesId),
-        updatedAt: now.toDate(),
-    }, { merge: true });
-
-    return { id: purchaseId, ...purchaseData };
+    const purchase = payload.purchase;
+    return {
+        ...purchase,
+        purchasedAt: purchase.purchasedAt ? new Date(purchase.purchasedAt) : new Date(),
+        createdAt: purchase.createdAt ? new Date(purchase.createdAt) : new Date(),
+        updatedAt: purchase.updatedAt ? new Date(purchase.updatedAt) : new Date(),
+    } as TestPurchase;
 }
 
 export async function getUserActiveTestPurchase(userId: string, seriesId: string): Promise<TestPurchase | null> {

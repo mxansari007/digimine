@@ -9,7 +9,7 @@ import { collection, query, where, getDocs, doc, getDoc } from "firebase/firesto
 import { db } from "@/lib/firebase/client";
 
 import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
-import { getUserTestPurchases, getTestSeriesBySlug, getUserTestAttempts } from "@/lib/firestore/tests";
+import { getUserTestPurchases, getTestSeriesBySlug, getResumableTestAttempts } from "@/lib/firestore/tests";
 import { BookOpenIcon, HandIcon } from "@/components/icons/AppIcons";
 
 export default function DashboardPage() {
@@ -78,12 +78,14 @@ export default function DashboardPage() {
 
                 // Fetch in-progress test attempt for resume CTA
                 try {
-                    const allAttempts = await getUserTestAttempts(firebaseUser!.uid);
-                    const inProgress = allAttempts.find(a => a.status === 'in_progress');
+                    const resumableAttempts = await getResumableTestAttempts(firebaseUser!.uid);
+                    const inProgress = resumableAttempts[0] || null;
                     if (inProgress) {
                         const series = seriesData.find(s => s.id === inProgress.seriesId)
                             || (await getTestSeriesBySlug(inProgress.seriesId));
                         if (series) setActiveAttempt({ attempt: inProgress, series });
+                    } else {
+                        setActiveAttempt(null);
                     }
                 } catch (e) {
                     console.error("Failed to load active attempt:", e);

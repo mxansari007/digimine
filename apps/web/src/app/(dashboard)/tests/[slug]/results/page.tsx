@@ -60,6 +60,7 @@ function ResultsContent() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedExplanation, setExpandedExplanation] = useState<string | null>(null);
+    const [selectedSectionId, setSelectedSectionId] = useState('all');
 
     useEffect(() => {
         if (!user) {
@@ -158,6 +159,196 @@ function ResultsContent() {
     const accuracy = attempt.correctAnswers + attempt.wrongAnswers > 0
         ? Math.round((attempt.correctAnswers / (attempt.correctAnswers + attempt.wrongAnswers)) * 100)
         : 0;
+    const answerByQuestion = new Map<string, any>(
+        (attempt.answers || []).map((answer: any) => [answer.questionId, answer])
+    );
+    const questionNumberById = new Map(questions.map((question, index) => [question.id, index + 1]));
+    const sectionResultById = new Map((attempt.sectionResults || []).map((section) => [section.sectionId || '__unsectioned', section]));
+    const testSectionById = new Map((test.sections || []).map((section) => [section.id, section]));
+    const getQuestionStatus = (question: Question) => {
+        const answer = answerByQuestion.get(question.id) || { answer: null, isCorrect: false, marksObtained: 0, testCaseResults: [] };
+        const isSkipped = !answer.answer;
+        const isCorrect = !isSkipped && !!answer.isCorrect;
+        return { answer, isSkipped, isCorrect };
+    };
+    const sectionGroups = questions.reduce((groups, question) => {
+        const configuredSection = question.sectionId ? testSectionById.get(question.sectionId) : undefined;
+        const rawSectionId = configuredSection?.id || question.sectionId || '__unsectioned';
+        const groupId = rawSectionId || '__unsectioned';
+        const sectionResult = sectionResultById.get(groupId) || sectionResultById.get(question.sectionId || '__unsectioned');
+        const existing = groups.get(groupId) || {
+            id: groupId,
+            title: configuredSection?.title || sectionResult?.title || (question.sectionId ? 'Other Section' : 'Unsectioned'),
+            order: configuredSection?.order ?? groups.size,
+            questions: [] as Question[],
+            score: sectionResult?.score,
+            maxScore: sectionResult?.maxScore,
+            cutoffMarks: sectionResult?.cutoffMarks,
+            passed: sectionResult?.passed,
+        };
+        existing.questions.push(question);
+        groups.set(groupId, existing);
+        return groups;
+    }, new Map<string, {
+        id: string;
+        title: string;
+        order: number;
+        questions: Question[];
+        score?: number;
+        maxScore?: number;
+        cutoffMarks?: number;
+        passed?: boolean;
+    }>());
+    const reviewSections = Array.from(sectionGroups.values()).sort((a, b) => a.order - b.order);
+    const hasRealSections = reviewSections.some((section) => section.id !== '__unsectioned');
+    const selectedSectionExists = selectedSectionId === 'all' || reviewSections.some((section) => section.id === selectedSectionId);
+    const effectiveSectionId = selectedSectionExists ? selectedSectionId : 'all';
+    const visibleReviewSections = reviewSections.filter((section) => effectiveSectionId === 'all' || section.id === effectiveSectionId);
+    const visibleQuestionCount = visibleReviewSections.reduce((sum, section) => sum + section.questions.length, 0);
+    const getSectionCounts = (sectionQuestions: Question[]) => sectionQuestions.reduce(
+        (acc, question) => {
+            const { isSkipped, isCorrect } = getQuestionStatus(question);
+            if (isSkipped) acc.skipped++;
+            else if (isCorrect) acc.correct++;
+            else acc.wrong++;
+            return acc;
+        },
+        { correct: 0, wrong: 0, skipped: 0 }
+    );
+    const renderQuestionCard = (q: Question) => {
+        const { answer, isCorrect, isSkipped } = getQuestionStatus(q);
+        const questionSection = q.sectionId ? testSectionById.get(q.sectionId) : undefined;
+
+        return (
+            <Card key={q.id} className={`overflow-hidden border-l-4 ${isCorrect ? 'border-l-green-500' : isSkipped ? 'border-l-gray-300' : 'border-l-red-500'}`}>
+                <div className="p-5 sm:p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                            }`}>
+                                {isCorrect ? (
+                                    <CheckIcon className="h-4 w-4" />
+                                ) : isSkipped ? (
+                                    <MinusIcon className="h-4 w-4" />
+                                ) : (
+                                    <XIcon className="h-4 w-4" />
+                                )}
+                            </span>
+                            <div className="min-w-0">
+                                <div className="font-bold text-gray-400 text-sm">Question {questionNumberById.get(q.id) || 0}</div>
+                                {hasRealSections && (
+                                    <div className="text-xs font-semibold text-indigo-600 mt-0.5">{questionSection?.title || 'Unsectioned'}</div>
+                                )}
+                            </div>
+                        </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                            isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
+                        }`}>
+                            {isCorrect ? `+${answer?.marksObtained || q.marks}` : `${answer?.marksObtained || 0}`} Marks
+                        </span>
+                    </div>
+                    <FormattedContent html={q.questionText} className="mb-4 text-gray-800 font-medium" />
+
+                    {q.type === 'code' ? (
+                        <div className="space-y-3">
+                            {(() => {
+                                let codeData: { code: string; language: string } | null = null;
+                                try { codeData = JSON.parse(answer?.answer || ''); } catch { /* ignore */ }
+                                return codeData ? (
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
+                                            <span>Your Solution ({codeData.language})</span>
+                                        </div>
+                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No code submitted</p>
+                                );
+                            })()}
+
+                            {(answer as any)?.testCaseResults && (answer as any).testCaseResults.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
+                                    {(answer as any).testCaseResults.map((tc: any, tcIdx: number) => (
+                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                                    {tc.passed ? 'Passed' : 'Failed'}
+                                                </span>
+                                            </div>
+                                            {!tc.isHidden && (
+                                                <div className="mt-2 space-y-1 text-xs font-mono">
+                                                    <div><span className="text-gray-500">Input:</span> <span className="text-gray-700">{tc.input || '(empty)'}</span></div>
+                                                    <div><span className="text-gray-500">Expected:</span> <span className="text-gray-700">{tc.expectedOutput || '(empty)'}</span></div>
+                                                    <div><span className="text-gray-500">Actual:</span> <span className={tc.passed ? 'text-green-700' : 'text-red-700'}>{tc.actualOutput || '(empty)'}</span></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {q.options?.map(opt => {
+                                const isSelected = answer?.answer === opt.id;
+                                const isOptCorrect = opt.isCorrect;
+                                return (
+                                    <div
+                                        key={opt.id}
+                                        className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
+                                            isOptCorrect
+                                                ? 'bg-green-50 border-green-200 text-green-800'
+                                                : isSelected && !isOptCorrect
+                                                    ? 'bg-red-50 border-red-200 text-red-800'
+                                                    : 'bg-gray-50 border-gray-100 text-gray-600'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                                isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
+                                            }`}>
+                                                {isOptCorrect ? (
+                                                    <CheckIcon className="h-3 w-3" />
+                                                ) : isSelected ? (
+                                                    <XIcon className="h-3 w-3" />
+                                                ) : null}
+                                            </span>
+                                            <FormattedContent html={opt.text} size="sm" className="flex-1" />
+                                        </div>
+                                        {isOptCorrect && <span className="text-xs font-bold text-green-700">Correct</span>}
+                                        {isSelected && !isOptCorrect && <span className="text-xs font-bold text-red-700">Your Answer</span>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {q.explanation && (
+                        <div className="mt-4">
+                            <button
+                                onClick={() => setExpandedExplanation(expandedExplanation === q.id ? null : q.id)}
+                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                            >
+                                <svg className={`w-4 h-4 transition-transform ${expandedExplanation === q.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                {expandedExplanation === q.id ? 'Hide Explanation' : 'Show Explanation'}
+                            </button>
+                            {expandedExplanation === q.id && (
+                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
+                                    <FormattedContent html={q.explanation} size="sm" className="text-indigo-900" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </Card>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
@@ -253,134 +444,95 @@ function ResultsContent() {
                         </div>
                     </div>
 
-                    {questions.map((q, idx) => {
-                        const answer = attempt.answers.find(a => a.questionId === q.id);
-                        const isCorrect = answer?.isCorrect;
-                        const isSkipped = !answer?.answer;
-
-                        return (
-                            <Card key={q.id} className={`overflow-hidden border-l-4 ${isCorrect ? 'border-l-green-500' : isSkipped ? 'border-l-gray-300' : 'border-l-red-500'}`}>
-                                <div className="p-5 sm:p-6">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                                {isCorrect ? (
-                                                    <CheckIcon className="h-4 w-4" />
-                                                ) : isSkipped ? (
-                                                    <MinusIcon className="h-4 w-4" />
-                                                ) : (
-                                                    <XIcon className="h-4 w-4" />
-                                                )}
-                                            </span>
-                                            <span className="font-bold text-gray-400 text-sm">Question {idx + 1}</span>
-                                        </div>
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                                            isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
-                                        }`}>
-                                            {isCorrect ? `+${answer?.marksObtained || q.marks}` : `${answer?.marksObtained || 0}`} Marks
-                                        </span>
+                    {hasRealSections && (
+                        <Card className="p-4 sm:p-5">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-900">Browse by section</h4>
+                                        <p className="text-xs text-gray-500 mt-0.5">Filter the review to one section or keep all sections grouped below.</p>
                                     </div>
-                                    <FormattedContent html={q.questionText} className="mb-4 text-gray-800 font-medium" />
-
-                                    {q.type === 'code' ? (
-                                        <div className="space-y-3">
-                                            {(() => {
-                                                let codeData: { code: string; language: string } | null = null;
-                                                try { codeData = JSON.parse(answer?.answer || ''); } catch { /* ignore */ }
-                                                return codeData ? (
-                                                    <div className="border rounded-lg overflow-hidden">
-                                                        <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
-                                                            <span>Your Solution ({codeData.language})</span>
-                                                        </div>
-                                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-sm text-gray-500 italic">No code submitted</p>
-                                                );
-                                            })()}
-
-                                            {(answer as any)?.testCaseResults && (answer as any).testCaseResults.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
-                                                    {(answer as any).testCaseResults.map((tc: any, tcIdx: number) => (
-                                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
-                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                                                                    {tc.passed ? 'Passed' : 'Failed'}
-                                                                </span>
-                                                            </div>
-                                                            {!tc.isHidden && (
-                                                                <div className="mt-2 space-y-1 text-xs font-mono">
-                                                                    <div><span className="text-gray-500">Input:</span> <span className="text-gray-700">{tc.input || '(empty)'}</span></div>
-                                                                    <div><span className="text-gray-500">Expected:</span> <span className="text-gray-700">{tc.expectedOutput || '(empty)'}</span></div>
-                                                                    <div><span className="text-gray-500">Actual:</span> <span className={tc.passed ? 'text-green-700' : 'text-red-700'}>{tc.actualOutput || '(empty)'}</span></div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {q.options?.map(opt => {
-                                                const isSelected = answer?.answer === opt.id;
-                                                const isOptCorrect = opt.isCorrect;
-                                                return (
-                                                    <div
-                                                        key={opt.id}
-                                                        className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
-                                                            isOptCorrect
-                                                                ? 'bg-green-50 border-green-200 text-green-800'
-                                                                : isSelected && !isOptCorrect
-                                                                    ? 'bg-red-50 border-red-200 text-red-800'
-                                                                    : 'bg-gray-50 border-gray-100 text-gray-600'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                                                isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
-                                                            }`}>
-                                                                {isOptCorrect ? (
-                                                                    <CheckIcon className="h-3 w-3" />
-                                                                ) : isSelected ? (
-                                                                    <XIcon className="h-3 w-3" />
-                                                                ) : null}
-                                                            </span>
-                                                            <FormattedContent html={opt.text} size="sm" className="flex-1" />
-                                                        </div>
-                                                        {isOptCorrect && <span className="text-xs font-bold text-green-700">Correct</span>}
-                                                        {isSelected && !isOptCorrect && <span className="text-xs font-bold text-red-700">Your Answer</span>}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-
-                                    {q.explanation && (
-                                        <div className="mt-4">
-                                            <button
-                                                onClick={() => setExpandedExplanation(expandedExplanation === q.id ? null : q.id)}
-                                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                                            >
-                                                <svg className={`w-4 h-4 transition-transform ${expandedExplanation === q.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                                {expandedExplanation === q.id ? 'Hide Explanation' : 'Show Explanation'}
-                                            </button>
-                                            {expandedExplanation === q.id && (
-                                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
-                                                    <FormattedContent html={q.explanation} size="sm" className="text-indigo-900" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                    <span className="text-xs font-semibold text-gray-500">{visibleQuestionCount} shown</span>
                                 </div>
-                            </Card>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedSectionId('all')}
+                                        className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                            effectiveSectionId === 'all'
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="text-xs font-bold">All sections</div>
+                                        <div className="text-[11px] text-gray-500">{questions.length} questions</div>
+                                    </button>
+                                    {reviewSections.map((section) => {
+                                        const counts = getSectionCounts(section.questions);
+                                        return (
+                                            <button
+                                                key={section.id}
+                                                type="button"
+                                                onClick={() => setSelectedSectionId(section.id)}
+                                                className={`min-w-[180px] shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                                    effectiveSectionId === section.id
+                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-xs font-bold truncate">{section.title}</span>
+                                                    <span className="text-[11px] font-bold text-gray-400">{section.questions.length}</span>
+                                                </div>
+                                                <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
+                                                    <span className="text-green-600">{counts.correct} correct</span>
+                                                    <span className="text-red-600">{counts.wrong} wrong</span>
+                                                    <span>{counts.skipped} skipped</span>
+                                                </div>
+                                                {section.score !== undefined && section.maxScore !== undefined && (
+                                                    <div className="mt-1 text-[11px] font-semibold text-gray-500">
+                                                        Score {section.score} / {section.maxScore}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {visibleReviewSections.map((section) => {
+                        const counts = getSectionCounts(section.questions);
+                        return (
+                            <div key={section.id} className="space-y-3">
+                                {hasRealSections && (
+                                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900">{section.title}</h4>
+                                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                                                    <span>{section.questions.length} question{section.questions.length === 1 ? '' : 's'}</span>
+                                                    <span className="text-green-600">{counts.correct} correct</span>
+                                                    <span className="text-red-600">{counts.wrong} wrong</span>
+                                                    <span>{counts.skipped} skipped</span>
+                                                </div>
+                                            </div>
+                                            {section.score !== undefined && section.maxScore !== undefined && (
+                                                <div className="text-sm font-bold text-gray-900 tabular-nums">
+                                                    {section.score} / {section.maxScore}
+                                                    {section.cutoffMarks !== undefined && (
+                                                        <span className={`ml-2 text-xs ${section.passed ? 'text-green-700' : 'text-red-700'}`}>
+                                                            Cutoff {section.cutoffMarks}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {section.questions.map(renderQuestionCard)}
+                            </div>
                         );
                     })}
                 </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useParams } from "next/navigation";
 import { Button, Card, FormattedContent } from "@digimine/ui";
-import { getTestAttempt, getTestById, getTestSeries, getTestQuestions, getLatestAttemptsForTest } from "@/lib/firestore/tests";
+import { getTestAttempt, getTestById, getTestSeries, getTestQuestions } from "@/lib/firestore/tests";
+import { useAuthContext } from "@/contexts/AuthContext";
 import type { TestAttempt, Test, TestSeries, Question } from "@digimine/types";
 import Link from "next/link";
 import { CheckIcon, MinusIcon, XIcon } from "@/components/icons/AppIcons";
@@ -47,9 +48,77 @@ function CircularProgress({ percentage, size = 180, strokeWidth = 14, color, tra
 
 type QuestionFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
+function clamp(value: number, min = 0, max = 100): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+function buildSmoothPath(points: { x: number; y: number }[]): string {
+    if (points.length === 0) return "";
+    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+    const smoothing = 0.18;
+    const controlPoint = (
+        current: { x: number; y: number },
+        previous: { x: number; y: number } | undefined,
+        next: { x: number; y: number } | undefined,
+        reverse = false
+    ) => {
+        const p = previous || current;
+        const n = next || current;
+        const angle = Math.atan2(n.y - p.y, n.x - p.x) + (reverse ? Math.PI : 0);
+        const length = Math.hypot(n.x - p.x, n.y - p.y) * smoothing;
+        return {
+            x: current.x + Math.cos(angle) * length,
+            y: current.y + Math.sin(angle) * length,
+        };
+    };
+
+    return points.reduce((path, point, index, allPoints) => {
+        if (index === 0) {
+            return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+        }
+
+        const previous = allPoints[index - 1];
+        const controlStart = controlPoint(previous, allPoints[index - 2], point);
+        const controlEnd = controlPoint(point, previous, allPoints[index + 1], true);
+        return `${path} C ${controlStart.x.toFixed(2)} ${controlStart.y.toFixed(2)}, ${controlEnd.x.toFixed(2)} ${controlEnd.y.toFixed(2)}, ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }, "");
+}
+
+interface RankingEntry {
+    id: string;
+    totalScore: number;
+    maxPossibleScore: number;
+    percentage: number;
+    status: "completed" | "timed_out";
+    completedAt: string | null;
+    isCurrentUser: boolean;
+    rank?: number;
+}
+
+interface RankingData {
+    entries: RankingEntry[];
+    totalParticipants: number;
+    userRank: number | null;
+    percentile: number;
+    topScore: number;
+    averageScore: number;
+}
+
+interface DistributionHover {
+    left: number;
+    top: number;
+    percentage: number;
+    curveX: number;
+    curveY: number;
+    density: number;
+    nearest: RankingEntry | null;
+}
+
 export default function TestResultPage() {
     const params = useParams();
     const attemptId = params.id as string;
+    const { firebaseUser } = useAuthContext();
 
     const [attempt, setAttempt] = useState<TestAttempt | null>(null);
     const [test, setTest] = useState<Test | null>(null);
@@ -58,10 +127,16 @@ export default function TestResultPage() {
     const [loading, setLoading] = useState(true);
     const [expandedExplanation, setExpandedExplanation] = useState<string | null>(null);
     const [filter, setFilter] = useState<QuestionFilter>('all');
-    const [allAttempts, setAllAttempts] = useState<TestAttempt[]>([]);
+    const [selectedSectionId, setSelectedSectionId] = useState('all');
+    const [rankingData, setRankingData] = useState<RankingData | null>(null);
     const [rankingLoading, setRankingLoading] = useState(true);
+    const [rankingError, setRankingError] = useState<string | null>(null);
+    const [distributionHover, setDistributionHover] = useState<DistributionHover | null>(null);
 
     useEffect(() => {
+        if (!firebaseUser) return;
+        const currentFirebaseUser = firebaseUser;
+
         async function loadData() {
             try {
                 const attemptData = await getTestAttempt(attemptId);
@@ -79,19 +154,31 @@ export default function TestResultPage() {
                 setSeries(seriesData);
                 setQuestions(questionsData);
 
-                // Fetch ranking data (latest attempt per user) in parallel
-                getLatestAttemptsForTest(attemptData.testId)
-                    .then(setAllAttempts)
-                    .catch((err) => console.error("Failed to load ranking data:", err))
-                    .finally(() => setRankingLoading(false));
+                setRankingLoading(true);
+                setRankingError(null);
+                const token = await currentFirebaseUser.getIdToken();
+                const rankingResponse = await fetch(`/api/tests/ranking?attemptId=${attemptData.id}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                const rankingPayload = await rankingResponse.json().catch(() => ({}));
+                if (!rankingResponse.ok) {
+                    throw new Error(rankingPayload.error || "Failed to load ranking data.");
+                }
+                setRankingData(rankingPayload as RankingData);
             } catch (error) {
                 console.error("Error loading results:", error);
+                if (error instanceof Error) {
+                    setRankingError(error.message);
+                }
             } finally {
                 setLoading(false);
+                setRankingLoading(false);
             }
         }
         loadData();
-    }, [attemptId]);
+    }, [attemptId, firebaseUser]);
 
     if (loading) {
         return (
@@ -172,39 +259,296 @@ export default function TestResultPage() {
         ? { ring: 'ring-emerald-200', icon: 'bg-emerald-50 text-emerald-700', text: 'text-emerald-700', heroBg: 'from-slate-900 via-slate-800 to-emerald-900', accentColor: '#34d399' }
         : { ring: 'ring-rose-200', icon: 'bg-rose-50 text-rose-700', text: 'text-rose-700', heroBg: 'from-slate-900 via-slate-800 to-rose-900', accentColor: '#fb7185' };
 
-    // === Ranking computation ===
-    // Use latest attempt per user (already filtered by getLatestAttemptsForTest).
-    // Replace this attempt's userId entry with the current attempt to ensure freshness.
-    const rankingAttempts = (() => {
-        if (!allAttempts.length) return [] as TestAttempt[];
-        const filtered = allAttempts.filter((a) => a.userId !== attempt.userId);
-        return [...filtered, attempt].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-    })();
-    const totalParticipants = rankingAttempts.length;
-    const userRank = rankingAttempts.findIndex((a) => a.id === attempt.id) + 1;
-    const percentile = totalParticipants > 1
-        ? Math.round(((totalParticipants - userRank) / (totalParticipants - 1)) * 100)
-        : 100;
-    const topScore = rankingAttempts[0]?.totalScore ?? attempt.totalScore;
-    const averageScore = totalParticipants > 0
-        ? Math.round((rankingAttempts.reduce((s, a) => s + (a.totalScore || 0), 0) / totalParticipants) * 100) / 100
+    const rankingEntries = rankingData?.entries || [];
+    const totalParticipants = rankingData?.totalParticipants || 0;
+    const userRank = rankingData?.userRank || 0;
+    const percentile = rankingData?.percentile ?? 100;
+    const topScore = rankingData?.topScore ?? attempt.totalScore;
+    const averageScore = rankingData?.averageScore ?? attempt.totalScore;
+    const chart = {
+        left: 5,
+        right: 97,
+        top: 22,
+        bottom: 82,
+    };
+    const chartWidth = chart.right - chart.left;
+    const chartHeight = chart.bottom - chart.top;
+    const toChartX = (percentage: number) => chart.left + (clamp(percentage) / 100) * chartWidth;
+    const normalDensityAt = (percentage: number, mean: number, deviation: number) => {
+        const z = (percentage - mean) / deviation;
+        return Math.exp(-0.5 * z * z);
+    };
+    const rankingPercentages = rankingEntries.map((entry) => clamp(entry.percentage || 0));
+    const averagePercentage = rankingPercentages.length > 0
+        ? rankingPercentages.reduce((sum, value) => sum + value, 0) / rankingPercentages.length
+        : scorePercentage;
+    const variance = rankingPercentages.length > 1
+        ? rankingPercentages.reduce((sum, value) => sum + Math.pow(value - averagePercentage, 2), 0) / rankingPercentages.length
         : 0;
-
-    // Build histogram of % scores in 10 buckets (0-10, 10-20, ..., 90-100)
-    const BUCKET_COUNT = 10;
-    const buckets = Array.from({ length: BUCKET_COUNT }, () => 0);
-    rankingAttempts.forEach((a) => {
-        const pct = Math.max(0, Math.min(100, a.percentage || 0));
-        const idx = Math.min(BUCKET_COUNT - 1, Math.floor(pct / (100 / BUCKET_COUNT)));
-        buckets[idx]++;
+    const standardDeviation = Math.max(7, Math.sqrt(variance) || 12);
+    const normalCurve = Array.from({ length: 161 }, (_, index) => {
+        const percentage = (index / 160) * 100;
+        const density = normalDensityAt(percentage, averagePercentage, standardDeviation);
+        const x = toChartX(percentage);
+        return { x, density };
     });
-    const maxBucket = Math.max(1, ...buckets);
-    const userBucketIndex = Math.min(
-        BUCKET_COUNT - 1,
-        Math.floor(Math.max(0, Math.min(100, attempt.percentage || 0)) / (100 / BUCKET_COUNT))
-    );
+    const peakDensity = Math.max(...normalCurve.map((point) => point.density), 1);
+    const curvePoints = normalCurve.map((point) => ({
+        x: point.x,
+        y: chart.bottom - (point.density / peakDensity) * chartHeight,
+    }));
+    const normalPath = buildSmoothPath(curvePoints);
+    const normalAreaPath = `${normalPath} L ${chart.right} ${chart.bottom} L ${chart.left} ${chart.bottom} Z`;
+    const participantMarkers = rankingEntries
+        .map((entry) => ({ ...entry, percentage: clamp(entry.percentage || 0) }))
+        .sort((a, b) => a.percentage - b.percentage)
+        .map((entry, index, sortedEntries) => {
+            const nearbyBefore = sortedEntries
+                .slice(0, index)
+                .filter((previous) => Math.abs(previous.percentage - entry.percentage) < 2.4)
+                .length;
+            return {
+                ...entry,
+                x: toChartX(entry.percentage),
+                row: nearbyBefore % 3,
+            };
+        });
     const maxScore = attempt.maxPossibleScore || test.totalMarks;
     const passingPercent = maxScore > 0 ? (test.passingMarks / maxScore) * 100 : 0;
+    const clampedPassingPercent = clamp(passingPercent);
+    const currentScorePercent = clamp(attempt.percentage || 0);
+    const averageLineX = toChartX(averagePercentage);
+    const currentLineX = toChartX(currentScorePercent);
+    const cutoffLineX = toChartX(clampedPassingPercent);
+    const labelLeft = (x: number) => `${clamp(x, chart.left + 3, chart.right - 3)}%`;
+    const handleDistributionMove = (event: MouseEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const relativeX = clamp(((event.clientX - rect.left) / rect.width) * 100);
+        const percentage = clamp(((relativeX - chart.left) / chartWidth) * 100);
+        const density = normalDensityAt(percentage, averagePercentage, standardDeviation);
+        const curveY = chart.bottom - (density / peakDensity) * chartHeight;
+        const nearest = rankingEntries.reduce<RankingEntry | null>((closest, entry) => {
+            if (!closest) return entry;
+            return Math.abs((entry.percentage || 0) - percentage) < Math.abs((closest.percentage || 0) - percentage)
+                ? entry
+                : closest;
+        }, null);
+
+        setDistributionHover({
+            left: event.clientX - rect.left,
+            top: event.clientY - rect.top,
+            percentage,
+            curveX: toChartX(percentage),
+            curveY,
+            density: (density / peakDensity) * 100,
+            nearest,
+        });
+    };
+    const hoverNearestDelta = distributionHover?.nearest
+        ? Math.abs((distributionHover.nearest.percentage || 0) - distributionHover.percentage)
+        : null;
+    const questionNumberById = new Map(questions.map((question, index) => [question.id, index + 1]));
+    const sectionResultById = new Map((attempt.sectionResults || []).map((section) => [section.sectionId || '__unsectioned', section]));
+    const testSectionById = new Map((test.sections || []).map((section) => [section.id, section]));
+    const getQuestionStatus = (question: Question) => {
+        const answer = answerByQuestion.get(question.id) || { answer: null, isCorrect: false, marksObtained: 0, testCaseResults: [] };
+        const isSkipped = !answer.answer;
+        const isCorrect = !isSkipped && !!answer.isCorrect;
+        return { answer, isSkipped, isCorrect };
+    };
+    const matchesStatusFilter = (question: Question) => {
+        const { isSkipped, isCorrect } = getQuestionStatus(question);
+        if (filter === 'skipped') return isSkipped;
+        if (filter === 'correct') return !isSkipped && isCorrect;
+        if (filter === 'wrong') return !isSkipped && !isCorrect;
+        return true;
+    };
+    const sectionGroups = questions.reduce((groups, question) => {
+        const configuredSection = question.sectionId ? testSectionById.get(question.sectionId) : undefined;
+        const rawSectionId = configuredSection?.id || question.sectionId || '__unsectioned';
+        const groupId = rawSectionId || '__unsectioned';
+        const sectionResult = sectionResultById.get(groupId) || sectionResultById.get(question.sectionId || '__unsectioned');
+        const existing = groups.get(groupId) || {
+            id: groupId,
+            title: configuredSection?.title || sectionResult?.title || (question.sectionId ? 'Other Section' : 'Unsectioned'),
+            order: configuredSection?.order ?? groups.size,
+            questions: [] as Question[],
+            score: sectionResult?.score,
+            maxScore: sectionResult?.maxScore,
+            cutoffMarks: sectionResult?.cutoffMarks,
+            passed: sectionResult?.passed,
+        };
+        existing.questions.push(question);
+        groups.set(groupId, existing);
+        return groups;
+    }, new Map<string, {
+        id: string;
+        title: string;
+        order: number;
+        questions: Question[];
+        score?: number;
+        maxScore?: number;
+        cutoffMarks?: number;
+        passed?: boolean;
+    }>());
+    const reviewSections = Array.from(sectionGroups.values()).sort((a, b) => a.order - b.order);
+    const hasRealSections = reviewSections.some((section) => section.id !== '__unsectioned');
+    const selectedSectionExists = selectedSectionId === 'all' || reviewSections.some((section) => section.id === selectedSectionId);
+    const effectiveSectionId = selectedSectionExists ? selectedSectionId : 'all';
+    const visibleReviewSections = reviewSections
+        .filter((section) => effectiveSectionId === 'all' || section.id === effectiveSectionId)
+        .map((section) => ({
+            ...section,
+            questions: section.questions.filter(matchesStatusFilter),
+        }))
+        .filter((section) => section.questions.length > 0);
+    const visibleQuestionCount = visibleReviewSections.reduce((sum, section) => sum + section.questions.length, 0);
+    const getSectionCounts = (sectionQuestions: Question[]) => sectionQuestions.reduce(
+        (acc, question) => {
+            const { isSkipped, isCorrect } = getQuestionStatus(question);
+            if (isSkipped) acc.skipped++;
+            else if (isCorrect) acc.correct++;
+            else acc.wrong++;
+            return acc;
+        },
+        { correct: 0, wrong: 0, skipped: 0 }
+    );
+    const renderQuestionCard = (question: Question) => {
+        const { answer: userAnswer, isSkipped, isCorrect } = getQuestionStatus(question);
+        const questionSection = question.sectionId ? testSectionById.get(question.sectionId) : undefined;
+
+        return (
+            <Card key={question.id} className={`overflow-hidden border-l-4 ${isCorrect ? 'border-l-green-500' : isSkipped ? 'border-l-gray-300' : 'border-l-red-500'}`}>
+                <div className="p-5 sm:p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                            }`}>
+                                {isCorrect ? (
+                                    <CheckIcon className="h-4 w-4" />
+                                ) : isSkipped ? (
+                                    <MinusIcon className="h-4 w-4" />
+                                ) : (
+                                    <XIcon className="h-4 w-4" />
+                                )}
+                            </span>
+                            <div className="min-w-0">
+                                <div className="font-bold text-gray-400 text-sm">Question {questionNumberById.get(question.id) || 0}</div>
+                                {hasRealSections && (
+                                    <div className="text-xs font-semibold text-indigo-600 mt-0.5">{questionSection?.title || 'Unsectioned'}</div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
+                            }`}>
+                                {isCorrect ? `+${userAnswer.marksObtained || question.marks}` : `${userAnswer.marksObtained || 0}`} Marks
+                            </span>
+                        </div>
+                    </div>
+                    <FormattedContent html={question.questionText} className="mb-4 text-gray-800 font-medium" />
+
+                    {question.type === 'code' ? (
+                        <div className="space-y-3">
+                            {(() => {
+                                let codeData: { code: string; language: string } | null = null;
+                                try { codeData = JSON.parse(userAnswer.answer); } catch { /* ignore */ }
+                                return codeData ? (
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
+                                            <span>Your Solution ({codeData.language})</span>
+                                        </div>
+                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No code submitted</p>
+                                );
+                            })()}
+
+                            {userAnswer.testCaseResults && userAnswer.testCaseResults.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
+                                    {userAnswer.testCaseResults.map((tc: any, tcIdx: number) => (
+                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                                    {tc.passed ? 'Passed' : 'Failed'}
+                                                </span>
+                                            </div>
+                                            {!tc.isHidden && (
+                                                <div className="mt-2 space-y-1 text-xs font-mono">
+                                                    <div><span className="text-gray-500">Input:</span> <span className="text-gray-700">{tc.input || '(empty)'}</span></div>
+                                                    <div><span className="text-gray-500">Expected:</span> <span className="text-gray-700">{tc.expectedOutput || '(empty)'}</span></div>
+                                                    <div><span className="text-gray-500">Actual:</span> <span className={tc.passed ? 'text-green-700' : 'text-red-700'}>{tc.actualOutput || '(empty)'}</span></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {question.options?.map((option) => {
+                                const isSelected = option.id === userAnswer.answer;
+                                const isOptCorrect = option.isCorrect;
+                                return (
+                                    <div
+                                        key={option.id}
+                                        className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
+                                            isOptCorrect
+                                                ? 'bg-green-50 border-green-200 text-green-800'
+                                                : isSelected && !isOptCorrect
+                                                    ? 'bg-red-50 border-red-200 text-red-800'
+                                                    : 'bg-gray-50 border-gray-100 text-gray-600'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                                isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
+                                            }`}>
+                                                {isOptCorrect ? (
+                                                    <CheckIcon className="h-3 w-3" />
+                                                ) : isSelected ? (
+                                                    <XIcon className="h-3 w-3" />
+                                                ) : null}
+                                            </span>
+                                            <FormattedContent html={option.text} size="sm" className="flex-1" />
+                                        </div>
+                                        {isOptCorrect && <span className="text-xs font-bold text-green-700">Correct Answer</span>}
+                                        {isSelected && !isOptCorrect && <span className="text-xs font-bold text-red-700">Your Choice</span>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {question.explanation && (
+                        <div className="mt-4">
+                            <button
+                                onClick={() => setExpandedExplanation(expandedExplanation === question.id ? null : question.id)}
+                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                            >
+                                <svg className={`w-4 h-4 transition-transform ${expandedExplanation === question.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                {expandedExplanation === question.id ? 'Hide Explanation' : 'Show Explanation'}
+                            </button>
+                            {expandedExplanation === question.id && (
+                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
+                                    <FormattedContent html={question.explanation} size="sm" className="text-indigo-900" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </Card>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 py-6 sm:py-10">
@@ -415,7 +759,7 @@ export default function TestResultPage() {
                         <div>
                             <h3 className="text-base font-bold text-slate-900">Score Distribution &amp; Ranking</h3>
                             <p className="text-sm text-slate-500 mt-1">
-                                Based on the latest attempt of each participant.
+                                Your selected attempt compared with each participant&apos;s latest finalized attempt.
                             </p>
                         </div>
                         {!rankingLoading && totalParticipants > 0 && (
@@ -435,8 +779,29 @@ export default function TestResultPage() {
                     </div>
 
                     {rankingLoading ? (
-                        <div className="py-12 flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                            <div className="relative h-64 sm:h-72 overflow-hidden rounded-lg bg-white animate-pulse">
+                                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                                    {[25, 50, 75].map((x) => (
+                                        <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="#e2e8f0" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                    ))}
+                                    {[chart.top, chart.top + chartHeight / 3, chart.top + (chartHeight * 2) / 3, chart.bottom].map((y) => (
+                                        <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                    ))}
+                                    <path d={`M ${chart.left} ${chart.bottom - 12} C 25 20, 42 20, 58 ${chart.bottom - 28} S 82 ${chart.bottom - 18}, ${chart.right} ${chart.bottom - 34}`} fill="none" stroke="#c7d2fe" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+                                    <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="#cbd5e1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm ring-1 ring-slate-100">
+                                        Loading ranking curve...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : rankingError ? (
+                        <div className="py-10 text-center">
+                            <p className="text-sm font-bold text-slate-700">Ranking could not be loaded.</p>
+                            <p className="text-xs text-slate-500 mt-1">{rankingError}</p>
                         </div>
                     ) : totalParticipants <= 1 ? (
                         <div className="py-10 text-center">
@@ -448,65 +813,120 @@ export default function TestResultPage() {
                         </div>
                     ) : (
                         <div className="space-y-5">
-                            {/* Histogram */}
-                            <div>
-                                <div className="relative h-48 sm:h-56">
-                                    {/* Cut-off line */}
-                                    <div
-                                        className="absolute top-0 bottom-6 w-px bg-amber-500"
-                                        style={{ left: `${passingPercent}%` }}
-                                    >
-                                        <div className="absolute -top-1 -translate-x-1/2 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold whitespace-nowrap shadow">
-                                            Cut-off {Math.round(passingPercent)}%
-                                        </div>
-                                    </div>
-
-                                    {/* Bars */}
-                                    <div className="absolute inset-0 flex items-end gap-1 sm:gap-1.5 pb-6">
-                                        {buckets.map((count, i) => {
-                                            const heightPct = (count / maxBucket) * 100;
-                                            const isUserBucket = i === userBucketIndex;
-                                            return (
-                                                <div key={i} className="flex-1 relative group">
-                                                    {isUserBucket && count > 0 && (
-                                                        <div
-                                                            className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-bold whitespace-nowrap shadow z-10"
-                                                            style={{ bottom: `${heightPct}%` }}
-                                                        >
-                                                            You
-                                                            <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-indigo-600 rotate-45 -mt-1" />
-                                                        </div>
-                                                    )}
-                                                    <div
-                                                        className={`w-full rounded-t-md transition-all duration-700 ${
-                                                            isUserBucket
-                                                                ? 'bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-lg shadow-indigo-200'
-                                                                : 'bg-slate-200 group-hover:bg-slate-300'
-                                                        }`}
-                                                        style={{ height: `${Math.max(heightPct, count > 0 ? 4 : 0)}%`, minHeight: count > 0 ? 4 : 0 }}
-                                                    />
-                                                    {/* Tooltip on hover */}
-                                                    {count > 0 && (
-                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-slate-900 text-white text-[10px] font-medium px-2 py-1 rounded whitespace-nowrap z-20">
-                                                            {count} {count === 1 ? 'student' : 'students'}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* X-axis labels */}
-                                    <div className="absolute bottom-0 inset-x-0 flex gap-1 sm:gap-1.5">
-                                        {buckets.map((_, i) => (
-                                            <div key={i} className="flex-1 text-center text-[10px] text-slate-400 font-medium">
-                                                {i * 10}
-                                            </div>
+                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                <div
+                                    className="relative h-64 sm:h-72 overflow-hidden rounded-lg bg-white"
+                                    onMouseMove={handleDistributionMove}
+                                    onMouseLeave={() => setDistributionHover(null)}
+                                >
+                                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                                        <defs>
+                                            <linearGradient id="rankingNormalFill" x1="0" x2="0" y1="0" y2="1">
+                                                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.22" />
+                                                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.02" />
+                                            </linearGradient>
+                                        </defs>
+                                        {[25, 50, 75].map((x) => (
+                                            <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="#e2e8f0" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
                                         ))}
-                                        <div className="text-[10px] text-slate-400 font-medium">100</div>
+                                        {[chart.top, chart.top + chartHeight / 3, chart.top + (chartHeight * 2) / 3, chart.bottom].map((y) => (
+                                            <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                        ))}
+                                        <line x1={averageLineX} x2={averageLineX} y1={chart.top} y2={chart.bottom} stroke="#10b981" strokeWidth="1" opacity="0.42" vectorEffect="non-scaling-stroke" />
+                                        <line x1={cutoffLineX} x2={cutoffLineX} y1={chart.top} y2={chart.bottom} stroke="#d97706" strokeWidth="1.2" opacity="0.9" vectorEffect="non-scaling-stroke" />
+                                        <line x1={currentLineX} x2={currentLineX} y1={chart.top} y2={chart.bottom} stroke="#4f46e5" strokeWidth="1.25" opacity="0.95" vectorEffect="non-scaling-stroke" />
+                                        <path d={normalAreaPath} fill="url(#rankingNormalFill)" />
+                                        <path d={normalPath} fill="none" stroke="#4f46e5" strokeWidth="1.7" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+                                        <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="#cbd5e1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                                        {distributionHover && (
+                                            <>
+                                                <line x1={distributionHover.curveX} x2={distributionHover.curveX} y1={chart.top} y2={chart.bottom} stroke="#0f172a" strokeWidth="1" strokeDasharray="4 5" opacity="0.28" vectorEffect="non-scaling-stroke" />
+                                            </>
+                                        )}
+                                    </svg>
+
+                                    {distributionHover && (
+                                        <div
+                                            className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-900 ring-2 ring-white shadow-sm"
+                                            style={{
+                                                left: `${distributionHover.curveX}%`,
+                                                top: `${distributionHover.curveY}%`,
+                                            }}
+                                        />
+                                    )}
+
+                                    <div
+                                        className="absolute top-4 -translate-x-1/2 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow whitespace-nowrap"
+                                        style={{ left: labelLeft(cutoffLineX) }}
+                                    >
+                                        Cut-off {Math.round(passingPercent)}%
+                                    </div>
+
+                                    <div
+                                        className="absolute top-9 -translate-x-1/2 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200 whitespace-nowrap"
+                                        style={{ left: labelLeft(averageLineX) }}
+                                    >
+                                        Avg {Math.round(averagePercentage)}%
+                                    </div>
+
+                                    <div
+                                        className="absolute top-1.5 -translate-x-1/2 rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white shadow"
+                                        style={{ left: labelLeft(currentLineX) }}
+                                    >
+                                        You
+                                    </div>
+
+                                    {participantMarkers.map((marker) => (
+                                        <div
+                                            key={marker.id}
+                                            className="absolute -translate-x-1/2 group"
+                                            style={{
+                                                left: `${marker.x}%`,
+                                                bottom: `${44 + marker.row * 12}px`,
+                                            }}
+                                        >
+                                            <div className={`rounded-full border-2 border-white shadow ${
+                                                marker.isCurrentUser
+                                                    ? 'h-4 w-4 bg-indigo-600'
+                                                    : 'h-3 w-3 bg-slate-400'
+                                            }`} />
+                                            <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[10px] font-medium text-white shadow group-hover:block whitespace-nowrap">
+                                                {marker.isCurrentUser ? 'Your score' : 'Participant'}: {Math.round(marker.percentage)}%
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {distributionHover && (
+                                        <div
+                                            className={`pointer-events-none absolute z-30 rounded-lg bg-slate-950 px-3 py-2 text-[11px] text-white shadow-xl ${
+                                                distributionHover.left > 360 ? '-translate-x-full -ml-3' : 'translate-x-3'
+                                            }`}
+                                            style={{
+                                                left: `${distributionHover.left}px`,
+                                                top: `${Math.max(16, distributionHover.top - 8)}px`,
+                                            }}
+                                        >
+                                            <div className="font-bold tabular-nums">{Math.round(distributionHover.percentage)}% score</div>
+                                            <div className="mt-0.5 text-white/70 tabular-nums">Curve density {Math.round(distributionHover.density)}%</div>
+                                            {distributionHover.nearest && hoverNearestDelta !== null && hoverNearestDelta <= 6 && (
+                                                <div className="mt-1 border-t border-white/10 pt-1 text-white/80 tabular-nums">
+                                                    Nearest: {distributionHover.nearest.isCurrentUser ? 'you' : 'participant'} at {Math.round(distributionHover.nearest.percentage)}%
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="absolute bottom-1 inset-x-4 flex justify-between text-[10px] font-medium text-slate-400">
+                                        <span>0%</span>
+                                        <span>25%</span>
+                                        <span>50%</span>
+                                        <span>75%</span>
+                                        <span>100%</span>
                                     </div>
                                 </div>
-                                <div className="mt-3 text-center text-xs text-slate-500">Score percentage</div>
+                                <div className="mt-3 text-center text-xs text-slate-500">
+                                    Normal distribution curve based on finalized participant score percentages
+                                </div>
                             </div>
 
                             {/* Legend & summary */}
@@ -531,12 +951,16 @@ export default function TestResultPage() {
 
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 pt-1">
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-sm bg-gradient-to-t from-indigo-600 to-indigo-400"></span>
-                                    Your bucket
+                                    <span className="w-3 h-3 rounded-full bg-indigo-600"></span>
+                                    Your score
                                 </span>
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-sm bg-slate-200"></span>
-                                    Other students
+                                    <span className="w-3 h-3 rounded-full bg-slate-400"></span>
+                                    Other participants
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-3 h-3 rounded-sm bg-indigo-500/20 border border-indigo-400"></span>
+                                    Normal curve
                                 </span>
                                 <span className="flex items-center gap-1.5">
                                     <span className="w-3 h-3 bg-amber-500"></span>
@@ -577,163 +1001,101 @@ export default function TestResultPage() {
                         </div>
                     </div>
 
-                    {(() => {
-                        const visibleCount = questions.filter((q) => {
-                            const a = answerByQuestion.get(q.id);
-                            const isSkipped = !a || !a.answer;
-                            const isCorrect = !!a?.isCorrect;
-                            if (filter === 'all') return true;
-                            if (filter === 'skipped') return isSkipped;
-                            if (filter === 'correct') return !isSkipped && isCorrect;
-                            if (filter === 'wrong') return !isSkipped && !isCorrect;
-                            return true;
-                        }).length;
-                        if (visibleCount === 0) {
-                            return (
-                                <Card className="p-10 text-center text-slate-500 text-sm">
-                                    No questions match this filter.
-                                </Card>
-                            );
-                        }
-                        return null;
-                    })()}
-
-                    {questions.map((question, idx) => {
-                        const userAnswer = answerByQuestion.get(question.id) || { answer: null, isCorrect: false, marksObtained: 0, testCaseResults: [] };
-                        const isSkipped = !userAnswer.answer;
-                        const isCorrect = !isSkipped && !!userAnswer.isCorrect;
-
-                        if (filter === 'correct' && (isSkipped || !isCorrect)) return null;
-                        if (filter === 'wrong' && (isSkipped || isCorrect)) return null;
-                        if (filter === 'skipped' && !isSkipped) return null;
-
-                        return (
-                            <Card key={idx} className={`overflow-hidden border-l-4 ${isCorrect ? 'border-l-green-500' : isSkipped ? 'border-l-gray-300' : 'border-l-red-500'}`}>
-                                <div className="p-5 sm:p-6">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                                {isCorrect ? (
-                                                    <CheckIcon className="h-4 w-4" />
-                                                ) : isSkipped ? (
-                                                    <MinusIcon className="h-4 w-4" />
-                                                ) : (
-                                                    <XIcon className="h-4 w-4" />
+                    {hasRealSections && (
+                        <Card className="p-4 sm:p-5">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-900">Browse by section</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">Filter the review to one section or keep the full paper grouped by section.</p>
+                                    </div>
+                                    <span className="text-xs font-semibold text-slate-500">{visibleQuestionCount} shown</span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedSectionId('all')}
+                                        className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                            effectiveSectionId === 'all'
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div className="text-xs font-bold">All sections</div>
+                                        <div className="text-[11px] text-slate-500">{questions.length} questions</div>
+                                    </button>
+                                    {reviewSections.map((section) => {
+                                        const counts = getSectionCounts(section.questions);
+                                        return (
+                                            <button
+                                                key={section.id}
+                                                type="button"
+                                                onClick={() => setSelectedSectionId(section.id)}
+                                                className={`min-w-[180px] shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                                    effectiveSectionId === section.id
+                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-xs font-bold truncate">{section.title}</span>
+                                                    <span className="text-[11px] font-bold text-slate-400">{section.questions.length}</span>
+                                                </div>
+                                                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                                                    <span className="text-emerald-600">{counts.correct} correct</span>
+                                                    <span className="text-rose-600">{counts.wrong} wrong</span>
+                                                    <span>{counts.skipped} skipped</span>
+                                                </div>
+                                                {section.score !== undefined && section.maxScore !== undefined && (
+                                                    <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                                                        Score {section.score} / {section.maxScore}
+                                                    </div>
                                                 )}
-                                            </span>
-                                            <span className="font-bold text-gray-400 text-sm">Question {idx + 1}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                                {isCorrect ? `+${userAnswer.marksObtained || question.marks}` : `${userAnswer.marksObtained || 0}`} Marks
-                                            </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {visibleQuestionCount === 0 && (
+                        <Card className="p-10 text-center text-slate-500 text-sm">
+                            No questions match this filter.
+                        </Card>
+                    )}
+
+                    {visibleReviewSections.map((section) => {
+                        const counts = getSectionCounts(section.questions);
+                        return (
+                            <div key={section.id} className="space-y-3">
+                                {hasRealSections && (
+                                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div>
+                                                <h3 className="font-bold text-slate-900">{section.title}</h3>
+                                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                                                    <span>{section.questions.length} question{section.questions.length === 1 ? '' : 's'}</span>
+                                                    <span className="text-emerald-600">{counts.correct} correct</span>
+                                                    <span className="text-rose-600">{counts.wrong} wrong</span>
+                                                    <span>{counts.skipped} skipped</span>
+                                                </div>
+                                            </div>
+                                            {section.score !== undefined && section.maxScore !== undefined && (
+                                                <div className="text-sm font-bold text-slate-900 tabular-nums">
+                                                    {section.score} / {section.maxScore}
+                                                    {section.cutoffMarks !== undefined && (
+                                                        <span className={`ml-2 text-xs ${section.passed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                            Cutoff {section.cutoffMarks}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <FormattedContent html={question.questionText} className="mb-4 text-gray-800 font-medium" />
-
-                                    {question.type === 'code' ? (
-                                        <div className="space-y-3">
-                                            {/* Submitted Code */}
-                                            {(() => {
-                                                let codeData: { code: string; language: string } | null = null;
-                                                try { codeData = JSON.parse(userAnswer.answer); } catch { /* ignore */ }
-                                                return codeData ? (
-                                                    <div className="border rounded-lg overflow-hidden">
-                                                        <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
-                                                            <span>Your Solution ({codeData.language})</span>
-                                                        </div>
-                                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-sm text-gray-500 italic">No code submitted</p>
-                                                );
-                                            })()}
-
-                                            {/* Test Case Results */}
-                                            {userAnswer.testCaseResults && userAnswer.testCaseResults.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
-                                                    {userAnswer.testCaseResults.map((tc: any, tcIdx: number) => (
-                                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
-                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                                                                    {tc.passed ? 'Passed' : 'Failed'}
-                                                                </span>
-                                                            </div>
-                                                            {!tc.isHidden && (
-                                                                <div className="mt-2 space-y-1 text-xs font-mono">
-                                                                    <div><span className="text-gray-500">Input:</span> <span className="text-gray-700">{tc.input || '(empty)'}</span></div>
-                                                                    <div><span className="text-gray-500">Expected:</span> <span className="text-gray-700">{tc.expectedOutput || '(empty)'}</span></div>
-                                                                    <div><span className="text-gray-500">Actual:</span> <span className={tc.passed ? 'text-green-700' : 'text-red-700'}>{tc.actualOutput || '(empty)'}</span></div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {question.options?.map((option) => {
-                                                const isSelected = option.id === userAnswer.answer;
-                                                const isOptCorrect = option.isCorrect;
-                                                return (
-                                                    <div
-                                                        key={option.id}
-                                                        className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
-                                                            isOptCorrect
-                                                                ? 'bg-green-50 border-green-200 text-green-800'
-                                                                : isSelected && !isOptCorrect
-                                                                    ? 'bg-red-50 border-red-200 text-red-800'
-                                                                    : 'bg-gray-50 border-gray-100 text-gray-600'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                                                isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
-                                                            }`}>
-                                                                {isOptCorrect ? (
-                                                                    <CheckIcon className="h-3 w-3" />
-                                                                ) : isSelected ? (
-                                                                    <XIcon className="h-3 w-3" />
-                                                                ) : null}
-                                                            </span>
-                                                            <FormattedContent html={option.text} size="sm" className="flex-1" />
-                                                        </div>
-                                                        {isOptCorrect && <span className="text-xs font-bold text-green-700">Correct Answer</span>}
-                                                        {isSelected && !isOptCorrect && <span className="text-xs font-bold text-red-700">Your Choice</span>}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-
-                                    {question.explanation && (
-                                        <div className="mt-4">
-                                            <button
-                                                onClick={() => setExpandedExplanation(expandedExplanation === question.id ? null : question.id)}
-                                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                                            >
-                                                <svg className={`w-4 h-4 transition-transform ${expandedExplanation === question.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                                {expandedExplanation === question.id ? 'Hide Explanation' : 'Show Explanation'}
-                                            </button>
-                                            {expandedExplanation === question.id && (
-                                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
-                                                    <FormattedContent html={question.explanation} size="sm" className="text-indigo-900" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </Card>
+                                )}
+                                {section.questions.map(renderQuestionCard)}
+                            </div>
                         );
                     })}
                 </div>

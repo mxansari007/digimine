@@ -495,7 +495,7 @@ export default function TestAttemptPage() {
                 // If time ran out while window was closed, auto-submit
                 if ((newAttempt.remainingTime ?? 0) <= 0) {
                     alert("The time for this test has expired. Submitting now...");
-                    await finishTest(newAttempt.id, initialAnswers, displayQuestions, 0);
+                    await finishTest(newAttempt.id, initialAnswers, displayQuestions, 0, "timed_out");
                     return;
                 }
 
@@ -888,7 +888,7 @@ export default function TestAttemptPage() {
     };
 
     const handleAutoSubmit = async () => {
-        await finishTest();
+        await finishTest(undefined, undefined, undefined, 0, "timed_out");
     };
 
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1016,7 +1016,8 @@ export default function TestAttemptPage() {
         overrideAttemptId?: string,
         overrideAnswers?: Record<string, string>,
         overrideQuestions?: Question[],
-        overrideTimeLeft?: number
+        overrideTimeLeft?: number,
+        overrideFinalStatus?: "completed" | "timed_out"
     ) => {
         const targetAttempt = overrideAttemptId ? { id: overrideAttemptId } : attempt;
         const targetAnswers = overrideAnswers || answers;
@@ -1029,6 +1030,7 @@ export default function TestAttemptPage() {
         }
 
         const targetTimeLeft = overrideTimeLeft ?? timeLeft;
+        const finalStatus = overrideFinalStatus ?? (targetTimeLeft <= 0 ? "timed_out" : "completed");
 
         if (!targetAttempt) return;
         if (submittedRef.current) return; // already submitted or submitting
@@ -1041,6 +1043,7 @@ export default function TestAttemptPage() {
             await submitTestAttempt(targetAttempt.id, {
                 answers: answersArray,
                 remainingTime: targetTimeLeft,
+                finalStatus,
             });
 
             // Verify on the server that the attempt really left in_progress.
@@ -1052,6 +1055,7 @@ export default function TestAttemptPage() {
                     await submitTestAttempt(targetAttempt.id, {
                         answers: answersArray,
                         remainingTime: targetTimeLeft,
+                        finalStatus,
                     });
                     confirmed = await getTestAttempt(targetAttempt.id);
                 } catch {

@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { getUserTestPurchases, getTestSeries, getUserTestAttempts } from "@/lib/firestore/tests";
-import type { TestSeries, TestAttempt } from "@digimine/types";
+import { getUserTestPurchases, getTestSeries, getUserTestAttempts, getResumableAttemptsFromList } from "@/lib/firestore/tests";
+import { getPurchasedTestSeriesIds, type TestSeries, type TestAttempt, type User } from "@digimine/types";
 import { Card, Button } from "@digimine/ui";
 import Link from "next/link";
 import { PageLoading } from "@/components/common";
+
+function getProfileSeriesIds(user: User | null): string[] {
+    if (!user) return [];
+
+    return Array.from(new Set([
+        ...(user.purchasedTestSeriesIds || []),
+        ...getPurchasedTestSeriesIds(user.purchasedTests || []),
+    ].filter(Boolean)));
+}
 
 export default function MyTestSeriesPage() {
     const { user } = useAuthContext();
@@ -19,20 +28,36 @@ export default function MyTestSeriesPage() {
 
         async function loadData() {
             try {
+                const profileSeriesIds = getProfileSeriesIds(user);
                 const [purchaseData, attemptData] = await Promise.all([
-                    getUserTestPurchases(user!.id),
-                    getUserTestAttempts(user!.id)
+                    getUserTestPurchases(user!.id).catch((error) => {
+                        console.error("Error loading test purchases:", error);
+                        return [];
+                    }),
+                    getUserTestAttempts(user!.id).catch((error) => {
+                        console.error("Error loading test attempts:", error);
+                        return [];
+                    })
                 ]);
                 
                 setAttempts(attemptData);
 
-                // Fetch series details for each purchase AND each attempt (to ensure slugs exist)
+                // Fetch series details from profile grants, purchase docs, and attempts.
+                // A stale attempt can point at an inaccessible series; skip that one only.
                 const uniqueSeriesIds = Array.from(new Set([
+                    ...profileSeriesIds,
                     ...purchaseData.map(p => p.seriesId),
                     ...attemptData.map(a => a.seriesId)
-                ]));
+                ].filter(Boolean)));
                 
-                const seriesPromises = uniqueSeriesIds.map(id => getTestSeries(id));
+                const seriesPromises = uniqueSeriesIds.map(async (id) => {
+                    try {
+                        return await getTestSeries(id);
+                    } catch (error) {
+                        console.warn("Skipping inaccessible test series:", id, error);
+                        return null;
+                    }
+                });
                 const seriesData = await Promise.all(seriesPromises);
                 setSeriesList(seriesData.filter(s => s !== null) as TestSeries[]);
             } catch (error) {
@@ -46,6 +71,7 @@ export default function MyTestSeriesPage() {
     }, [user]);
 
     if (loading) return <PageLoading />;
+    const resumableAttemptIds = new Set(getResumableAttemptsFromList(attempts).map((attempt) => attempt.id));
 
     return (
         <div className="space-y-8">
@@ -159,25 +185,31 @@ export default function MyTestSeriesPage() {
                                                     }`}>
                                                         {attempt.passed ? 'Passed' : 'Failed'}
                                                     </span>
+                                                ) : attempt.status === "timed_out" ? (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                        Timed Out
+                                                    </span>
                                                 ) : (
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                        In Progress
+                                                        {resumableAttemptIds.has(attempt.id) ? 'In Progress' : 'Closed'}
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {attempt.status === 'in_progress' ? (
+                                                {attempt.status === 'in_progress' && resumableAttemptIds.has(attempt.id) ? (
                                                     <Link href={`/tests/${seriesList.find(s => s.id === attempt.seriesId)?.slug}/attempt?testId=${attempt.testId}&attemptId=${attempt.id}`}>
                                                         <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
                                                             Continue Test
                                                         </Button>
                                                     </Link>
-                                                ) : (
+                                                ) : attempt.status === 'completed' || attempt.status === 'timed_out' ? (
                                                     <Link href={`/dashboard/tests/results/${attempt.id}`}>
                                                         <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 font-bold">
                                                             View Result
                                                         </Button>
                                                     </Link>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">Unavailable</span>
                                                 )}
                                             </td>
                                         </tr>
