@@ -720,7 +720,7 @@ export default function QuestionsPage() {
                                                     />
                                                     <div>
                                                         <div className="text-sm font-bold text-gray-900">Weighted (Partial Credit)</div>
-                                                        <div className="text-xs text-gray-500">Marks awarded proportionally based on each test case's weight.</div>
+                                                        <div className="text-xs text-gray-500">Marks awarded proportionally based on each test case&apos;s weight.</div>
                                                     </div>
                                                 </label>
                                             </div>
