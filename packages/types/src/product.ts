@@ -6,7 +6,7 @@ export type ProductStatus = "draft" | "published" | "archived";
 /**
  * Product type - digital product categories
  */
-export type ProductType = "ebook" | "course" | "template" | "software" | "asset" | "spreadsheet" | "ai-prompt" | "resource" | "subscription" | "other";
+export type ProductType = "ebook" | "course" | "template" | "software" | "asset" | "spreadsheet" | "ai-prompt" | "resource" | "subscription" | "test_series" | "other";
 
 /**
  * Purchase type - how the product is accessed

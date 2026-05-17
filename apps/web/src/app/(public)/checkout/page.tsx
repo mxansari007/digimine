@@ -17,6 +17,7 @@ import { initiateCheckout, addPaymentInfo } from "@/lib/fpixel";
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
     const productId = searchParams.get("productId");
+    const productType = searchParams.get("type");
 
     const [directProduct, setDirectProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(!!productId);
@@ -42,7 +43,22 @@ export default function CheckoutPage() {
         if (productId) {
             const fetchProduct = async () => {
                 try {
-                    const p = await getProduct(productId as string);
+                    let p: any = null;
+                    if (productType === "test_series") {
+                        const { getTestSeries } = await import("@/lib/firestore/tests");
+                        const seriesData = await getTestSeries(productId as string);
+                        if (seriesData) {
+                            p = {
+                                id: seriesData.id,
+                                name: seriesData.title,
+                                price: seriesData.price,
+                                thumbnailURL: seriesData.thumbnailURL,
+                                type: "test_series"
+                            };
+                        }
+                    } else {
+                        p = await getProduct(productId as string);
+                    }
                     setDirectProduct(p);
                     // Fire InitiateCheckout when product is loaded
                     if (p) {

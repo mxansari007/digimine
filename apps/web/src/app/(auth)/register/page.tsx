@@ -63,6 +63,7 @@ export default function RegisterPage() {
                 photoURL: null,
                 role: "customer",
                 purchasedProducts: [],
+                purchasedTests: [],
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -101,6 +102,7 @@ export default function RegisterPage() {
                     photoURL: credential.user.photoURL,
                     role: "customer",
                     purchasedProducts: [],
+                    purchasedTests: [],
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 };

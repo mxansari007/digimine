@@ -1,0 +1,25 @@
+# Nixpacks configuration for Railway deployment
+# Installs language compilers needed for direct code execution
+
+[phases.setup]
+# Install apt packages for code execution
+aptPkgs = [
+    "python3",
+    "python3-pip",
+    "gcc",
+    "g++",
+    "default-jdk",
+    "nodejs",
+    "timeout",
+    "coreutils",
+]
+
+[phases.build]
+cmds = [
+    "cd /app && npm install -g pnpm",
+    "cd /app && pnpm install",
+    "cd /app && pnpm --filter web build",
+]
+
+[phases.setup.env]
+NODE_OPTIONS = "--max-old-space-size=4096"

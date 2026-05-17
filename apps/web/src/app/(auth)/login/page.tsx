@@ -78,6 +78,7 @@ export default function LoginPage() {
                     photoURL: credential.user.photoURL,
                     role: "customer",
                     purchasedProducts: [],
+                    purchasedTests: [],
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 };

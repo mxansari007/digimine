@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { ProductCard } from "@/components/products/ProductCard";
 import { getProducts, getAllReviewStats } from "@/lib/firestore";
+import { getPublishedTestSeries } from "@/lib/firestore/tests";
 import { trackSearch } from "@/lib/fpixel";
 import { type Product, type ProductType } from "@digimine/types";
 
@@ -37,14 +38,39 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
         async function fetchProducts() {
             setLoading(true);
             try {
-                // Fetch ALL published products initially to allow client-side filtering
-                // This is efficient enough for catalog size < 1000 items
-                const [results, stats] = await Promise.all([
+                const [results, stats, testSeries] = await Promise.all([
                     getProducts(),
-                    getAllReviewStats()
+                    getAllReviewStats(),
+                    getPublishedTestSeries()
                 ]);
 
-                setAllProducts(results);
+                // Map TestSeries to Product-like structure for the grid
+                const mappedTestSeries: Product[] = testSeries.map(ts => ({
+                    id: ts.id,
+                    name: ts.title,
+                    slug: ts.slug,
+                    description: ts.description,
+                    shortDescription: ts.shortDescription || ts.description.slice(0, 100),
+                    price: ts.price,
+                    compareAtPrice: ts.compareAtPrice,
+                    type: "test_series",
+                    purchaseType: ts.accessType === "free" ? "downloadable" : "downloadable", // Or map based on accessType
+                    status: ts.status as any,
+                    thumbnailURL: ts.thumbnailURL,
+                    images: ts.thumbnailURL ? [ts.thumbnailURL] : [],
+                    files: [],
+                    contentPreview: [],
+                    tags: ts.tags,
+                    highlights: ts.highlights,
+                    deliveryFormat: "online",
+                    moneyBackGuarantee: 0,
+                    instantAccess: true,
+                    createdAt: ts.createdAt,
+                    updatedAt: ts.updatedAt,
+                    createdBy: ts.createdBy
+                }));
+
+                setAllProducts([...results, ...mappedTestSeries]);
                 setReviewStats(stats);
             } catch (error) {
                 console.error("Error fetching products:", error);

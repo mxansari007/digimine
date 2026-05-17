@@ -13,6 +13,17 @@ export interface PurchaseRecord {
 }
 
 /**
+ * Test purchase record
+ */
+export interface TestPurchaseRecord {
+    seriesId: string;
+    /** @deprecated Legacy field kept for older user documents. Use seriesId. */
+    testId?: string;
+    purchasedAt: Date;
+    expiresAt: Date | null;
+}
+
+/**
  * User profile interface
  */
 export interface User {
@@ -26,6 +37,10 @@ export interface User {
     role: UserRole;
     // Legacy: string[] for backward compatibility, new: PurchaseRecord[]
     purchasedProducts: string[] | PurchaseRecord[];
+    // Test purchases for quick lookup
+    purchasedTests: string[] | TestPurchaseRecord[];
+    // Normalized test series IDs used by Firestore security rules.
+    purchasedTestSeriesIds?: string[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -35,7 +50,7 @@ export interface User {
  */
 export function isLegacyPurchaseFormat(purchases: string[] | PurchaseRecord[]): purchases is string[] {
     if (purchases.length === 0) return true;
-    return typeof purchases[0] === 'string';
+    return typeof purchases[0] === "string";
 }
 
 /**
@@ -58,6 +73,38 @@ export function hasActiveAccess(purchases: string[] | PurchaseRecord[], productI
     const purchase = purchases.find(p => p.productId === productId);
     if (!purchase) return false;
     // Check if lifetime access or not expired
+    if (purchase.expiresAt === null) return true;
+    return new Date(purchase.expiresAt) > new Date();
+}
+
+/**
+ * Helper to check if purchasedTests is legacy string[] format
+ */
+export function isLegacyTestPurchaseFormat(purchases: string[] | TestPurchaseRecord[]): purchases is string[] {
+    if (purchases.length === 0) return true;
+    return typeof purchases[0] === 'string';
+}
+
+/**
+ * Helper to get purchased test series IDs from either stored shape.
+ */
+export function getPurchasedTestSeriesIds(purchases: string[] | TestPurchaseRecord[]): string[] {
+    if (isLegacyTestPurchaseFormat(purchases)) {
+        return purchases;
+    }
+    return purchases.map((purchase) => purchase.seriesId || purchase.testId).filter(Boolean) as string[];
+}
+
+/**
+ * Helper to check if user has active access to a test series.
+ */
+export function hasActiveTestAccess(purchases: string[] | TestPurchaseRecord[], seriesId: string): boolean {
+    if (isLegacyTestPurchaseFormat(purchases)) {
+        return purchases.includes(seriesId);
+    }
+
+    const purchase = purchases.find((item) => item.seriesId === seriesId || item.testId === seriesId);
+    if (!purchase) return false;
     if (purchase.expiresAt === null) return true;
     return new Date(purchase.expiresAt) > new Date();
 }

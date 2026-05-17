@@ -17,6 +17,7 @@ export interface ProductFilters {
 }
 
 const CATEGORIES: { label: string; value: ProductType }[] = [
+    { label: "Test Series", value: "test_series" },
     { label: "eBooks", value: "ebook" },
     { label: "Courses", value: "course" },
     { label: "Templates", value: "template" },

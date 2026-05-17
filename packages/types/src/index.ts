@@ -12,3 +12,6 @@ export * from "./checkout";
 
 // Review types
 export * from "./review";
+
+// Test series types
+export * from "./test";

@@ -1,0 +1,188 @@
+import type { ElementType } from "react";
+
+export interface FormattedContentProps {
+    html?: string | null;
+    className?: string;
+    size?: "sm" | "base" | "lg";
+    as?: "div" | "span";
+}
+
+const BLOCKED_TAGS = ["script", "style", "iframe", "object", "embed", "form"];
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+export function stripFormattedContent(value?: string | null): string {
+    if (!value) return "";
+    return value
+        .replace(/<br\s*\/?>/gi, " ")
+        .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, " ")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, "\"")
+        .replace(/&#039;/gi, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+export function normalizeFormattedHtml(value?: string | null): string {
+    const raw = (value || "").trim();
+    if (!raw) return "";
+
+    const hasHtmlTag = /<\/?[a-z][\s\S]*>/i.test(raw);
+    if (!hasHtmlTag) {
+        return escapeHtml(raw).replace(/\n/g, "<br />");
+    }
+
+    let safe = raw;
+    BLOCKED_TAGS.forEach((tag) => {
+        safe = safe.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), "");
+        safe = safe.replace(new RegExp(`<${tag}\\b[^>]*\\/?>`, "gi"), "");
+    });
+
+    safe = safe
+        .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+        .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+        .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "")
+        .replace(/\s(href|src)\s*=\s*"javascript:[^"]*"/gi, " $1=\"#\"")
+        .replace(/\s(href|src)\s*=\s*'javascript:[^']*'/gi, " $1=\"#\"")
+        .replace(/\s(href|src)\s*=\s*"data:text\/html[^"]*"/gi, " $1=\"#\"")
+        .replace(/\s(href|src)\s*=\s*'data:text\/html[^']*'/gi, " $1=\"#\"");
+
+    return safe;
+}
+
+const formattedContentCss = `
+.formatted-content {
+    color: inherit;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+.formatted-content-sm { font-size: 0.875rem; }
+.formatted-content-base { font-size: 1rem; }
+.formatted-content-lg { font-size: 1.125rem; }
+@media (min-width: 640px) {
+    .formatted-content-lg { font-size: 1.25rem; }
+}
+.formatted-content > :first-child { margin-top: 0; }
+.formatted-content > :last-child { margin-bottom: 0; }
+.formatted-content p { margin: 0.65rem 0; }
+.formatted-content h1,
+.formatted-content h2,
+.formatted-content h3 {
+    color: #111827;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 1rem 0 0.45rem;
+}
+.formatted-content h1 { font-size: 1.5em; }
+.formatted-content h2 { font-size: 1.25em; }
+.formatted-content h3 { font-size: 1.1em; }
+.formatted-content ul,
+.formatted-content ol {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+}
+.formatted-content ul { list-style: disc; }
+.formatted-content ol { list-style: decimal; }
+.formatted-content li { margin: 0.25rem 0; }
+.formatted-content blockquote {
+    border-left: 4px solid #c7d2fe;
+    color: #4b5563;
+    margin: 0.9rem 0;
+    padding: 0.35rem 0 0.35rem 1rem;
+    background: #eef2ff;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+.formatted-content pre {
+    background: #111827;
+    color: #f9fafb;
+    border-radius: 0.75rem;
+    margin: 0.9rem 0;
+    overflow-x: auto;
+    padding: 0.9rem 1rem;
+}
+.formatted-content code {
+    background: #eef2ff;
+    color: #3730a3;
+    border-radius: 0.35rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+    padding: 0.12rem 0.35rem;
+}
+.formatted-content pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+.formatted-content table {
+    border-collapse: collapse;
+    margin: 0.9rem 0;
+    min-width: 100%;
+}
+.formatted-content th,
+.formatted-content td {
+    border: 1px solid #d1d5db;
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+}
+.formatted-content th {
+    background: #f3f4f6;
+    color: #111827;
+    font-weight: 700;
+}
+.formatted-content a {
+    color: #4f46e5;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.formatted-content img {
+    border-radius: 0.75rem;
+    display: block;
+    height: auto;
+    margin: 0.9rem 0;
+    max-width: 100%;
+}
+.formatted-content mark {
+    background: #fef3c7;
+    border-radius: 0.25rem;
+    padding: 0 0.2rem;
+}
+.formatted-content hr {
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+    margin: 1rem 0;
+}
+`;
+
+export function FormattedContent({
+    html,
+    className = "",
+    size = "base",
+    as = "div",
+}: FormattedContentProps) {
+    const content = normalizeFormattedHtml(html);
+    if (!content) return null;
+
+    const Component = as as ElementType;
+
+    return (
+        <>
+            <Component
+                className={`formatted-content formatted-content-${size} ${className}`.trim()}
+                dangerouslySetInnerHTML={{ __html: content }}
+            />
+            <style>{formattedContentCss}</style>
+        </>
+    );
+}

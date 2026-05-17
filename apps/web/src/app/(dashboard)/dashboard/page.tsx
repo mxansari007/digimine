@@ -7,13 +7,16 @@ import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { formatCurrency } from "@digimine/utils";
-import type { Order, Product } from "@digimine/types";
+
+import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
+import { getUserTestPurchases, getTestSeriesBySlug, getUserTestAttempts } from "@/lib/firestore/tests";
 
 export default function DashboardPage() {
     const { user, firebaseUser } = useAuthContext();
     const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [purchasedSeries, setPurchasedSeries] = useState<TestSeries[]>([]);
+    const [activeAttempt, setActiveAttempt] = useState<{ attempt: TestAttempt; series: TestSeries } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -24,6 +27,7 @@ export default function DashboardPage() {
 
         async function fetchUserData() {
             try {
+                // Fetch Orders
                 const ordersQuery = query(
                     collection(db, "orders"),
                     where("userId", "==", firebaseUser!.uid)
@@ -37,8 +41,11 @@ export default function DashboardPage() {
                 })) as Order[];
                 setOrders(orderData);
 
+                // Fetch Purchased Products
                 const purchasedItems = user?.purchasedProducts || [];
-                const productIds = purchasedItems.map((p: any) => typeof p === 'string' ? p : p.productId);
+                const productIds = Array.from(
+                    new Set(purchasedItems.map((p: any) => typeof p === 'string' ? p : p.productId).filter(Boolean))
+                );
 
                 if (productIds.length > 0) {
                     const productPromises = productIds.map(async (productId) => {
@@ -55,6 +62,31 @@ export default function DashboardPage() {
                     const productData = (await Promise.all(productPromises)).filter(Boolean) as Product[];
                     setProducts(productData);
                 }
+
+                // Fetch Test Series Purchases
+                const testPurchases = await getUserTestPurchases(firebaseUser!.uid);
+                let seriesData: TestSeries[] = [];
+                if (testPurchases.length > 0) {
+                    const seriesIds = Array.from(new Set(testPurchases.map(p => p.seriesId).filter(Boolean)));
+                    const seriesPromises = seriesIds.map(seriesId => getTestSeriesBySlug(seriesId));
+                    seriesData = (await Promise.all(seriesPromises)).filter(Boolean) as TestSeries[];
+                    setPurchasedSeries(seriesData);
+                } else {
+                    setPurchasedSeries([]);
+                }
+
+                // Fetch in-progress test attempt for resume CTA
+                try {
+                    const allAttempts = await getUserTestAttempts(firebaseUser!.uid);
+                    const inProgress = allAttempts.find(a => a.status === 'in_progress');
+                    if (inProgress) {
+                        const series = seriesData.find(s => s.id === inProgress.seriesId)
+                            || (await getTestSeriesBySlug(inProgress.seriesId));
+                        if (series) setActiveAttempt({ attempt: inProgress, series });
+                    }
+                } catch (e) {
+                    console.error("Failed to load active attempt:", e);
+                }
             } catch (err) {
                 console.error("Error fetching user data:", err);
             } finally {
@@ -65,7 +97,6 @@ export default function DashboardPage() {
         fetchUserData();
     }, [firebaseUser, user?.purchasedProducts]);
 
-    const totalSpent = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const userName = user?.firstName || user?.displayName?.split(' ')[0] || "there";
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -83,6 +114,38 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8">
+            {/* In-Progress Test Banner */}
+            {activeAttempt && (
+                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Test in progress</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 truncate">{activeAttempt.series.title}</h3>
+                        <p className="text-sm text-gray-600 mt-0.5">
+                            Your progress is auto-saved. Resume where you left off before the timer ends.
+                        </p>
+                    </div>
+                    <Link
+                        href={`/tests/${activeAttempt.series.slug}/attempt?testId=${activeAttempt.attempt.testId}&attemptId=${activeAttempt.attempt.id}`}
+                        className="flex-shrink-0"
+                    >
+                        <Button className="bg-amber-600 hover:bg-amber-700 text-white shadow-md">
+                            Resume Test
+                            <svg className="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Button>
+                    </Link>
+                </div>
+            )}
+
             {/* Greeting Banner */}
             <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-primary-900 rounded-2xl p-8 overflow-hidden text-white shadow-xl">
                 <div className="absolute top-0 right-0 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
@@ -91,7 +154,7 @@ export default function DashboardPage() {
                     <p className="text-primary-300 text-sm font-medium mb-1">{greeting} 👋</p>
                     <h1 className="text-3xl font-bold font-display mb-2 text-white">{userName}</h1>
                     <p className="text-gray-400 text-base">
-                        You have <span className="text-white font-semibold">{products.length} product{products.length !== 1 ? 's' : ''}</span> in your library.
+                        You have <span className="text-white font-semibold">{products.length} product{products.length !== 1 ? 's' : ''}</span> and <span className="text-white font-semibold">{purchasedSeries.length} test series</span> in your library.
                     </p>
                     <Link href="/products" className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-xl text-sm hover:bg-gray-100 transition-colors shadow-lg">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +166,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
                     {
                         label: "Products Owned",
@@ -116,6 +179,16 @@ export default function DashboardPage() {
                         color: "bg-primary-50 text-primary-600",
                     },
                     {
+                        label: "Test Series",
+                        value: purchasedSeries.length,
+                        icon: (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        ),
+                        color: "bg-indigo-50 text-indigo-600",
+                    },
+                    {
                         label: "Total Orders",
                         value: orders.length,
                         icon: (
@@ -124,16 +197,6 @@ export default function DashboardPage() {
                             </svg>
                         ),
                         color: "bg-green-50 text-green-600",
-                    },
-                    {
-                        label: "Total Spent",
-                        value: formatCurrency(totalSpent),
-                        icon: (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        ),
-                        color: "bg-orange-50 text-orange-600",
                     },
                 ].map((stat) => (
                     <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -207,7 +270,48 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 )}
-            </div>
+                {/* Test Series Section */}
+            {purchasedSeries.length > 0 && (
+                <div>
+                    <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-xl font-bold text-gray-900">My Test Series</h2>
+                        <Link href="/tests" className="text-sm text-primary-600 font-semibold hover:text-primary-700 flex items-center gap-1">
+                            Browse More
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {purchasedSeries.map((series) => (
+                            <div key={`${series.id}-${series.slug}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all">
+                                <div className="relative h-40 bg-indigo-600">
+                                    {series.thumbnailURL ? (
+                                        <Image src={series.thumbnailURL} alt={series.title} fill className="object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-white/20 text-4xl font-bold">📚</div>
+                                    )}
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow">Unlocked</span>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <h3 className="font-bold text-gray-900 mb-1 line-clamp-1">{series.title}</h3>
+                                    <p className="text-xs text-gray-500 mb-4">{series.totalTests} Practice Tests · {series.totalQuestions} Questions</p>
+                                    <Link href={`/tests/${series.slug}`}>
+                                        <Button variant="primary" size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                                            {/* We would need to fetch attempts here too to show 'Continue', but for now let's at least link to the series page which handles it */}
+                                            Open Test Series
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
         </div>
     );
 }

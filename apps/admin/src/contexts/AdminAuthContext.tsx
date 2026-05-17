@@ -19,6 +19,7 @@ const ADMIN_EMAILS = [
     "admin@digimine.com",
     "maazansari@digimine.com",
     "admin@digimine.shop",
+    "maazansari@gmail.com",
 ];
 
 const SUPER_ADMIN_EMAILS = [

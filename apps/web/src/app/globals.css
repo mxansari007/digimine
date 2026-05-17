@@ -101,6 +101,13 @@
   }
 }
 
+/* Hide global site chrome while a student is taking a test
+   (toggled by the attempt page via document.body.classList) */
+body.test-attempt-mode > div > header:first-of-type,
+body.test-attempt-mode > div > footer {
+  display: none !important;
+}
+
 /* Custom component styles */
 @layer components {
   .container-page {

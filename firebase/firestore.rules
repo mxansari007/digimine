@@ -12,20 +12,25 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function authEmail() {
+      return request.auth.token.get('email', '').lower();
+    }
+
     // "God Mode" for Bootstrap Admins - Bypasses all DB lookups
     function isBootstrapAdmin() {
       return isAuthenticated() && 
-             (request.auth.token.email == 'admin@digimine.com' || 
-              request.auth.token.email == 'maazansari@digimine.com' ||
-              request.auth.token.email == 'mxansari007@gmail.com' ||
-              request.auth.token.email == 'admin@digimine.shop');
+             (authEmail() == 'admin@digimine.com' || 
+              authEmail() == 'maazansari@digimine.com' ||
+              authEmail() == 'mxansari007@gmail.com' ||
+              authEmail() == 'maazansari@gmail.com' ||
+              authEmail() == 'admin@digimine.shop');
     }
     
-    // Standard Admin check (Lookup) - used for non-bootstrap admins later
+    // Standard Admin check (Lookup)
     function isDatabaseAdmin() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'none') in ['admin', 'super_admin'];
     }
 
     // Consolidated Admin Check
@@ -57,13 +62,13 @@ service cloud.firestore {
     function hasPurchased(productId) {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             productId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.purchasedProducts;
+             productId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchasedProducts', []);
     }
 
     // Products collection - Public details (name, price, thumbnail, etc.)
     match /products/{productId} {
       // Read: Public can see published products (but files array should be excluded in app logic)
-      allow read: if resource.data.status == 'published' || isAdmin();
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
       // Write: Admins only
       allow create, update, delete: if isAdmin();
       
@@ -88,7 +93,7 @@ service cloud.firestore {
       // 3. They are only updating allowed fields (userId, updatedAt)
       allow update: if isAdmin() 
                     || (isAuthenticated() 
-                        && resource.data.userId == null 
+                        && resource.data.get('userId', null) == null 
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId', 'updatedAt'])
                         && request.resource.data.userId == request.auth.uid);
                         
@@ -109,6 +114,80 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (isAuthenticated() && resource.data.userId == request.auth.uid);
       
+      // Delete: Admins only
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // TEST SERIES COLLECTIONS
+    // ============================================================================
+
+    // Check if user has purchased a test series
+    function hasPurchasedTest(seriesId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             (
+               seriesId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchasedTestSeriesIds', []) ||
+               seriesId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchasedTests', []) ||
+               (
+                 exists(/databases/$(database)/documents/testPurchases/$(request.auth.uid + '_' + seriesId)) &&
+                 get(/databases/$(database)/documents/testPurchases/$(request.auth.uid + '_' + seriesId)).data.get('status', 'pending') == 'active'
+               )
+             );
+    }
+
+    // Test Series collection (Product Container)
+    match /tests/{seriesId} {
+      // Read: Public can see published series metadata, admins can see all
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      // Write: Admins only
+      allow create, update, delete: if isAdmin();
+      
+      // Individual Tests within a series
+      match /tests/{testId} {
+        // Allow public to see test metadata if series is published
+        // Allow full access if admin or purchased or (authenticated and free)
+        allow read: if isAdmin() 
+                    || hasPurchasedTest(seriesId) 
+                    || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.accessType == 'free')
+                    || get(/databases/$(database)/documents/tests/$(seriesId)).data.status == 'published';
+        
+        allow write: if isAdmin();
+        
+        // Questions within a specific test
+        match /questions/{questionId} {
+          // Only allow access if admin, purchased, or (authenticated and free)
+          allow read: if isAdmin() 
+                      || hasPurchasedTest(seriesId)
+                      || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.accessType == 'free');
+          allow write: if isAdmin();
+        }
+      }
+    }
+
+    // Test Attempts collection - Personal access only
+    match /testAttempts/{attemptId} {
+      // Read: Owner or Admin
+      allow read: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      // Create: Authenticated users
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Update: Owner or Admin
+      allow update: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isAdmin());
+      // Delete: Admins only
+      allow delete: if isAdmin();
+    }
+
+    // Test Purchases collection - Personal access only
+    match /testPurchases/{purchaseId} {
+      // Read: Owner or Admin
+      allow read: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      // Create: Admins or during purchase flow
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Update: Admins only
+      allow update: if isAdmin();
       // Delete: Admins only
       allow delete: if isAdmin();
     }

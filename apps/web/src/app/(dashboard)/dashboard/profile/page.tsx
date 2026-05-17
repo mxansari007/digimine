@@ -7,7 +7,8 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { doc, updateDoc, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { formatCurrency } from "@digimine/utils";
-import type { Order } from "@digimine/types";
+import { getUserTestPurchases, getTestSeriesBySlug } from "@/lib/firestore/tests";
+import type { Order, TestPurchase, TestSeries } from "@digimine/types";
 
 export default function ProfilePage() {
     const { user, firebaseUser } = useAuthContext();
@@ -23,6 +24,7 @@ export default function ProfilePage() {
 
     // Purchase history
     const [orders, setOrders] = useState<Order[]>([]);
+    const [testPurchases, setTestPurchases] = useState<Array<TestPurchase & { seriesTitle?: string }>>([]);
     const [loadingOrders, setLoadingOrders] = useState(true);
 
     // Initialize form with user data
@@ -77,6 +79,16 @@ export default function ProfilePage() {
                 // Sort by date descending
                 orderData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
                 setOrders(orderData);
+
+                // Fetch test series purchases
+                const purchases = await getUserTestPurchases(firebaseUser!.uid);
+                const purchasesWithTitles = await Promise.all(
+                    purchases.map(async (purchase) => {
+                        const series = await getTestSeriesBySlug(purchase.seriesId);
+                        return { ...purchase, seriesTitle: series?.title || purchase.seriesId };
+                    })
+                );
+                setTestPurchases(purchasesWithTitles);
             } catch (err) {
                 console.error("Error fetching orders:", err);
             } finally {
@@ -284,6 +296,43 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 ))}
+
+                                {/* Test Series Purchases */}
+                                {testPurchases.length > 0 && (
+                                    <>
+                                        <div className="pt-2 pb-1">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Test Series Purchases</p>
+                                        </div>
+                                        {testPurchases.map((purchase) => (
+                                            <div key={purchase.id} className="border border-gray-200 rounded-lg p-4">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-900">
+                                                            {purchase.seriesTitle}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {new Date(purchase.purchasedAt).toLocaleDateString('en-IN', {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${purchase.status === 'active'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-gray-600">Test Series Access</span>
+                                                    <span className="text-gray-900">{formatCurrency(purchase.price)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
                             </div>
                         )}
                     </Card>
@@ -310,6 +359,10 @@ export default function ProfilePage() {
                             <div>
                                 <p className="text-sm text-gray-500">Products Owned</p>
                                 <p className="text-gray-900">{user?.purchasedProducts?.length || 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Test Series Owned</p>
+                                <p className="text-gray-900">{testPurchases.length}</p>
                             </div>
                         </div>
                     </Card>

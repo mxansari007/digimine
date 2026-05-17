@@ -293,6 +293,7 @@ export default function SuccessPage() {
                 photoURL: null,
                 role: "customer",
                 purchasedProducts: productIds,
+                purchasedTests: [],
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -352,6 +353,7 @@ export default function SuccessPage() {
                     photoURL: credential.user.photoURL,
                     role: "customer",
                     purchasedProducts: productIds,
+                    purchasedTests: [],
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 };

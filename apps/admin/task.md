@@ -1,0 +1,6 @@
+- [x] Update `firebase/firestore.rules` with robust `isAdmin` and additional emails
+- [x] Update `apps/admin/src/contexts/AdminAuthContext.tsx` with additional admin emails
+- [x] Update `firebase/firestore.indexes.json` with missing indexes for `tests`
+- [x] Fix question saving by adding data sanitization
+- [x] Fix duplicate rendering on the questions page
+- [ ] Verify test and question creation works

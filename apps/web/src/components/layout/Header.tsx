@@ -38,6 +38,7 @@ export function Header() {
 
     const navLinks = [
         { href: "/products", label: "Products" },
+        { href: "/tests", label: "Test Series" },
         { href: "/products?type=ebook", label: "eBooks" },
         { href: "/products?type=course", label: "Courses" },
         { href: "/products?type=template", label: "Templates" },

@@ -17,11 +17,43 @@ export default function HomePage() {
     useEffect(() => {
         async function fetchFeatured() {
             try {
-                const [products, stats] = await Promise.all([
+                const [products, stats, testSeries] = await Promise.all([
                     getProducts({ limitCount: 4 }),
-                    getAllReviewStats()
+                    getAllReviewStats(),
+                    import("@/lib/firestore/tests").then(m => m.getPublishedTestSeries())
                 ]);
-                setFeaturedProducts(products);
+                
+                // Merge one test series into featured if available
+                const mergedProducts = [...products];
+                if (testSeries.length > 0) {
+                    const ts = testSeries[0];
+                    mergedProducts.push({
+                        id: ts.id,
+                        name: ts.title,
+                        slug: ts.slug,
+                        description: ts.description,
+                        shortDescription: ts.shortDescription || ts.description.slice(0, 100),
+                        price: ts.price,
+                        compareAtPrice: ts.compareAtPrice,
+                        type: "test_series",
+                        purchaseType: "downloadable",
+                        status: ts.status as any,
+                        thumbnailURL: ts.thumbnailURL,
+                        images: ts.thumbnailURL ? [ts.thumbnailURL] : [],
+                        files: [],
+                        contentPreview: [],
+                        tags: ts.tags,
+                        highlights: ts.highlights,
+                        deliveryFormat: "online",
+                        moneyBackGuarantee: 0,
+                        instantAccess: true,
+                        createdAt: ts.createdAt,
+                        updatedAt: ts.updatedAt,
+                        createdBy: ts.createdBy
+                    });
+                }
+
+                setFeaturedProducts(mergedProducts.slice(0, 4));
                 setReviewStats(stats);
             } catch (error) {
                 console.error("Error fetching featured products:", error);
@@ -159,6 +191,20 @@ export default function HomePage() {
                                 </div>
                                 <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3 group-hover:text-emerald-600 transition-colors">Templates & Assets</h3>
                                 <p className="text-sm md:text-base text-gray-500">Save time with ready-to-use Notion templates, UI kits, and spreadsheets.</p>
+                            </div>
+                        </Link>
+
+                        {/* Test Series */}
+                        <Link href="/tests" className="group">
+                            <div className="h-full bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out will-change-transform relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
+                                    <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v12H4zM2 4v16h20V4H2zm11 9h4v2h-4v-2zm-4-3h8v2H9v-2zm0 6h4v2H9v-2z"/></svg>
+                                </div>
+                                <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20 group-hover:rotate-6 transition-transform">
+                                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                </div>
+                                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3 group-hover:text-orange-600 transition-colors">Test Series</h3>
+                                <p className="text-sm md:text-base text-gray-500">Practice with timed mock tests and get detailed analytics on your performance.</p>
                             </div>
                         </Link>
                     </div>

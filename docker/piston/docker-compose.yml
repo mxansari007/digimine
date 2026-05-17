@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  piston:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    privileged: true
+    ports:
+      - "2000:2000"
+    # If you don't build the pre-loaded image, use the base image with a startup script:
+    # image: ghcr.io/engineer-man/piston:latest
+    # command: >
+    #   sh -c "
+    #     /piston_api/src/docker-entrypoint.sh &
+    #     sleep 10 &&
+    #     ./install-packages.sh || true &&
+    #     wait
+    #   "
+    # volumes:
+    #   - piston-packages:/piston/packages
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2000/api/v2/runtimes"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Uncomment if using the base image + startup script approach
+# volumes:
+#   piston-packages:

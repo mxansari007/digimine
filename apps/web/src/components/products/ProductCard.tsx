@@ -16,8 +16,10 @@ interface ProductCardProps {
 export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribed }: ProductCardProps) {
     const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
 
+    const href = product.type === 'test_series' ? `/tests/${product.slug}` : `/products/${product.slug}`;
+
     return (
-        <Link href={`/products/${product.slug}`} className="group h-full block">
+        <Link href={href} className="group h-full block">
             <article className="h-full flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out will-change-transform">
                 {/* Image Container */}
                 <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
