@@ -58,15 +58,38 @@ function stableShuffle<T>(items: T[], seed: string): T[] {
 }
 
 function applyTestSettings(questions: Question[], test: Test, attemptId: string): Question[] {
-    const orderedQuestions = test.shuffleQuestions
-        ? stableShuffle(questions, `${attemptId}:questions`)
-        : [...questions];
+    // 1. Build "units" — a unit is either a singleton question or a group of
+    //    questions sharing the same `passageGroup`. Groups always keep their
+    //    members together in their original order.
+    type Unit = { key: string; items: Question[] };
+    const units: Unit[] = [];
+    const groupIndex = new Map<string, number>();
+    questions.forEach((q) => {
+        const group = q.passageGroup?.trim();
+        if (group) {
+            const idx = groupIndex.get(group);
+            if (idx === undefined) {
+                groupIndex.set(group, units.length);
+                units.push({ key: `group:${group}`, items: [q] });
+            } else {
+                units[idx].items.push(q);
+            }
+        } else {
+            units.push({ key: `q:${q.id}`, items: [q] });
+        }
+    });
 
+    // 2. Shuffle the units (not individual grouped questions) when requested.
+    const orderedUnits = test.shuffleQuestions
+        ? stableShuffle(units, `${attemptId}:questions`)
+        : units;
+
+    // 3. Flatten and optionally shuffle MCQ options per-question.
+    const orderedQuestions = orderedUnits.flatMap((u) => u.items);
     return orderedQuestions.map((question) => {
         if (!test.shuffleOptions || !question.options?.length) {
             return question;
         }
-
         return {
             ...question,
             options: stableShuffle(question.options, `${attemptId}:${question.id}:options`),
@@ -124,6 +147,26 @@ export default function TestAttemptPage() {
     const [editorTheme, setEditorTheme] = useState<'vs-light' | 'vs-dark'>('vs-light');
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
     const editorContainerRef = useRef<HTMLDivElement>(null);
+
+    // Resizable split panes for fullscreen code editor (percentages of horizontal space)
+    const [problemPaneSize, setProblemPaneSize] = useState<number>(28);
+    const [resultsPaneSize, setResultsPaneSize] = useState<number>(28);
+    const fullscreenSplitRef = useRef<HTMLDivElement>(null);
+
+    // Filter for the question navigator
+    type NavFilter = 'all' | 'unanswered' | 'flagged' | 'unrun';
+    const [navFilter, setNavFilter] = useState<NavFilter>('all');
+
+    // Track lg+ viewport so we can apply controlled pane widths only on large screens
+    const [isLgUp, setIsLgUp] = useState<boolean>(false);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(min-width: 1024px)');
+        const update = () => setIsLgUp(mq.matches);
+        update();
+        mq.addEventListener?.('change', update);
+        return () => mq.removeEventListener?.('change', update);
+    }, []);
 
     // Disable paste/cut/drop inside Monaco editor (anti-cheat)
     const handleEditorMount = (editor: any, monaco: any) => {
@@ -380,9 +423,12 @@ export default function TestAttemptPage() {
                 setAnswers(initialAnswers);
                 setCodeAnswers(initialCodeAnswers);
 
-                // Mark questions as visited up to current index
-                for (let i = 0; i <= (newAttempt.currentQuestionIndex || 0); i++) {
-                    if (displayQuestions[i]) initialVisited.add(displayQuestions[i].id);
+                // Only mark the resumed current question as visited; intermediate
+                // questions are only "visited" if the user actually navigated to them
+                // (already restored from localStorage above).
+                const resumeIdx = newAttempt.currentQuestionIndex || 0;
+                if (displayQuestions[resumeIdx]) {
+                    initialVisited.add(displayQuestions[resumeIdx].id);
                 }
                 setVisitedQuestions(initialVisited);
 
@@ -446,6 +492,7 @@ export default function TestAttemptPage() {
         const interval = setInterval(() => {
             const s = stateRef.current;
             if (!s.attempt) return;
+            if (submittedRef.current) return; // attempt is/was submitted
 
             const currentQuestion = s.questions[s.currentQuestionIndex];
             let mergedCodeAnswers = s.codeAnswers;
@@ -518,6 +565,59 @@ export default function TestAttemptPage() {
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [editorSize]);
+
+    // Restore persisted editor pane layout
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('digimine:editor-layout');
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (typeof p.problem === 'number' && p.problem >= 12 && p.problem <= 60) setProblemPaneSize(p.problem);
+                if (typeof p.results === 'number' && p.results >= 12 && p.results <= 60) setResultsPaneSize(p.results);
+                if (typeof p.rightOpen === 'boolean') setIsRightPanelOpen(p.rightOpen);
+                if (typeof p.fontSize === 'number') setEditorFontSize(p.fontSize);
+                if (p.theme === 'vs-dark' || p.theme === 'vs-light') setEditorTheme(p.theme);
+            }
+        } catch { /* ignore */ }
+    }, []);
+    useEffect(() => {
+        try {
+            localStorage.setItem('digimine:editor-layout', JSON.stringify({
+                problem: problemPaneSize,
+                results: resultsPaneSize,
+                rightOpen: isRightPanelOpen,
+                fontSize: editorFontSize,
+                theme: editorTheme,
+            }));
+        } catch { /* ignore */ }
+    }, [problemPaneSize, resultsPaneSize, isRightPanelOpen, editorFontSize, editorTheme]);
+
+    // Drag handler for the fullscreen split panes
+    const startPaneDrag = (side: 'left' | 'right') => (e: React.PointerEvent) => {
+        const container = fullscreenSplitRef.current;
+        if (!container) return;
+        e.preventDefault();
+        const rect = container.getBoundingClientRect();
+        const onMove = (ev: PointerEvent) => {
+            const x = ev.clientX - rect.left;
+            const pct = (x / rect.width) * 100;
+            if (side === 'left') {
+                setProblemPaneSize(Math.min(60, Math.max(12, pct)));
+            } else {
+                setResultsPaneSize(Math.min(60, Math.max(12, 100 - pct)));
+            }
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    };
 
     // Anti-cheat: block copy/cut/paste, right-click, screenshot/dev-tool shortcuts,
     // and obscure the page when it loses focus (deters screen sharing/screenshots).
@@ -673,6 +773,8 @@ export default function TestAttemptPage() {
                     break;
                 case "m":
                 case "M":
+                case "f":
+                case "F":
                     e.preventDefault();
                     toggleMarkForReview(currentQuestion.id);
                     break;
@@ -849,6 +951,12 @@ export default function TestAttemptPage() {
         }
     };
 
+    // Guard against double-submission: timer auto-submit can race the user's
+    // manual Submit click. The first invocation flips this ref to true and
+    // every later call short-circuits before any network work happens.
+    const submittedRef = useRef(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
     const finishTest = async (
         overrideAttemptId?: string,
         overrideAnswers?: Record<string, string>,
@@ -857,25 +965,48 @@ export default function TestAttemptPage() {
     ) => {
         const targetAttempt = overrideAttemptId ? { id: overrideAttemptId } : attempt;
         const targetAnswers = overrideAnswers || answers;
-        
+
         // Merge current editor draft into codeAnswers before submitting
         const currentQuestion = questions[currentQuestionIndex];
         const mergedCodeAnswers = { ...codeAnswers };
         if (currentQuestion?.type === 'code' && editorDrafts[currentQuestion.id]) {
             mergedCodeAnswers[currentQuestion.id] = editorDrafts[currentQuestion.id];
         }
-        
+
         const targetTimeLeft = overrideTimeLeft ?? timeLeft;
 
         if (!targetAttempt) return;
+        if (submittedRef.current) return; // already submitted or submitting
+        submittedRef.current = true;
         setSubmitting(true);
+        setSubmitError(null);
         try {
             const answersArray = buildAnswersArray(targetAnswers, mergedCodeAnswers);
 
             await submitTestAttempt(targetAttempt.id, {
                 answers: answersArray,
-                remainingTime: targetTimeLeft
+                remainingTime: targetTimeLeft,
             });
+
+            // Verify on the server that the attempt really left in_progress.
+            // If a transient error left it stuck, retry the submit once with
+            // empty answers so the doc gets finalized either way.
+            let confirmed = await getTestAttempt(targetAttempt.id);
+            if (confirmed && confirmed.status === "in_progress") {
+                try {
+                    await submitTestAttempt(targetAttempt.id, {
+                        answers: answersArray,
+                        remainingTime: targetTimeLeft,
+                    });
+                    confirmed = await getTestAttempt(targetAttempt.id);
+                } catch {
+                    // fall through to error state below
+                }
+            }
+
+            if (!confirmed || confirmed.status === "in_progress") {
+                throw new Error("The server did not record the submission. Please retry.");
+            }
 
             clearLocalProgress(targetAttempt.id);
 
@@ -884,9 +1015,14 @@ export default function TestAttemptPage() {
             } else {
                 router.push(`/tests/${slug}?submitted=1`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error submitting test:", error);
-            if (!overrideAttemptId) alert("Failed to submit test. Please check your connection.");
+            // Allow retry: unlock the guard so the user can press Submit again.
+            submittedRef.current = false;
+            setSubmitError(
+                error?.message ||
+                    "Failed to submit test. Please check your connection and try again."
+            );
         } finally {
             setSubmitting(false);
         }
@@ -1013,7 +1149,7 @@ export default function TestAttemptPage() {
         if (hasAnswer) return "answered";
         // Code question with code written but never executed -> distinct state
         if (isCode && hasCodeDraft) return "code_unrun";
-        if (visitedQuestions.has(questionId) || idx <= currentQuestionIndex) return "visited";
+        if (visitedQuestions.has(questionId) || idx === currentQuestionIndex) return "visited";
         return "not_visited";
     };
 
@@ -1054,6 +1190,44 @@ export default function TestAttemptPage() {
         return s === 'answered' || s === 'marked_for_review' ? acc + 1 : acc;
     }, 0);
     const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+
+    // Derived lists for the navigator filter & submit-review modal
+    const unansweredIndexes = questions
+        .map((_, i) => i)
+        .filter((i) => {
+            const s = getQuestionStatus(questions[i].id, i);
+            return s !== 'answered' && s !== 'marked_for_review';
+        });
+    const flaggedIndexes = questions
+        .map((_, i) => i)
+        .filter((i) => markedForReview.has(questions[i].id));
+    const unrunIndexes = questions
+        .map((_, i) => i)
+        .filter((i) => getQuestionStatus(questions[i].id, i) === 'code_unrun');
+    const filteredIndexes = (() => {
+        switch (navFilter) {
+            case 'unanswered': return unansweredIndexes;
+            case 'flagged': return flaggedIndexes;
+            case 'unrun': return unrunIndexes;
+            default: return questions.map((_, i) => i);
+        }
+    })();
+
+    // Passage-group metadata for reading-comprehension / logical sets.
+    //   setNumberById[group]      -> 1-based set number (in display order)
+    //   setSizeById[group]        -> count of questions in the set
+    //   setPositionByIdx[qIdx]    -> 1-based position of that question within its set
+    const setNumberById = new Map<string, number>();
+    const setSizeById = new Map<string, number>();
+    const setPositionByIdx = new Map<number, number>();
+    questions.forEach((q, idx) => {
+        const g = q.passageGroup?.trim();
+        if (!g) return;
+        if (!setNumberById.has(g)) setNumberById.set(g, setNumberById.size + 1);
+        const nextPos = (setSizeById.get(g) || 0) + 1;
+        setSizeById.set(g, nextPos);
+        setPositionByIdx.set(idx, nextPos);
+    });
 
     if (loading) {
         return (
@@ -1333,11 +1507,38 @@ export default function TestAttemptPage() {
                 {/* Question Area */}
                 <div className="flex-1 p-4 sm:p-8 min-w-0">
                     <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
+                        {/* Shared Passage (reading comprehension / logical set) */}
+                        {currentQuestion.passage && currentQuestion.passageGroup && (
+                            <div className="bg-amber-50/60 rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 uppercase tracking-wider">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                        </svg>
+                                        Reading Passage · Set {setNumberById.get(currentQuestion.passageGroup) || ''}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                        Q {setPositionByIdx.get(currentQuestionIndex) || 1} of {setSizeById.get(currentQuestion.passageGroup) || 1} in this set
+                                    </span>
+                                </div>
+                                <FormattedContent
+                                    html={currentQuestion.passage}
+                                    size="base"
+                                    className="text-gray-800"
+                                />
+                            </div>
+                        )}
+
                         {/* Question Text */}
                         <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between mb-4 sm:mb-6">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
                                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider">Question {currentQuestionIndex + 1}</span>
+                                    {currentQuestion.passageGroup && (
+                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                            Set {setNumberById.get(currentQuestion.passageGroup) || ''}
+                                        </span>
+                                    )}
                                     {markedForReview.has(currentQuestion.id) && (
                                         <span className="inline-flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full">
                                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1663,12 +1864,13 @@ export default function TestAttemptPage() {
                         </div>
 
                         {/* Keyboard Shortcuts Hint */}
-                        <div className="hidden lg:flex items-center justify-center gap-4 text-xs text-gray-400 pb-4">
-                            <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">1-4</kbd> Select</span>
+                        <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-400 pb-4">
+                            <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">1-9</kbd> Select option</span>
                             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">← →</kbd> Navigate</span>
-                            <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">M</kbd> Mark Review</span>
+                            <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">M</kbd>/<kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">F</kbd> Flag</span>
                             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">C</kbd> Clear</span>
                             <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">S</kbd> Submit</span>
+                            <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">Esc</kbd> Exit fullscreen</span>
                         </div>
                     </div>
                 </div>
@@ -1676,33 +1878,80 @@ export default function TestAttemptPage() {
                 {/* Right Sidebar - Navigator */}
                 <aside className="w-80 bg-white border-l hidden lg:block self-start sticky top-[100px] max-h-[calc(100vh-100px)] overflow-y-auto">
                     <div className="p-6">
-                        <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                             <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
                             </svg>
                             Question Navigator
                         </h3>
-                        <div className="grid grid-cols-5 gap-2">
-                            {questions.map((q, idx) => {
-                                const status = getQuestionStatus(q.id, idx);
-                                const isCode = q.type === 'code';
+
+                        {/* Filter chips */}
+                        <div className="flex flex-wrap gap-1.5 mb-4" role="tablist" aria-label="Filter questions">
+                            {([
+                                { key: 'all', label: 'All', count: questions.length },
+                                { key: 'unanswered', label: 'Unanswered', count: unansweredIndexes.length },
+                                { key: 'flagged', label: 'Flagged', count: flaggedIndexes.length },
+                                { key: 'unrun', label: 'Not run', count: unrunIndexes.length },
+                            ] as { key: NavFilter; label: string; count: number }[]).map((f) => {
+                                const active = navFilter === f.key;
+                                if (f.key === 'unrun' && unrunIndexes.length === 0) return null;
                                 return (
                                     <button
-                                        key={idx}
-                                        onClick={() => goToQuestion(idx)}
-                                        className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)}`}
-                                        title={`Q${idx + 1} (${isCode ? 'code' : 'mcq'}): ${status.replace(/_/g, ' ')}`}
+                                        key={f.key}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        onClick={() => setNavFilter(f.key)}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                                            active
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
                                     >
-                                        {idx + 1}
-                                        {isCode && (
-                                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm" aria-label="code question">
-                                                <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
-                                            </span>
-                                        )}
+                                        {f.label}
+                                        <span className={`px-1 rounded-full text-[10px] ${active ? 'bg-white/20' : 'bg-white text-gray-600'}`}>{f.count}</span>
                                     </button>
                                 );
                             })}
                         </div>
+
+                        {filteredIndexes.length === 0 ? (
+                            <div className="text-center text-xs text-gray-400 py-8 border border-dashed border-gray-200 rounded-xl">
+                                Nothing to show in this filter.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-5 gap-2">
+                                {filteredIndexes.map((idx) => {
+                                    const q = questions[idx];
+                                    const status = getQuestionStatus(q.id, idx);
+                                    const isCode = q.type === 'code';
+                                    const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => goToQuestion(idx)}
+                                            className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
+                                            title={`Q${idx + 1} (${isCode ? 'code' : 'mcq'})${setNum ? ` · Set ${setNum}` : ''}: ${status.replace(/_/g, ' ')}`}
+                                        >
+                                            {idx + 1}
+                                            {isCode && (
+                                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm" aria-label="code question">
+                                                    <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
+                                                </span>
+                                            )}
+                                            {setNum && (
+                                                <span
+                                                    className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm"
+                                                    aria-label={`set ${setNum}`}
+                                                >
+                                                    S{setNum}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
 
                         {(() => {
                             const codeUnrunCount = questions.filter((q, i) => getQuestionStatus(q.id, i) === 'code_unrun').length;
@@ -1739,6 +1988,12 @@ export default function TestAttemptPage() {
                                                 <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
                                             </span>
                                             <span>Coding question marker</span>
+                                        </div>
+                                    )}
+                                    {setNumberById.size > 0 && (
+                                        <div className="flex items-center gap-3 text-xs text-gray-500 pt-2 border-t border-gray-100">
+                                            <span className="min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">S1</span>
+                                            <span>Reading / logical set ({setNumberById.size} set{setNumberById.size === 1 ? '' : 's'})</span>
                                         </div>
                                     )}
                                 </div>
@@ -1798,16 +2053,22 @@ export default function TestAttemptPage() {
                                 {questions.map((q, idx) => {
                                     const status = getQuestionStatus(q.id, idx);
                                     const isCode = q.type === 'code';
+                                    const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
                                     return (
                                         <button
                                             key={idx}
                                             onClick={() => { goToQuestion(idx); setShowMobileNav(false); }}
-                                            className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)}`}
+                                            className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
                                         >
                                             {idx + 1}
                                             {isCode && (
                                                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
                                                     <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
+                                                </span>
+                                            )}
+                                            {setNum && (
+                                                <span className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                                                    S{setNum}
                                                 </span>
                                             )}
                                         </button>
@@ -1925,10 +2186,13 @@ export default function TestAttemptPage() {
                         </div>
                     </div>
 
-                    {/* Split content: 3 panels */}
-                    <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+                    {/* Split content: 3 panels — resizable on lg+ */}
+                    <div ref={fullscreenSplitRef} className="flex-1 flex flex-col lg:flex-row min-h-0">
                         {/* Left: Problem Statement */}
-                        <aside className="w-full lg:w-[30%] xl:w-[28%] lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r bg-gray-50 overflow-y-auto p-5 max-h-[35vh] lg:max-h-none">
+                        <aside
+                            className="w-full lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r bg-gray-50 overflow-y-auto p-5 max-h-[35vh] lg:max-h-none"
+                            style={isLgUp ? { width: `${problemPaneSize}%`, flexBasis: `${problemPaneSize}%` } : undefined}
+                        >
                             <div>
                                 <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Problem Statement</span>
                                 <FormattedContent
@@ -1938,6 +2202,18 @@ export default function TestAttemptPage() {
                                 />
                             </div>
                         </aside>
+
+                        {/* Drag handle: problem | editor */}
+                        <div
+                            onPointerDown={startPaneDrag('left')}
+                            className="hidden lg:flex items-center justify-center w-1.5 cursor-col-resize bg-gray-100 hover:bg-indigo-200 active:bg-indigo-400 transition-colors group"
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-label="Resize problem panel"
+                            title="Drag to resize"
+                        >
+                            <div className="w-0.5 h-8 bg-gray-300 group-hover:bg-indigo-500 rounded-full" />
+                        </div>
 
                         {/* Center: Editor */}
                         <div className="flex-1 min-h-0 min-w-0">
@@ -1966,8 +2242,31 @@ export default function TestAttemptPage() {
                             />
                         </div>
 
+                        {/* Drag handle: editor | results (only when right panel is open and on lg+) */}
+                        {isRightPanelOpen && (
+                            <div
+                                onPointerDown={startPaneDrag('right')}
+                                className="hidden lg:flex items-center justify-center w-1.5 cursor-col-resize bg-gray-100 hover:bg-indigo-200 active:bg-indigo-400 transition-colors group"
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label="Resize results panel"
+                                title="Drag to resize"
+                            >
+                                <div className="w-0.5 h-8 bg-gray-300 group-hover:bg-indigo-500 rounded-full" />
+                            </div>
+                        )}
+
                         {/* Right: Test Cases + Console + Results (collapsible) */}
-                        <aside className={`hidden lg:flex lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l bg-white flex-col max-h-[35vh] lg:max-h-none ${isRightPanelOpen ? 'lg:w-[30%] xl:w-[28%]' : 'lg:w-11'}`}>
+                        <aside
+                            className="hidden lg:flex lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l bg-white flex-col max-h-[35vh] lg:max-h-none"
+                            style={
+                                isLgUp
+                                    ? isRightPanelOpen
+                                        ? { width: `${resultsPaneSize}%`, flexBasis: `${resultsPaneSize}%` }
+                                        : { width: '2.75rem', flexBasis: '2.75rem' }
+                                    : undefined
+                            }
+                        >
                             {/* Header with collapse/expand toggle */}
                             <div className="flex items-center border-b bg-gray-50 shrink-0">
                                 {isRightPanelOpen && (
@@ -2065,64 +2364,142 @@ export default function TestAttemptPage() {
                 </div>
             )}
 
-            {/* Submit Confirmation Modal */}
+            {/* Submit Confirmation / Review Modal */}
             {showSubmitConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSubmitConfirm(false)} />
-                    <Card className="relative max-w-md w-full p-6 shadow-2xl">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="submit-title">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitConfirm(false)} />
+                    <Card className="relative max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-6 border-b border-gray-100 flex items-start gap-4">
+                            <div className="w-12 h-12 shrink-0 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Submit Test?</h3>
-                            <p className="text-gray-500 mb-6">
-                                You have answered <strong>{answeredCount}</strong> out of <strong>{questions.length}</strong> questions.
-                                {questions.length - answeredCount > 0 && (
-                                    <span className="text-orange-600 block mt-1">
-                                        {questions.length - answeredCount} question{questions.length - answeredCount > 1 ? 's' : ''} remaining.
-                                    </span>
-                                )}
-                            </p>
-
-                            <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Answered</span>
-                                    <span className="font-bold text-green-600">{answeredCount}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Unanswered</span>
-                                    <span className="font-bold text-gray-700">{questions.length - answeredCount}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Marked for Review</span>
-                                    <span className="font-bold text-yellow-600">{markedForReview.size}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Time Remaining</span>
-                                    <span className="font-bold text-gray-700">{formatTime(timeLeft)}</span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowSubmitConfirm(false)}
-                                    className="flex-1"
-                                >
-                                    Continue Test
-                                </Button>
-                                <Button
-                                    onClick={() => { setShowSubmitConfirm(false); finishTest(); }}
-                                    disabled={submitting}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                                >
-                                    {submitting ? "Submitting..." : "Yes, Submit"}
-                                </Button>
+                            <div className="flex-1 min-w-0">
+                                <h3 id="submit-title" className="text-xl font-bold text-gray-900">Review &amp; Submit</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Once submitted, your answers cannot be changed. Take a moment to review any
+                                    unanswered or flagged questions below.
+                                </p>
                             </div>
                         </div>
+
+                        <div className="p-6 overflow-y-auto space-y-5">
+                            {/* Summary tiles */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Answered</div>
+                                    <div className="text-2xl font-bold text-emerald-900 mt-0.5">{answeredCount}</div>
+                                </div>
+                                <div className={`p-3 rounded-lg border ${unansweredIndexes.length ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${unansweredIndexes.length ? 'text-orange-700' : 'text-gray-500'}`}>Unanswered</div>
+                                    <div className={`text-2xl font-bold mt-0.5 ${unansweredIndexes.length ? 'text-orange-900' : 'text-gray-700'}`}>{unansweredIndexes.length}</div>
+                                </div>
+                                <div className={`p-3 rounded-lg border ${flaggedIndexes.length ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${flaggedIndexes.length ? 'text-yellow-700' : 'text-gray-500'}`}>Flagged</div>
+                                    <div className={`text-2xl font-bold mt-0.5 ${flaggedIndexes.length ? 'text-yellow-800' : 'text-gray-700'}`}>{flaggedIndexes.length}</div>
+                                </div>
+                                <div className={`p-3 rounded-lg border ${timeLeft < 300 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${timeLeft < 300 ? 'text-red-700' : 'text-gray-500'}`}>Time Left</div>
+                                    <div className={`text-2xl font-bold mt-0.5 font-mono tabular-nums ${timeLeft < 300 ? 'text-red-900' : 'text-gray-700'}`}>{formatTime(timeLeft)}</div>
+                                </div>
+                            </div>
+
+                            {/* Unanswered list */}
+                            {unansweredIndexes.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-orange-500" />
+                                            Unanswered questions ({unansweredIndexes.length})
+                                        </h4>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {unansweredIndexes.map((i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => { setShowSubmitConfirm(false); goToQuestion(i); }}
+                                                className="w-9 h-9 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-sm font-bold transition-colors"
+                                                title={`Jump to Q${i + 1}`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Flagged list */}
+                            {flaggedIndexes.length > 0 && (
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-2">
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                        Flagged for review ({flaggedIndexes.length})
+                                    </h4>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {flaggedIndexes.map((i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => { setShowSubmitConfirm(false); goToQuestion(i); }}
+                                                className="w-9 h-9 rounded-lg bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 text-sm font-bold transition-colors"
+                                                title={`Jump to Q${i + 1}`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* All-clear message */}
+                            {unansweredIndexes.length === 0 && flaggedIndexes.length === 0 && (
+                                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-3">
+                                    <svg className="w-6 h-6 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <div className="text-sm text-emerald-800">
+                                        <span className="font-bold">All set.</span> You&apos;ve answered every question and have nothing flagged for review.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowSubmitConfirm(false)}
+                                disabled={submitting}
+                                className="sm:flex-none"
+                            >
+                                Continue Test
+                            </Button>
+                            <Button
+                                onClick={() => { setShowSubmitConfirm(false); finishTest(); }}
+                                disabled={submitting}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white sm:flex-none sm:min-w-[180px]"
+                            >
+                                {submitting ? 'Submitting...' : 'Submit Test'}
+                            </Button>
+                        </div>
                     </Card>
+                </div>
+            )}
+
+            {/* Submitting overlay — blocks all interaction while finishing the attempt */}
+            {submitting && (
+                <div className="fixed inset-0 z-[120] bg-gray-900/85 backdrop-blur-sm flex items-center justify-center p-6" role="status" aria-live="polite">
+                    <div className="text-center text-white max-w-md">
+                        <div className="relative w-20 h-20 mx-auto mb-6">
+                            <div className="absolute inset-0 rounded-full border-4 border-white/20"></div>
+                            <div className="absolute inset-0 rounded-full border-4 border-t-indigo-400 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+                        </div>
+                        <h2 className="text-xl font-bold">Submitting your test...</h2>
+                        <p className="text-sm text-white/70 mt-2">
+                            Please don&apos;t close this tab. We&apos;re saving your answers and calculating your results.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

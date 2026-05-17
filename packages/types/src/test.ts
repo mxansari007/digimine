@@ -118,6 +118,12 @@ export interface Question {
     codeScoringMode?: CodeScoringMode;
     timeLimit?: number; // in seconds
     memoryLimit?: number; // in MB
+    // Reading comprehension / logical-set support: questions sharing the same
+    // non-empty `passageGroup` are treated as one set. The `passage` (HTML)
+    // is displayed above the question text. All members of a group should
+    // carry the same passage value.
+    passageGroup?: string;
+    passage?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -339,6 +345,8 @@ export interface CreateQuestionInput {
     codeScoringMode?: CodeScoringMode;
     timeLimit?: number;
     memoryLimit?: number;
+    passageGroup?: string;
+    passage?: string;
 }
 
 /**

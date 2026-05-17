@@ -13,6 +13,7 @@ import {
     limit,
     Timestamp,
     arrayUnion,
+    runTransaction,
     type DocumentData,
 } from "firebase/firestore";
 import { db } from "../firebase/client";
@@ -290,6 +291,27 @@ export async function startTestAttempt(
     const docRef = doc(testAttemptsCollection, attemptId);
     await setDoc(docRef, attemptData);
 
+    // Reconciliation: after the new attempt is created, mark any leftover
+    // duplicate in-progress attempts for the SAME test as abandoned. This
+    // prevents the rare case where a previous run finished partially and left
+    // an orphan in_progress doc lingering.
+    try {
+        await Promise.all(
+            previousTestAttempts
+                .filter((a) => a.id !== attemptId && a.status === "in_progress")
+                .map((a) =>
+                    updateDoc(doc(testAttemptsCollection, a.id), {
+                        status: "abandoned",
+                        completedAt: Timestamp.now().toDate(),
+                        updatedAt: Timestamp.now().toDate(),
+                    })
+                )
+        );
+    } catch (e) {
+        // Reconciliation is best-effort; don't fail the new attempt over it.
+        console.warn("Stale attempt reconciliation failed:", e);
+    }
+
     return { id: attemptId, ...attemptData };
 }
 
@@ -377,7 +399,38 @@ export async function updateTestAttempt(
     if (data.currentQuestionIndex !== undefined) {
         updateData.currentQuestionIndex = data.currentQuestionIndex;
     }
-    await updateDoc(attemptRef, updateData);
+
+    // Use a transaction so we never overwrite a doc that has already been
+    // finalized (completed / timed_out / abandoned). Without this, a stale
+    // autosave can flip the status indicator back to "in progress" simply by
+    // bumping fields like `updatedAt` after the attempt is already done.
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(attemptRef);
+        if (!snap.exists()) return;
+        const current = mapDoc<TestAttempt>(snap);
+        if (current.status !== "in_progress") return; // ignore stale writes
+        tx.update(attemptRef, updateData);
+    });
+}
+
+/**
+ * Explicitly abandon an in-progress attempt. Used by the dashboard's
+ * "Discard attempt" affordance so users can self-recover from a stuck
+ * attempt without contacting support.
+ */
+export async function abandonTestAttempt(attemptId: string): Promise<void> {
+    const attemptRef = doc(testAttemptsCollection, attemptId);
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(attemptRef);
+        if (!snap.exists()) return;
+        const current = mapDoc<TestAttempt>(snap);
+        if (current.status !== "in_progress") return; // already finalized
+        tx.update(attemptRef, {
+            status: "abandoned",
+            completedAt: Timestamp.now().toDate(),
+            updatedAt: Timestamp.now().toDate(),
+        });
+    });
 }
 
 // ============================================================
@@ -550,8 +603,15 @@ export async function submitTestAttempt(
     const attemptSnapshot = await getDoc(attemptRef);
     const attempt = attemptSnapshot.exists() ? mapDoc<TestAttempt>(attemptSnapshot) : null;
 
-    if (!attempt || attempt.status !== "in_progress") {
-        throw new Error("Invalid or completed attempt");
+    if (!attempt) {
+        throw new Error("Attempt not found.");
+    }
+
+    // Idempotent submit: if the attempt is already finalized, return the
+    // existing record instead of throwing. This eliminates the race where the
+    // timer auto-submits at the same moment the user clicks Submit.
+    if (attempt.status !== "in_progress") {
+        return attempt;
     }
 
     const questions = await getTestQuestions(attempt.seriesId, attempt.testId);
@@ -696,8 +756,25 @@ export async function submitTestAttempt(
         remainingTime: data.remainingTime
     };
 
-    await updateDoc(attemptRef, updatedAttempt);
-    return { ...attempt, ...updatedAttempt } as any;
+    // Transactional commit: re-read at commit time and skip the write if a
+    // concurrent path (e.g. timer auto-submit) already finalized the attempt.
+    // This guarantees the attempt cannot end up in an inconsistent partially
+    // updated state across racing callers.
+    const finalAttempt = await runTransaction(db, async (tx) => {
+        const fresh = await tx.get(attemptRef);
+        if (!fresh.exists()) {
+            throw new Error("Attempt not found.");
+        }
+        const current = mapDoc<TestAttempt>(fresh);
+        if (current.status !== "in_progress") {
+            // Already finalized by someone else — return what's in the DB.
+            return current;
+        }
+        tx.update(attemptRef, updatedAttempt);
+        return { ...current, ...updatedAttempt } as TestAttempt;
+    });
+
+    return finalAttempt;
 }
 
 export async function createTestPurchase(
