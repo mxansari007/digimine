@@ -11,7 +11,19 @@ import {
     updateTestSeries,
     updateTestInSeries,
 } from "@/lib/firestore/tests";
+import { EditIcon, HelpCircleIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, Test } from "@digimine/types";
+
+function getTestCreatedTime(test: Test): number {
+    return test.createdAt instanceof Date ? test.createdAt.getTime() : 0;
+}
+
+function sortTestsByLatest(tests: Test[]): Test[] {
+    return [...tests].sort((a, b) => {
+        const latestDiff = getTestCreatedTime(b) - getTestCreatedTime(a);
+        return latestDiff || a.order - b.order;
+    });
+}
 
 export default function SeriesTestsPage() {
     const params = useParams();
@@ -34,7 +46,7 @@ export default function SeriesTestsPage() {
                 getTestsInSeries(seriesId),
             ]);
             setSeries(seriesData);
-            setTests(testsData);
+            setTests(sortTestsByLatest(testsData));
         } catch (error: any) {
             console.error("Error loading tests:", error);
             alert("Error loading tests");
@@ -50,7 +62,7 @@ export default function SeriesTestsPage() {
 
         try {
             await deleteTestInSeries(seriesId, testId);
-            setTests(tests.filter((t) => t.id !== testId));
+            setTests((current) => current.filter((t) => t.id !== testId));
         } catch (error: any) {
             console.error("Error deleting test:", error);
             alert("Failed to delete test");
@@ -224,12 +236,14 @@ export default function SeriesTestsPage() {
                                 <div className="flex items-center gap-2">
                                     <Link href={`/tests/${seriesId}/tests/${test.id}/questions`}>
                                         <Button variant="outline" size="sm">
-                                            ❓ Questions
+                                            <HelpCircleIcon className="mr-1 h-4 w-4" />
+                                            Questions
                                         </Button>
                                     </Link>
                                     <Link href={`/tests/${seriesId}/tests/${test.id}/edit`}>
                                         <Button variant="outline" size="sm">
-                                            ✏️ Edit
+                                            <EditIcon className="mr-1 h-4 w-4" />
+                                            Edit
                                         </Button>
                                     </Link>
                                     {test.status !== "published" && (
@@ -249,7 +263,8 @@ export default function SeriesTestsPage() {
                                         className="text-red-600 border-red-200 hover:bg-red-50"
                                         onClick={() => handleDeleteTest(test.id)}
                                     >
-                                        🗑️ Delete
+                                        <TrashIcon className="mr-1 h-4 w-4" />
+                                        Delete
                                     </Button>
                                 </div>
                             </div>

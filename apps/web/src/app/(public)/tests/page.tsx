@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { getPublishedTests } from "@/lib/firestore/tests";
+import { BookOpenIcon, CheckIcon, FileTextIcon, FlaskIcon } from "@/components/icons/AppIcons";
 import type { TestSeries } from "@digimine/types";
 
 type SortOption = "newest" | "price-low" | "price-high" | "questions";
@@ -85,10 +86,10 @@ export default function TestsPage() {
                         Sharpen your skills with curated test series. Real exam patterns, instant scoring, and detailed analytics.
                     </p>
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1.5"><span className="text-green-500">✓</span> Instant results</span>
-                        <span className="flex items-center gap-1.5"><span className="text-green-500">✓</span> Auto-saved progress</span>
-                        <span className="flex items-center gap-1.5"><span className="text-green-500">✓</span> Detailed solutions</span>
-                        <span className="flex items-center gap-1.5"><span className="text-green-500">✓</span> Mobile friendly</span>
+                        <span className="flex items-center gap-1.5"><CheckIcon className="h-4 w-4 text-green-500" /> Instant results</span>
+                        <span className="flex items-center gap-1.5"><CheckIcon className="h-4 w-4 text-green-500" /> Auto-saved progress</span>
+                        <span className="flex items-center gap-1.5"><CheckIcon className="h-4 w-4 text-green-500" /> Detailed solutions</span>
+                        <span className="flex items-center gap-1.5"><CheckIcon className="h-4 w-4 text-green-500" /> Mobile friendly</span>
                     </div>
                 </div>
 
@@ -217,7 +218,7 @@ export default function TestsPage() {
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-white/40">
-                                            <span className="text-6xl">📝</span>
+                                            <FileTextIcon className="h-16 w-16" />
                                         </div>
                                     )}
                                     {test.accessType === "free" && (
@@ -244,11 +245,11 @@ export default function TestsPage() {
                                     {/* Stats */}
                                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                                         <span className="flex items-center gap-1">
-                                            <span>🧪</span>
+                                            <FlaskIcon className="h-4 w-4" />
                                             {test.totalTests} tests
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <span>📝</span>
+                                            <BookOpenIcon className="h-4 w-4" />
                                             {test.totalQuestions} Qs
                                         </span>
                                     </div>

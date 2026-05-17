@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { HandIcon } from "@/components/icons/AppIcons";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { Product } from "@digimine/types";
@@ -81,7 +82,10 @@ export default function DownloadsPage() {
             {/* Personalized Header */}
             <div>
                 <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">
-                    Welcome back, {userName} 👋
+                    <span className="inline-flex items-center gap-2">
+                        Welcome back, {userName}
+                        <HandIcon className="h-7 w-7 text-primary-500" />
+                    </span>
                 </h1>
                 <p className="text-gray-600 text-lg">
                     Access your premium content and assets below.

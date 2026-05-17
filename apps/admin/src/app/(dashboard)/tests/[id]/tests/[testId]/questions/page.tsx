@@ -7,6 +7,7 @@ import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine
 import { getTestSeries, getTestById, getQuestionsByTestId, createQuestion, updateQuestion, deleteQuestion } from "@/lib/firestore/tests";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { parseQuestionsMarkdown, downloadQuestionTemplate, type ParseError } from "@/lib/import/markdownQuestions";
+import { CheckIcon, EditIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, Test, Question, QuestionType, DifficultyLevel, CodeLanguage, CodeTestCase, CodeStarter, CodeScoringMode, CreateQuestionInput } from "@digimine/types";
 
 const CODE_LANGUAGES: { value: CodeLanguage; label: string }[] = [
@@ -423,7 +424,7 @@ export default function QuestionsPage() {
                                                     </span>
                                                     <FormattedContent html={option.text} as="span" size="sm" />
                                                     {option.isCorrect && (
-                                                        <span className="text-green-600">✓</span>
+                                                        <CheckIcon className="h-4 w-4 text-green-600" />
                                                     )}
                                                 </div>
                                             ))}
@@ -469,7 +470,8 @@ export default function QuestionsPage() {
                                         size="sm"
                                         onClick={() => handleEditQuestion(question)}
                                     >
-                                        ✏️ Edit
+                                        <EditIcon className="mr-1 h-4 w-4" />
+                                        Edit
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -477,7 +479,8 @@ export default function QuestionsPage() {
                                         className="text-red-600 hover:bg-red-50 border-red-200"
                                         onClick={() => handleDeleteQuestion(question.id)}
                                     >
-                                        🗑️ Delete
+                                        <TrashIcon className="mr-1 h-4 w-4" />
+                                        Delete
                                     </Button>
                                 </div>
                             </div>

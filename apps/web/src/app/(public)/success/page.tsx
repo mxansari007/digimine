@@ -11,6 +11,7 @@ import { type Order, type User } from "@digimine/types";
 import { signUp, signInWithGoogle } from "@/lib/firebase/auth";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Timestamp } from "firebase/firestore";
+import { DownloadIcon } from "@/components/icons/AppIcons";
 
 interface ProductFile {
     id: string;
@@ -464,7 +465,7 @@ export default function SuccessPage() {
                                     <div key={file.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 bg-primary-100 rounded flex items-center justify-center text-primary-600">
-                                                📥
+                                                <DownloadIcon className="h-4 w-4" />
                                             </div>
                                             <div>
                                                 <div className="font-medium text-gray-900">{file.name}</div>

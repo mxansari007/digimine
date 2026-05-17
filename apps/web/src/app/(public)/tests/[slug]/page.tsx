@@ -12,7 +12,31 @@ import {
     enrollInFreeTestSeries
 } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { BookOpenIcon, CalendarIcon, CheckIcon, ClockIcon, FileTextIcon, LockIcon, TargetIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, Test, TestAttempt } from "@digimine/types";
+
+function getTestCreatedTime(test: Test): number {
+    return test.createdAt instanceof Date ? test.createdAt.getTime() : 0;
+}
+
+function sortTestsByLatest(tests: Test[]): Test[] {
+    return [...tests].sort((a, b) => {
+        const latestDiff = getTestCreatedTime(b) - getTestCreatedTime(a);
+        return latestDiff || a.order - b.order;
+    });
+}
+
+function formatTestDate(test: Test): string {
+    if (!(test.createdAt instanceof Date) || Number.isNaN(test.createdAt.getTime())) {
+        return "Date unavailable";
+    }
+
+    return test.createdAt.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+}
 
 export default function TestSeriesDetailPage() {
     const params = useParams();
@@ -44,7 +68,7 @@ export default function TestSeriesDetailPage() {
             setSeries(seriesData);
             
             const testsData = await getTestsInSeries(seriesData.id);
-            setTests(testsData);
+            setTests(sortTestsByLatest(testsData));
 
             if (user) {
                 const [purchased, attemptsData] = await Promise.all([
@@ -123,7 +147,7 @@ export default function TestSeriesDetailPage() {
                                     <img src={series.thumbnailURL} alt={series.title} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-white/20">
-                                        <span className="text-8xl">📚</span>
+                                        <BookOpenIcon className="h-24 w-24" />
                                     </div>
                                 )}
                                 {series.accessType === "free" && (
@@ -177,9 +201,10 @@ export default function TestSeriesDetailPage() {
                                                     <div>
                                                         <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
                                                         <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
-                                                            <span>⏱ {test.duration} mins</span>
-                                                            <span>📝 {test.totalQuestions} Questions</span>
-                                                            <span>🎯 {test.totalMarks} Marks</span>
+                                                            <span className="inline-flex items-center gap-1"><CalendarIcon className="h-4 w-4" /> {formatTestDate(test)}</span>
+                                                            <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" /> {test.duration} mins</span>
+                                                            <span className="inline-flex items-center gap-1"><FileTextIcon className="h-4 w-4" /> {test.totalQuestions} Questions</span>
+                                                            <span className="inline-flex items-center gap-1"><TargetIcon className="h-4 w-4" /> {test.totalMarks} Marks</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -229,7 +254,7 @@ export default function TestSeriesDetailPage() {
                                                     </Button>
                                                 ) : (
                                                     <div className="flex items-center gap-2 text-gray-400">
-                                                        <span>🔒</span>
+                                                        <LockIcon className="h-4 w-4" />
                                                         <span className="text-sm font-medium">Locked</span>
                                                     </div>
                                                 )}
@@ -309,10 +334,10 @@ export default function TestSeriesDetailPage() {
                             <Card className="p-6">
                                 <h3 className="font-bold text-gray-900 mb-4">Series Features:</h3>
                                 <ul className="space-y-3">
-                                    <li className="flex items-center gap-3 text-sm text-gray-600"><span className="text-green-500">✓</span> {tests.length} Practice Tests</li>
-                                    <li className="flex items-center gap-3 text-sm text-gray-600"><span className="text-green-500">✓</span> Detailed Performance Reports</li>
-                                    <li className="flex items-center gap-3 text-sm text-gray-600"><span className="text-green-500">✓</span> Instant Score Calculation</li>
-                                    <li className="flex items-center gap-3 text-sm text-gray-600"><span className="text-green-500">✓</span> All India Ranking</li>
+                                    <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> {tests.length} Practice Tests</li>
+                                    <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> Detailed Performance Reports</li>
+                                    <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> Instant Score Calculation</li>
+                                    <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> All India Ranking</li>
                                 </ul>
                             </Card>
                         </div>

@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase/client";
 
 import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
 import { getUserTestPurchases, getTestSeriesBySlug, getUserTestAttempts } from "@/lib/firestore/tests";
+import { BookOpenIcon, HandIcon } from "@/components/icons/AppIcons";
 
 export default function DashboardPage() {
     const { user, firebaseUser } = useAuthContext();
@@ -151,7 +152,10 @@ export default function DashboardPage() {
                 <div className="absolute top-0 right-0 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4" />
                 <div className="relative z-10">
-                    <p className="text-primary-300 text-sm font-medium mb-1">{greeting} 👋</p>
+                    <p className="text-primary-300 text-sm font-medium mb-1 inline-flex items-center gap-2">
+                        {greeting}
+                        <HandIcon className="h-4 w-4" />
+                    </p>
                     <h1 className="text-3xl font-bold font-display mb-2 text-white">{userName}</h1>
                     <p className="text-gray-400 text-base">
                         You have <span className="text-white font-semibold">{products.length} product{products.length !== 1 ? 's' : ''}</span> and <span className="text-white font-semibold">{purchasedSeries.length} test series</span> in your library.
@@ -290,7 +294,9 @@ export default function DashboardPage() {
                                     {series.thumbnailURL ? (
                                         <Image src={series.thumbnailURL} alt={series.title} fill className="object-cover" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-white/20 text-4xl font-bold">📚</div>
+                                        <div className="w-full h-full flex items-center justify-center text-white/20">
+                                            <BookOpenIcon className="h-14 w-14" />
+                                        </div>
                                     )}
                                     <div className="absolute top-3 right-3">
                                         <span className="bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow">Unlocked</span>

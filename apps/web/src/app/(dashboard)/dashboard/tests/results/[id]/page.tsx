@@ -6,6 +6,7 @@ import { Button, Card, FormattedContent } from "@digimine/ui";
 import { getTestAttempt, getTestById, getTestSeries, getTestQuestions, getLatestAttemptsForTest } from "@/lib/firestore/tests";
 import type { TestAttempt, Test, TestSeries, Question } from "@digimine/types";
 import Link from "next/link";
+import { CheckIcon, MinusIcon, XIcon } from "@/components/icons/AppIcons";
 
 function CircularProgress({ percentage, size = 180, strokeWidth = 14, color, trackColor = "rgba(255,255,255,0.15)", label }: { percentage: number; size?: number; strokeWidth?: number; color: string; trackColor?: string; label?: string }) {
     const radius = (size - strokeWidth) / 2;
@@ -594,7 +595,13 @@ export default function TestResultPage() {
                                             <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                                                 isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
                                             }`}>
-                                                {isCorrect ? '✓' : isSkipped ? '—' : '✗'}
+                                                {isCorrect ? (
+                                                    <CheckIcon className="h-4 w-4" />
+                                                ) : isSkipped ? (
+                                                    <MinusIcon className="h-4 w-4" />
+                                                ) : (
+                                                    <XIcon className="h-4 w-4" />
+                                                )}
                                             </span>
                                             <span className="font-bold text-gray-400 text-sm">Question {idx + 1}</span>
                                         </div>
@@ -670,7 +677,11 @@ export default function TestResultPage() {
                                                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                                                                 isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                                                             }`}>
-                                                                {isOptCorrect ? '✓' : isSelected ? '✗' : ''}
+                                                                {isOptCorrect ? (
+                                                                    <CheckIcon className="h-3 w-3" />
+                                                                ) : isSelected ? (
+                                                                    <XIcon className="h-3 w-3" />
+                                                                ) : null}
                                                             </span>
                                                             <FormattedContent html={option.text} size="sm" className="flex-1" />
                                                         </div>

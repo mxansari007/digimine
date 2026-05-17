@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { getAllTests, deleteTest } from "@/lib/firestore/tests";
+import { BookOpenIcon, EditIcon, FileTextIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, TestStatus } from "@digimine/types";
 
 type SortOption = "newest" | "oldest" | "title" | "questions";
@@ -231,7 +232,7 @@ export default function TestsPage() {
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
-                                            📝
+                                            <FileTextIcon className="h-9 w-9" />
                                         </div>
                                     )}
                                 </div>
@@ -256,11 +257,11 @@ export default function TestsPage() {
                                     {/* Stats */}
                                     <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
                                         <span className="flex items-center gap-1">
-                                            <span>📚</span>
+                                            <BookOpenIcon className="h-4 w-4" />
                                             {test.totalTests || 0} tests
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <span>📝</span>
+                                            <FileTextIcon className="h-4 w-4" />
                                             {test.totalQuestions || 0} questions
                                         </span>
                                         {test.accessType === "paid" && (
@@ -276,13 +277,13 @@ export default function TestsPage() {
                                 <div className="flex lg:flex-col gap-2 lg:items-end">
                                     <Link href={`/tests/${test.id}/tests`}>
                                         <Button variant="outline" size="sm" className="w-full bg-indigo-50 text-indigo-700 border-indigo-200">
-                                            <span className="mr-1">📚</span>
+                                            <BookOpenIcon className="mr-1 h-4 w-4" />
                                             Manage Tests
                                         </Button>
                                     </Link>
                                     <Link href={`/tests/${test.id}/edit`}>
                                         <Button variant="outline" size="sm" className="w-full">
-                                            <span className="mr-1">✏️</span>
+                                            <EditIcon className="mr-1 h-4 w-4" />
                                             Edit Series
                                         </Button>
                                     </Link>
@@ -292,7 +293,7 @@ export default function TestsPage() {
                                         className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                                         onClick={() => setPendingDelete({ id: test.id, title: test.title })}
                                     >
-                                        <span className="mr-1">🗑</span>
+                                        <TrashIcon className="mr-1 h-4 w-4" />
                                         Delete
                                     </Button>
                                 </div>

@@ -17,6 +17,7 @@ import {
     getTestAttempt
 } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { FileTextIcon, RefreshIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, Test, Question, TestAttempt, CodeLanguage } from "@digimine/types";
 
 const LANGUAGE_MAP: Record<CodeLanguage, string> = {
@@ -1287,7 +1288,11 @@ export default function TestAttemptPage() {
                 <Card className="max-w-2xl w-full p-8 shadow-2xl border-none">
                     <div className="text-center mb-8">
                         <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
-                            {Object.keys(answers).length > 0 ? '🔄' : '📝'}
+                            {Object.keys(answers).length > 0 ? (
+                                <RefreshIcon className="h-9 w-9" />
+                            ) : (
+                                <FileTextIcon className="h-9 w-9" />
+                            )}
                         </div>
                         <h1 className="text-3xl font-bold text-gray-900">
                             {Object.keys(answers).length > 0 ? 'Resume Your Test' : 'Test Instructions'}

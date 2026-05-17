@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button, Card, FormattedContent } from "@digimine/ui";
 import { getTestAttempt, getTestSeriesBySlug, getTestById, getTestQuestions } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { CheckIcon, MinusIcon, TrophyIcon, XIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, Test, TestAttempt, Question } from "@digimine/types";
 
 function CircularProgress({ percentage, size = 140, strokeWidth = 10, color }: { percentage: number; size?: number; strokeWidth?: number; color: string }) {
@@ -171,7 +172,14 @@ function ResultsContent() {
                     <div className="flex flex-col items-center">
                         <CircularProgress percentage={scorePercentage} color={getScoreHex(scorePercentage)} />
                         <h2 className="text-2xl font-bold mt-6 mb-1">
-                            {isPassed ? <span className="text-green-600">You Passed! 🎉</span> : <span className="text-red-600">Keep Practicing!</span>}
+                            {isPassed ? (
+                                <span className="inline-flex items-center gap-2 text-green-600">
+                                    You Passed!
+                                    <TrophyIcon className="h-6 w-6" />
+                                </span>
+                            ) : (
+                                <span className="text-red-600">Keep Practicing!</span>
+                            )}
                         </h2>
                         <p className="text-gray-600">Scored {attempt.totalScore} / {attempt.maxPossibleScore}</p>
                     </div>
@@ -237,7 +245,13 @@ function ResultsContent() {
                                             <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                                                 isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
                                             }`}>
-                                                {isCorrect ? '✓' : isSkipped ? '—' : '✗'}
+                                                {isCorrect ? (
+                                                    <CheckIcon className="h-4 w-4" />
+                                                ) : isSkipped ? (
+                                                    <MinusIcon className="h-4 w-4" />
+                                                ) : (
+                                                    <XIcon className="h-4 w-4" />
+                                                )}
                                             </span>
                                             <span className="font-bold text-gray-400 text-sm">Question {idx + 1}</span>
                                         </div>
@@ -309,7 +323,11 @@ function ResultsContent() {
                                                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                                                                 isOptCorrect ? 'bg-green-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                                                             }`}>
-                                                                {isOptCorrect ? '✓' : isSelected ? '✗' : ''}
+                                                                {isOptCorrect ? (
+                                                                    <CheckIcon className="h-3 w-3" />
+                                                                ) : isSelected ? (
+                                                                    <XIcon className="h-3 w-3" />
+                                                                ) : null}
                                                             </span>
                                                             <FormattedContent html={opt.text} size="sm" className="flex-1" />
                                                         </div>

@@ -10,6 +10,7 @@ import { Button } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { ReviewSection } from "@/components/reviews/ReviewSection";
+import { SearchIcon } from "@/components/icons/AppIcons";
 import type { Product, ContentPreviewItem, DeliveryFormat } from "@digimine/types";
 
 // Delivery format labels
@@ -118,7 +119,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     if (!product) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50">
-                <div className="text-6xl mb-4">😕</div>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                    <SearchIcon className="h-8 w-8" />
+                </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h1>
                 <p className="text-gray-600 mb-6">The product you&apos;re looking for doesn&apos;t exist.</p>
                 <Button onClick={() => router.push("/products")}>Browse Products</Button>

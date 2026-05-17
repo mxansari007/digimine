@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { getTestBySlug } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { BookOpenIcon, FileTextIcon, FlaskIcon } from "@/components/icons/AppIcons";
 import type { TestSeries } from "@digimine/types";
 
 // Declare Razorpay
@@ -226,15 +227,15 @@ export default function TestPurchasePage() {
                                 {test.thumbnailURL ? (
                                     <img src={test.thumbnailURL} alt={test.title} className="w-full h-full object-cover rounded-lg" />
                                 ) : (
-                                    "📝"
+                                    <FileTextIcon className="h-9 w-9 text-gray-500" />
                                 )}
                             </div>
                             <div className="flex-1">
                                 <h2 className="text-xl font-bold text-gray-900">{test.title}</h2>
                                 <p className="text-gray-600 text-sm mt-1">{test.shortDescription}</p>
                                 <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                                    <span>🧪 {test.totalTests} tests</span>
-                                    <span>📝 {test.totalQuestions} questions</span>
+                                    <span className="inline-flex items-center gap-1"><FlaskIcon className="h-4 w-4" /> {test.totalTests} tests</span>
+                                    <span className="inline-flex items-center gap-1"><BookOpenIcon className="h-4 w-4" /> {test.totalQuestions} questions</span>
                                 </div>
                             </div>
                         </div>
