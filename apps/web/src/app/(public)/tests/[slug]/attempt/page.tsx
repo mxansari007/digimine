@@ -18,7 +18,7 @@ import {
 } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { FileTextIcon, RefreshIcon } from "@/components/icons/AppIcons";
-import type { TestSeries, Test, Question, TestAttempt, CodeLanguage } from "@digimine/types";
+import type { TestSeries, Test, TestSection, Question, TestAttempt, CodeLanguage } from "@digimine/types";
 
 const LANGUAGE_MAP: Record<CodeLanguage, string> = {
     python: "python",
@@ -58,32 +58,86 @@ function stableShuffle<T>(items: T[], seed: string): T[] {
     return result;
 }
 
+function getSortedTestSections(test?: Test | null): TestSection[] {
+    return [...(test?.sections || [])]
+        .filter((section) => section.title.trim())
+        .sort((a, b) => a.order - b.order);
+}
+
+function orderQuestionsBySection(questions: Question[], test: Test): Question[] {
+    const sections = getSortedTestSections(test);
+    if (sections.length === 0) return questions;
+
+    const sectionOrder = new Map(sections.map((section, index) => [section.id, index]));
+    const fallbackOrder = sections.length;
+
+    return [...questions].sort((a, b) => {
+        const aRank = a.sectionId ? sectionOrder.get(a.sectionId) ?? fallbackOrder : fallbackOrder;
+        const bRank = b.sectionId ? sectionOrder.get(b.sectionId) ?? fallbackOrder : fallbackOrder;
+        return aRank - bRank || a.order - b.order;
+    });
+}
+
+function getQuestionScoring(test: Test, question: Question) {
+    const section = (test.sections || []).find((item) => item.id === question.sectionId);
+    return {
+        marks: typeof section?.marksPerQuestion === "number" ? section.marksPerQuestion : question.marks,
+        negativeMarks: typeof section?.negativeMarks === "number" ? section.negativeMarks : (question.negativeMarks || 0),
+    };
+}
+
 function applyTestSettings(questions: Question[], test: Test, attemptId: string): Question[] {
+    const sections = getSortedTestSections(test);
+    const orderedBySection = orderQuestionsBySection(questions, test);
+
     // 1. Build "units" — a unit is either a singleton question or a group of
     //    questions sharing the same `passageGroup`. Groups always keep their
     //    members together in their original order.
-    type Unit = { key: string; items: Question[] };
+    type Unit = { key: string; items: Question[]; sectionId: string };
     const units: Unit[] = [];
     const groupIndex = new Map<string, number>();
-    questions.forEach((q) => {
+    orderedBySection.forEach((q) => {
         const group = q.passageGroup?.trim();
+        const sectionId = q.sectionId || "";
         if (group) {
-            const idx = groupIndex.get(group);
+            const groupKey = `${sectionId}:${group}`;
+            const idx = groupIndex.get(groupKey);
             if (idx === undefined) {
-                groupIndex.set(group, units.length);
-                units.push({ key: `group:${group}`, items: [q] });
+                groupIndex.set(groupKey, units.length);
+                units.push({ key: `group:${group}`, items: [q], sectionId });
             } else {
                 units[idx].items.push(q);
             }
         } else {
-            units.push({ key: `q:${q.id}`, items: [q] });
+            units.push({ key: `q:${q.id}`, items: [q], sectionId });
         }
     });
 
     // 2. Shuffle the units (not individual grouped questions) when requested.
-    const orderedUnits = test.shuffleQuestions
-        ? stableShuffle(units, `${attemptId}:questions`)
-        : units;
+    // For sectioned tests, section order stays stable and questions shuffle only
+    // within their own section.
+    const orderedUnits = (() => {
+        if (!test.shuffleQuestions) return units;
+        if (sections.length === 0) return stableShuffle(units, `${attemptId}:questions`);
+
+        const buckets = new Map<string, Unit[]>();
+        units.forEach((unit) => {
+            const key = unit.sectionId || "";
+            buckets.set(key, [...(buckets.get(key) || []), unit]);
+        });
+
+        const sectionIds = sections.map((section) => section.id);
+        const orderedSectionIds = [
+            ...sectionIds,
+            "",
+            ...Array.from(buckets.keys()).filter((sectionId) => sectionId && !sectionIds.includes(sectionId)),
+        ];
+
+        return orderedSectionIds.flatMap((sectionId) => {
+            const sectionUnits = buckets.get(sectionId) || [];
+            return stableShuffle(sectionUnits, `${attemptId}:section:${sectionId || "unsectioned"}`);
+        });
+    })();
 
     // 3. Flatten and optionally shuffle MCQ options per-question.
     const orderedQuestions = orderedUnits.flatMap((u) => u.items);
@@ -1282,6 +1336,35 @@ export default function TestAttemptPage() {
 
     if (!test || questions.length === 0) return null;
 
+    const testSections = getSortedTestSections(test);
+    const sectionById = new Map(testSections.map((section) => [section.id, section]));
+    const currentQuestion = questions[currentQuestionIndex];
+    const currentSection = currentQuestion?.sectionId ? sectionById.get(currentQuestion.sectionId) : undefined;
+    const currentQuestionScoring = currentQuestion ? getQuestionScoring(test, currentQuestion) : { marks: 0, negativeMarks: 0 };
+    const maxPossibleScore = questions.reduce((sum, question) => sum + getQuestionScoring(test, question).marks, 0) || test.totalMarks;
+    const buildSectionGroups = (indexes: number[]) => {
+        if (testSections.length === 0) {
+            return [{ id: "", title: "", description: "", indexes }];
+        }
+
+        const groups = testSections.map((section) => ({
+            id: section.id,
+            title: section.title,
+            description: section.description || "",
+            indexes: indexes.filter((idx) => questions[idx]?.sectionId === section.id),
+        }));
+        const unsectionedIndexes = indexes.filter((idx) => {
+            const sectionId = questions[idx]?.sectionId;
+            return !sectionId || !sectionById.has(sectionId);
+        });
+
+        if (unsectionedIndexes.length > 0) {
+            groups.push({ id: "", title: "Unsectioned", description: "", indexes: unsectionedIndexes });
+        }
+
+        return groups.filter((group) => group.indexes.length > 0);
+    };
+
     if (!isStarted) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -1318,7 +1401,7 @@ export default function TestAttemptPage() {
                                 <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span className="font-bold">Total Marks:</span> {test.totalMarks}
+                                <span className="font-bold">Total Marks:</span> {maxPossibleScore}
                             </div>
                             <div className="flex items-center gap-2 text-gray-600">
                                 <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1326,7 +1409,26 @@ export default function TestAttemptPage() {
                                 </svg>
                                 <span className="font-bold">Passing Marks:</span> {test.passingMarks}
                             </div>
+                            {testSections.length > 0 && (
+                                <div className="flex items-center gap-2 text-gray-600">
+                                    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                                    </svg>
+                                    <span className="font-bold">Sections:</span> {testSections.length}
+                                </div>
+                            )}
                         </div>
+
+                        {testSections.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {testSections.map((section) => (
+                                    <span key={section.id} className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                                        {section.title}
+                                        {section.cutoffMarks !== undefined ? ` · Cutoff ${section.cutoffMarks}` : ""}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
 
                         <hr className="border-gray-200" />
 
@@ -1365,8 +1467,6 @@ export default function TestAttemptPage() {
             </div>
         );
     }
-
-    const currentQuestion = questions[currentQuestionIndex];
 
     return (
         <div
@@ -1539,6 +1639,11 @@ export default function TestAttemptPage() {
                             <div className="flex items-center justify-between mb-4 sm:mb-6">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider">Question {currentQuestionIndex + 1}</span>
+                                    {currentSection && (
+                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                            {currentSection.title}
+                                        </span>
+                                    )}
                                     {currentQuestion.passageGroup && (
                                         <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
                                             Set {setNumberById.get(currentQuestion.passageGroup) || ''}
@@ -1553,7 +1658,10 @@ export default function TestAttemptPage() {
                                         </span>
                                     )}
                                 </div>
-                                <span className="text-sm text-gray-400">{currentQuestion.marks} Marks</span>
+                                <span className="text-sm text-gray-400">
+                                    {currentQuestionScoring.marks} Marks
+                                    {currentQuestionScoring.negativeMarks > 0 ? ` · -${currentQuestionScoring.negativeMarks}` : ""}
+                                </span>
                             </div>
                             <FormattedContent
                                 html={currentQuestion.questionText}
@@ -1925,36 +2033,47 @@ export default function TestAttemptPage() {
                                 Nothing to show in this filter.
                             </div>
                         ) : (
-                            <div className="grid grid-cols-5 gap-2">
-                                {filteredIndexes.map((idx) => {
-                                    const q = questions[idx];
-                                    const status = getQuestionStatus(q.id, idx);
-                                    const isCode = q.type === 'code';
-                                    const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
-                                    return (
-                                        <button
-                                            key={idx}
-                                            onClick={() => goToQuestion(idx)}
-                                            className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
-                                            title={`Q${idx + 1} (${isCode ? 'code' : 'mcq'})${setNum ? ` · Set ${setNum}` : ''}: ${status.replace(/_/g, ' ')}`}
-                                        >
-                                            {idx + 1}
-                                            {isCode && (
-                                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm" aria-label="code question">
-                                                    <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
-                                                </span>
-                                            )}
-                                            {setNum && (
-                                                <span
-                                                    className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm"
-                                                    aria-label={`set ${setNum}`}
-                                                >
-                                                    S{setNum}
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
+                            <div className="space-y-4">
+                                {buildSectionGroups(filteredIndexes).map((group) => (
+                                    <div key={group.id || "unsectioned"}>
+                                        {group.title && (
+                                            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                                {group.title}
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {group.indexes.map((idx) => {
+                                                const q = questions[idx];
+                                                const status = getQuestionStatus(q.id, idx);
+                                                const isCode = q.type === 'code';
+                                                const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => goToQuestion(idx)}
+                                                        className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
+                                                        title={`Q${idx + 1} (${isCode ? 'code' : 'mcq'})${group.title ? ` · ${group.title}` : ''}${setNum ? ` · Set ${setNum}` : ''}: ${status.replace(/_/g, ' ')}`}
+                                                    >
+                                                        {idx + 1}
+                                                        {isCode && (
+                                                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm" aria-label="code question">
+                                                                <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
+                                                            </span>
+                                                        )}
+                                                        {setNum && (
+                                                            <span
+                                                                className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm"
+                                                                aria-label={`set ${setNum}`}
+                                                            >
+                                                                S{setNum}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -2054,31 +2173,43 @@ export default function TestAttemptPage() {
                                     </svg>
                                 </button>
                             </div>
-                            <div className="grid grid-cols-5 gap-2">
-                                {questions.map((q, idx) => {
-                                    const status = getQuestionStatus(q.id, idx);
-                                    const isCode = q.type === 'code';
-                                    const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
-                                    return (
-                                        <button
-                                            key={idx}
-                                            onClick={() => { goToQuestion(idx); setShowMobileNav(false); }}
-                                            className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
-                                        >
-                                            {idx + 1}
-                                            {isCode && (
-                                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                                                    <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
-                                                </span>
-                                            )}
-                                            {setNum && (
-                                                <span className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
-                                                    S{setNum}
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
+                            <div className="space-y-4">
+                                {buildSectionGroups(questions.map((_, idx) => idx)).map((group) => (
+                                    <div key={group.id || "unsectioned-mobile"}>
+                                        {group.title && (
+                                            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                                {group.title}
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {group.indexes.map((idx) => {
+                                                const q = questions[idx];
+                                                const status = getQuestionStatus(q.id, idx);
+                                                const isCode = q.type === 'code';
+                                                const setNum = q.passageGroup ? setNumberById.get(q.passageGroup) : undefined;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => { goToQuestion(idx); setShowMobileNav(false); }}
+                                                        className={`relative w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${getStatusColor(status, currentQuestionIndex === idx)} ${setNum ? 'ring-2 ring-offset-1 ring-amber-300/70' : ''}`}
+                                                    >
+                                                        {idx + 1}
+                                                        {isCode && (
+                                                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                                                                <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 9l-4 3 4 3m8-6l4 3-4 3" /></svg>
+                                                            </span>
+                                                        )}
+                                                        {setNum && (
+                                                            <span className="absolute -bottom-1 -left-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                                                                S{setNum}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
 
                             <div className="mt-6 space-y-3">

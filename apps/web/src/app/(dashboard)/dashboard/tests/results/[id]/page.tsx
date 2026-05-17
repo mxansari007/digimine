@@ -203,7 +203,8 @@ export default function TestResultPage() {
         BUCKET_COUNT - 1,
         Math.floor(Math.max(0, Math.min(100, attempt.percentage || 0)) / (100 / BUCKET_COUNT))
     );
-    const passingPercent = test.totalMarks > 0 ? (test.passingMarks / test.totalMarks) * 100 : 0;
+    const maxScore = attempt.maxPossibleScore || test.totalMarks;
+    const passingPercent = maxScore > 0 ? (test.passingMarks / maxScore) * 100 : 0;
 
     return (
         <div className="min-h-screen bg-slate-50 py-6 sm:py-10">
@@ -247,7 +248,7 @@ export default function TestResultPage() {
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm text-xs font-medium">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                        Cut-off: {test.passingMarks} / {test.totalMarks}
+                                        Cut-off: {test.passingMarks} / {maxScore}
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm text-xs font-medium">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
@@ -308,10 +309,10 @@ export default function TestResultPage() {
                                 <div className="relative h-2.5 bg-slate-100 rounded-full overflow-hidden">
                                     <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-1000" style={{ width: `${scorePercentage}%` }} />
                                     {/* Pass marker */}
-                                    {test.totalMarks > 0 && (
+                                    {maxScore > 0 && (
                                         <div
                                             className="absolute inset-y-0 w-0.5 bg-slate-400"
-                                            style={{ left: `${(test.passingMarks / test.totalMarks) * 100}%` }}
+                                            style={{ left: `${passingPercent}%` }}
                                             title={`Passing mark at ${test.passingMarks}`}
                                         />
                                     )}
@@ -319,9 +320,28 @@ export default function TestResultPage() {
                                 <div className="mt-1 text-xs text-slate-400 flex justify-between">
                                     <span>0</span>
                                     <span>Passing: {test.passingMarks}</span>
-                                    <span>{test.totalMarks}</span>
+                                    <span>{maxScore}</span>
                                 </div>
                             </div>
+
+                            {attempt.sectionResults && attempt.sectionResults.length > 1 && (
+                                <div className="space-y-3">
+                                    <div className="text-sm font-bold text-slate-700">Section Scores</div>
+                                    {attempt.sectionResults.map((section) => (
+                                        <div key={section.sectionId || section.title} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                            <div className="flex items-center justify-between gap-3 text-sm">
+                                                <span className="font-semibold text-slate-700">{section.title}</span>
+                                                <span className="font-bold text-slate-900 tabular-nums">{section.score} / {section.maxScore}</span>
+                                            </div>
+                                            {section.cutoffMarks !== undefined && (
+                                                <div className={`mt-1 text-xs font-medium ${section.passed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                    Cutoff {section.cutoffMarks} {section.passed ? 'met' : 'not met'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             <div>
                                 <div className="flex justify-between items-center text-sm mb-2">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { getTestSeries, getTestById, updateTestInSeries } from "@/lib/firestore/tests";
-import type { TestSeries, Test, UpdateTestInput } from "@digimine/types";
+import type { TestSeries, Test, UpdateTestInput, TestSectionInput } from "@digimine/types";
 import Link from "next/link";
 
 export default function EditSubTestPage() {
@@ -29,7 +29,49 @@ export default function EditSubTestPage() {
         allowRetake: false,
         shuffleQuestions: false,
         shuffleOptions: false,
+        sections: [],
     });
+
+    const sections = formData.sections || [];
+
+    const addSection = () => {
+        const nextSection: TestSectionInput = {
+            id: crypto.randomUUID(),
+            title: "",
+            description: "",
+            order: sections.length,
+        };
+        setFormData({ ...formData, sections: [...sections, nextSection] });
+    };
+
+    const updateSection = (index: number, field: "title" | "description", value: string) => {
+        setFormData({
+            ...formData,
+            sections: sections.map((section, sectionIndex) =>
+                sectionIndex === index ? { ...section, [field]: value } : section
+            ),
+        });
+    };
+
+    const updateSectionNumber = (index: number, field: "marksPerQuestion" | "negativeMarks" | "cutoffMarks", value: string) => {
+        setFormData({
+            ...formData,
+            sections: sections.map((section, sectionIndex) =>
+                sectionIndex === index
+                    ? { ...section, [field]: value === "" ? undefined : Number(value) }
+                    : section
+            ),
+        });
+    };
+
+    const removeSection = (index: number) => {
+        setFormData({
+            ...formData,
+            sections: sections
+                .filter((_, sectionIndex) => sectionIndex !== index)
+                .map((section, order) => ({ ...section, order })),
+        });
+    };
 
     useEffect(() => {
         async function loadData() {
@@ -54,6 +96,7 @@ export default function EditSubTestPage() {
                         allowRetake: testData.allowRetake,
                         shuffleQuestions: testData.shuffleQuestions,
                         shuffleOptions: testData.shuffleOptions,
+                        sections: testData.sections || [],
                     });
                 }
             } catch (error) {
@@ -77,7 +120,8 @@ export default function EditSubTestPage() {
             await updateTestInSeries({
                 id: testId,
                 seriesId,
-                ...formData
+                ...formData,
+                sections: sections.filter((section) => section.title.trim()),
             });
             router.push(`/tests/${seriesId}/tests`);
         } catch (error: any) {
@@ -167,6 +211,84 @@ export default function EditSubTestPage() {
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
+                        </div>
+
+                        <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-bold text-gray-900">Sections</h2>
+                                    <p className="text-xs text-gray-500">Split this test into named sections and assign questions from the question editor.</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={addSection}>
+                                    + Add Section
+                                </Button>
+                            </div>
+                            {sections.length > 0 && (
+                                <div className="space-y-3">
+                                    {sections.map((section, index) => (
+                                        <div key={section.id || index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-7">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600">Section Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={section.title}
+                                                    onChange={(e) => updateSection(index, "title", e.target.value)}
+                                                    placeholder={`Section ${index + 1}`}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-medium text-gray-600">Description</label>
+                                                <input
+                                                    type="text"
+                                                    value={section.description || ""}
+                                                    onChange={(e) => updateSection(index, "description", e.target.value)}
+                                                    placeholder="Optional note shown to students"
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600">Marks/Q</label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step={0.5}
+                                                    value={section.marksPerQuestion ?? ""}
+                                                    onChange={(e) => updateSectionNumber(index, "marksPerQuestion", e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600">Negative</label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step={0.25}
+                                                    value={section.negativeMarks ?? ""}
+                                                    onChange={(e) => updateSectionNumber(index, "negativeMarks", e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600">Cutoff</label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step={0.5}
+                                                    value={section.cutoffMarks ?? ""}
+                                                    onChange={(e) => updateSectionNumber(index, "cutoffMarks", e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <Button type="button" variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => removeSection(index)}>
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">

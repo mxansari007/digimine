@@ -27,6 +27,7 @@ import type {
     CreateQuestionInput,
     UpdateQuestionInput,
     TestStatus,
+    TestSectionInput,
 } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -82,6 +83,24 @@ function sanitizeData(data: any): any {
     }
     
     return data;
+}
+
+function normalizeSections(sections?: TestSectionInput[]): Test["sections"] {
+    if (!sections) return undefined;
+
+    return sections
+        .map((section, index) => ({
+            id: section.id || uuidv4(),
+            title: section.title.trim(),
+            description: section.description?.trim() || "",
+            order: section.order ?? index,
+            marksPerQuestion: typeof section.marksPerQuestion === "number" ? section.marksPerQuestion : undefined,
+            negativeMarks: typeof section.negativeMarks === "number" ? section.negativeMarks : undefined,
+            cutoffMarks: typeof section.cutoffMarks === "number" ? section.cutoffMarks : undefined,
+        }))
+        .filter((section) => section.title)
+        .sort((a, b) => a.order - b.order)
+        .map((section, index) => ({ ...section, order: index }));
 }
 
 // --- Test Series ---
@@ -208,6 +227,7 @@ export async function createTestInSeries(data: CreateTestInput): Promise<string>
         status: data.status || "draft",
         order: data.order || 0,
         totalQuestions: 0,
+        sections: normalizeSections(data.sections) || [],
         instantResults: data.instantResults ?? series?.instantResults ?? true,
         allowRetake: data.allowRetake ?? series?.allowRetake ?? false,
         shuffleQuestions: data.shuffleQuestions ?? series?.shuffleQuestions ?? false,
@@ -232,6 +252,7 @@ export async function updateTestInSeries(data: UpdateTestInput): Promise<void> {
     
     const updatePayload = {
         ...updateData,
+        sections: data.sections ? normalizeSections(data.sections) : undefined,
         updatedAt: Timestamp.now(),
     };
 

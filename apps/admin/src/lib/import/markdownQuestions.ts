@@ -7,6 +7,7 @@ import type {
     CodeTestCase,
     CodeScoringMode,
     MCQOption,
+    TestSectionInput,
 } from "@digimine/types";
 
 /**
@@ -14,8 +15,15 @@ import type {
  *
  * High-level grammar (whitespace tolerant, case-insensitive keys):
  *
+ *   ## Section quant
+ *   title: Quantitative Aptitude
+ *   marksPerQuestion: 2
+ *   negativeMarks: 0.5
+ *   cutoffMarks: 10          (optional)
+ *
  *   ## Question <N>
  *   type: mcq | code
+ *   section: quant           (optional; matches a Section key/title/id)
  *   marks: <number>
  *   negativeMarks: <number, optional>
  *   difficulty: easy | medium | hard
@@ -118,7 +126,12 @@ import type {
 
 export type ParseError = { line: number; message: string };
 
+export interface ParsedSection extends TestSectionInput {
+    key: string;
+}
+
 export interface ParseResult {
+    sections: ParsedSection[];
     questions: CreateQuestionInput[];
     errors: ParseError[];
 }
@@ -151,10 +164,69 @@ function splitQuestionBlocks(text: string): { lines: string[]; startLine: number
             current = { lines: [], startLine: i + 1 };
             continue;
         }
+        if (/^##\s+Section\b/i.test(line.trim())) {
+            if (current) {
+                blocks.push(current);
+                current = null;
+            }
+            continue;
+        }
         if (current) current.lines.push(line);
     }
     if (current) blocks.push(current);
     return blocks;
+}
+
+function slugify(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+function parseOptionalNumber(value: string | undefined): number | undefined {
+    if (value === undefined || value.trim() === "") return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseSectionBlocks(text: string): ParsedSection[] {
+    const allLines = text.split("\n");
+    const sections: ParsedSection[] = [];
+
+    for (let i = 0; i < allLines.length; i++) {
+        const headingMatch = allLines[i].trim().match(/^##\s+Section\b\s*(.*)$/i);
+        if (!headingMatch) continue;
+
+        const headingText = headingMatch[1].trim();
+        const meta: Record<string, string> = {};
+        let j = i + 1;
+        while (j < allLines.length && !/^##\s+(Section|Question)\b/i.test(allLines[j].trim())) {
+            const m = parseMeta(allLines[j].trim());
+            if (m) meta[m.key] = m.value;
+            j++;
+        }
+
+        const title = (meta.title || headingText).trim();
+        const key = slugify(meta.key || meta.id || headingText || title);
+        if (title && key) {
+            sections.push({
+                key,
+                id: meta.id || key,
+                title,
+                description: meta.description?.trim() || undefined,
+                order: sections.length,
+                marksPerQuestion: parseOptionalNumber(meta.marksperquestion ?? meta.marks),
+                negativeMarks: parseOptionalNumber(meta.negativemarks ?? meta.negative),
+                cutoffMarks: parseOptionalNumber(meta.cutoffmarks ?? meta.cutoff),
+            });
+        }
+
+        i = j - 1;
+    }
+
+    return sections;
 }
 
 function parseBoolean(value: string): boolean {
@@ -422,16 +494,17 @@ function parseQuestion(
         });
         return null;
     }
-    const marks = Number(meta.marks);
+    const marks = meta.marks ? Number(meta.marks) : 1;
     if (!Number.isFinite(marks) || marks <= 0) {
         errors.push({
             line: startLine,
-            message: `Question ${questionNumber}: "marks" must be a positive number`,
+            message: `Question ${questionNumber}: "marks" must be a positive number when provided`,
         });
         return null;
     }
     const difficulty = (meta.difficulty || "medium").toLowerCase() as DifficultyLevel;
     const negativeMarks = meta.negativemarks ? Number(meta.negativemarks) || 0 : 0;
+    const sectionId = (meta.section || meta.sectionid || "").trim() || undefined;
 
     // Resolve passage / group: questions with the same `group` share a passage.
     // If this question defines @passage, it becomes the canonical passage for the group.
@@ -472,6 +545,7 @@ function parseQuestion(
             marks,
             negativeMarks,
             difficulty,
+            sectionId,
             passageGroup,
             passage: finalPassage,
         };
@@ -509,6 +583,7 @@ function parseQuestion(
         marks,
         negativeMarks,
         difficulty,
+        sectionId,
         supportedLanguages: languages,
         starters: startersFinal,
         testCases,
@@ -525,6 +600,7 @@ function parseQuestion(
  */
 export function parseQuestionsMarkdown(source: string): ParseResult {
     const text = clean(source);
+    const sections = parseSectionBlocks(text);
     const blocks = splitQuestionBlocks(text);
     const errors: ParseError[] = [];
     const questions: CreateQuestionInput[] = [];
@@ -534,7 +610,7 @@ export function parseQuestionsMarkdown(source: string): ParseResult {
             line: 1,
             message: 'No questions found. Each question must start with "## Question N".',
         });
-        return { questions, errors };
+        return { sections, questions, errors };
     }
 
     const groupPassages: Record<string, string> = {};
@@ -543,7 +619,7 @@ export function parseQuestionsMarkdown(source: string): ParseResult {
         if (q) questions.push(q);
     });
 
-    return { questions, errors };
+    return { sections, questions, errors };
 }
 
 /**
@@ -577,10 +653,20 @@ export const QUESTION_TEMPLATE_MD = `# Question Bank Template
 
   Rules at a glance:
     - Each question starts with "## Question <N>".
+    - Optional sections can be declared before questions:
+        ## Section quant
+        title: Quantitative Aptitude
+        marksPerQuestion: 2
+        negativeMarks: 0.5
+        cutoffMarks: 10
+      Then assign questions with:
+        section: quant
     - Below the heading: metadata as "key: value" (case-insensitive keys).
-        Required:  type, marks
-        Optional:  negativeMarks, difficulty, languages, timeLimit,
-                   memoryLimit, scoringMode
+        Required:  type
+        Optional:  marks, negativeMarks, difficulty, languages, timeLimit,
+                   memoryLimit, scoringMode, section
+      If the assigned section defines marksPerQuestion / negativeMarks, those
+      section values become the effective scoring scheme for that question.
     - Prompt — pick ONE form:
         (A) Short:  one or more "?" lines (HTML).
               ? <p>What is <code>2 + 2</code>?</p>
@@ -623,9 +709,24 @@ export const QUESTION_TEMPLATE_MD = `# Question Bank Template
 ================================================================================
 -->
 
+## Section fundamentals
+title: Fundamentals
+description: Basic aptitude and conceptual questions.
+marksPerQuestion: 1
+negativeMarks: 0.25
+cutoffMarks: 2
+
+## Section coding
+title: Coding
+description: Programming questions with weighted test cases.
+marksPerQuestion: 10
+negativeMarks: 0
+cutoffMarks: 5
+
 
 ## Question 1
 type: mcq
+section: fundamentals
 marks: 1
 difficulty: easy
 
@@ -641,6 +742,7 @@ difficulty: easy
 
 ## Question 2
 type: mcq
+section: fundamentals
 marks: 3
 negativeMarks: 1
 difficulty: medium
@@ -687,6 +789,7 @@ dedicated <em>expression index</em>:</p>
 
 ## Question 3
 type: code
+section: coding
 marks: 10
 difficulty: hard
 languages: python, javascript, cpp
@@ -831,6 +934,7 @@ while left &lt; right:
 
 ## Question 4
 type: mcq
+section: fundamentals
 marks: 1
 difficulty: medium
 group: rc-photosynthesis
@@ -859,6 +963,7 @@ a direct input to photosynthesis?</p>
 
 ## Question 5
 type: mcq
+section: fundamentals
 marks: 1
 difficulty: medium
 group: rc-photosynthesis
@@ -874,6 +979,7 @@ that converts:</p>
 
 ## Question 6
 type: mcq
+section: fundamentals
 marks: 1
 difficulty: hard
 group: rc-photosynthesis

@@ -72,6 +72,24 @@ export interface MCQOption {
 }
 
 /**
+ * Section within an individual test
+ */
+export interface TestSection {
+    id: string;
+    title: string;
+    description?: string;
+    order: number;
+    marksPerQuestion?: number;
+    negativeMarks?: number;
+    cutoffMarks?: number;
+}
+
+export type TestSectionInput = Omit<TestSection, "id" | "order"> & {
+    id?: string;
+    order?: number;
+};
+
+/**
  * Individual Test within a Test Series
  */
 export interface Test {
@@ -90,6 +108,7 @@ export interface Test {
     allowRetake: boolean;
     shuffleQuestions: boolean;
     shuffleOptions: boolean;
+    sections?: TestSection[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -110,6 +129,7 @@ export interface Question {
     negativeMarks?: number; // Negative marks for wrong answer
     difficulty: DifficultyLevel;
     order: number; // Order of question in the test
+    sectionId?: string; // Optional section within the test
     // Code question fields
     supportedLanguages?: CodeLanguage[];
     starters?: CodeStarter[];
@@ -180,6 +200,18 @@ export interface UserAnswer {
     testCaseResults?: CodeTestCaseResult[];
 }
 
+export interface TestSectionResult {
+    sectionId: string;
+    title: string;
+    score: number;
+    maxScore: number;
+    cutoffMarks?: number;
+    passed?: boolean;
+    correctAnswers: number;
+    wrongAnswers: number;
+    unattempted: number;
+}
+
 /**
  * Test attempt interface
  */
@@ -205,6 +237,8 @@ export interface TestAttempt {
     unattempted: number;
     percentage: number;
     passed: boolean;
+    sectionResults?: TestSectionResult[];
+    sectionCutoffsPassed?: boolean;
     rank?: number; // Rank among all attempts
     percentile?: number;
     // Time tracking
@@ -314,6 +348,7 @@ export interface CreateTestInput {
     allowRetake?: boolean;
     shuffleQuestions?: boolean;
     shuffleOptions?: boolean;
+    sections?: TestSectionInput[];
 }
 
 /**
@@ -338,6 +373,7 @@ export interface CreateQuestionInput {
     negativeMarks?: number;
     difficulty?: DifficultyLevel;
     order?: number;
+    sectionId?: string;
     // Code question fields
     supportedLanguages?: CodeLanguage[];
     starters?: CodeStarter[];

@@ -63,6 +63,23 @@ function mapDocs<T>(snapshot: { docs: DocumentData[] }): T[] {
     return snapshot.docs.map((doc) => mapDoc<T>(doc));
 }
 
+function getSectionForQuestion(test: Test | null, question: Question) {
+    return (test?.sections || []).find((section) => section.id === question.sectionId) || null;
+}
+
+function getQuestionScoring(test: Test | null, question: Question) {
+    const section = getSectionForQuestion(test, question);
+    return {
+        marks: typeof section?.marksPerQuestion === "number" ? section.marksPerQuestion : question.marks,
+        negativeMarks: typeof section?.negativeMarks === "number" ? section.negativeMarks : (question.negativeMarks || 0),
+    };
+}
+
+function getMaxPossibleScore(test: Test | null, questions: Question[], fallback: number): number {
+    const maxScore = questions.reduce((sum, question) => sum + getQuestionScoring(test, question).marks, 0);
+    return maxScore > 0 ? Math.round(maxScore * 100) / 100 : fallback;
+}
+
 // --- Test Series (Public) ---
 
 export async function getPublishedTestSeries(filters?: { category?: string }): Promise<TestSeries[]> {
@@ -251,6 +268,8 @@ export async function startTestAttempt(
     const attemptId = uuidv4();
     const test = await getTestById(seriesId, testId);
     if (!test) throw new Error("Test not found");
+    const questions = await getTestQuestions(seriesId, testId);
+    const maxPossibleScore = getMaxPossibleScore(test, questions, test.totalMarks);
 
     if (!test.allowRetake && previousTestAttempts.some((attempt) => attempt.status === "completed" || attempt.status === "timed_out")) {
         throw new Error("Retakes are disabled for this test.");
@@ -272,10 +291,10 @@ export async function startTestAttempt(
         currentQuestionIndex: 0,
         answers: [],
         totalScore: 0,
-        maxPossibleScore: test.totalMarks,
+        maxPossibleScore,
         correctAnswers: 0,
         wrongAnswers: 0,
-        unattempted: test.totalQuestions,
+        unattempted: questions.length || test.totalQuestions,
         percentage: 0,
         passed: false,
         totalTimeSpent: 0,
@@ -614,7 +633,44 @@ export async function submitTestAttempt(
         return attempt;
     }
 
-    const questions = await getTestQuestions(attempt.seriesId, attempt.testId);
+    const [test, questions] = await Promise.all([
+        getTestById(attempt.seriesId, attempt.testId),
+        getTestQuestions(attempt.seriesId, attempt.testId),
+    ]);
+    const maxPossibleScore = getMaxPossibleScore(test, questions, attempt.maxPossibleScore);
+
+    type SectionBucket = {
+        sectionId: string;
+        title: string;
+        score: number;
+        maxScore: number;
+        cutoffMarks?: number;
+        correctAnswers: number;
+        wrongAnswers: number;
+        unattempted: number;
+    };
+    const sectionBuckets = new Map<string, SectionBucket>();
+    const getSectionKey = (question: Question) => {
+        const section = getSectionForQuestion(test, question);
+        return section?.id || "__unsectioned";
+    };
+    questions.forEach((question) => {
+        const section = getSectionForQuestion(test, question);
+        const key = section?.id || "__unsectioned";
+        const current = sectionBuckets.get(key) || {
+            sectionId: section?.id || "",
+            title: section?.title || "Unsectioned",
+            score: 0,
+            maxScore: 0,
+            cutoffMarks: section?.cutoffMarks,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+            unattempted: 0,
+        };
+        current.maxScore += getQuestionScoring(test, question).marks;
+        current.unattempted += 1;
+        sectionBuckets.set(key, current);
+    });
 
     let totalScore = 0;
     let correctAnswers = 0;
@@ -632,6 +688,8 @@ export async function submitTestAttempt(
         let isCorrect = false;
         let marksObtained = 0;
         const selectedId = answer.selectedOptionId;
+        const hasSubmittedAnswer = !!(selectedId && selectedId.trim() !== "");
+        const { marks, negativeMarks } = getQuestionScoring(test, question);
 
         if (question.type === "code") {
             // Parse code answer
@@ -671,7 +729,7 @@ export async function submitTestAttempt(
                 const scoringMode = question.codeScoringMode || "all_or_nothing";
                 if (scoringMode === "weighted") {
                     if (totalWeight > 0) {
-                        marksObtained = (earnedWeight / totalWeight) * question.marks;
+                        marksObtained = (earnedWeight / totalWeight) * marks;
                         // Round to 2 decimal places to keep totals tidy
                         marksObtained = Math.round(marksObtained * 100) / 100;
                     } else {
@@ -680,12 +738,12 @@ export async function submitTestAttempt(
                     // Treat as fully correct only if every case passed
                     isCorrect = allPassed;
                     // Apply negative marking only when nothing was earned
-                    if (earnedWeight === 0 && question.negativeMarks) {
-                        marksObtained = -question.negativeMarks;
+                    if (earnedWeight === 0 && negativeMarks) {
+                        marksObtained = -negativeMarks;
                     }
                 } else {
                     isCorrect = allPassed;
-                    marksObtained = isCorrect ? question.marks : -(question.negativeMarks || 0);
+                    marksObtained = isCorrect ? marks : -negativeMarks;
                 }
 
                 evaluatedAnswers.push({
@@ -698,7 +756,7 @@ export async function submitTestAttempt(
                 });
             } else {
                 // No code submitted or no test cases
-                marksObtained = -(question.negativeMarks || 0);
+                marksObtained = -negativeMarks;
                 evaluatedAnswers.push({
                     questionId: answer.questionId,
                     answer: selectedId,
@@ -717,7 +775,7 @@ export async function submitTestAttempt(
                 } else if (question.type === "text_input") {
                     isCorrect = selectedId.trim().toLowerCase() === (question.correctAnswer || "").trim().toLowerCase();
                 }
-                marksObtained = isCorrect ? question.marks : -(question.negativeMarks || 0);
+                marksObtained = isCorrect ? marks : -negativeMarks;
             }
 
             evaluatedAnswers.push({
@@ -729,29 +787,50 @@ export async function submitTestAttempt(
             });
         }
 
+        const sectionBucket = sectionBuckets.get(getSectionKey(question));
+        if (sectionBucket && hasSubmittedAnswer) {
+            sectionBucket.unattempted = Math.max(0, sectionBucket.unattempted - 1);
+            sectionBucket.score += marksObtained;
+            if (isCorrect) sectionBucket.correctAnswers++;
+            else sectionBucket.wrongAnswers++;
+        }
+
         if (isCorrect) correctAnswers++;
-        else if (selectedId && selectedId.trim() !== "") {
-            if (marksObtained < 0) wrongAnswers++;
+        else if (hasSubmittedAnswer) {
+            wrongAnswers++;
         }
 
         totalScore += marksObtained;
     }
 
-    const percentage = (totalScore / attempt.maxPossibleScore) * 100;
-    const test = await getTestById(attempt.seriesId, attempt.testId);
-    const passed = test ? totalScore >= test.passingMarks : percentage >= 40;
+    const roundedSectionResults = Array.from(sectionBuckets.values()).map((section) => {
+        const score = Math.round(section.score * 100) / 100;
+        const maxScore = Math.round(section.maxScore * 100) / 100;
+        return {
+            ...section,
+            score,
+            maxScore,
+            passed: section.cutoffMarks === undefined || score >= section.cutoffMarks,
+        };
+    });
+    const sectionCutoffsPassed = roundedSectionResults.every((section) => section.passed !== false);
+    const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
+    const passed = (test ? totalScore >= test.passingMarks : percentage >= 40) && sectionCutoffsPassed;
 
     const now = Timestamp.now();
     const updatedAttempt = {
         status: data.finalStatus || "completed",
         completedAt: now.toDate(),
         answers: evaluatedAnswers,
-        totalScore,
+        totalScore: Math.round(totalScore * 100) / 100,
+        maxPossibleScore,
         correctAnswers,
         wrongAnswers,
         unattempted: questions.length - data.answers.filter((a) => a.selectedOptionId && a.selectedOptionId.trim() !== "").length,
         percentage: Math.round(percentage * 100) / 100,
         passed,
+        sectionResults: roundedSectionResults,
+        sectionCutoffsPassed,
         updatedAt: now.toDate(),
         remainingTime: data.remainingTime
     };

@@ -210,10 +210,31 @@ function ResultsContent() {
                         </div>
                         <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg">
                             <span className="text-gray-500">Passing Marks:</span>
-                            <span className="font-bold text-gray-900">{test.passingMarks} / {test.totalMarks}</span>
+                            <span className="font-bold text-gray-900">{test.passingMarks} / {attempt.maxPossibleScore || test.totalMarks}</span>
                         </div>
                     </div>
                 </Card>
+
+                {attempt.sectionResults && attempt.sectionResults.length > 1 && (
+                    <Card className="p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Section Scores</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {attempt.sectionResults.map((section) => (
+                                <div key={section.sectionId || section.title} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="font-semibold text-gray-700">{section.title}</span>
+                                        <span className="font-bold text-gray-900">{section.score} / {section.maxScore}</span>
+                                    </div>
+                                    {section.cutoffMarks !== undefined && (
+                                        <div className={`mt-1 text-xs font-medium ${section.passed ? 'text-green-700' : 'text-red-700'}`}>
+                                            Cutoff {section.cutoffMarks} {section.passed ? 'met' : 'not met'}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                )}
 
                 {/* Question Review */}
                 <div className="space-y-4">

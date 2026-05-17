@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine/ui";
-import { getTestSeries, getTestById, getQuestionsByTestId, createQuestion, updateQuestion, deleteQuestion } from "@/lib/firestore/tests";
+import { getTestSeries, getTestById, getQuestionsByTestId, createQuestion, updateQuestion, deleteQuestion, updateTestInSeries } from "@/lib/firestore/tests";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { parseQuestionsMarkdown, downloadQuestionTemplate, type ParseError } from "@/lib/import/markdownQuestions";
+import { parseQuestionsMarkdown, downloadQuestionTemplate, type ParseError, type ParsedSection } from "@/lib/import/markdownQuestions";
 import { CheckIcon, EditIcon, TrashIcon } from "@/components/icons/AppIcons";
-import type { TestSeries, Test, Question, QuestionType, DifficultyLevel, CodeLanguage, CodeTestCase, CodeStarter, CodeScoringMode, CreateQuestionInput } from "@digimine/types";
+import type { TestSeries, Test, Question, QuestionType, DifficultyLevel, CodeLanguage, CodeTestCase, CodeStarter, CodeScoringMode, CreateQuestionInput, TestSectionInput } from "@digimine/types";
 
 const CODE_LANGUAGES: { value: CodeLanguage; label: string }[] = [
     { value: "python", label: "Python" },
@@ -16,6 +16,14 @@ const CODE_LANGUAGES: { value: CodeLanguage; label: string }[] = [
     { value: "cpp", label: "C++" },
     { value: "java", label: "Java" },
 ];
+
+function normalizeSectionRef(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
 
 interface QuestionFormData {
     id?: string;
@@ -33,6 +41,7 @@ interface QuestionFormData {
     codeScoringMode: CodeScoringMode;
     timeLimit: number;
     memoryLimit: number;
+    sectionId?: string;
 }
 
 export default function QuestionsPage() {
@@ -49,9 +58,37 @@ export default function QuestionsPage() {
     const [showForm, setShowForm] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [importPreview, setImportPreview] = useState<CreateQuestionInput[]>([]);
+    const [importSections, setImportSections] = useState<ParsedSection[]>([]);
     const [importErrors, setImportErrors] = useState<ParseError[]>([]);
     const [importFileName, setImportFileName] = useState<string>("");
     const [importing, setImporting] = useState(false);
+    const [importStatus, setImportStatus] = useState("");
+    const [importProgress, setImportProgress] = useState({ completed: 0, total: 0 });
+    const testSections = (test?.sections || [])
+        .filter((section) => section.title.trim())
+        .sort((a, b) => a.order - b.order);
+    const sectionById = new Map(testSections.map((section) => [section.id, section]));
+    const defaultSectionId = testSections[0]?.id || "";
+    const getSectionDefaults = (sectionId?: string) => {
+        const section = sectionId ? sectionById.get(sectionId) : undefined;
+        return {
+            marks: typeof section?.marksPerQuestion === "number" ? section.marksPerQuestion : undefined,
+            negativeMarks: typeof section?.negativeMarks === "number" ? section.negativeMarks : undefined,
+        };
+    };
+    const importProgressPercent = importProgress.total > 0
+        ? Math.round((importProgress.completed / importProgress.total) * 100)
+        : 0;
+
+    const resetImportState = () => {
+        setImportOpen(false);
+        setImportPreview([]);
+        setImportSections([]);
+        setImportErrors([]);
+        setImportFileName("");
+        setImportStatus("");
+        setImportProgress({ completed: 0, total: 0 });
+    };
 
     useEffect(() => {
         loadData();
@@ -76,29 +113,33 @@ export default function QuestionsPage() {
         }
     }
 
-    const getInitialFormData = (): QuestionFormData => ({
-        type: "mcq",
-        questionText: "",
-        options: [
-            { text: "", isCorrect: true },
-            { text: "", isCorrect: false },
-            { text: "", isCorrect: false },
-            { text: "", isCorrect: false },
-        ],
-        correctAnswer: "",
-        explanation: "",
-        marks: test?.totalMarks && questions.length > 0 ? test.totalMarks / (questions.length + 1) : 1,
-        negativeMarks: 0,
-        difficulty: "medium",
-        supportedLanguages: ["python"],
-        starters: [{ language: "python", code: "# Write your code here\n" }],
-        testCases: [
-            { id: "", input: "", expectedOutput: "", isHidden: false, weight: 1 },
-        ],
-        codeScoringMode: "all_or_nothing",
-        timeLimit: 2,
-        memoryLimit: 128,
-    });
+    const getInitialFormData = (): QuestionFormData => {
+        const sectionDefaults = getSectionDefaults(defaultSectionId);
+        return {
+            type: "mcq",
+            questionText: "",
+            options: [
+                { text: "", isCorrect: true },
+                { text: "", isCorrect: false },
+                { text: "", isCorrect: false },
+                { text: "", isCorrect: false },
+            ],
+            correctAnswer: "",
+            explanation: "",
+            marks: sectionDefaults.marks ?? (test?.totalMarks && questions.length > 0 ? test.totalMarks / (questions.length + 1) : 1),
+            negativeMarks: sectionDefaults.negativeMarks ?? 0,
+            difficulty: "medium",
+            supportedLanguages: ["python"],
+            starters: [{ language: "python", code: "# Write your code here\n" }],
+            testCases: [
+                { id: "", input: "", expectedOutput: "", isHidden: false, weight: 1 },
+            ],
+            codeScoringMode: "all_or_nothing",
+            timeLimit: 2,
+            memoryLimit: 128,
+            sectionId: defaultSectionId,
+        };
+    };
 
     const handleAddQuestion = () => {
         setEditingQuestion(getInitialFormData());
@@ -107,10 +148,13 @@ export default function QuestionsPage() {
 
     const handleImportFile = async (file: File) => {
         setImportFileName(file.name);
+        setImportStatus("");
+        setImportProgress({ completed: 0, total: 0 });
         try {
             const text = await file.text();
             const result = parseQuestionsMarkdown(text);
             setImportPreview(result.questions);
+            setImportSections(result.sections);
             setImportErrors(result.errors);
             setImportOpen(true);
         } catch (err: any) {
@@ -121,25 +165,115 @@ export default function QuestionsPage() {
     const handleConfirmImport = async () => {
         if (importPreview.length === 0) return;
         setImporting(true);
+        setImportStatus("Preparing import...");
+        setImportProgress({ completed: 0, total: importPreview.length });
         try {
+            setImportStatus("Preparing sections...");
+            const existingSections = test?.sections || [];
+            const nextSections: TestSectionInput[] = existingSections.map((section) => ({ ...section }));
+            const sectionRefToId = new Map<string, string>();
+            const registerSectionRef = (value: string | undefined, id: string) => {
+                if (!value) return;
+                sectionRefToId.set(normalizeSectionRef(value), id);
+            };
+
+            nextSections.forEach((section) => {
+                if (!section.id) return;
+                registerSectionRef(section.id, section.id);
+                registerSectionRef(section.title, section.id);
+            });
+
+            importSections.forEach((section) => {
+                const existingId =
+                    sectionRefToId.get(normalizeSectionRef(section.id || "")) ||
+                    sectionRefToId.get(normalizeSectionRef(section.key)) ||
+                    sectionRefToId.get(normalizeSectionRef(section.title));
+
+                if (existingId) {
+                    const existingIndex = nextSections.findIndex((item) => item.id === existingId);
+                    if (existingIndex >= 0) {
+                        nextSections[existingIndex] = {
+                            ...nextSections[existingIndex],
+                            title: section.title || nextSections[existingIndex].title,
+                            description: section.description ?? nextSections[existingIndex].description,
+                            marksPerQuestion: section.marksPerQuestion ?? nextSections[existingIndex].marksPerQuestion,
+                            negativeMarks: section.negativeMarks ?? nextSections[existingIndex].negativeMarks,
+                            cutoffMarks: section.cutoffMarks ?? nextSections[existingIndex].cutoffMarks,
+                        };
+                    }
+                    registerSectionRef(section.key, existingId);
+                    registerSectionRef(section.title, existingId);
+                    return;
+                }
+
+                const id = section.id || section.key;
+                nextSections.push({
+                    id,
+                    title: section.title,
+                    description: section.description || "",
+                    order: nextSections.length,
+                    marksPerQuestion: section.marksPerQuestion,
+                    negativeMarks: section.negativeMarks,
+                    cutoffMarks: section.cutoffMarks,
+                });
+                registerSectionRef(id, id);
+                registerSectionRef(section.key, id);
+                registerSectionRef(section.title, id);
+            });
+
+            importPreview.forEach((question) => {
+                if (!question.sectionId) return;
+                const ref = normalizeSectionRef(question.sectionId);
+                if (sectionRefToId.has(ref)) return;
+
+                const id = ref || `section-${nextSections.length + 1}`;
+                nextSections.push({
+                    id,
+                    title: question.sectionId,
+                    description: "",
+                    order: nextSections.length,
+                });
+                registerSectionRef(id, id);
+                registerSectionRef(question.sectionId, id);
+            });
+
+            if (nextSections.length !== existingSections.length || importSections.length > 0) {
+                setImportStatus("Saving section setup...");
+                await updateTestInSeries({
+                    id: testId,
+                    seriesId,
+                    sections: nextSections,
+                });
+            }
+
+            const fallbackSectionId =
+                defaultSectionId ||
+                (importSections[0] ? sectionRefToId.get(normalizeSectionRef(importSections[0].key)) : undefined) ||
+                "";
             const startOrder = questions.length;
             for (let i = 0; i < importPreview.length; i++) {
                 const q = importPreview[i];
+                setImportStatus(`Importing question ${i + 1} of ${importPreview.length}...`);
+                setImportProgress({ completed: i, total: importPreview.length });
+                const importedSectionId = q.sectionId
+                    ? sectionRefToId.get(normalizeSectionRef(q.sectionId)) || q.sectionId
+                    : fallbackSectionId || undefined;
                 await createQuestion({
                     ...q,
                     seriesId,
                     testId,
                     order: startOrder + i,
+                    sectionId: importedSectionId,
                 });
+                setImportProgress({ completed: i + 1, total: importPreview.length });
             }
+            setImportStatus("Refreshing question list...");
             await loadData();
-            setImportOpen(false);
-            setImportPreview([]);
-            setImportErrors([]);
-            setImportFileName("");
+            resetImportState();
             alert(`Successfully imported ${importPreview.length} question${importPreview.length === 1 ? "" : "s"}.`);
         } catch (err: any) {
             console.error("Import failed:", err);
+            setImportStatus("Import failed. Check the error message and try again.");
             alert(`Import failed: ${err.message || "Unknown error"}`);
         } finally {
             setImporting(false);
@@ -163,6 +297,7 @@ export default function QuestionsPage() {
             codeScoringMode: question.codeScoringMode || "all_or_nothing",
             timeLimit: question.timeLimit || 2,
             memoryLimit: question.memoryLimit || 128,
+            sectionId: question.sectionId || "",
         });
         setShowForm(true);
     };
@@ -231,6 +366,7 @@ export default function QuestionsPage() {
                 negativeMarks: editingQuestion.negativeMarks || undefined,
                 difficulty: editingQuestion.difficulty,
                 order: questions.length,
+                sectionId: editingQuestion.sectionId || undefined,
                 supportedLanguages: editingQuestion.type === "code" ? editingQuestion.supportedLanguages : undefined,
                 starters: editingQuestion.type === "code" ? editingQuestion.starters : undefined,
                 testCases: editingQuestion.type === "code"
@@ -405,6 +541,16 @@ export default function QuestionsPage() {
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-green-100 text-green-800">
                                             {question.difficulty}
                                         </span>
+                                        {question.sectionId && sectionById.has(question.sectionId) && (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                                                {sectionById.get(question.sectionId)?.title}
+                                            </span>
+                                        )}
+                                        {question.sectionId && sectionById.get(question.sectionId)?.marksPerQuestion !== undefined && (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+                                                {sectionById.get(question.sectionId)?.marksPerQuestion} marks/question
+                                            </span>
+                                        )}
                                     </div>
                                     <FormattedContent html={question.questionText} className="text-gray-900 font-medium" />
                                     
@@ -519,6 +665,36 @@ export default function QuestionsPage() {
                                         <option value="code">Code / Programming</option>
                                     </select>
                                 </div>
+
+                                {testSections.length > 0 && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Section
+                                        </label>
+                                        <select
+                                            value={editingQuestion.sectionId || ""}
+                                            onChange={(e) =>
+                                                {
+                                                    const sectionDefaults = getSectionDefaults(e.target.value);
+                                                    setEditingQuestion({
+                                                        ...editingQuestion,
+                                                        sectionId: e.target.value,
+                                                        marks: sectionDefaults.marks ?? editingQuestion.marks,
+                                                        negativeMarks: sectionDefaults.negativeMarks ?? editingQuestion.negativeMarks,
+                                                    });
+                                                }
+                                            }
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                            <option value="">No section</option>
+                                            {testSections.map((section) => (
+                                                <option key={section.id} value={section.id}>
+                                                    {section.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 {/* Question Text */}
                                 <div>
@@ -1008,13 +1184,9 @@ export default function QuestionsPage() {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setImportOpen(false);
-                                    setImportPreview([]);
-                                    setImportErrors([]);
-                                    setImportFileName("");
-                                }}
-                                className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                                onClick={resetImportState}
+                                disabled={importing}
+                                className="p-1 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Close"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1023,16 +1195,69 @@ export default function QuestionsPage() {
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-4">
                             {/* Summary */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
                                     <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Ready to import</div>
                                     <div className="text-2xl font-bold text-emerald-900 mt-1">{importPreview.length}</div>
+                                </div>
+                                <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                                    <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Sections</div>
+                                    <div className="text-2xl font-bold text-indigo-900 mt-1">{importSections.length}</div>
                                 </div>
                                 <div className={`p-4 rounded-lg border ${importErrors.length ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
                                     <div className={`text-xs font-bold uppercase tracking-wider ${importErrors.length ? "text-red-700" : "text-gray-500"}`}>Errors</div>
                                     <div className={`text-2xl font-bold mt-1 ${importErrors.length ? "text-red-900" : "text-gray-700"}`}>{importErrors.length}</div>
                                 </div>
                             </div>
+
+                            {(importing || importStatus) && (
+                                <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200" role="status" aria-live="polite">
+                                    <div className="flex items-center gap-3">
+                                        {importing && (
+                                            <span className="h-4 w-4 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" aria-hidden="true" />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-bold text-indigo-900">
+                                                {importStatus || "Preparing import..."}
+                                            </div>
+                                            {importProgress.total > 0 && (
+                                                <div className="text-xs text-indigo-700 mt-0.5">
+                                                    {importProgress.completed} of {importProgress.total} questions saved
+                                                </div>
+                                            )}
+                                        </div>
+                                        {importProgress.total > 0 && (
+                                            <div className="text-sm font-bold text-indigo-900">
+                                                {importProgressPercent}%
+                                            </div>
+                                        )}
+                                    </div>
+                                    {importProgress.total > 0 && (
+                                        <div className="mt-3 h-2 rounded-full bg-white overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                                                style={{ width: `${importProgressPercent}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {importSections.length > 0 && (
+                                <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                                    <h3 className="text-sm font-bold text-indigo-900 mb-2">Sections to create or reuse</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {importSections.map((section) => (
+                                            <span key={section.key} className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">
+                                                {section.title}
+                                                {section.marksPerQuestion !== undefined ? ` · ${section.marksPerQuestion} marks/Q` : ""}
+                                                {section.negativeMarks !== undefined ? ` · -${section.negativeMarks}` : ""}
+                                                {section.cutoffMarks !== undefined ? ` · cutoff ${section.cutoffMarks}` : ""}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Errors */}
                             {importErrors.length > 0 && (
@@ -1064,6 +1289,7 @@ export default function QuestionsPage() {
                                                     </span>
                                                     <span className="text-xs text-gray-500">
                                                         {q.marks} mark{q.marks === 1 ? "" : "s"} · {q.difficulty || "medium"}
+                                                        {q.sectionId ? ` · ${q.sectionId}` : ""}
                                                     </span>
                                                 </div>
                                                 <span className="text-xs text-gray-400">
@@ -1090,12 +1316,7 @@ export default function QuestionsPage() {
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
-                                    onClick={() => {
-                                        setImportOpen(false);
-                                        setImportPreview([]);
-                                        setImportErrors([]);
-                                        setImportFileName("");
-                                    }}
+                                    onClick={resetImportState}
                                     disabled={importing}
                                 >
                                     Cancel
