@@ -2487,6 +2487,22 @@ export default function TestAttemptPage() {
                 </div>
             )}
 
+            {submitError && !submitting && (
+                <div className="fixed left-4 right-4 bottom-4 z-[110] sm:left-auto sm:right-6 sm:max-w-md">
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg" role="alert">
+                        <div className="flex items-start gap-3">
+                            <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            </svg>
+                            <div>
+                                <div className="font-semibold">Submission failed</div>
+                                <div className="mt-0.5">{submitError}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Submitting overlay — blocks all interaction while finishing the attempt */}
             {submitting && (
                 <div className="fixed inset-0 z-[120] bg-gray-900/85 backdrop-blur-sm flex items-center justify-center p-6" role="status" aria-live="polite">
