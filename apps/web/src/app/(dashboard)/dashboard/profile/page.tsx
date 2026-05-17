@@ -8,7 +8,7 @@ import { doc, updateDoc, collection, query, where, getDocs, Timestamp } from "fi
 import { db } from "@/lib/firebase/client";
 import { formatCurrency } from "@digimine/utils";
 import { getUserTestPurchases, getTestSeriesBySlug } from "@/lib/firestore/tests";
-import type { Order, TestPurchase, TestSeries } from "@digimine/types";
+import type { Order, TestPurchase } from "@digimine/types";
 
 export default function ProfilePage() {
     const { user, firebaseUser } = useAuthContext();

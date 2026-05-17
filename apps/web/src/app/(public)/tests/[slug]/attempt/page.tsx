@@ -150,7 +150,7 @@ export default function TestAttemptPage() {
     // LocalStorage helpers
     const getStorageKey = (attemptId: string) => `digimine:attempt:${attemptId}`;
     const clearLocalProgress = (attemptId: string) => {
-        try { localStorage.removeItem(getStorageKey(attemptId)); } catch {}
+        try { localStorage.removeItem(getStorageKey(attemptId)); } catch { /* ignore */ }
     };
 
     // Load initial data
@@ -572,7 +572,7 @@ export default function TestAttemptPage() {
             // Block PrintScreen (best-effort: clears clipboard image)
             if (key === 'printscreen') {
                 e.preventDefault();
-                try { navigator.clipboard?.writeText?.(''); } catch {}
+                try { navigator.clipboard?.writeText?.(''); } catch { /* ignore */ }
             }
         };
 
@@ -813,7 +813,7 @@ export default function TestAttemptPage() {
         });
     };
 
-    const saveCurrentEditorDraft = () => {
+    const _saveCurrentEditorDraft = () => {
         const currentQuestion = questions[currentQuestionIndex];
         if (currentQuestion?.type === 'code') {
             const draft = editorDrafts[currentQuestion.id];
