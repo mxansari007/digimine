@@ -153,6 +153,8 @@ ssh azureuser@<PUBLIC_IP> << 'EOF'
 EOF
 ```
 
+If your VM uses password-based SSH and `sudo` fails with `a terminal is required to read the password`, run the update script again after pulling the latest repo changes. The script allocates a TTY for the remote rebuild so `sudo` can prompt normally.
+
 ### Stop / Start / Delete VM
 
 ```bash
@@ -198,6 +200,27 @@ sudo docker logs piston
 Common causes:
 - **OOM during build** — Upgrade VM size (B2s may struggle; use B2ms+).
 - **Package install failed** — Network issues during `install-packages.sh`. Retry by restarting the container.
+- **`ENOTDIR: scandir '/piston/packages/.installed'`** — Remove the old marker file and rebuild with the latest Dockerfile:
+  ```bash
+  ssh azureuser@<PUBLIC_IP>
+  sudo docker rm -f piston
+  cd ~/piston
+  sudo docker build -t digimine-piston -f Dockerfile .
+  sudo docker run -d --name piston --privileged --restart unless-stopped -p 2000:2000 digimine-piston
+  ```
+  If you mounted a persistent `/piston` volume, remove the old marker from that volume too:
+  ```bash
+  sudo docker run --rm -v piston-data:/piston alpine sh -c 'rm -f /piston/packages/.installed'
+  ```
+- **`docker-entrypoint.sh: echo: write error: Device or resource busy`** — Rebuild with the latest Dockerfile. Older wrappers started Piston's entrypoint as a background process, but its cgroup setup must run as PID 1:
+  ```bash
+  ssh azureuser@<PUBLIC_IP>
+  sudo docker rm -f piston
+  cd ~/piston
+  sudo docker build -t digimine-piston -f Dockerfile .
+  sudo docker run -d --name piston --privileged --restart unless-stopped -p 2000:2000 digimine-piston
+  sudo docker logs -f piston
+  ```
 
 ### "curl: connection refused"
 

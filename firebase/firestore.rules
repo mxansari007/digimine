@@ -79,6 +79,71 @@ service cloud.firestore {
       }
     }
 
+    // Course / study material access
+    function hasEnrolledCourse(courseId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/courseEnrollments/$(request.auth.uid + '_' + courseId)) &&
+             get(/databases/$(database)/documents/courseEnrollments/$(request.auth.uid + '_' + courseId)).data.get('status', 'revoked') == 'active';
+    }
+
+    match /courses/{courseId} {
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+
+      match /chapters/{chapterId} {
+        allow read: if isAdmin()
+                    || (
+                      get(/databases/$(database)/documents/courses/$(courseId)).data.get('status', 'draft') == 'published'
+                      && (
+                        get(/databases/$(database)/documents/courses/$(courseId)).data.get('accessType', 'free') == 'free'
+                        || hasEnrolledCourse(courseId)
+                      )
+                    );
+        allow write: if isAdmin();
+      }
+    }
+
+    match /courseEnrollments/{enrollmentId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.get('accessType', 'free') == 'free';
+      allow update, delete: if isAdmin();
+    }
+
+    // Standalone quizzes
+    match /quizzes/{quizId} {
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+
+      match /questions/{questionId} {
+        // Web learners load sanitized quiz questions through /api/quizzes/{quizId}/questions.
+        // Raw question docs contain answer keys and explanations, so keep direct reads admin-only.
+        allow read: if isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      // Quiz attempts are created, autosaved, and submitted through server API
+      // routes so scoring remains transactional and answer keys stay private.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Reusable admin-only question bank. These docs contain answer keys and
+    // code test cases, so learners should never read them directly.
+    match /questionBank/{questionId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    // Scheduled live contests. A contest points at one existing test and uses
+    // testAttempts for progress/results.
+    match /contests/{contestId} {
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
     // Orders collection
     match /orders/{orderId} {
       // Guest Checkout: Public Create
@@ -183,6 +248,10 @@ service cloud.firestore {
             && request.resource.data.testId == resource.data.testId
             && request.resource.data.get('attemptNumber', resource.data.get('attemptNumber', 0))
                  == resource.data.get('attemptNumber', 0)
+            && request.resource.data.get('contestId', resource.data.get('contestId', null))
+                 == resource.data.get('contestId', null)
+            && request.resource.data.get('sourceType', resource.data.get('sourceType', 'test_series'))
+                 == resource.data.get('sourceType', 'test_series')
             && request.resource.data.get('startedAt', resource.data.get('startedAt', null))
                  == resource.data.get('startedAt', null)
             && request.resource.data.get('createdAt', resource.data.get('createdAt', null))

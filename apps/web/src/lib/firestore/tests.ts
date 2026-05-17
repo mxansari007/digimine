@@ -223,7 +223,11 @@ export function isTestAttemptResumable(attempt: TestAttempt, allAttempts: TestAt
     const startedAt = getAttemptStartMillis(attempt);
     return !allAttempts.some((other) => {
         if (other.id === attempt.id) return false;
-        if (other.userId !== attempt.userId || other.testId !== attempt.testId) return false;
+        if (other.userId !== attempt.userId) return false;
+        const sameAttemptContext = attempt.contestId
+            ? other.contestId === attempt.contestId
+            : other.testId === attempt.testId && !other.contestId;
+        if (!sameAttemptContext) return false;
         if (!isFinalizedAttempt(other)) return false;
         return getAttemptFinalizedMillis(other) >= startedAt;
     });
@@ -277,8 +281,10 @@ export async function startTestAttempt(
     userId: string,
     seriesId: string,
     testId: string,
-    deviceInfo?: { ip?: string; userAgent?: string }
+    deviceInfo?: { ip?: string; userAgent?: string },
+    contestContext?: { contestId: string; title: string; startTime: Date; endTime: Date }
 ): Promise<TestAttempt> {
+    const isContestAttempt = Boolean(contestContext);
     // Keep these queries simple to avoid composite-index failures on first deploy.
     const activeAttemptsQuery = query(
         testAttemptsCollection,
@@ -286,13 +292,33 @@ export async function startTestAttempt(
     );
     const activeAttemptsSnapshot = await getDocs(activeAttemptsQuery);
     const userAttempts = mapDocs<TestAttempt>(activeAttemptsSnapshot);
-    const previousTestAttempts = userAttempts.filter((attempt) => attempt.testId === testId);
+    const previousTestAttempts = userAttempts.filter((attempt) => {
+        if (isContestAttempt) return attempt.contestId === contestContext!.contestId;
+        return attempt.testId === testId && !attempt.contestId;
+    });
     const activeAttempts = userAttempts
         .filter((attempt) => attempt.status === "in_progress")
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    // 1. Check for an existing in-progress attempt for THIS SPECIFIC test
-    const existingThisTest = activeAttempts.find((attempt) => attempt.testId === testId);
+    if (contestContext) {
+        const nowDate = new Date();
+        if (nowDate < contestContext.startTime) {
+            throw new Error("This contest has not started yet.");
+        }
+        if (nowDate >= contestContext.endTime) {
+            throw new Error("This contest has already ended.");
+        }
+        if (previousTestAttempts.some((attempt) => attempt.status === "completed" || attempt.status === "timed_out")) {
+            throw new Error("You have already submitted this contest.");
+        }
+    }
+
+    // 1. Check for an existing in-progress attempt for THIS SPECIFIC context
+    const existingThisTest = activeAttempts.find((attempt) => (
+        isContestAttempt
+            ? attempt.contestId === contestContext!.contestId
+            : attempt.testId === testId && !attempt.contestId
+    ));
     if (existingThisTest) {
         const attempt = existingThisTest;
         const wasTimedOut = await syncAndTimeoutAttempt(attempt);
@@ -309,7 +335,11 @@ export async function startTestAttempt(
     }
 
     // 2. Check for ANY other in-progress attempt globally (enforce single active test)
-    const otherActiveAttempt = activeAttempts.find((attempt) => attempt.testId !== testId);
+    const otherActiveAttempt = activeAttempts.find((attempt) => (
+        isContestAttempt
+            ? attempt.contestId !== contestContext!.contestId
+            : attempt.testId !== testId || Boolean(attempt.contestId)
+    ));
     if (otherActiveAttempt) {
         const otherAttempt = otherActiveAttempt;
         const wasTimedOut = await syncAndTimeoutAttempt(otherAttempt);
@@ -343,13 +373,27 @@ export async function startTestAttempt(
     }
 
     const now = Timestamp.now();
-    const durationInSeconds = test.duration * 60;
-    const endTime = new Date(now.toDate().getTime() + durationInSeconds * 1000);
+    const durationInSeconds = contestContext
+        ? Math.max(0, Math.floor((contestContext.endTime.getTime() - now.toDate().getTime()) / 1000))
+        : test.duration * 60;
+    if (durationInSeconds <= 0) {
+        throw new Error("This contest has already ended.");
+    }
+    const endTime = contestContext
+        ? contestContext.endTime
+        : new Date(now.toDate().getTime() + durationInSeconds * 1000);
 
     const attemptData: any = {
         userId,
         seriesId,
         testId,
+        ...(contestContext ? {
+            contestId: contestContext.contestId,
+            sourceType: "contest",
+            contestTitle: contestContext.title,
+        } : {
+            sourceType: "test_series",
+        }),
         attemptNumber,
         title: `Attempt ${attemptNumber}`,
         status: "in_progress",

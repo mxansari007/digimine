@@ -34,15 +34,17 @@ if [[ ! -d "$DOCKER_DIR" ]]; then
 fi
 
 info "Updating Piston on ${PUBLIC_IP}..."
+REMOTE_SCRIPT_PATH="/tmp/update-digimine-piston.sh"
 
 # Copy updated files
 info "Copying docker/piston files..."
 ssh -o StrictHostKeyChecking=no "${ADMIN_USER}@${PUBLIC_IP}" "mkdir -p /home/${ADMIN_USER}/piston"
 scp -o StrictHostKeyChecking=no -r "${DOCKER_DIR}/"* "${ADMIN_USER}@${PUBLIC_IP}:/home/${ADMIN_USER}/piston/"
 
-# Rebuild and restart
-info "Rebuilding Piston image (this takes ~5-10 minutes)..."
-ssh -o StrictHostKeyChecking=no "${ADMIN_USER}@${PUBLIC_IP}" << REMOTE_SCRIPT
+info "Uploading remote update runner..."
+REMOTE_SCRIPT_FILE="$(mktemp)"
+cat > "${REMOTE_SCRIPT_FILE}" << REMOTE_SCRIPT
+#!/usr/bin/env bash
 set -e
 cd /home/${ADMIN_USER}/piston
 
@@ -80,5 +82,12 @@ echo ""
 # Prune old images to save disk
 sudo docker image prune -f || true
 REMOTE_SCRIPT
+scp -o StrictHostKeyChecking=no "${REMOTE_SCRIPT_FILE}" "${ADMIN_USER}@${PUBLIC_IP}:${REMOTE_SCRIPT_PATH}"
+rm -f "${REMOTE_SCRIPT_FILE}"
+
+# Rebuild and restart
+info "Rebuilding Piston image (this takes ~5-10 minutes)..."
+# Run a real remote script through a TTY so sudo can prompt reliably.
+ssh -tt -o StrictHostKeyChecking=no "${ADMIN_USER}@${PUBLIC_IP}" "chmod +x ${REMOTE_SCRIPT_PATH} && ${REMOTE_SCRIPT_PATH}; rm -f ${REMOTE_SCRIPT_PATH}"
 
 info "Update complete! Piston is running at http://${PUBLIC_IP}:2000"

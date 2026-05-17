@@ -87,6 +87,9 @@ function buildSmoothPath(points: { x: number; y: number }[]): string {
 
 interface RankingEntry {
     id: string;
+    userId: string;
+    displayName: string | null;
+    email: string | null;
     totalScore: number;
     maxPossibleScore: number;
     percentage: number;
@@ -103,6 +106,10 @@ interface RankingData {
     percentile: number;
     topScore: number;
     averageScore: number;
+    scope?: "test" | "contest";
+    contestId?: string | null;
+    isFinal?: boolean;
+    leaderboardAvailableAt?: string | null;
 }
 
 interface DistributionHover {
@@ -208,7 +215,9 @@ export default function TestResultPage() {
         </div>
     );
 
-    if (!test.instantResults) {
+    const isContestResult = Boolean(attempt.contestId || rankingData?.scope === "contest");
+
+    if (!test.instantResults && !isContestResult) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Card className="p-8 text-center max-w-md">
@@ -265,6 +274,10 @@ export default function TestResultPage() {
     const percentile = rankingData?.percentile ?? 100;
     const topScore = rankingData?.topScore ?? attempt.totalScore;
     const averageScore = rankingData?.averageScore ?? attempt.totalScore;
+    const contestLeaderboardFinal = rankingData?.isFinal ?? !isContestResult;
+    const leaderboardAvailableAt = rankingData?.leaderboardAvailableAt
+        ? new Date(rankingData.leaderboardAvailableAt)
+        : null;
     const chart = {
         left: 5,
         right: 97,
@@ -555,9 +568,9 @@ export default function TestResultPage() {
             <div className="max-w-5xl mx-auto px-4 space-y-6">
                 {/* Breadcrumb / Back */}
                 <div className="flex items-center justify-between">
-                    <Link href="/dashboard/tests" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                    <Link href={isContestResult ? "/dashboard/contests" : "/dashboard/tests"} className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        My Tests
+                        {isContestResult ? "My Contests" : "My Tests"}
                     </Link>
                     {submittedAt && (
                         <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
@@ -576,13 +589,13 @@ export default function TestResultPage() {
                             <div>
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm text-xs font-bold uppercase tracking-widest mb-5">
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
-                                    Result Summary
+                                    {isContestResult ? "Contest Summary" : "Result Summary"}
                                 </div>
                                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
-                                    {test.title}
+                                    {attempt.contestTitle || test.title}
                                 </h1>
                                 <p className="text-white/70 text-base">
-                                    {series?.title || 'Test Series'}
+                                    {isContestResult ? test.title : series?.title || 'Test Series'}
                                 </p>
 
                                 <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -727,26 +740,30 @@ export default function TestResultPage() {
                     <Card className="p-6 sm:p-7 flex flex-col gap-3">
                         <h3 className="text-base font-bold text-slate-900">What’s next?</h3>
                         <p className="text-sm text-slate-500">
-                            {isPassed
+                            {isContestResult
+                                ? (contestLeaderboardFinal
+                                    ? "The contest leaderboard is final. Review your answers below and compare your rank."
+                                    : "Your submission is recorded. The leaderboard will keep updating until the contest closes.")
+                                : isPassed
                                 ? 'Great work! Keep practicing to maintain your edge.'
                                 : 'Review the questions below and try again to improve your score.'}
                         </p>
                         <div className="mt-auto flex flex-col gap-2.5 pt-2">
-                            {test.allowRetake && (
+                            {test.allowRetake && !isContestResult && (
                                 <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
                                     <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
                                         Retake Test
                                     </Button>
                                 </Link>
                             )}
-                            <Link href={`/tests/${series?.slug}`}>
+                            <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
                                 <Button variant="outline" className="w-full">
-                                    Back to Series
+                                    {isContestResult ? "Back to Contests" : "Back to Series"}
                                 </Button>
                             </Link>
-                            <Link href="/dashboard/tests">
+                            <Link href={isContestResult ? "/dashboard/contests" : "/dashboard/tests"}>
                                 <Button variant="ghost" className="w-full text-slate-600">
-                                    My Tests
+                                    {isContestResult ? "My Contests" : "My Tests"}
                                 </Button>
                             </Link>
                         </div>
@@ -757,10 +774,21 @@ export default function TestResultPage() {
                 <Card className="p-6 sm:p-7">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                         <div>
-                            <h3 className="text-base font-bold text-slate-900">Score Distribution &amp; Ranking</h3>
+                            <h3 className="text-base font-bold text-slate-900">
+                                {isContestResult ? "Contest Leaderboard & Ranking" : "Score Distribution & Ranking"}
+                            </h3>
                             <p className="text-sm text-slate-500 mt-1">
-                                Your selected attempt compared with each participant&apos;s latest finalized attempt.
+                                {isContestResult
+                                    ? "Your contest submission compared with every finalized participant entry."
+                                    : "Your selected attempt compared with each participant's latest finalized attempt."}
                             </p>
+                            {isContestResult && leaderboardAvailableAt && (
+                                <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                    {contestLeaderboardFinal
+                                        ? "Final leaderboard"
+                                        : `Live leaderboard. Final after ${formatDateTime(leaderboardAvailableAt)}`}
+                                </p>
+                            )}
                         </div>
                         {!rankingLoading && totalParticipants > 0 && (
                             <div className="flex items-center gap-3">
@@ -808,8 +836,14 @@ export default function TestResultPage() {
                             <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-3">
                                 <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M12 11a4 4 0 100-8 4 4 0 000 8z" /></svg>
                             </div>
-                            <p className="text-sm font-bold text-slate-700">You&apos;re the first to complete this test.</p>
-                            <p className="text-xs text-slate-500 mt-1">Ranking and distribution will appear once more participants finish.</p>
+                            <p className="text-sm font-bold text-slate-700">
+                                {isContestResult ? "Your contest submission is recorded." : "You're the first to complete this test."}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                                {isContestResult
+                                    ? "The leaderboard will become more useful as participants finish."
+                                    : "Ranking and distribution will appear once more participants finish."}
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-5">
@@ -967,6 +1001,57 @@ export default function TestResultPage() {
                                     Cut-off line
                                 </span>
                             </div>
+
+                            {isContestResult && (
+                                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                    <div className="flex flex-col gap-1 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900">Contest Leaderboard</h4>
+                                            <p className="text-xs text-slate-500">Ranked by score, then completion time.</p>
+                                        </div>
+                                        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${
+                                            contestLeaderboardFinal ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                                        }`}>
+                                            {contestLeaderboardFinal ? "Final" : "Live"}
+                                        </span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-slate-100 text-sm">
+                                            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left font-bold">Rank</th>
+                                                    <th className="px-4 py-3 text-left font-bold">Participant</th>
+                                                    <th className="px-4 py-3 text-left font-bold">Score</th>
+                                                    <th className="px-4 py-3 text-left font-bold">Percent</th>
+                                                    <th className="px-4 py-3 text-left font-bold">Submitted</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {rankingEntries.map((entry) => (
+                                                    <tr key={entry.id} className={entry.isCurrentUser ? "bg-indigo-50/70" : "bg-white"}>
+                                                        <td className="px-4 py-3 font-bold text-slate-900">#{entry.rank}</td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="font-bold text-slate-900">
+                                                                {entry.isCurrentUser ? "You" : entry.displayName || "Participant"}
+                                                            </div>
+                                                            {entry.email && (
+                                                                <div className="text-xs text-slate-500">{entry.email}</div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 font-semibold text-slate-800">
+                                                            {entry.totalScore} / {entry.maxPossibleScore}
+                                                        </td>
+                                                        <td className="px-4 py-3 font-semibold text-slate-800">{Math.round(entry.percentage)}%</td>
+                                                        <td className="px-4 py-3 text-slate-500">
+                                                            {entry.completedAt ? formatDateTime(new Date(entry.completedAt)) : "-"}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </Card>
@@ -1101,10 +1186,12 @@ export default function TestResultPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-center gap-4 pb-8">
-                    <Link href={`/tests/${series?.slug}`}>
-                        <Button variant="outline" className="w-full sm:w-auto">Back to Series</Button>
+                    <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                            {isContestResult ? "Back to Contests" : "Back to Series"}
+                        </Button>
                     </Link>
-                    {test.allowRetake && (
+                    {test.allowRetake && !isContestResult && (
                         <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
                             <Button className="w-full sm:w-auto bg-indigo-600 text-white">Retake Test</Button>
                         </Link>

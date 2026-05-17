@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getAllProducts } from "@/lib/firestore/admin";
 import { type Product } from "@digimine/types";
 import { formatCurrency, formatDate } from "@digimine/utils";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState<string>("");
     const [filterPurchaseType, setFilterPurchaseType] = useState<string>("");
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         async function fetchProducts() {
@@ -33,6 +35,93 @@ export default function ProductsPage() {
         }
         fetchProducts();
     }, [filterType, filterPurchaseType]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [products.length, filterType, filterPurchaseType, pageSize]);
+
+    const paginatedProducts = useMemo(
+        () => getPaginatedItems(products, page, pageSize),
+        [products, page, pageSize]
+    );
+
+    const columns: DataTableColumn<Product>[] = [
+        {
+            key: "product",
+            header: "Product Details",
+            render: (product) => (
+                <div className="flex min-w-[260px] items-center">
+                    <div className="h-11 w-11 flex-shrink-0 bg-slate-100 rounded-xl overflow-hidden border border-slate-200/70 shadow-sm">
+                        {product.thumbnailURL ? (
+                            <img src={product.thumbnailURL} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="h-full w-full flex items-center justify-center text-slate-400">?</div>
+                        )}
+                    </div>
+                    <div className="ml-4 min-w-0">
+                        <div className="font-semibold text-slate-900 line-clamp-1 max-w-[260px]">
+                            {product.name}
+                        </div>
+                        <div className="text-slate-500 truncate">/{product.slug}</div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "type",
+            header: "Type",
+            render: (product) => <span className="capitalize">{product.type}</span>,
+        },
+        {
+            key: "purchase",
+            header: "Purchase",
+            render: (product) => product.purchaseType === "subscription" ? (
+                <span className="inline-flex items-center rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                    Sub ({product.subscriptionDuration}d)
+                </span>
+            ) : (
+                <span className="text-slate-600">One-time</span>
+            ),
+        },
+        {
+            key: "price",
+            header: "Price",
+            render: (product) => product.price === 0 ? (
+                <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">Free</span>
+            ) : (
+                <span className="font-bold text-slate-900">{formatCurrency(product.price)}</span>
+            ),
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (product) => (
+                <span className={`inline-flex rounded-md border px-2.5 py-0.5 text-xs font-semibold ${product.status === "published"
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                    : product.status === "draft"
+                        ? "bg-slate-100 text-slate-600 border-slate-200"
+                        : "bg-red-500/10 text-red-600 border-red-500/20"
+                }`}>
+                    {product.status}
+                </span>
+            ),
+        },
+        {
+            key: "updated",
+            header: "Last Updated",
+            render: (product) => formatDate(product.updatedAt || product.createdAt),
+        },
+        {
+            key: "actions",
+            header: "",
+            className: "text-right",
+            render: (product) => (
+                <Link href={`/products/${product.id}`} className="font-semibold text-primary-600 hover:text-primary-900">
+                    Edit
+                </Link>
+            ),
+        },
+    ];
 
     return (
         <div className="space-y-6">
@@ -98,102 +187,24 @@ export default function ProductsPage() {
                 </div>
             </Card>
 
-            <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                    {loading ? (
-                        <div className="p-8 text-center text-gray-500">Loading products...</div>
-                    ) : (
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Product Details
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Type
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Purchase
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Price
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Last Updated
-                                    </th>
-                                    <th className="relative px-6 py-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {products.map((product) => (
-                                    <tr key={product.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="h-10 w-10 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border border-slate-200/60 shadow-sm">
-                                                    {product.thumbnailURL ? (
-                                                        <img src={product.thumbnailURL} alt="" className="h-full w-full object-cover" />
-                                                    ) : (
-                                                        <div className="h-full w-full flex items-center justify-center text-slate-400">?</div>
-                                                    )}
-                                                </div>
-                                                <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900 line-clamp-1 max-w-[200px]">
-                                                        {product.name}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        /{product.slug}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                                            {product.type}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 capitalize">
-                                            {product.purchaseType === 'subscription' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20">
-                                                    Sub ({product.subscriptionDuration}d)
-                                                </span>
-                                            ) : 'One-time'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                            {product.price === 0 ? <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Free</span> : formatCurrency(product.price)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-md border ${product.status === 'published' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                                                product.status === 'draft' ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                                                    'bg-red-500/10 text-red-600 border-red-500/20'
-                                                }`}>
-                                                {product.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {formatDate(product.updatedAt || product.createdAt)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link href={`/products/${product.id}`} className="text-primary-600 hover:text-primary-900">
-                                                Edit
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {products.length === 0 && (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                                            No products found matching filters.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </Card>
+            <DataTable
+                columns={columns}
+                data={paginatedProducts}
+                keyExtractor={(product) => product.id}
+                isLoading={loading}
+                loadingState="Loading products..."
+                emptyState="No products found matching filters."
+                footer={!loading && (
+                    <PaginationControls
+                        page={page}
+                        pageSize={pageSize}
+                        totalItems={products.length}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        itemLabel="products"
+                    />
+                )}
+            />
         </div>
     );
 }

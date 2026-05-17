@@ -101,7 +101,8 @@ export default function TestSeriesDetailPage() {
 
     const isUnlocked = hasPurchased;
     const firstAvailableTest = tests[0] || null;
-    const resumableAttempts = getResumableAttemptsFromList(attempts);
+    const regularAttempts = attempts.filter((attempt) => !attempt.contestId);
+    const resumableAttempts = getResumableAttemptsFromList(regularAttempts);
     const activeAttempt = resumableAttempts[0] || null;
     const activeAttemptSeriesTest = activeAttempt
         ? tests.find((test) => test.id === activeAttempt.testId)
@@ -188,7 +189,7 @@ export default function TestSeriesDetailPage() {
                             ) : (
                                 tests.map((test, index) => {
                                     // Find the most recent attempt for this specific test
-                                    const testAttempts = attempts.filter(a => a.testId === test.id);
+                                    const testAttempts = regularAttempts.filter(a => a.testId === test.id);
                                     const resumableAttempt = resumableAttempts.find(a => a.testId === test.id) || null;
                                     const latestFinalizedAttempt = testAttempts.find(a => a.status === 'completed' || a.status === 'timed_out') || null;
                                     const latestAttempt = resumableAttempt || latestFinalizedAttempt || testAttempts[0] || null;

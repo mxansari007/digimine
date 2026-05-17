@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAllUsers, updateUserRole } from "@/lib/firestore/admin";
 import { type User } from "@digimine/types";
 import { formatDate } from "@digimine/utils";
-import { Card, Button } from "@digimine/ui";
+import { Button, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const { isSuperAdmin } = useAdminAuth();
 
     async function fetchUsers() {
@@ -27,6 +29,10 @@ export default function UsersPage() {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        setPage(1);
+    }, [users.length, pageSize]);
 
     const handleToggleAdmin = async (user: User) => {
         if (!isSuperAdmin) return;
@@ -50,6 +56,74 @@ export default function UsersPage() {
         }
     };
 
+    const paginatedUsers = useMemo(
+        () => getPaginatedItems(users, page, pageSize),
+        [users, page, pageSize]
+    );
+
+    const columns: DataTableColumn<User>[] = [
+        {
+            key: "user",
+            header: "User",
+            render: (user) => (
+                <div className="flex min-w-[240px] items-center">
+                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold">
+                        {user.displayName?.[0] || user.email[0].toUpperCase()}
+                    </div>
+                    <div className="ml-4 min-w-0">
+                        <div className="font-medium text-slate-900 truncate">
+                            {user.displayName || "No Name"}
+                        </div>
+                        <div className="text-slate-500 truncate">
+                            {user.email}
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "role",
+            header: "Role",
+            render: (user) => (
+                <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${user.role === "super_admin"
+                        ? "bg-purple-100 text-purple-800"
+                        : user.role === "admin"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                    {user.role}
+                </span>
+            ),
+        },
+        {
+            key: "joined",
+            header: "Joined",
+            render: (user) => formatDate(user.createdAt),
+        },
+    ];
+
+    if (isSuperAdmin) {
+        columns.push({
+            key: "actions",
+            header: "",
+            className: "text-right",
+            render: (user) => (
+                user.role !== "super_admin" && user.email !== "mxansari007@gmail.com" ? (
+                    <Button
+                        variant={user.role === "admin" ? "outline" : "primary"}
+                        size="sm"
+                        isLoading={updatingId === user.id}
+                        onClick={() => handleToggleAdmin(user)}
+                    >
+                        {user.role === "admin" ? "Demote" : "Promote"}
+                    </Button>
+                ) : null
+            ),
+        });
+    }
+
     if (loading) return <div className="p-8">Loading users...</div>;
 
     return (
@@ -61,92 +135,22 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    User
-                                </th>
-                                <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Role
-                                </th>
-                                <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Joined
-                                </th>
-                                {isSuperAdmin && (
-                                    <th
-                                        scope="col"
-                                        className="relative px-6 py-3"
-                                    >
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                )}
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {users.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold">
-                                                {user.displayName?.[0] || user.email[0].toUpperCase()}
-                                            </div>
-                                            <div className="ml-4">
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {user.displayName || "No Name"}
-                                                </div>
-                                                <div className="text-sm text-gray-500">
-                                                    {user.email}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span
-                                            className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === "super_admin"
-                                                    ? "bg-purple-100 text-purple-800"
-                                                    : user.role === "admin"
-                                                        ? "bg-blue-100 text-blue-800"
-                                                        : "bg-gray-100 text-gray-800"
-                                                }`}
-                                        >
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {formatDate(user.createdAt)}
-                                    </td>
-                                    {isSuperAdmin && (
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            {user.role !== "super_admin" && user.email !== "mxansari007@gmail.com" && (
-                                                <Button
-                                                    variant={user.role === "admin" ? "outline" : "primary"}
-                                                    size="sm"
-                                                    isLoading={updatingId === user.id}
-                                                    onClick={() => handleToggleAdmin(user)}
-                                                >
-                                                    {user.role === "admin" ? "Demote to Customer" : "Promote to Admin"}
-                                                </Button>
-                                            )}
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+            <DataTable
+                columns={columns}
+                data={paginatedUsers}
+                keyExtractor={(user) => user.id}
+                emptyState="No users found."
+                footer={
+                    <PaginationControls
+                        page={page}
+                        pageSize={pageSize}
+                        totalItems={users.length}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        itemLabel="users"
+                    />
+                }
+            />
         </div>
     );
 }

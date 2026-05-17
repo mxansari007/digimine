@@ -16,9 +16,10 @@ import {
     submitTestAttempt,
     getTestAttempt
 } from "@/lib/firestore/tests";
+import { getContestById } from "@/lib/firestore/contests";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { FileTextIcon, RefreshIcon } from "@/components/icons/AppIcons";
-import type { TestSeries, Test, TestSection, Question, TestAttempt, CodeLanguage } from "@digimine/types";
+import type { Contest, TestSeries, Test, TestSection, Question, TestAttempt, CodeLanguage } from "@digimine/types";
 
 const LANGUAGE_MAP: Record<CodeLanguage, string> = {
     python: "python",
@@ -161,8 +162,10 @@ export default function TestAttemptPage() {
     const slug = params.slug as string;
     const testId = searchParams.get("testId");
     const attemptIdFromUrl = searchParams.get("attemptId");
+    const contestId = searchParams.get("contestId");
 
     const [_series, setSeries] = useState<TestSeries | null>(null);
+    const [contest, setContest] = useState<Contest | null>(null);
     const [test, setTest] = useState<Test | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [attempt, setAttempt] = useState<TestAttempt | null>(null);
@@ -257,7 +260,7 @@ export default function TestAttemptPage() {
 
         if (!user || !testId) {
             if (!user) {
-                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}`;
+                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}`;
                 router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
             } else {
                 setLoadError("No test was selected. Please choose a test from the series page.");
@@ -332,6 +335,48 @@ export default function TestAttemptPage() {
                 setSeries(seriesData);
                 setTest(testData);
 
+                let contestData: Contest | null = null;
+                if (contestId) {
+                    contestData = await withTimeout(
+                        getContestById(contestId),
+                        "The contest schedule took too long to load. Please try again."
+                    );
+
+                    if (!contestData) {
+                        throw new Error("This contest is not available.");
+                    }
+                    if (contestData.seriesId !== seriesData.id || contestData.testId !== testData.id) {
+                        throw new Error("This contest does not match the selected test.");
+                    }
+
+                    const now = new Date();
+                    if (now < contestData.startTime) {
+                        throw new Error(`This contest starts at ${contestData.startTime.toLocaleString()}.`);
+                    }
+                    if (now >= contestData.endTime) {
+                        throw new Error("This contest has ended.");
+                    }
+
+                    setContest(contestData);
+                } else {
+                    setContest(null);
+                }
+
+                const contestAttemptContext = contestData
+                    ? {
+                        contestId: contestData.id,
+                        title: contestData.title,
+                        startTime: contestData.startTime,
+                        endTime: contestData.endTime,
+                    }
+                    : undefined;
+                const createAttempt = (timeoutMessage: string) => withTimeout(
+                    startTestAttempt(user!.id, seriesData.id, testId!, {
+                        userAgent: window.navigator.userAgent
+                    }, contestAttemptContext),
+                    timeoutMessage
+                );
+
                 // Check if we should load a specific attempt or start a new one
                 let newAttempt: TestAttempt;
 
@@ -339,40 +384,28 @@ export default function TestAttemptPage() {
                     const existing = await getTestAttempt(attemptIdFromUrl);
                     if (!existing) {
                         alert("Attempt not found. Starting a new test.");
-                        newAttempt = await withTimeout(
-                            startTestAttempt(user!.id, seriesData.id, testId!, {
-                                userAgent: window.navigator.userAgent
-                            }),
+                        newAttempt = await createAttempt(
                             "Could not create a new attempt. Please try again."
                         );
-                    } else if (existing.testId !== testId) {
-                        alert("This attempt belongs to a different test. Starting a new test.");
-                        newAttempt = await withTimeout(
-                            startTestAttempt(user!.id, seriesData.id, testId!, {
-                                userAgent: window.navigator.userAgent
-                            }),
+                    } else if (existing.testId !== testId || existing.seriesId !== seriesData.id || (contestAttemptContext ? existing.contestId !== contestAttemptContext.contestId : Boolean(existing.contestId))) {
+                        alert("This attempt belongs to a different test context. Starting a new test.");
+                        newAttempt = await createAttempt(
                             "Could not create a new attempt. Please try again."
                         );
                     } else if (existing.status === 'completed' || existing.status === 'timed_out') {
                         // Attempt already finished - redirect to results
-                        router.push(testData.instantResults ? `/dashboard/tests/results/${existing.id}` : `/tests/${seriesData.slug}?submitted=1`);
+                        router.push(contestAttemptContext || testData.instantResults ? `/dashboard/tests/results/${existing.id}` : `/tests/${seriesData.slug}?submitted=1`);
                         return;
                     } else if (existing.status === 'in_progress') {
                         newAttempt = existing;
                     } else {
                         // Abandoned or other status - start fresh
-                        newAttempt = await withTimeout(
-                            startTestAttempt(user!.id, seriesData.id, testId!, {
-                                userAgent: window.navigator.userAgent
-                            }),
+                        newAttempt = await createAttempt(
                             "Could not create a new attempt. Please try again."
                         );
                     }
                 } else {
-                    newAttempt = await withTimeout(
-                        startTestAttempt(user!.id, seriesData.id, testId!, {
-                            userAgent: window.navigator.userAgent
-                        }),
+                    newAttempt = await createAttempt(
                         "Starting the test took too long. If this keeps happening, refresh once so expired attempts can be cleaned up."
                     );
                 }
@@ -381,12 +414,15 @@ export default function TestAttemptPage() {
 
                 setAttempt(newAttempt);
                 setQuestions(displayQuestions);
-                setTimeLeft(newAttempt.remainingTime ?? 0);
+                const sharedContestRemaining = contestData
+                    ? Math.max(0, Math.floor((contestData.endTime.getTime() - Date.now()) / 1000))
+                    : newAttempt.remainingTime ?? 0;
+                setTimeLeft(contestData ? sharedContestRemaining : newAttempt.remainingTime ?? 0);
                 setCurrentQuestionIndex(newAttempt.currentQuestionIndex ?? 0);
 
                 // Update URL with attemptId so reloads consistently restore progress
                 if (!attemptIdFromUrl) {
-                    const newUrl = `/tests/${slug}/attempt?testId=${testId}&attemptId=${newAttempt.id}`;
+                    const newUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}&attemptId=${newAttempt.id}`;
                     router.replace(newUrl, { scroll: false });
                 }
 
@@ -458,7 +494,7 @@ export default function TestAttemptPage() {
                             setCurrentQuestionIndex(local.currentQuestionIndex);
                         }
                         if (typeof local.timeLeft === 'number') {
-                            setTimeLeft(local.timeLeft);
+                            if (!contestData) setTimeLeft(local.timeLeft);
                         }
                         if (Array.isArray(local.markedForReview)) {
                             setMarkedForReview(new Set(local.markedForReview));
@@ -493,7 +529,7 @@ export default function TestAttemptPage() {
                 }
 
                 // If time ran out while window was closed, auto-submit
-                if ((newAttempt.remainingTime ?? 0) <= 0) {
+                if ((contestData ? sharedContestRemaining : newAttempt.remainingTime ?? 0) <= 0) {
                     alert("The time for this test has expired. Submitting now...");
                     await finishTest(newAttempt.id, initialAnswers, displayQuestions, 0, "timed_out");
                     return;
@@ -508,7 +544,7 @@ export default function TestAttemptPage() {
         }
 
         initTest();
-    }, [user, slug, testId]);
+    }, [user, slug, testId, contestId, attemptIdFromUrl, authLoading, router]);
 
     // Timer Logic
     useEffect(() => {
@@ -1069,7 +1105,7 @@ export default function TestAttemptPage() {
 
             clearLocalProgress(targetAttempt.id);
 
-            if (test?.instantResults) {
+            if (contest || confirmed?.contestId || test?.instantResults) {
                 router.push(`/dashboard/tests/results/${targetAttempt.id}`);
             } else {
                 router.push(`/tests/${slug}?submitted=1`);

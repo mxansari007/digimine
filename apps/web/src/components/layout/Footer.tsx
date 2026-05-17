@@ -27,26 +27,34 @@ export function Footer() {
                         <ul className="space-y-2">
                             <li>
                                 <Link
-                                    href="/products"
+                                    href="/courses"
                                     className="hover:text-white transition-colors"
                                 >
-                                    All Products
+                                    Courses & Notes
                                 </Link>
                             </li>
                             <li>
                                 <Link
-                                    href="/products?type=ebook"
+                                    href="/courses"
                                     className="hover:text-white transition-colors"
                                 >
-                                    eBooks
+                                    Study Material
                                 </Link>
                             </li>
                             <li>
                                 <Link
-                                    href="/products?type=course"
+                                    href="/tests"
                                     className="hover:text-white transition-colors"
                                 >
-                                    Courses
+                                    Mock Tests
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/quizzes"
+                                    className="hover:text-white transition-colors"
+                                >
+                                    Quizzes
                                 </Link>
                             </li>
                             <li>

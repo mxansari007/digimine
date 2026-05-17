@@ -39,11 +39,42 @@ const TestIcon = () => (
     </svg>
 );
 
+const QuizIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 9h6m-6 4h3m-5 8h10a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-3.414-3.414A2 2 0 0013.586 2H7a2 2 0 00-2 2v15a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 2v5h5" />
+    </svg>
+);
+
+const ContestIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 6H4a2 2 0 00-2 2v.5A4.5 4.5 0 006.5 13H8M17 6h3a2 2 0 012 2v.5a4.5 4.5 0 01-4.5 4.5H16" />
+    </svg>
+);
+
+const QuestionBankIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6.5A2.5 2.5 0 016.5 4H20v14H6.5A2.5 2.5 0 004 20.5v-14z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 8h8M8 12h6M6.5 18H20" />
+    </svg>
+);
+
+const CourseIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13c-1.168-.776-2.754-1.253-4.5-1.253s-3.332.477-4.5 1.253" />
+    </svg>
+);
+
 const navigation = [
     { name: "Dashboard", href: "/", icon: HomeIcon },
     { name: "Products", href: "/products", icon: TagIcon },
+    { name: "Courses", href: "/courses", icon: CourseIcon },
     { name: "Orders", href: "/orders", icon: ShoppingCartIcon },
     { name: "Test Series", href: "/tests", icon: TestIcon },
+    { name: "Question Bank", href: "/question-bank", icon: QuestionBankIcon },
+    { name: "Contests", href: "/contests", icon: ContestIcon },
+    { name: "Quizzes", href: "/quizzes", icon: QuizIcon },
     { name: "Users", href: "/users", icon: UsersIcon },
     { name: "Settings", href: "/settings", icon: CogIcon },
 ];
@@ -70,20 +101,20 @@ export function AdminSidebar({ isOpen = false, onClose }: { isOpen?: boolean; on
                 />
             )}
 
-            <div className={`flex flex-col h-full bg-slate-950 border-r border-slate-800 w-64 fixed left-0 top-0 bottom-0 z-40 shadow-2xl transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className={`flex flex-col h-full bg-[#07111f] border-r border-white/10 w-64 fixed left-0 top-0 bottom-0 z-40 shadow-2xl transform transition-transform duration-300 ease-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 {/* Header */}
-                <div className="p-6 border-b border-slate-800/50 flex items-center justify-between lg:justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent opacity-50" />
+                <div className="p-6 border-b border-white/10 flex items-center justify-between lg:justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/15 via-indigo-500/10 to-transparent opacity-90" />
                     <div className="relative z-10 flex items-center gap-3">
                         <Logo variant="light" iconSize={26} />
-                        <span className="text-[10px] font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full border border-primary-500/20 hidden sm:inline-block">
+                        <span className="text-[10px] font-bold bg-white/10 text-primary-200 px-2 py-0.5 rounded-full border border-white/10 hidden sm:inline-block">
                             ADMIN
                         </span>
                     </div>
                     {/* Mobile Close Button */}
                     <button 
                         onClick={onClose}
-                        className="lg:hidden relative z-10 p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800"
+                        className="lg:hidden relative z-10 p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -107,7 +138,7 @@ export function AdminSidebar({ isOpen = false, onClose }: { isOpen?: boolean; on
                             <Icon />
                             {item.name}
                             {isActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-500 rounded-r-full shadow-[0_0_10px_rgba(14,165,233,0.5)]" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-400 rounded-r-full shadow-[0_0_14px_rgba(56,189,248,0.55)]" />
                             )}
                         </Link>
                     );
@@ -115,10 +146,10 @@ export function AdminSidebar({ isOpen = false, onClose }: { isOpen?: boolean; on
             </nav>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-800/50 bg-slate-900/30">
-                <div className="flex items-center gap-3 mb-4 px-2">
+            <div className="p-4 border-t border-white/10 bg-white/[0.035]">
+                <div className="flex items-center gap-3 mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 p-[2px]">
-                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-primary-400 font-bold text-sm">
+                        <div className="w-full h-full rounded-full bg-[#07111f] flex items-center justify-center text-primary-200 font-bold text-sm">
                             {user?.displayName?.[0]?.toUpperCase() || "A"}
                         </div>
                     </div>
@@ -131,7 +162,7 @@ export function AdminSidebar({ isOpen = false, onClose }: { isOpen?: boolean; on
                 </div>
                 <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center justify-center px-4 py-2.5 text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all duration-200 font-medium border border-red-500/10 hover:border-red-500/20"
+                    className="w-full flex items-center justify-center px-4 py-2.5 text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all duration-200 font-semibold border border-red-500/10 hover:border-red-500/20"
                 >
                     Sign Out
                 </button>

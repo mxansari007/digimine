@@ -184,6 +184,62 @@ export interface TestSeries {
 }
 
 /**
+ * A contest is a scheduled live sitting of one existing test.
+ * Every participant receives the same end time, so the leaderboard can be
+ * finalized once the contest window closes.
+ */
+export type ContestSourceType = "test" | "quiz" | "custom";
+
+export interface Contest {
+    id: string;
+    title: string;
+    slug: string;
+    description: string;
+    shortDescription: string;
+    thumbnailURL: string | null;
+    status: TestStatus;
+    sourceType: ContestSourceType;
+    seriesId?: string;
+    testId?: string;
+    quizId?: string;
+    seriesTitle?: string;
+    testTitle?: string;
+    quizTitle?: string;
+    category?: string;
+    tags: string[];
+    startTime: Date;
+    endTime: Date;
+    totalQuestions: number;
+    totalMarks: number;
+    passingMarks: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string;
+}
+
+export interface CreateContestInput {
+    title: string;
+    slug: string;
+    description: string;
+    shortDescription: string;
+    thumbnailURL?: string;
+    status?: TestStatus;
+    sourceType?: ContestSourceType;
+    seriesId?: string;
+    testId?: string;
+    quizId?: string;
+    customQuestions?: import("./quiz").CreateQuizQuestionInput[];
+    category?: string;
+    tags?: string[];
+    startTime: Date;
+    endTime: Date;
+}
+
+export interface UpdateContestInput extends Partial<CreateContestInput> {
+    id: string;
+}
+
+/**
  * Test attempt status
  */
 export type TestAttemptStatus = "in_progress" | "completed" | "abandoned" | "timed_out";
@@ -220,6 +276,9 @@ export interface TestAttempt {
     userId: string;
     seriesId: string; // Parent series ID
     testId: string; // Specific test ID within the series
+    contestId?: string; // Present when this attempt was started through a live contest
+    sourceType?: "test_series" | "contest";
+    contestTitle?: string;
     title: string;
     attemptNumber: number;
     status: TestAttemptStatus;

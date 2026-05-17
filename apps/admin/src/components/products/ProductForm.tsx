@@ -258,6 +258,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
                                 onChange={(contentPreview) => setFormData(prev => ({ ...prev, contentPreview }))}
                             />
                         </Card>
+
                     </div>
 
                     <div className="space-y-6">

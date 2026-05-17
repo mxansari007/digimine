@@ -7,7 +7,7 @@ export interface FormattedContentProps {
     as?: "div" | "span";
 }
 
-const BLOCKED_TAGS = ["script", "style", "iframe", "object", "embed", "form"];
+const BLOCKED_TAGS = ["script", "style", "object", "embed", "form"];
 
 function escapeHtml(value: string): string {
     return value
@@ -16,6 +16,43 @@ function escapeHtml(value: string): string {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function getAttribute(attrs: string, name: string): string {
+    const doubleQuoted = attrs.match(new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`, "i"));
+    if (doubleQuoted?.[1]) return doubleQuoted[1];
+
+    const singleQuoted = attrs.match(new RegExp(`\\s${name}\\s*=\\s*'([^']*)'`, "i"));
+    if (singleQuoted?.[1]) return singleQuoted[1];
+
+    const unquoted = attrs.match(new RegExp(`\\s${name}\\s*=\\s*([^\\s>]+)`, "i"));
+    return unquoted?.[1] || "";
+}
+
+function getYouTubeVideoId(url: string): string | null {
+    const trimmed = url.trim();
+    const patterns = [
+        /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/i,
+        /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/i,
+        /youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/i,
+        /youtu\.be\/([a-zA-Z0-9_-]+)/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = trimmed.match(pattern);
+        if (match?.[1]) return match[1];
+    }
+
+    return null;
+}
+
+function sanitizeIframe(attrs: string): string {
+    const src = getAttribute(attrs, "src");
+    const videoId = getYouTubeVideoId(src);
+    if (!videoId) return "";
+
+    const title = getAttribute(attrs, "title") || "Embedded YouTube video";
+    return `<iframe src="https://www.youtube.com/embed/${escapeHtml(videoId)}" title="${escapeHtml(title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
 }
 
 export function stripFormattedContent(value?: string | null): string {
@@ -48,6 +85,10 @@ export function normalizeFormattedHtml(value?: string | null): string {
         safe = safe.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), "");
         safe = safe.replace(new RegExp(`<${tag}\\b[^>]*\\/?>`, "gi"), "");
     });
+
+    safe = safe
+        .replace(/<iframe\b([^>]*)>[\s\S]*?<\/iframe>/gi, (_match, attrs) => sanitizeIframe(attrs))
+        .replace(/<iframe\b([^>]*)\/?>/gi, (_match, attrs) => sanitizeIframe(attrs));
 
     safe = safe
         .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
@@ -152,6 +193,98 @@ const formattedContentCss = `
     height: auto;
     margin: 0.9rem 0;
     max-width: 100%;
+}
+.formatted-content figure.media-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+    clear: none;
+    max-width: min(100%, 34rem);
+    margin: 1rem 0;
+    overflow: hidden;
+}
+.formatted-content figure.media-card.media-align-left {
+    float: left;
+    margin: 0.35rem 1rem 0.75rem 0;
+}
+.formatted-content figure.media-card.media-align-right {
+    float: right;
+    margin: 0.35rem 0 0.75rem 1rem;
+}
+.formatted-content figure.media-card.media-align-center {
+    clear: both;
+    float: none;
+    margin-left: auto;
+    margin-right: auto;
+}
+.formatted-content figure.media-card.media-size-sm {
+    max-width: min(100%, 16rem);
+}
+.formatted-content figure.media-card.media-size-md {
+    max-width: min(100%, 24rem);
+}
+.formatted-content figure.media-card.media-size-lg {
+    max-width: min(100%, 34rem);
+}
+.formatted-content figure.media-card.media-size-full {
+    clear: both;
+    max-width: 100%;
+    width: 100%;
+}
+.formatted-content figure.media-card.media-corners-sharp {
+    border-radius: 0;
+}
+.formatted-content figure.media-card.media-frame-plain {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+.formatted-content figure.media-card img {
+    border-radius: 0;
+    margin: 0;
+    width: 100%;
+}
+.formatted-content figure.media-card.media-corners-sharp img,
+.formatted-content figure.media-card.media-corners-sharp iframe {
+    border-radius: 0;
+}
+.formatted-content figure.media-card figcaption {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.82em;
+    font-weight: 600;
+    padding: 0.55rem 0.75rem;
+}
+.formatted-content figure.media-card.media-frame-plain figcaption {
+    background: transparent;
+    border-top-color: transparent;
+    padding-left: 0;
+    padding-right: 0;
+}
+.formatted-content figure.media-card-video {
+    background: #020617;
+    border-color: #0f172a;
+}
+.formatted-content figure.media-card-video iframe {
+    aspect-ratio: 16 / 9;
+    border: 0;
+    display: block;
+    width: 100%;
+}
+.formatted-content figure.media-card-video figcaption {
+    background: #0f172a;
+    border-top-color: rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+}
+.formatted-content iframe {
+    max-width: 100%;
+}
+.formatted-content:not(span)::after {
+    clear: both;
+    content: "";
+    display: block;
 }
 .formatted-content mark {
     background: #fef3c7;

@@ -22,7 +22,7 @@ import type {
  *   cutoffMarks: 10          (optional)
  *
  *   ## Question <N>
- *   type: mcq | code
+ *   type: mcq | text_input | code
  *   section: quant           (optional; matches a Section key/title/id)
  *   marks: <number>
  *   negativeMarks: <number, optional>
@@ -66,6 +66,16 @@ import type {
  *       <p>Multi-line option supporting <strong>HTML</strong>,
  *       lists, and <code>code</code>.</p>
  *       |||
+ *
+ *   Text-input answers:
+ *
+ *       correctAnswer: Transmission Control Protocol
+ *
+ *     OR
+ *
+ *       @answer
+ *       Transmission Control Protocol
+ *       @end
  *
  *   Code starters (raw source code — NOT HTML):
  *
@@ -241,6 +251,32 @@ function parseList(value: string): string[] {
         .filter(Boolean);
 }
 
+function readAnswerMeta(
+    lines: string[],
+    currentIndex: number,
+    meta: { key: string; value: string },
+    errors: ParseError[],
+    lineNumber: number
+) {
+    if (meta.value !== "|||") {
+        return { value: meta.value, nextIndex: currentIndex + 1 };
+    }
+
+    let i = currentIndex + 1;
+    const buf: string[] = [];
+    while (i < lines.length && lines[i].trim() !== "|||") {
+        buf.push(lines[i]);
+        i++;
+    }
+    if (i >= lines.length) {
+        errors.push({ line: lineNumber, message: `Missing closing ||| for multi-line answer` });
+    } else {
+        i++;
+    }
+
+    return { value: buf.join("\n").trim(), nextIndex: i };
+}
+
 /** Parse a single question block; pushes any errors to the provided list. */
 function parseQuestion(
     block: { lines: string[]; startLine: number },
@@ -256,6 +292,7 @@ function parseQuestion(
     const testCases: CodeTestCase[] = [];
     let explanation = "";
     let passage = "";
+    let correctAnswer = "";
 
     let i = 0;
     // 1. Header metadata (continues until first blank line or first content marker).
@@ -451,6 +488,23 @@ function parseQuestion(
             continue;
         }
 
+        // Text-input answer: @answer ... @end
+        if (/^@answer\s*$/i.test(trimmed)) {
+            i++;
+            const buf: string[] = [];
+            while (i < lines.length && lines[i].trim().toLowerCase() !== "@end") {
+                buf.push(lines[i]);
+                i++;
+            }
+            if (i >= lines.length) {
+                errors.push({ line: startLine + i, message: `Missing @end for @answer block` });
+            } else {
+                i++;
+            }
+            correctAnswer = buf.join("\n").trim();
+            continue;
+        }
+
         // Explanation
         if (trimmed.toLowerCase().startsWith("> explanation")) {
             const after = trimmed.replace(/^>\s*explanation\s*:?\s*/i, "");
@@ -474,15 +528,29 @@ function parseQuestion(
             continue;
         }
 
+        if (/^>\s*(answer|correctanswer|correct-answer)\b/i.test(trimmed)) {
+            correctAnswer = trimmed.replace(/^>\s*(answer|correctanswer|correct-answer)\s*:?\s*/i, "").trim();
+            i++;
+            continue;
+        }
+
+        const bodyMeta = parseMeta(trimmed);
+        if (bodyMeta && ["answer", "answers", "correctanswer", "correct-answer"].includes(bodyMeta.key)) {
+            const result = readAnswerMeta(lines, i, bodyMeta, errors, startLine + i);
+            correctAnswer = result.value.trim();
+            i = result.nextIndex;
+            continue;
+        }
+
         i++;
     }
 
     // Validation & assembly
     const type = (meta.type || "").toLowerCase() as QuestionType;
-    if (type !== "mcq" && type !== "code") {
+    if (type !== "mcq" && type !== "text_input" && type !== "code") {
         errors.push({
             line: startLine,
-            message: `Question ${questionNumber}: missing or invalid "type" (must be mcq or code)`,
+            message: `Question ${questionNumber}: missing or invalid "type" (must be mcq, text_input, or code)`,
         });
         return null;
     }
@@ -505,6 +573,7 @@ function parseQuestion(
     const difficulty = (meta.difficulty || "medium").toLowerCase() as DifficultyLevel;
     const negativeMarks = meta.negativemarks ? Number(meta.negativemarks) || 0 : 0;
     const sectionId = (meta.section || meta.sectionid || "").trim() || undefined;
+    correctAnswer = correctAnswer || meta.correctanswer || meta["correct-answer"] || meta.answer || meta.answers || "";
 
     // Resolve passage / group: questions with the same `group` share a passage.
     // If this question defines @passage, it becomes the canonical passage for the group.
@@ -541,6 +610,30 @@ function parseQuestion(
             type: "mcq",
             questionText,
             options: options as Omit<MCQOption, "id">[],
+            explanation: explanation || undefined,
+            marks,
+            negativeMarks,
+            difficulty,
+            sectionId,
+            passageGroup,
+            passage: finalPassage,
+        };
+    }
+
+    if (type === "text_input") {
+        if (!correctAnswer.trim()) {
+            errors.push({
+                line: startLine,
+                message: `Question ${questionNumber}: text_input requires correctAnswer, answer, or @answer`,
+            });
+            return null;
+        }
+        return {
+            seriesId: "",
+            testId: "",
+            type: "text_input",
+            questionText,
+            correctAnswer: correctAnswer.trim(),
             explanation: explanation || undefined,
             marks,
             negativeMarks,
@@ -662,7 +755,7 @@ export const QUESTION_TEMPLATE_MD = `# Question Bank Template
       Then assign questions with:
         section: quant
     - Below the heading: metadata as "key: value" (case-insensitive keys).
-        Required:  type
+        Required:  type  (mcq, text_input, or code)
         Optional:  marks, negativeMarks, difficulty, languages, timeLimit,
                    memoryLimit, scoringMode, section
       If the assigned section defines marksPerQuestion / negativeMarks, those
@@ -678,6 +771,12 @@ export const QUESTION_TEMPLATE_MD = `# Question Bank Template
         * [x] |||
         <p>HTML over multiple lines</p>
         |||
+    - Text-input answer:
+        correctAnswer: TCP
+      OR
+        @answer
+        Transmission Control Protocol
+        @end
     - Code starters (RAW source code, not HTML):
         @starter <language>
         ...starter code verbatim...
@@ -705,7 +804,7 @@ export const QUESTION_TEMPLATE_MD = `# Question Bank Template
       Subsequent questions just repeat "group: rc-passage-1" and inherit the
       passage automatically.
     - HTML comments like this one are ignored.
-    - Save the file and upload via "Import Markdown" on the questions page.
+    - Save the file and upload via "Import Markdown" on the questions or Question Bank page.
 ================================================================================
 -->
 
@@ -741,6 +840,18 @@ difficulty: easy
 
 
 ## Question 2
+type: text_input
+section: fundamentals
+marks: 1
+difficulty: easy
+correctAnswer: Transmission Control Protocol
+
+? <p>In computer networks, what does <strong>TCP</strong> stand for?</p>
+
+> Explanation: <p><strong>TCP</strong> stands for Transmission Control Protocol.</p>
+
+
+## Question 3
 type: mcq
 section: fundamentals
 marks: 3
@@ -787,7 +898,7 @@ dedicated <em>expression index</em>:</p>
 @end
 
 
-## Question 3
+## Question 4
 type: code
 section: coding
 marks: 10
@@ -932,7 +1043,7 @@ while left &lt; right:
 @end
 
 
-## Question 4
+## Question 5
 type: mcq
 section: fundamentals
 marks: 1
@@ -961,7 +1072,7 @@ a direct input to photosynthesis?</p>
 > Explanation: <p>Glucose is a <em>product</em>, not an input.</p>
 
 
-## Question 5
+## Question 6
 type: mcq
 section: fundamentals
 marks: 1
@@ -977,7 +1088,7 @@ that converts:</p>
 * [ ] Mechanical energy into chemical energy.
 
 
-## Question 6
+## Question 7
 type: mcq
 section: fundamentals
 marks: 1

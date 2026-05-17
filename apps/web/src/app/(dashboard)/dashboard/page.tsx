@@ -79,7 +79,7 @@ export default function DashboardPage() {
                 // Fetch in-progress test attempt for resume CTA
                 try {
                     const resumableAttempts = await getResumableTestAttempts(firebaseUser!.uid);
-                    const inProgress = resumableAttempts[0] || null;
+                    const inProgress = resumableAttempts.find((attempt) => !attempt.contestId) || null;
                     if (inProgress) {
                         const series = seriesData.find(s => s.id === inProgress.seriesId)
                             || (await getTestSeriesBySlug(inProgress.seriesId));
@@ -119,7 +119,7 @@ export default function DashboardPage() {
         <div className="space-y-8">
             {/* In-Progress Test Banner */}
             {activeAttempt && (
-                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm">
+                <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 p-5 shadow-[0_18px_45px_rgba(245,158,11,0.12)] sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -150,9 +150,9 @@ export default function DashboardPage() {
             )}
 
             {/* Greeting Banner */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-primary-900 rounded-2xl p-8 overflow-hidden text-white shadow-xl">
-                <div className="absolute top-0 right-0 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4" />
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 p-8 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
+                <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)", backgroundSize: "36px 36px" }} />
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-300/70 to-transparent" />
                 <div className="relative z-10">
                     <p className="text-primary-300 text-sm font-medium mb-1 inline-flex items-center gap-2">
                         {greeting}
@@ -162,7 +162,7 @@ export default function DashboardPage() {
                     <p className="text-gray-400 text-base">
                         You have <span className="text-white font-semibold">{products.length} product{products.length !== 1 ? 's' : ''}</span> and <span className="text-white font-semibold">{purchasedSeries.length} test series</span> in your library.
                     </p>
-                    <Link href="/products" className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-xl text-sm hover:bg-gray-100 transition-colors shadow-lg">
+                    <Link href="/products" className="inline-flex items-center gap-2 mt-5 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-50">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                         </svg>
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                         color: "bg-green-50 text-green-600",
                     },
                 ].map((stat) => (
-                    <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div key={stat.label} className="surface-panel p-6 transition-all hover:-translate-y-0.5 hover:border-primary-200/80 hover:shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
                         <div className={`w-12 h-12 rounded-xl ${stat.color} flex items-center justify-center mb-4`}>
                             {stat.icon}
                         </div>
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                 </div>
 
                 {products.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <div className="surface-panel border-dashed py-20 text-center">
                         <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-5">
                             <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -245,7 +245,7 @@ export default function DashboardPage() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {products.map((product) => (
-                            <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+                            <div key={product.id} className="surface-panel overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-200/80 hover:shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
                                 <div className="relative h-40 bg-gray-100">
                                     {product.thumbnailURL ? (
                                         <Image src={product.thumbnailURL} alt={product.name} fill sizes="(max-width: 640px) 100vw, 33vw" className="object-cover" />
@@ -291,7 +291,7 @@ export default function DashboardPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {purchasedSeries.map((series) => (
-                            <div key={`${series.id}-${series.slug}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all">
+                            <div key={`${series.id}-${series.slug}`} className="surface-panel overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary-200/80 hover:shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
                                 <div className="relative h-40 bg-indigo-600">
                                     {series.thumbnailURL ? (
                                         <Image src={series.thumbnailURL} alt={series.title} fill className="object-cover" />

@@ -6,9 +6,11 @@ import { useParams } from "next/navigation";
 import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine/ui";
 import { getTestSeries, getTestById, getQuestionsByTestId, createQuestion, updateQuestion, deleteQuestion, updateTestInSeries } from "@/lib/firestore/tests";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { QuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
+import { incrementQuestionBankUsage, questionBankToTestQuestionInput } from "@/lib/firestore/questionBank";
 import { parseQuestionsMarkdown, downloadQuestionTemplate, type ParseError, type ParsedSection } from "@/lib/import/markdownQuestions";
 import { CheckIcon, EditIcon, TrashIcon } from "@/components/icons/AppIcons";
-import type { TestSeries, Test, Question, QuestionType, DifficultyLevel, CodeLanguage, CodeTestCase, CodeStarter, CodeScoringMode, CreateQuestionInput, TestSectionInput } from "@digimine/types";
+import type { TestSeries, Test, Question, QuestionType, DifficultyLevel, CodeLanguage, CodeTestCase, CodeStarter, CodeScoringMode, CreateQuestionInput, TestSectionInput, QuestionBankQuestion } from "@digimine/types";
 
 const CODE_LANGUAGES: { value: CodeLanguage; label: string }[] = [
     { value: "python", label: "Python" },
@@ -42,6 +44,8 @@ interface QuestionFormData {
     timeLimit: number;
     memoryLimit: number;
     sectionId?: string;
+    passageGroup: string;
+    passage: string;
 }
 
 export default function QuestionsPage() {
@@ -64,6 +68,7 @@ export default function QuestionsPage() {
     const [importing, setImporting] = useState(false);
     const [importStatus, setImportStatus] = useState("");
     const [importProgress, setImportProgress] = useState({ completed: 0, total: 0 });
+    const [bankPickerOpen, setBankPickerOpen] = useState(false);
     const testSections = (test?.sections || [])
         .filter((section) => section.title.trim())
         .sort((a, b) => a.order - b.order);
@@ -138,12 +143,37 @@ export default function QuestionsPage() {
             timeLimit: 2,
             memoryLimit: 128,
             sectionId: defaultSectionId,
+            passageGroup: "",
+            passage: "",
         };
     };
 
     const handleAddQuestion = () => {
         setEditingQuestion(getInitialFormData());
         setShowForm(true);
+    };
+
+    const handleAddFromQuestionBank = async (bankQuestions: QuestionBankQuestion[]) => {
+        if (bankQuestions.length === 0) return;
+        setSaving(true);
+        try {
+            for (let i = 0; i < bankQuestions.length; i++) {
+                await createQuestion(questionBankToTestQuestionInput(
+                    bankQuestions[i],
+                    seriesId,
+                    testId,
+                    questions.length + i,
+                    defaultSectionId || undefined
+                ));
+            }
+            await incrementQuestionBankUsage(bankQuestions.map((question) => question.id));
+            await loadData();
+        } catch (error: any) {
+            console.error("Failed to add questions from bank:", error);
+            alert(`Failed to add questions from bank: ${error.message || "Unknown error"}`);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleImportFile = async (file: File) => {
@@ -298,6 +328,8 @@ export default function QuestionsPage() {
             timeLimit: question.timeLimit || 2,
             memoryLimit: question.memoryLimit || 128,
             sectionId: question.sectionId || "",
+            passageGroup: question.passageGroup || "",
+            passage: question.passage || "",
         });
         setShowForm(true);
     };
@@ -367,6 +399,8 @@ export default function QuestionsPage() {
                 difficulty: editingQuestion.difficulty,
                 order: questions.length,
                 sectionId: editingQuestion.sectionId || undefined,
+                passageGroup: editingQuestion.passageGroup.trim(),
+                passage: editingQuestion.passage,
                 supportedLanguages: editingQuestion.type === "code" ? editingQuestion.supportedLanguages : undefined,
                 starters: editingQuestion.type === "code" ? editingQuestion.starters : undefined,
                 testCases: editingQuestion.type === "code"
@@ -497,6 +531,12 @@ export default function QuestionsPage() {
                             Import Markdown
                         </span>
                     </label>
+                    <Button
+                        variant="outline"
+                        onClick={() => setBankPickerOpen(true)}
+                    >
+                        Add from Bank
+                    </Button>
                     <Button
                         onClick={handleAddQuestion}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -635,6 +675,14 @@ export default function QuestionsPage() {
                 )}
             </div>
 
+            <QuestionBankPicker
+                open={bankPickerOpen}
+                mode="test"
+                onClose={() => setBankPickerOpen(false)}
+                onSelect={handleAddFromQuestionBank}
+                title="Add Bank Questions to Test"
+            />
+
             {/* Question Form Modal */}
             {showForm && editingQuestion && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -710,8 +758,48 @@ export default function QuestionsPage() {
                                         }
                                         minHeight={220}
                                         helperText="Use headings, lists, tables, formulas, links, images, and code blocks to frame the question clearly."
+                                        mediaUploadPath={`tests/${seriesId}/${testId}/questions/question-text`}
                                     />
                                 </div>
+
+                                <details className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                                    <summary className="cursor-pointer text-sm font-bold text-amber-900">
+                                        Shared passage or case text (optional)
+                                    </summary>
+                                    <div className="mt-4 space-y-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Passage group ID
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={editingQuestion.passageGroup}
+                                                onChange={(e) =>
+                                                    setEditingQuestion({
+                                                        ...editingQuestion,
+                                                        passageGroup: e.target.value,
+                                                    })
+                                                }
+                                                placeholder="Example: cn-routing-set-1"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                        <RichTextEditor
+                                            label="Passage content"
+                                            value={editingQuestion.passage}
+                                            onChange={(value) =>
+                                                setEditingQuestion({
+                                                    ...editingQuestion,
+                                                    passage: value,
+                                                })
+                                            }
+                                            placeholder="Add a common passage, diagram, table, case study, or video for a group of questions..."
+                                            minHeight={170}
+                                            helperText="Use the same group ID on related questions. You can place inline images and YouTube videos inside the passage."
+                                            mediaUploadPath={`tests/${seriesId}/${testId}/questions/passages`}
+                                        />
+                                    </div>
+                                </details>
 
                                 {/* MCQ Options */}
                                 {editingQuestion.type === "mcq" && (
@@ -763,6 +851,8 @@ export default function QuestionsPage() {
                                                         placeholder={`Option ${String.fromCharCode(65 + index)}`}
                                                         minHeight={90}
                                                         compact
+                                                        enableMedia
+                                                        mediaUploadPath={`tests/${seriesId}/${testId}/questions/options`}
                                                     />
                                                 </div>
                                             ))}
@@ -1080,6 +1170,7 @@ export default function QuestionsPage() {
                                         }
                                         placeholder="Add solution steps, formulas, or references..."
                                         minHeight={150}
+                                        mediaUploadPath={`tests/${seriesId}/${testId}/questions/explanations`}
                                     />
                                 </div>
 

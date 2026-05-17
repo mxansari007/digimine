@@ -46,8 +46,40 @@ if [ -d /sys/fs/cgroup/isolate ]; then
     rmdir /sys/fs/cgroup/isolate 2>/dev/null || true
 fi
 
-# Start the Piston API in the background
-/piston_api/src/docker-entrypoint.sh &
+# Older images wrote this marker inside /piston/packages, but Piston scans
+# that directory as package directories. Remove it before the API loads.
+rm -f /piston/packages/.installed 2>/dev/null || true
+mkdir -p /piston/packages 2>/dev/null || true
+INSTALL_MARKER="/piston/.packages-installed"
+
+# Piston's bundled entrypoint hard-codes PID 1 while preparing cgroup v2.
+# This wrapper is PID 1, so initialize cgroups here before starting Node.
+CGROUP_FS="/sys/fs/cgroup"
+if [ ! -e "$CGROUP_FS" ]; then
+    echo "Cannot find $CGROUP_FS. Please make sure your system is using cgroup v2"
+    exit 1
+fi
+if [ -e "$CGROUP_FS/unified" ]; then
+    echo "Combined cgroup v1+v2 mode is not supported. Please use pure cgroup v2"
+    exit 1
+fi
+if [ ! -e "$CGROUP_FS/cgroup.subtree_control" ]; then
+    echo "Cgroup v2 not found. Please make sure cgroup v2 is enabled on your system"
+    exit 1
+fi
+
+cd /sys/fs/cgroup || exit 1
+mkdir -p isolate
+echo 1 > isolate/cgroup.procs
+echo '+cpuset +cpu +io +memory +pids' > cgroup.subtree_control
+cd isolate || exit 1
+mkdir -p init
+echo 1 > init/cgroup.procs
+echo '+cpuset +memory' > cgroup.subtree_control
+echo "Initialized cgroup"
+
+chown -R piston:piston /piston
+su -- piston -c 'ulimit -n 65536 && node /piston_api/src' &
 PID=$!
 
 # Wait for API to be ready
@@ -65,20 +97,21 @@ for i in $(seq 1 60); do
     sleep 2
 done
 
-# Install packages if not already present
-if [ ! -f /piston/packages/.installed ]; then
-    echo "Installing language packages (first start)..."
-    /install-packages.sh
-    INSTALL_STATUS=$?
-    # Mark as attempted so we don't retry on every restart
-    touch /piston/packages/.installed
-    if [ $INSTALL_STATUS -eq 0 ]; then
-        echo "All packages installed successfully."
-    else
-        echo "Some packages failed, but Piston will keep running."
-    fi
+# Verify packages on every start; the installer is idempotent and skips
+# already-installed runtimes, while still repairing failed prior attempts.
+if [ -f "$INSTALL_MARKER" ]; then
+    echo "Verifying language packages..."
 else
-    echo "Language packages already installed (marker exists)."
+    echo "Installing language packages (first start)..."
+fi
+
+/install-packages.sh
+INSTALL_STATUS=$?
+touch "$INSTALL_MARKER"
+if [ $INSTALL_STATUS -eq 0 ]; then
+    echo "All packages installed successfully."
+else
+    echo "Some packages failed, but Piston will keep running."
 fi
 
 # Keep container alive by waiting for the API process

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { getUserTestPurchases, getTestSeries, getUserTestAttempts, getResumableAttemptsFromList } from "@/lib/firestore/tests";
 import { getPurchasedTestSeriesIds, type TestSeries, type TestAttempt, type User } from "@digimine/types";
-import { Card, Button } from "@digimine/ui";
+import { Card, Button, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
 import Link from "next/link";
 import { PageLoading } from "@/components/common";
 
@@ -22,6 +22,8 @@ export default function MyTestSeriesPage() {
     const [seriesList, setSeriesList] = useState<TestSeries[]>([]);
     const [attempts, setAttempts] = useState<TestAttempt[]>([]);
     const [loading, setLoading] = useState(true);
+    const [attemptPage, setAttemptPage] = useState(1);
+    const [attemptPageSize, setAttemptPageSize] = useState(5);
 
     useEffect(() => {
         if (!user) return;
@@ -40,14 +42,15 @@ export default function MyTestSeriesPage() {
                     })
                 ]);
                 
-                setAttempts(attemptData);
+                const regularAttempts = attemptData.filter((attempt) => !attempt.contestId);
+                setAttempts(regularAttempts);
 
                 // Fetch series details from profile grants, purchase docs, and attempts.
                 // A stale attempt can point at an inaccessible series; skip that one only.
                 const uniqueSeriesIds = Array.from(new Set([
                     ...profileSeriesIds,
                     ...purchaseData.map(p => p.seriesId),
-                    ...attemptData.map(a => a.seriesId)
+                    ...regularAttempts.map(a => a.seriesId)
                 ].filter(Boolean)));
                 
                 const seriesPromises = uniqueSeriesIds.map(async (id) => {
@@ -70,8 +73,96 @@ export default function MyTestSeriesPage() {
         loadData();
     }, [user]);
 
+    useEffect(() => {
+        setAttemptPage(1);
+    }, [attempts.length, attemptPageSize]);
+
+    const resumableAttemptIds = useMemo(
+        () => new Set(getResumableAttemptsFromList(attempts).map((attempt) => attempt.id)),
+        [attempts]
+    );
+    const paginatedAttempts = useMemo(
+        () => getPaginatedItems(attempts, attemptPage, attemptPageSize),
+        [attempts, attemptPage, attemptPageSize]
+    );
+
     if (loading) return <PageLoading />;
-    const resumableAttemptIds = new Set(getResumableAttemptsFromList(attempts).map((attempt) => attempt.id));
+
+    const attemptColumns: DataTableColumn<TestAttempt>[] = [
+        {
+            key: "test",
+            header: "Test Name",
+            render: (attempt) => (
+                <div className="min-w-[180px]">
+                    <div className="font-semibold text-slate-900">Attempt #{attempt.id.substring(0, 6)}</div>
+                    <div className="text-xs text-slate-400">ID: {attempt.id.substring(0, 8)}...</div>
+                </div>
+            ),
+        },
+        {
+            key: "date",
+            header: "Date",
+            render: (attempt) => attempt.createdAt.toLocaleDateString(),
+        },
+        {
+            key: "score",
+            header: "Score",
+            render: (attempt) => (
+                <div>
+                    <div className="font-bold text-slate-900">{attempt.totalScore}</div>
+                    <div className="text-xs text-slate-400">{attempt.percentage}%</div>
+                </div>
+            ),
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (attempt) => (
+                attempt.status === "completed" ? (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        attempt.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                        {attempt.passed ? 'Passed' : 'Failed'}
+                    </span>
+                ) : attempt.status === "timed_out" ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                        Timed Out
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                        {resumableAttemptIds.has(attempt.id) ? 'In Progress' : 'Closed'}
+                    </span>
+                )
+            ),
+        },
+        {
+            key: "action",
+            header: "",
+            className: "text-right",
+            render: (attempt) => {
+                const seriesSlug = seriesList.find(s => s.id === attempt.seriesId)?.slug;
+                if (attempt.status === 'in_progress' && resumableAttemptIds.has(attempt.id) && seriesSlug) {
+                    return (
+                        <Link href={`/tests/${seriesSlug}/attempt?testId=${attempt.testId}&attemptId=${attempt.id}`}>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                                Continue
+                            </Button>
+                        </Link>
+                    );
+                }
+                if (attempt.status === 'completed' || attempt.status === 'timed_out') {
+                    return (
+                        <Link href={`/dashboard/tests/results/${attempt.id}`}>
+                            <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 font-bold">
+                                View Result
+                            </Button>
+                        </Link>
+                    );
+                }
+                return <span className="text-xs text-slate-400">Unavailable</span>;
+            },
+        },
+    ];
 
     return (
         <div className="space-y-8">
@@ -152,72 +243,23 @@ export default function MyTestSeriesPage() {
             {attempts.length > 0 && (
                 <div className="mt-12">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Attempts</h2>
-                    <Card className="overflow-hidden border-none shadow-md bg-white">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 border-b border-gray-100">
-                                    <tr>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Test Name</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Score</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {attempts.slice(0, 5).map((attempt) => (
-                                        <tr key={attempt.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">Attempt #{attempt.id.substring(0, 6)}</div>
-                                                <div className="text-xs text-gray-400">ID: {attempt.id.substring(0, 8)}...</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
-                                                {attempt.createdAt.toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm font-bold text-gray-900">{attempt.totalScore}</div>
-                                                <div className="text-xs text-gray-400">{attempt.percentage}%</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {attempt.status === "completed" ? (
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                        attempt.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {attempt.passed ? 'Passed' : 'Failed'}
-                                                    </span>
-                                                ) : attempt.status === "timed_out" ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                        Timed Out
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                        {resumableAttemptIds.has(attempt.id) ? 'In Progress' : 'Closed'}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                {attempt.status === 'in_progress' && resumableAttemptIds.has(attempt.id) ? (
-                                                    <Link href={`/tests/${seriesList.find(s => s.id === attempt.seriesId)?.slug}/attempt?testId=${attempt.testId}&attemptId=${attempt.id}`}>
-                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
-                                                            Continue Test
-                                                        </Button>
-                                                    </Link>
-                                                ) : attempt.status === 'completed' || attempt.status === 'timed_out' ? (
-                                                    <Link href={`/dashboard/tests/results/${attempt.id}`}>
-                                                        <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 font-bold">
-                                                            View Result
-                                                        </Button>
-                                                    </Link>
-                                                ) : (
-                                                    <span className="text-xs text-gray-400">Unavailable</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                    <DataTable
+                        columns={attemptColumns}
+                        data={paginatedAttempts}
+                        keyExtractor={(attempt) => attempt.id}
+                        emptyState="No attempts found."
+                        footer={
+                            <PaginationControls
+                                page={attemptPage}
+                                pageSize={attemptPageSize}
+                                totalItems={attempts.length}
+                                onPageChange={setAttemptPage}
+                                onPageSizeChange={setAttemptPageSize}
+                                pageSizeOptions={[5, 10, 20]}
+                                itemLabel="attempts"
+                            />
+                        }
+                    />
                 </div>
             )}
         </div>

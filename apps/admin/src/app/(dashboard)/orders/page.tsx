@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAllOrders } from "@/lib/firestore/admin";
 import { type Order } from "@digimine/types";
 import { formatDate, formatCurrency } from "@digimine/utils";
-import { Card } from "@digimine/ui";
+import { DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         async function fetchOrders() {
@@ -24,6 +26,66 @@ export default function OrdersPage() {
         fetchOrders();
     }, []);
 
+    useEffect(() => {
+        setPage(1);
+    }, [orders.length, pageSize]);
+
+    const paginatedOrders = useMemo(
+        () => getPaginatedItems(orders, page, pageSize),
+        [orders, page, pageSize]
+    );
+
+    const columns: DataTableColumn<Order>[] = [
+        {
+            key: "order",
+            header: "Order ID",
+            render: (order) => (
+                <span title={order.id} className="font-semibold text-slate-900">
+                    #{order.id.slice(0, 8)}...
+                </span>
+            ),
+        },
+        {
+            key: "customer",
+            header: "Customer",
+            render: (order) => (
+                <div className="min-w-[220px]">
+                    <div className="font-medium text-slate-900 truncate">{order.customerEmail || "Guest customer"}</div>
+                    <div className="text-xs text-slate-400 truncate">{order.userId || order.guestId || "No user ID"}</div>
+                </div>
+            ),
+        },
+        {
+            key: "amount",
+            header: "Amount",
+            render: (order) => (
+                <span className="font-bold text-slate-900">{formatCurrency(order.total)}</span>
+            ),
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (order) => (
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    order.status === "completed"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : order.status === "failed"
+                            ? "bg-red-100 text-red-700"
+                            : order.status === "refunded"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-700"
+                }`}>
+                    {order.status}
+                </span>
+            ),
+        },
+        {
+            key: "date",
+            header: "Date",
+            render: (order) => formatDate(order.createdAt),
+        },
+    ];
+
     if (loading) return <div className="p-8">Loading orders...</div>;
 
     return (
@@ -35,72 +97,22 @@ export default function OrdersPage() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Order ID
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Customer
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Amount
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Date
-                                </th>
-                                <th className="relative px-6 py-3">
-                                    <span className="sr-only">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {orders.map((order) => (
-                                <tr key={order.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        <span title={order.id}>#{order.id.slice(0, 8)}...</span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        {order.userId}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                        {formatCurrency(order.total)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            {order.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {formatDate(order.createdAt)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button className="text-primary-600 hover:text-primary-900">
-                                            View
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {orders.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-6 py-10 text-center text-gray-500"
-                                    >
-                                        No orders found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+            <DataTable
+                columns={columns}
+                data={paginatedOrders}
+                keyExtractor={(order) => order.id}
+                emptyState="No orders found."
+                footer={
+                    <PaginationControls
+                        page={page}
+                        pageSize={pageSize}
+                        totalItems={orders.length}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        itemLabel="orders"
+                    />
+                }
+            />
         </div>
     );
 }

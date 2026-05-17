@@ -60,11 +60,13 @@ FAILED=0
 install_package "python" || FAILED=1
 install_package "node" || FAILED=1        # JavaScript / Node.js
 install_package "gcc" || FAILED=1         # C / C++
-install_package "openjdk" || FAILED=1     # Java
+install_package "java" || FAILED=1        # Java
 
 if [ $FAILED -eq 1 ]; then
     echo "WARNING: Some packages failed to install. Already-installed packages were skipped."
     echo "You can manually retry failed packages later."
+    exit 1
 fi
 
 echo "Package installation step complete."
+exit 0

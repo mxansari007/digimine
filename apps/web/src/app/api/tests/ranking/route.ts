@@ -8,6 +8,8 @@ type FinalizedStatus = "completed" | "timed_out";
 interface InternalRankingEntry {
     id: string;
     userId: string;
+    displayName?: string;
+    email?: string;
     totalScore: number;
     maxPossibleScore: number;
     percentage: number;
@@ -103,6 +105,9 @@ function toRankingEntry(id: string, data: Record<string, unknown>, currentAttemp
 function publicEntry(entry: InternalRankingEntry) {
     return {
         id: entry.id,
+        userId: entry.userId,
+        displayName: entry.displayName || null,
+        email: entry.email || null,
         totalScore: entry.totalScore,
         maxPossibleScore: entry.maxPossibleScore,
         percentage: entry.percentage,
@@ -111,6 +116,30 @@ function publicEntry(entry: InternalRankingEntry) {
         isCurrentUser: entry.isCurrentUser,
         rank: entry.rank,
     };
+}
+
+async function loadUserSummaries(userIds: string[]) {
+    const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+    const entries = await Promise.all(
+        uniqueUserIds.map(async (userId) => {
+            try {
+                const snap = await adminDb.collection("users").doc(userId).get();
+                const data = snap.data() || {};
+                const displayName = typeof data.displayName === "string" && data.displayName.trim()
+                    ? data.displayName.trim()
+                    : typeof data.name === "string" && data.name.trim()
+                        ? data.name.trim()
+                        : typeof data.email === "string" && data.email.trim()
+                            ? data.email.trim()
+                            : `Participant ${userId.slice(0, 6)}`;
+                const email = typeof data.email === "string" ? data.email : "";
+                return [userId, { displayName, email }] as const;
+            } catch {
+                return [userId, { displayName: `Participant ${userId.slice(0, 6)}`, email: "" }] as const;
+            }
+        })
+    );
+    return new Map(entries);
 }
 
 export async function GET(req: Request) {
@@ -145,19 +174,31 @@ export async function GET(req: Request) {
 
         const testId = readString(currentAttemptData, "testId");
         const seriesId = readString(currentAttemptData, "seriesId");
+        const contestId = readString(currentAttemptData, "contestId");
         if (!testId || !seriesId || !currentAttemptUserId) {
             return NextResponse.json({ error: "Attempt is missing ranking fields" }, { status: 400 });
         }
 
-        const attemptsSnap = await adminDb
-            .collection("testAttempts")
-            .where("testId", "==", testId)
-            .get();
+        let contestIsFinal = false;
+        let leaderboardAvailableAt: string | null = null;
+        if (contestId) {
+            const contestSnap = await adminDb.collection("contests").doc(contestId).get();
+            const contestData = contestSnap.data() as Record<string, unknown> | undefined;
+            const endTimeMillis = toMillis(contestData?.endTime);
+            contestIsFinal = endTimeMillis > 0 && Date.now() >= endTimeMillis;
+            leaderboardAvailableAt = toIsoDate(contestData?.endTime);
+        }
+
+        const attemptsQuery = contestId
+            ? adminDb.collection("testAttempts").where("contestId", "==", contestId)
+            : adminDb.collection("testAttempts").where("testId", "==", testId);
+        const attemptsSnap = await attemptsQuery.get();
 
         const latestByUser = new Map<string, InternalRankingEntry>();
         attemptsSnap.docs.forEach((docSnap) => {
             const data = docSnap.data() as Record<string, unknown>;
             if (readString(data, "seriesId") !== seriesId) return;
+            if (contestId && readString(data, "contestId") !== contestId) return;
 
             const entry = toRankingEntry(docSnap.id, data, currentAttemptUserId);
             if (!entry || entry.userId === currentAttemptUserId) return;
@@ -190,25 +231,39 @@ export async function GET(req: Request) {
                 return { ...entry, rank };
             });
 
-        const currentRankedEntry = rankedEntries.find((entry) => entry.isCurrentUser);
-        const totalParticipants = rankedEntries.length;
+        const userSummaries = await loadUserSummaries(rankedEntries.map((entry) => entry.userId));
+        const decoratedEntries = rankedEntries.map((entry) => {
+            const summary = userSummaries.get(entry.userId);
+            return {
+                ...entry,
+                displayName: summary?.displayName,
+                email: summary?.email,
+            };
+        });
+
+        const currentRankedEntry = decoratedEntries.find((entry) => entry.isCurrentUser);
+        const totalParticipants = decoratedEntries.length;
         const belowCurrent = currentRankedEntry
-            ? rankedEntries.filter((entry) => entry.totalScore < currentRankedEntry.totalScore).length
+            ? decoratedEntries.filter((entry) => entry.totalScore < currentRankedEntry.totalScore).length
             : 0;
         const percentile = totalParticipants > 1
             ? Math.round((belowCurrent / (totalParticipants - 1)) * 100)
             : 100;
         const averageScore = totalParticipants > 0
-            ? Math.round((rankedEntries.reduce((sum, entry) => sum + entry.totalScore, 0) / totalParticipants) * 100) / 100
+            ? Math.round((decoratedEntries.reduce((sum, entry) => sum + entry.totalScore, 0) / totalParticipants) * 100) / 100
             : 0;
 
         return NextResponse.json({
-            entries: rankedEntries.map(publicEntry),
+            entries: decoratedEntries.map(publicEntry),
             totalParticipants,
             userRank: currentRankedEntry?.rank || null,
             percentile,
-            topScore: rankedEntries[0]?.totalScore || 0,
+            topScore: decoratedEntries[0]?.totalScore || 0,
             averageScore,
+            scope: contestId ? "contest" : "test",
+            contestId: contestId || null,
+            isFinal: contestId ? contestIsFinal : true,
+            leaderboardAvailableAt,
         });
     } catch (error: unknown) {
         console.error("Failed to load test ranking:", error);

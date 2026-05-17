@@ -12,7 +12,7 @@ export default function DashboardLayout({
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
     return (
-        <div className="flex min-h-screen bg-slate-50 bg-grid-pattern relative">
+        <div className="flex min-h-screen bg-slate-100 bg-grid-pattern relative">
             <AdminSidebar 
                 isOpen={isMobileSidebarOpen} 
                 onClose={() => setIsMobileSidebarOpen(false)} 
@@ -20,7 +20,7 @@ export default function DashboardLayout({
             
             <main className="flex-1 lg:ml-64 flex flex-col min-h-screen relative z-0 min-w-0">
                 {/* Mobile Top Bar */}
-                <div className="lg:hidden flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800 sticky top-0 z-20">
+                <div className="lg:hidden flex items-center justify-between p-4 bg-slate-950/95 backdrop-blur-xl border-b border-white/10 sticky top-0 z-20 shadow-lg">
                     <div className="flex items-center gap-2">
                         <Logo variant="light" iconSize={24} />
                     </div>

@@ -37,16 +37,16 @@ export function Header() {
     };
 
     const navLinks = [
-        { href: "/products", label: "Products" },
-        { href: "/tests", label: "Test Series" },
-        { href: "/products?type=ebook", label: "eBooks" },
-        { href: "/products?type=course", label: "Courses" },
-        { href: "/products?type=template", label: "Templates" },
+        { href: "/courses", label: "Courses" },
+        { href: "/courses", label: "Notes" },
+        { href: "/tests", label: "Mock Tests" },
+        { href: "/quizzes", label: "Quizzes" },
+        { href: "/contests", label: "Contests" },
     ];
 
     return (
         <>
-            <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+            <header className="bg-slate-950/95 border-b border-white/10 sticky top-0 z-50 backdrop-blur-xl shadow-[0_10px_34px_rgba(2,6,23,0.16)]">
                 <div className="container-page">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
@@ -55,12 +55,12 @@ export function Header() {
                         </Link>
 
                         {/* Desktop Navigation */}
-                        <nav className="hidden md:flex items-center gap-8">
+                        <nav className="hidden md:flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
                             {navLinks.map((link) => (
                                 <Link
-                                    key={link.href}
+                                    key={`${link.href}-${link.label}`}
                                     href={link.href}
-                                    className="text-sm text-gray-300 hover:text-white font-medium transition-colors tracking-wide"
+                                    className="rounded-full px-3.5 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white font-semibold transition-colors tracking-wide"
                                 >
                                     {link.label}
                                 </Link>
@@ -77,7 +77,7 @@ export function Header() {
                                     <div className="flex items-center gap-3">
                                         <Link
                                             href="/dashboard"
-                                            className="text-white hover:text-primary-400 font-semibold transition-colors"
+                                            className="rounded-full px-3 py-2 text-white hover:bg-white/10 hover:text-primary-200 font-semibold transition-colors"
                                         >
                                             {user?.displayName || "Dashboard"}
                                         </Link>
@@ -100,7 +100,7 @@ export function Header() {
                             {/* Mobile Menu Button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+                                className="md:hidden p-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                                 aria-label="Toggle menu"
                             >
                                 {isMobileMenuOpen ? (
@@ -120,14 +120,14 @@ export function Header() {
 
             {/* Mobile Menu Overlay */}
             <div
-                className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                className={`fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={() => setIsMobileMenuOpen(false)}
             />
 
             {/* Mobile Menu Drawer */}
             <div
-                className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-white z-50 md:hidden transform transition-transform duration-300 ease-out shadow-2xl ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+                className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-white z-50 md:hidden transform transition-transform duration-300 ease-out shadow-2xl ring-1 ring-slate-200/70 ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
                     }`}
             >
                 {/* Mobile Menu Header */}
@@ -145,12 +145,12 @@ export function Header() {
 
                 {/* Mobile Navigation Links */}
                 <nav className="p-4 space-y-1">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.href}
+                                    {navLinks.map((link) => (
+                                        <Link
+                                            key={`${link.href}-${link.label}`}
                             href={link.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                            className="block px-4 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-xl font-semibold transition-colors"
                         >
                             {link.label}
                         </Link>

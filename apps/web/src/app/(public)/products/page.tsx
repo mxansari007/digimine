@@ -128,12 +128,12 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                 {/* Page Header */}
                 <div className="mb-6 md:mb-8">
                     <h1 className="font-display text-2xl md:text-3xl font-bold text-gray-900 mb-2 tracking-tight">
-                        {type ? `${type.charAt(0).toUpperCase() + type.slice(1)}s` : "All Products"}
+                        {type ? `${type.charAt(0).toUpperCase() + type.slice(1)}s` : "Study Material & Notes"}
                     </h1>
                     <p className="text-sm md:text-base text-gray-600">
                         {search
                             ? `Search results for "${search}"`
-                            : "Discover premium digital products from creators worldwide"}
+                            : "Browse study material, notes, topic articles, mock packs, and learning material for exam preparation"}
                     </p>
                 </div>
 
@@ -163,7 +163,7 @@ export default function ProductsPage({ searchParams }: ProductsPageProps) {
                                 <input
                                     type="text"
                                     name="search"
-                                    placeholder="Search products..."
+                                    placeholder="Search topics, notes, study material, tests, or articles..."
                                     defaultValue={search}
                                     className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
                                 />

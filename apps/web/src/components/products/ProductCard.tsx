@@ -20,9 +20,9 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
 
     return (
         <Link href={href} className="group h-full block">
-            <article className="h-full flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out will-change-transform">
+            <article className="h-full flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_16px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 backdrop-blur-sm transition-all duration-300 ease-out will-change-transform hover:-translate-y-1 hover:border-primary-200/80 hover:shadow-[0_24px_60px_rgba(15,23,42,0.13)]">
                 {/* Image Container */}
-                <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                     {product.thumbnailURL ? (
                         <Image
                             src={product.thumbnailURL}
@@ -40,12 +40,12 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                     )}
 
                     {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-950/5 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-75" />
 
                     {/* Badges Container - Top Right Stacking */}
                     <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
                         {isOwned && (
-                            <div className="bg-green-500 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1 shadow-md">
+                            <div className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1 shadow-md">
                                 <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -53,7 +53,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                             </div>
                         )}
                         {isSubscribed && (
-                            <div className="bg-blue-500 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1 shadow-md">
+                            <div className="bg-primary-500 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1 shadow-md">
                                 <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -66,7 +66,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                             </span>
                         )}
                         {product.instantAccess && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-green-600/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-tighter shadow-sm">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-600/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-tighter shadow-sm">
                                 INSTANT
                             </span>
                         )}
@@ -77,7 +77,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                 <div className="p-3 md:p-5 flex-1 flex flex-col">
                     {/* Category - Hidden on mobile */}
                     <div className="mb-1 hidden md:block">
-                        <span className="inline-block text-[10px] font-bold tracking-widest text-primary-600 uppercase bg-primary-50 px-2 py-1 rounded-md">
+                        <span className="inline-block text-[10px] font-bold tracking-widest text-primary-700 uppercase bg-primary-50 px-2 py-1 rounded-md border border-primary-100">
                             {product.type}
                         </span>
                     </div>
@@ -114,7 +114,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
 
 
                     {/* Footer: Price & Action */}
-                    <div className="flex items-center justify-between pt-2 md:pt-4 border-t border-gray-50 mt-auto">
+                    <div className="flex items-center justify-between pt-2 md:pt-4 border-t border-slate-100 mt-auto">
                         <div className="flex items-baseline gap-1.5 md:gap-2">
                             <span className="font-display text-lg md:text-xl font-bold text-gray-900">
                                 {product.price === 0 ? "Free" : formatCurrency(product.price)}
@@ -125,7 +125,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                                 </span>
                             )}
                         </div>
-                        <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center transform group-hover:translate-x-1 group-hover:bg-primary-100 transition-all duration-300">
+                        <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-slate-950 text-white flex items-center justify-center transform group-hover:translate-x-1 group-hover:bg-primary-600 transition-all duration-300 shadow-sm">
                             <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
