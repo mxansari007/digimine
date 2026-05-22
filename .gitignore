@@ -17,6 +17,9 @@ build/
 .env.local
 .env.*.local
 
+# Deploy outputs (per-machine IPs, SSH key paths)
+.deploy/
+
 # IDE
 .idea/
 .vscode/

@@ -49,6 +49,7 @@ export function Header() {
     };
 
     const navLinks = [
+        { href: "/practice", label: "Practice" },
         { href: "/courses", label: "Courses" },
         { href: "/articles", label: "Articles" },
         { href: "/tests", label: "Mock Tests" },

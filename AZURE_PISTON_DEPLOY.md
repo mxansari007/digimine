@@ -254,11 +254,80 @@ Piston + compiling C++ or Java can use significant RAM. If the VM runs out of me
 
 ---
 
+## Deploying to a Different / Additional Machine
+
+The original `scripts/deploy-piston-azure.sh` is built around a **single** fixed resource group + VM name + your default `~/.ssh/id_rsa`. Running it twice clobbers the first instance. When you want a **second, independent Piston machine** (a backup, another region, a staging box, or just a replacement), use the instance-aware script instead:
+
+```bash
+./scripts/deploy-piston-azure-instance.sh <instance-name>
+```
+
+Each instance gets its **own** resource group, VM, and dedicated SSH key, so they never collide. Examples:
+
+```bash
+# A production box in Central India
+./scripts/deploy-piston-azure-instance.sh prod
+
+# A second box in a different region, bigger size
+LOCATION=southeastasia VM_SIZE=Standard_D4s_v3 \
+    ./scripts/deploy-piston-azure-instance.sh sea
+
+# Lock the Piston port to only your web app's egress IP
+ALLOWED_SOURCE_IP=52.160.12.34/32 \
+    ./scripts/deploy-piston-azure-instance.sh prod
+```
+
+What it does differently from the original script:
+
+- **Instance-scoped names** — `digimine-piston-<instance>-rg`, `digimine-piston-<instance>` VM.
+- **Dedicated SSH key per instance** — `~/.ssh/digimine-piston-<instance>` (auto-generated if missing). Your other keys are never touched.
+- **Idempotent** — re-running for an existing instance skips VM creation and just rebuilds + restarts the container. Use it to update or recover a machine too.
+- **Waits for cloud-init** — confirms Docker actually finished installing before building.
+- **Optional source-IP lock** — `ALLOWED_SOURCE_IP` tightens the NSG so only your app can hit port 2000.
+- **Writes connection details** — saves `.deploy/piston-<instance>.env` with the public IP, SSH command, and the exact `PISTON_URL` value to drop into your app env. (`.deploy/` is gitignored.)
+
+### Env overrides (instance script)
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `LOCATION` | `centralindia` | Any Azure region |
+| `VM_SIZE` | `Standard_B2ms` | 2 vCPU / 8 GB |
+| `ADMIN_USER` | `azureuser` | Linux user |
+| `PISTON_PORT` | `2000` | Host port |
+| `OS_DISK_SIZE` | `30` | GB |
+| `SSH_KEY` | `~/.ssh/digimine-piston-<instance>` | Override to reuse a key |
+| `ALLOWED_SOURCE_IP` | _(open)_ | CIDR to restrict port 2000 |
+| `RESOURCE_GROUP` / `VM_NAME` | derived from instance | Override to force names |
+
+### Updating an instance later
+
+Either re-run the instance script (idempotent), or use the targeted updater with the saved IP:
+
+```bash
+source .deploy/piston-prod.env
+./scripts/update-piston-azure.sh "$PUBLIC_IP" azureuser
+```
+
+### Pointing your app at the new machine
+
+The app reads `PISTON_URL` (the full execute endpoint). After deploy, copy it from the saved file:
+
+```bash
+grep PISTON_URL .deploy/piston-prod.env
+# PISTON_URL=http://<IP>:2000/api/v2/execute
+```
+
+Set that in your web app's environment (Vercel / `.env`). For multiple machines behind a load balancer, point `PISTON_URL` at the LB and add each VM as a backend.
+
+---
+
 ## Related Files
 
 | File | Purpose |
 |------|---------|
-| `scripts/deploy-piston-azure.sh` | One-click deployment script |
+| `scripts/deploy-piston-azure.sh` | One-click single-instance deployment |
+| `scripts/deploy-piston-azure-instance.sh` | **Instance-aware** deploy for additional / different machines |
+| `scripts/update-piston-azure.sh` | Rebuild + restart Piston on an existing VM by IP |
 | `docker/piston/Dockerfile` | Pre-built Piston image with languages |
 | `docker/piston/install-packages.sh` | Installs Python, JS, C++, Java runtimes |
 | `docker/piston/docker-compose.yml` | Local development compose file |
