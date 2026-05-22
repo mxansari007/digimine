@@ -1498,7 +1498,7 @@ export default function TestAttemptPage() {
                             </svg>
                         </div>
                     </div>
-                    <h2 className="text-xl font-bold mb-2">Preparing your test environment...</h2>
+                    <h2 className="text-xl font-bold mb-2 text-white">Preparing your test environment...</h2>
                     <p className="text-gray-400 text-sm">Loading questions and restoring your progress</p>
                     <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500">
                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -1684,7 +1684,7 @@ export default function TestAttemptPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
-                        <h2 className="text-xl font-bold mb-2">Test paused for privacy</h2>
+                        <h2 className="text-xl font-bold mb-2 text-white">Test paused for privacy</h2>
                         <p className="text-sm text-white/80">
                             The test content is hidden because the window is not focused. Return to this tab to continue.
                         </p>
@@ -2852,7 +2852,7 @@ export default function TestAttemptPage() {
                             <div className="absolute inset-0 rounded-full border-4 border-white/20"></div>
                             <div className="absolute inset-0 rounded-full border-4 border-t-indigo-400 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
                         </div>
-                        <h2 className="text-xl font-bold">Submitting your test...</h2>
+                        <h2 className="text-xl font-bold text-white">Submitting your test...</h2>
                         <p className="text-sm text-white/70 mt-2">
                             Please don&apos;t close this tab. We&apos;re saving your answers and calculating your results.
                         </p>

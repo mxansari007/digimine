@@ -316,7 +316,7 @@ export default function ForInstitutesPage() {
                 <div className="container-page py-16 sm:py-20">
                     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-center">
                         <div>
-                            <h2 className="font-display text-3xl font-bold sm:text-4xl">
+                            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
                                 Ready to bring your institute online?
                             </h2>
                             <p className="mt-3 max-w-xl text-sm text-slate-300 sm:text-base">

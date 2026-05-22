@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Button } from "@digimine/ui";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+    title: "Help Center & FAQ",
+    description: "Answers to common questions about purchases, downloads, tests, and accounts on Digimine.",
+    path: "/help",
+});
 
 const FAQS = [
     {
@@ -68,20 +76,20 @@ export default function HelpPage() {
                 {/* Contact CTA */}
                 <div className="bg-primary-600 rounded-2xl shadow-lg text-white p-8 md:p-12 text-center overflow-hidden relative">
                     <div className="relative z-10">
-                        <h2 className="font-display text-3xl font-bold mb-4">
+                        <h2 className="font-display text-3xl font-bold text-white mb-4">
                             Still have questions?
                         </h2>
                         <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
                             Our support team is always ready to assist you with any technical issues or purchase inquiries.
                         </p>
-                        <div className="flex flex-col sm:flex-row justify-center gap-4">
+                        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                             <Link href="/contact">
-                                <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+                                <Button variant="secondary" size="lg">
                                     Contact Support
                                 </Button>
                             </Link>
                             <a href="mailto:support@digimine.shop">
-                                <Button variant="outline" size="lg" className="w-full sm:w-auto !border-white !text-white !bg-transparent hover:!bg-white hover:!text-primary-600">
+                                <Button variant="outline" size="lg" className="!border-white !text-white !bg-transparent hover:!bg-white hover:!text-primary-600">
                                     Email Us directly
                                 </Button>
                             </a>

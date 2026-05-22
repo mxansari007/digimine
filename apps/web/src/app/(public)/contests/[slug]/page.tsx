@@ -337,7 +337,7 @@ export default function ContestDetailPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">{contest.title}</h1>
+                                    <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">{contest.title}</h1>
                                     <p className="mt-3 max-w-2xl text-white/80">{contest.shortDescription}</p>
                                 </div>
                             </div>

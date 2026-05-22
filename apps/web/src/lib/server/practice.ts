@@ -19,6 +19,35 @@ export const MASTERY = "practiceMastery";
 export function progressId(userId: string, problemId: string) {
     return `${userId}_${problemId}`;
 }
+
+// ─── SQL dataset (de)serialization ───────────────────────────────────
+// Firestore forbids arrays-of-arrays, so a SQL problem's `expectedRows`
+// (a 2-D array) is stored as an array of { cells: [...] } maps. Encode on
+// write, decode on read so the rest of the app keeps the clean 2-D shape.
+export function encodeSqlForStore(sql: any) {
+    if (!sql) return null;
+    const rows = Array.isArray(sql.expectedRows) ? sql.expectedRows : [];
+    return {
+        schemaSql: sql.schemaSql || "",
+        solutionSql: sql.solutionSql || "",
+        orderMatters: Boolean(sql.orderMatters),
+        expectedColumns: Array.isArray(sql.expectedColumns) ? sql.expectedColumns : [],
+        expectedRows: rows.map((r: any) => ({ cells: Array.isArray(r) ? r : [] })),
+    };
+}
+
+export function decodeSqlFromStore(sql: any) {
+    if (!sql) return null;
+    const rows = Array.isArray(sql.expectedRows) ? sql.expectedRows : [];
+    return {
+        schemaSql: sql.schemaSql || "",
+        solutionSql: sql.solutionSql || "",
+        orderMatters: Boolean(sql.orderMatters),
+        expectedColumns: Array.isArray(sql.expectedColumns) ? sql.expectedColumns : [],
+        // Tolerate both the encoded ({cells}) and any legacy 2-D shape.
+        expectedRows: rows.map((r: any) => (r && Array.isArray(r.cells) ? r.cells : Array.isArray(r) ? r : [])),
+    };
+}
 export function masteryId(userId: string, pattern: string) {
     return `${userId}_${pattern}`;
 }
@@ -154,7 +183,14 @@ export async function recordSubmission(args: RecordArgs) {
     const nowMs = now.toMillis();
     const accepted = judge.verdict === "accepted";
 
-    // 1. Write the submission row.
+    // 1. Write the submission row. Strip any `undefined` — Firestore rejects it.
+    const safeResults = (Array.isArray(judge.results) ? judge.results : []).map((r) => {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(r)) {
+            if (v !== undefined) out[k] = v;
+        }
+        return out;
+    });
     const subRef = adminDb.collection(SUBMISSIONS).doc();
     await subRef.set({
         userId,
@@ -166,7 +202,7 @@ export async function recordSubmission(args: RecordArgs) {
         verdict: judge.verdict,
         passedCount: judge.passedCount,
         totalCount: judge.totalCount,
-        results: judge.results,
+        results: safeResults,
         runtimeMs: judge.runtimeMs ?? null,
         createdAt: now,
     });
@@ -299,16 +335,40 @@ export async function recordSubmission(args: RecordArgs) {
     return { submissionId: subRef.id, grade, accepted, newlySolved };
 }
 
+/**
+ * List all published problem summaries, sorted (featured → difficulty → title).
+ * Used by the server-rendered /practice/problems catalog page so the full list
+ * is in the initial HTML (indexable), not fetched client-side.
+ */
+export async function listPublishedProblemSummaries(max = 300) {
+    const snap = await adminDb
+        .collection(PROBLEMS)
+        .where("status", "==", "published")
+        .limit(max)
+        .get();
+    const items = snap.docs.map((d) => serializeProblemSummary(d.id, d.data() || {}));
+    const diffRank: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+    items.sort((a, b) => {
+        if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
+        const dr = (diffRank[a.difficulty] ?? 1) - (diffRank[b.difficulty] ?? 1);
+        if (dr !== 0) return dr;
+        return a.title.localeCompare(b.title);
+    });
+    return items;
+}
+
 /** Load a published problem by slug (full doc — server only). */
 export async function loadProblemBySlug(slug: string): Promise<(PracticeProblem & { id: string }) | null> {
     const snap = await adminDb.collection(PROBLEMS).where("slug", "==", slug).limit(1).get();
     if (snap.empty) return null;
     const d = snap.docs[0];
-    return { id: d.id, ...(d.data() as any) };
+    const data = d.data() as any;
+    return { id: d.id, ...data, sql: decodeSqlFromStore(data.sql) };
 }
 
 export async function loadProblemById(id: string): Promise<(PracticeProblem & { id: string }) | null> {
     const d = await adminDb.collection(PROBLEMS).doc(id).get();
     if (!d.exists) return null;
-    return { id: d.id, ...(d.data() as any) };
+    const data = d.data() as any;
+    return { id: d.id, ...data, sql: decodeSqlFromStore(data.sql) };
 }

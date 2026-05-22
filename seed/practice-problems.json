@@ -1,0 +1,229 @@
+{
+  "_readme": "Seed for the Practice module. POST this whole object to /api/admin/practice/problems with an admin bearer token. DSA problems are judged via Piston (stdin -> stdout, compared with normalizeOutput). The SQL problem is judged in-app (sql.js) against expectedColumns/expectedRows. See seed/README-practice-seed.md for the curl command.",
+  "problems": [
+    {
+      "kind": "dsa",
+      "title": "Sum of an Array",
+      "slug": "sum-of-an-array",
+      "difficulty": "easy",
+      "primaryPattern": "arrays-hashing",
+      "secondaryPatterns": ["prefix-sum"],
+      "patternChoices": ["arrays-hashing", "two-pointers", "sliding-window", "dp-1d"],
+      "tags": ["warmup", "neetcode-150"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>You are given an array of <strong>n</strong> integers. Print the sum of all elements.</p><p><strong>Input</strong><br/>Line 1: an integer <code>n</code>.<br/>Line 2: <code>n</code> space-separated integers.</p><p><strong>Output</strong><br/>A single integer — the sum.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>-10^9 ≤ a[i] ≤ 10^9</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = list(map(int, data[1:1+n]))\n    # TODO: print the sum\n\nmain()\n" },
+        { "language": "javascript", "code": "const data = require('fs').readFileSync(0, 'utf8').trim().split(/\\s+/).map(Number);\nconst n = data[0];\nconst arr = data.slice(1, 1 + n);\n// TODO: print the sum\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){\n    int n; cin >> n;\n    vector<long long> a(n);\n    for(auto &x : a) cin >> x;\n    // TODO: print the sum\n    return 0;\n}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main {\n  public static void main(String[] args){\n    Scanner sc = new Scanner(System.in);\n    int n = sc.nextInt();\n    long[] a = new long[n];\n    for(int i=0;i<n;i++) a[i]=sc.nextLong();\n    // TODO: print the sum\n  }\n}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "5\n1 2 3 4 5", "expectedOutput": "15", "isHidden": false, "explanation": "1+2+3+4+5 = 15" },
+        { "id": "t2", "input": "3\n-1 -2 -3", "expectedOutput": "-6", "isHidden": false },
+        { "id": "t3", "input": "1\n1000000000", "expectedOutput": "1000000000", "isHidden": true },
+        { "id": "t4", "input": "4\n0 0 0 0", "expectedOutput": "0", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "You only need to look at each element once." },
+        { "id": "h2", "order": 1, "text": "Keep a running total and add each element to it." }
+      ],
+      "editorialHtml": "<p>Iterate once, accumulate. O(n) time, O(1) extra space.</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\ndata = sys.stdin.read().split()\nn = int(data[0])\nprint(sum(map(int, data[1:1+n])))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Reverse a String",
+      "slug": "reverse-a-string",
+      "difficulty": "easy",
+      "primaryPattern": "two-pointers",
+      "secondaryPatterns": [],
+      "patternChoices": ["two-pointers", "stack", "recursion", "sliding-window"],
+      "tags": ["strings", "warmup"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given a single line containing a string <code>s</code> (no spaces), print it reversed.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ |s| ≤ 10^5</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "s = input().strip()\n# TODO: print s reversed\n" },
+        { "language": "javascript", "code": "const s = require('fs').readFileSync(0, 'utf8').trim();\n// TODO: print s reversed\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){ string s; cin >> s; /* TODO */ return 0; }\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main { public static void main(String[] a){ Scanner sc=new Scanner(System.in); String s=sc.next(); /* TODO */ } }\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "hello", "expectedOutput": "olleh", "isHidden": false },
+        { "id": "t2", "input": "racecar", "expectedOutput": "racecar", "isHidden": false },
+        { "id": "t3", "input": "a", "expectedOutput": "a", "isHidden": true },
+        { "id": "t4", "input": "DigiMine", "expectedOutput": "eniMigiD", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Two pointers — one at the start, one at the end." }
+      ],
+      "editorialHtml": "<p>Swap from both ends toward the middle, or use a built-in reverse.</p>",
+      "solutions": [
+        { "language": "python", "code": "print(input().strip()[::-1])\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Valid Parentheses",
+      "slug": "valid-parentheses",
+      "difficulty": "easy",
+      "primaryPattern": "stack",
+      "secondaryPatterns": [],
+      "patternChoices": ["stack", "two-pointers", "greedy", "recursion"],
+      "tags": ["neetcode-150", "stack"],
+      "access": "login",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given a string of brackets <code>()[]{}</code>, print <code>true</code> if every bracket is correctly matched and nested, else <code>false</code>.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ |s| ≤ 10^4</li><li>s contains only <code>()[]{}</code></li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "s = input().strip()\n# TODO: print 'true' or 'false'\n" },
+        { "language": "javascript", "code": "const s = require('fs').readFileSync(0, 'utf8').trim();\n// TODO: print 'true' or 'false'\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){ string s; cin >> s; /* TODO */ return 0; }\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main { public static void main(String[] a){ Scanner sc=new Scanner(System.in); String s=sc.next(); /* TODO */ } }\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "()[]{}", "expectedOutput": "true", "isHidden": false },
+        { "id": "t2", "input": "([)]", "expectedOutput": "false", "isHidden": false },
+        { "id": "t3", "input": "{[]}", "expectedOutput": "true", "isHidden": true },
+        { "id": "t4", "input": "(((", "expectedOutput": "false", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Push opening brackets; on a closing bracket, the top of the stack must be its match." },
+        { "id": "h2", "order": 1, "text": "At the end the stack must be empty." }
+      ],
+      "editorialHtml": "<p>Classic stack problem. O(n) time.</p>",
+      "solutions": [
+        { "language": "python", "code": "s=input().strip()\npairs={')':'(',']':'[','}':'{'}\nst=[]\nok=True\nfor c in s:\n    if c in '([{': st.append(c)\n    else:\n        if not st or st.pop()!=pairs[c]: ok=False; break\nprint('true' if ok and not st else 'false')\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Maximum Subarray Sum",
+      "slug": "maximum-subarray-sum",
+      "difficulty": "medium",
+      "primaryPattern": "dp-1d",
+      "secondaryPatterns": ["greedy", "prefix-sum"],
+      "patternChoices": ["dp-1d", "sliding-window", "two-pointers", "divide-conquer"],
+      "tags": ["kadane", "neetcode-150"],
+      "access": "premium",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given an array of <code>n</code> integers, find the contiguous subarray (containing at least one number) with the largest sum and print that sum.</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Line 2: <code>n</code> integers.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>-10^4 ≤ a[i] ≤ 10^4</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\ndata = sys.stdin.read().split()\nn = int(data[0])\narr = list(map(int, data[1:1+n]))\n# TODO: print the maximum subarray sum\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n = d[0]; const arr = d.slice(1, 1+n);\n// TODO: print the maximum subarray sum\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){ int n; cin>>n; vector<long long> a(n); for(auto&x:a)cin>>x; /* TODO */ return 0; }\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main { public static void main(String[] g){ Scanner sc=new Scanner(System.in); int n=sc.nextInt(); long[] a=new long[n]; for(int i=0;i<n;i++)a[i]=sc.nextLong(); /* TODO */ } }\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "9\n-2 1 -3 4 -1 2 1 -5 4", "expectedOutput": "6", "isHidden": false, "explanation": "[4,-1,2,1] sums to 6" },
+        { "id": "t2", "input": "1\n-5", "expectedOutput": "-5", "isHidden": false },
+        { "id": "t3", "input": "5\n5 4 -1 7 8", "expectedOutput": "23", "isHidden": true },
+        { "id": "t4", "input": "4\n-3 -1 -2 -4", "expectedOutput": "-1", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Track the best sum ending exactly at the current index." },
+        { "id": "h2", "order": 1, "text": "cur = max(a[i], cur + a[i]); best = max(best, cur). This is Kadane's algorithm." }
+      ],
+      "editorialHtml": "<p>Kadane's algorithm: O(n) time, O(1) space. Reset the running sum whenever it would hurt you.</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0]); a=list(map(int,d[1:1+n]))\ncur=best=a[0]\nfor x in a[1:]:\n    cur=max(x,cur+x); best=max(best,cur)\nprint(best)\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Binary Search Index",
+      "slug": "binary-search-index",
+      "difficulty": "medium",
+      "primaryPattern": "binary-search",
+      "secondaryPatterns": [],
+      "patternChoices": ["binary-search", "two-pointers", "arrays-hashing", "divide-conquer"],
+      "tags": ["searching"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given a sorted array and a target, print the 0-based index of the target, or <code>-1</code> if absent.</p><p><strong>Input</strong><br/>Line 1: <code>n</code> and <code>target</code>.<br/>Line 2: <code>n</code> sorted integers.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>Array is sorted ascending, values distinct.</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0]); target = int(d[1])\narr = list(map(int, d[2:2+n]))\n# TODO: print index of target or -1\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n=d[0], target=d[1], arr=d.slice(2,2+n);\n// TODO: print index of target or -1\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long n,t; cin>>n>>t; vector<long long> a(n); for(auto&x:a)cin>>x; /* TODO */ return 0; }\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main { public static void main(String[] g){ Scanner sc=new Scanner(System.in); int n=sc.nextInt(); long t=sc.nextLong(); long[] a=new long[n]; for(int i=0;i<n;i++)a[i]=sc.nextLong(); /* TODO */ } }\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "5 7\n1 3 5 7 9", "expectedOutput": "3", "isHidden": false },
+        { "id": "t2", "input": "5 6\n1 3 5 7 9", "expectedOutput": "-1", "isHidden": false },
+        { "id": "t3", "input": "1 1\n1", "expectedOutput": "0", "isHidden": true },
+        { "id": "t4", "input": "6 11\n2 4 6 8 10 11", "expectedOutput": "5", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Maintain lo/hi bounds and compare the midpoint to the target." }
+      ],
+      "editorialHtml": "<p>Standard binary search, O(log n).</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys, bisect\nd=sys.stdin.read().split()\nn=int(d[0]); t=int(d[1]); a=list(map(int,d[2:2+n]))\ni=bisect.bisect_left(a,t)\nprint(i if i<n and a[i]==t else -1)\n" }
+      ]
+    },
+    {
+      "kind": "sql",
+      "title": "High Earning Employees",
+      "slug": "high-earning-employees",
+      "difficulty": "easy",
+      "primaryPattern": "sql-select-filter",
+      "secondaryPatterns": [],
+      "patternChoices": ["sql-select-filter", "sql-joins", "sql-aggregation", "sql-group-having"],
+      "tags": ["sql", "warmup"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Table <code>employees(id, name, salary)</code>. Return the <code>name</code> and <code>salary</code> of every employee earning <strong>more than 50000</strong>, ordered by <code>salary</code> descending.</p>",
+      "constraintsHtml": null,
+      "languages": [],
+      "starters": [],
+      "testCases": [],
+      "sql": {
+        "schemaSql": "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, salary INTEGER);\nINSERT INTO employees (id, name, salary) VALUES\n  (1, 'Alice', 72000),\n  (2, 'Bob', 48000),\n  (3, 'Carol', 95000),\n  (4, 'Dan', 50000),\n  (5, 'Eve', 51000);",
+        "solutionSql": "SELECT name, salary FROM employees WHERE salary > 50000 ORDER BY salary DESC;",
+        "orderMatters": true,
+        "expectedColumns": ["name", "salary"],
+        "expectedRows": [
+          ["Carol", 95000],
+          ["Alice", 72000],
+          ["Eve", 51000]
+        ]
+      },
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Filter with WHERE, then ORDER BY salary DESC." }
+      ],
+      "editorialHtml": "<p><code>SELECT name, salary FROM employees WHERE salary > 50000 ORDER BY salary DESC;</code></p>",
+      "solutions": []
+    }
+  ]
+}

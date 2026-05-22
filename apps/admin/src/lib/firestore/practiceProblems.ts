@@ -20,6 +20,33 @@ import { db } from "@/lib/firebase/client";
 
 const COL = () => collection(db, "practiceProblems");
 
+// Firestore forbids arrays-of-arrays, so a SQL problem's 2-D `expectedRows`
+// is stored as an array of { cells: [...] } maps. Encode on write, decode on
+// read. (Mirrors apps/web/src/lib/server/practice.ts so both apps agree.)
+function encodeSqlForStore(sql: any) {
+    if (!sql) return null;
+    const rows = Array.isArray(sql.expectedRows) ? sql.expectedRows : [];
+    return {
+        schemaSql: sql.schemaSql || "",
+        solutionSql: sql.solutionSql || "",
+        orderMatters: Boolean(sql.orderMatters),
+        expectedColumns: Array.isArray(sql.expectedColumns) ? sql.expectedColumns : [],
+        expectedRows: rows.map((r: any) => ({ cells: Array.isArray(r) ? r : [] })),
+    };
+}
+
+function decodeSqlFromStore(sql: any) {
+    if (!sql) return null;
+    const rows = Array.isArray(sql.expectedRows) ? sql.expectedRows : [];
+    return {
+        schemaSql: sql.schemaSql || "",
+        solutionSql: sql.solutionSql || "",
+        orderMatters: Boolean(sql.orderMatters),
+        expectedColumns: Array.isArray(sql.expectedColumns) ? sql.expectedColumns : [],
+        expectedRows: rows.map((r: any) => (r && Array.isArray(r.cells) ? r.cells : Array.isArray(r) ? r : [])),
+    };
+}
+
 function mapProblem(id: string, d: any): PracticeProblem {
     return {
         id,
@@ -38,7 +65,7 @@ function mapProblem(id: string, d: any): PracticeProblem {
         constraintsHtml: d.constraintsHtml ?? null,
         timeLimitMs: d.timeLimitMs ?? 5000,
         memoryLimitMb: d.memoryLimitMb ?? 256,
-        sql: d.sql ?? null,
+        sql: decodeSqlFromStore(d.sql),
         editorialHtml: d.editorialHtml ?? null,
         hints: d.hints || [],
         solutions: d.solutions || [],
@@ -102,7 +129,7 @@ function buildPayload(input: CreatePracticeProblemInput, slug: string, adminUid:
         constraintsHtml: input.constraintsHtml ?? null,
         timeLimitMs: input.timeLimitMs ?? 5000,
         memoryLimitMb: input.memoryLimitMb ?? 256,
-        sql: input.sql ?? null,
+        sql: input.sql ? encodeSqlForStore(input.sql) : null,
         editorialHtml: input.editorialHtml ?? null,
         hints: input.hints || [],
         solutions: input.solutions || [],

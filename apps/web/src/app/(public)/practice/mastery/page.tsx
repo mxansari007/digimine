@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Card } from "@digimine/ui";
+import { Card, SkeletonList } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 
@@ -106,7 +106,7 @@ export default function MasteryPage() {
                         to see your mastery map.
                     </Card>
                 ) : busy ? (
-                    <Card className="p-12 text-center text-sm text-slate-500">Loading…</Card>
+                    <Card className="p-4"><SkeletonList rows={8} /></Card>
                 ) : (
                     <>
                         {renderGroup("DSA Patterns", dsa)}

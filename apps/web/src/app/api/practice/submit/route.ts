@@ -3,6 +3,7 @@ import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { loadProblemById, loadProblemBySlug, recordSubmission } from "@/lib/server/practice";
 import { judgeDsa, judgeSql } from "@/lib/server/practiceJudge";
 import { checkQuota } from "@/lib/server/entitlements";
+import { rateLimit } from "@/lib/server/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,16 @@ export async function POST(req: Request) {
     try {
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) return NextResponse.json({ error: "Sign in to submit." }, { status: 401 });
+
+        // Protect the judge (Piston) from floods/abuse: cap code executions per
+        // user. Fail-open if Redis is down. Tune as needed.
+        const rl = await rateLimit("practice-run", userId, { limit: 30, windowSeconds: 60 });
+        if (!rl.success) {
+            return NextResponse.json(
+                { error: "You're running code too fast. Please wait a few seconds and try again.", code: "rate_limited" },
+                { status: 429, headers: { "Retry-After": "10" } }
+            );
+        }
 
         const body = await req.json().catch(() => ({}));
         const mode: "run" | "submit" = body.mode === "submit" ? "submit" : "run";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card } from "@digimine/ui";
+import { Card, SkeletonList } from "@digimine/ui";
 
 type Sheet = {
     id: string;
@@ -35,7 +35,7 @@ export default function SheetsPage() {
                     <Link href="/practice" className="text-xs text-slate-500 hover:text-slate-900">← Practice hub</Link>
                     <h1 className="mt-1 font-display text-2xl font-bold text-slate-900">Curated Sheets</h1>
                     <p className="mt-1 text-sm text-slate-500">
-                        Structured paths — the part GFG and takeUforward got right, kept here. Every problem you solve from
+                        Structured, ordered paths from fundamentals to interview-ready. Every problem you solve from
                         a sheet still feeds your Mastery Map and Revision Radar.
                     </p>
                 </div>
@@ -43,7 +43,7 @@ export default function SheetsPage() {
 
             <div className="container-page py-8">
                 {loading ? (
-                    <Card className="p-12 text-center text-sm text-slate-500">Loading sheets…</Card>
+                    <Card className="p-4"><SkeletonList rows={6} /></Card>
                 ) : items.length === 0 ? (
                     <Card className="p-12 text-center text-sm text-slate-500">No sheets published yet.</Card>
                 ) : (

@@ -36,6 +36,7 @@ export * from "./teacherBilling";
 export * from "./article";
 export * from "./dsaPractice";
 export * from "./practiceEngine";
+export * from "./practiceCommunity";
 export * from "./appSubscription";
 export * from "./contentMetadata";
 export * from "./payout";

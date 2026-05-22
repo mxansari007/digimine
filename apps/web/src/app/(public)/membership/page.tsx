@@ -153,7 +153,7 @@ export default function MembershipPage() {
         <main className="bg-slate-50 min-h-screen">
             <section className="border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
                 <div className="container-page py-12 sm:py-16 text-center">
-                    <h1 className="font-display text-3xl font-bold sm:text-4xl">Membership</h1>
+                    <h1 className="font-display text-3xl font-bold text-white sm:text-4xl">Membership</h1>
                     <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
                         One membership unlocks DSA/SQL practice, mock tests, quizzes, and courses — whatever your plan
                         includes.

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+    title: "Shipping & Delivery Policy",
+    description: "How and when you receive access to your digital purchases on Digimine.",
+    path: "/shipping-policy",
+});
 
 export default function ShippingPolicyPage() {
     return (

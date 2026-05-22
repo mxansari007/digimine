@@ -1,7 +1,7 @@
 /**
  * DSA + SQL practice module ("Mastery Engine").
  *
- * What makes this different from LeetCode / GFG / TUF / CodingNinja:
+ * What makes this different from a plain problem bank:
  *
  *   1. Revision Radar  — spaced repetition (forgetting-curve scheduling) so
  *      solved problems resurface right before you'd forget them.
@@ -212,7 +212,7 @@ export interface PracticeProblemSummary {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Sheets — curated, ordered lists (keep the GFG/TUF "sheet" affordance)
+// Sheets — curated, ordered problem lists
 // ─────────────────────────────────────────────────────────────────────
 
 export interface PracticeSheetItem {

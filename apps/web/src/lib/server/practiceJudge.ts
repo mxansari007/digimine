@@ -168,15 +168,19 @@ export async function judgeDsa(
         const ok = actual === expected && run.exitCode === 0;
         if (ok) passed += 1;
 
-        results.push({
+        // Only echo I/O for visible cases. Omit (don't set undefined) so the
+        // result object is Firestore-safe — Firestore rejects `undefined`.
+        const entry: JudgeResult["results"][number] = {
             index: i,
             passed: ok,
             isHidden: tc.isHidden,
-            // Only echo I/O for visible cases.
-            input: tc.isHidden ? undefined : tc.input,
-            expectedOutput: tc.isHidden ? undefined : tc.expectedOutput,
-            actualOutput: tc.isHidden ? undefined : (run.stdout || run.stderr || "").slice(0, 4000),
-        });
+        };
+        if (!tc.isHidden) {
+            entry.input = tc.input ?? "";
+            entry.expectedOutput = tc.expectedOutput ?? "";
+            entry.actualOutput = (run.stdout || run.stderr || "").slice(0, 4000);
+        }
+        results.push(entry);
     }
 
     const runtimeMs = Date.now() - started;

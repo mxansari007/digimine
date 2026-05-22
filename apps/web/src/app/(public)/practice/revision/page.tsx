@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, SkeletonList } from "@digimine/ui";
 import { patternMeta } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -53,7 +53,7 @@ export default function RevisionPage() {
                         to see your revision queue.
                     </Card>
                 ) : busy ? (
-                    <Card className="p-12 text-center text-sm text-slate-500">Loading…</Card>
+                    <Card className="p-4"><SkeletonList rows={6} /></Card>
                 ) : items.length === 0 ? (
                     <Card className="p-12 text-center">
                         <p className="text-slate-600">🎉 Nothing due right now.</p>

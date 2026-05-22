@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+    title: "Terms & Conditions",
+    description: "The terms governing your use of Digimine's products and services.",
+    path: "/terms",
+});
 
 export default function TermsPage() {
     return (

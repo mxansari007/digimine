@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+    title: "Privacy Policy",
+    description: "How Digimine collects, uses, and protects your personal data.",
+    path: "/privacy",
+});
 
 export default function PrivacyPage() {
     return (

@@ -3,7 +3,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { slugifyProblemTitle, type CreatePracticeProblemInput } from "@digimine/types";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
-import { PROBLEMS } from "@/lib/server/practice";
+import { PROBLEMS, encodeSqlForStore } from "@/lib/server/practice";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ function buildDoc(input: CreatePracticeProblemInput, slug: string, userId: strin
         constraintsHtml: input.constraintsHtml ?? null,
         timeLimitMs: input.timeLimitMs ?? 5000,
         memoryLimitMb: input.memoryLimitMb ?? 256,
-        sql: input.sql ?? null,
+        sql: input.sql ? encodeSqlForStore(input.sql) : null,
         editorialHtml: input.editorialHtml ?? null,
         hints: input.hints || [],
         solutions: input.solutions || [],

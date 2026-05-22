@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+    title: "Refunds & Cancellations",
+    description: "Digimine's refund and cancellation policy for digital products and test purchases.",
+    path: "/refund-policy",
+});
 
 export default function RefundPolicyPage() {
     return (

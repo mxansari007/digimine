@@ -649,3 +649,79 @@ body.test-attempt-mode > div > footer {
     transform: translateX(-50%);
   }
 }
+
+/* ── Practice: accepted-submission celebration ── */
+@keyframes practiceConfettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.9; }
+}
+@keyframes practiceConfettiSway {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  25% { transform: translate(28px, 28vh) rotate(180deg); }
+  50% { transform: translate(-22px, 55vh) rotate(360deg); }
+  75% { transform: translate(20px, 82vh) rotate(540deg); }
+  100% { transform: translate(-10px, 112vh) rotate(720deg); opacity: 0.85; }
+}
+.practice-confetti {
+  animation-name: practiceConfettiFall;
+  animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+  animation-fill-mode: forwards;
+}
+.practice-confetti-sway {
+  animation-name: practiceConfettiSway;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+}
+@keyframes practicePop {
+  0% { transform: scale(0.6); opacity: 0; }
+  55% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.practice-pop { animation: practicePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes practiceBadgeOut {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(0.85) translateY(-12px); opacity: 0; }
+}
+.practice-badge-out { animation: practiceBadgeOut 0.5s ease-in both; }
+@keyframes practiceCheckDraw {
+  from { stroke-dasharray: 0 40; }
+  to { stroke-dasharray: 40 40; }
+}
+.practice-check path {
+  stroke-dasharray: 40 40;
+  animation: practiceCheckDraw 0.55s ease-out 0.22s both;
+}
+@keyframes practiceRing {
+  0% { transform: scale(0.7); opacity: 0.7; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.practice-ring { animation: practiceRing 1.1s ease-out 0.15s infinite; }
+@keyframes practiceFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes practiceFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.practice-fade-in { animation: practiceFadeIn 0.3s ease-out both; }
+.practice-fade-out { animation: practiceFadeOut 0.5s ease-in both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-confetti,
+  .practice-confetti-sway,
+  .practice-ring { animation: none; opacity: 0; }
+  .practice-pop,
+  .practice-badge-out { animation-duration: 0.01s; }
+}
+
+/* ── Practice: streak flame ── */
+@keyframes practiceFlame {
+  0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.4)); }
+  50% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.65)); }
+}
+.practice-flame { animation: practiceFlame 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .practice-flame { animation: none; }
+}

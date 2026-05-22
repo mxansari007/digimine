@@ -1115,5 +1115,36 @@ service cloud.firestore {
                         && request.resource.data.get('status', '') == 'resolved');
       allow delete: if isAdmin();
     }
+
+    // ── Practice community: discussions, replies, solutions, votes ──
+    // Reads are public (discussion/solution content is meant to be shared).
+    // Writes go through admin-SDK API routes, but we still scope direct
+    // client writes to the author so the rules are safe in isolation.
+    match /practiceDiscussions/{discussionId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.author.userId == request.auth.uid;
+      allow update, delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.author.userId == request.auth.uid);
+    }
+    match /practiceDiscussionReplies/{replyId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.author.userId == request.auth.uid;
+      allow update, delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.author.userId == request.auth.uid);
+    }
+    match /practiceSolutions/{solutionId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.author.userId == request.auth.uid;
+      allow update, delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.author.userId == request.auth.uid);
+    }
+    match /practiceVotes/{voteId} {
+      // One dedupe doc per (user, target); only the owner touches it.
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
   }
 }

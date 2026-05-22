@@ -12,7 +12,7 @@ export const metadata: Metadata = buildMetadata({
         "coding interview prep",
         "spaced repetition DSA",
         "pattern recognition coding",
-        "leetcode alternative India",
+        "DSA practice platform India",
     ],
 });
 

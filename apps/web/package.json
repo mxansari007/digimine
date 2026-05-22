@@ -20,11 +20,13 @@
         "@react-email/render": "^2.0.4",
         "firebase": "^10.14.1",
         "firebase-admin": "^11.11.0",
+        "ioredis": "^5.10.1",
         "next": "14.0.4",
         "razorpay": "^2.9.6",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-international-phone": "^4.8.0",
+        "sql.js": "^1.14.1",
         "uuid": "^13.0.0"
     },
     "devDependencies": {

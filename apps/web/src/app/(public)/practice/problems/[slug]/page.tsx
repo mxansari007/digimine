@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Card, FormattedContent } from "@digimine/ui";
+import { Button, FormattedContent } from "@digimine/ui";
 import { patternMeta, type CodeLanguage } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import PracticeCommunity from "@/components/practice/PracticeCommunity";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -65,6 +66,52 @@ function verdictTone(v: string) {
     return "text-rose-700 bg-rose-50 border-rose-200";
 }
 
+function difficultyPill(d: string) {
+    const map: Record<string, string> = {
+        easy: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+        medium: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
+        hard: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20",
+    };
+    return map[d] || "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/20";
+}
+
+const LANG_LABEL: Record<string, string> = {
+    python: "Python",
+    javascript: "JavaScript",
+    cpp: "C++",
+    java: "Java",
+    sql: "SQL",
+};
+
+// ── Local persistence (per-problem drafts + layout prefs) ──
+const draftKey = (slug: string, lang: string) => `practice:draft:${slug}:${lang}`;
+const langKey = (slug: string) => `practice:lang:${slug}`;
+const MAX_KEY = "practice:layout:maximized";
+const LEFT_KEY = "practice:layout:leftPane";
+const EDITOR_KEY = "practice:layout:editorPane";
+
+function lsGet(key: string): string | null {
+    try {
+        return typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    } catch {
+        return null;
+    }
+}
+function lsSet(key: string, value: string) {
+    try {
+        if (typeof window !== "undefined") window.localStorage.setItem(key, value);
+    } catch {
+        /* quota / private mode — ignore */
+    }
+}
+function lsRemove(key: string) {
+    try {
+        if (typeof window !== "undefined") window.localStorage.removeItem(key);
+    } catch {
+        /* ignore */
+    }
+}
+
 function verdictLabel(v: string) {
     return (
         {
@@ -82,7 +129,7 @@ export default function SolveProblemPage() {
     const params = useParams();
     const router = useRouter();
     const slug = params.slug as string;
-    const { firebaseUser, isAuthenticated } = useAuthContext();
+    const { firebaseUser, isAuthenticated, loading: authLoading } = useAuthContext();
 
     const [problem, setProblem] = useState<Problem | null>(null);
     const [progress, setProgress] = useState<Progress>(null);
@@ -93,6 +140,36 @@ export default function SolveProblemPage() {
     const [code, setCode] = useState("");
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<JudgeResult | null>(null);
+    // Track whether the editor has been seeded so refreshes don't clobber typed code.
+    const editorSeededRef = useRef(false);
+    // Celebration overlay shown on a fresh accepted submit.
+    const [celebrate, setCelebrate] = useState(false);
+    const [celebrateOut, setCelebrateOut] = useState(false);
+    const celebrateTimer = useRef<number | null>(null);
+
+    const dismissCelebrate = useCallback(() => {
+        if (celebrateTimer.current) {
+            window.clearTimeout(celebrateTimer.current);
+            celebrateTimer.current = null;
+        }
+        setCelebrateOut(true);
+        window.setTimeout(() => {
+            setCelebrate(false);
+            setCelebrateOut(false);
+        }, 550);
+    }, []);
+
+    const fireCelebrate = useCallback(() => {
+        if (celebrateTimer.current) window.clearTimeout(celebrateTimer.current);
+        setCelebrateOut(false);
+        setCelebrate(true);
+        // Auto-dismiss after a while if the user doesn't click.
+        celebrateTimer.current = window.setTimeout(() => dismissCelebrate(), 5000);
+    }, [dismissCelebrate]);
+
+    useEffect(() => () => {
+        if (celebrateTimer.current) window.clearTimeout(celebrateTimer.current);
+    }, []);
 
     // Pattern Lens
     const [lensChoice, setLensChoice] = useState<string>("");
@@ -101,6 +178,101 @@ export default function SolveProblemPage() {
 
     // Hints
     const [revealedHints, setRevealedHints] = useState(0);
+
+    // Left-panel tabs
+    const [tab, setTab] = useState<"desc" | "hints" | "editorial" | "solutions" | "discussion">("desc");
+    // Right-panel console
+    const [resetTick, setResetTick] = useState(0);
+
+    // Layout: resizable panes + maximize
+    const [maximized, setMaximized] = useState(false);
+    const [leftPaneSize, setLeftPaneSize] = useState(50); // % width of the problem pane (lg+)
+    const [editorPaneSize, setEditorPaneSize] = useState(64); // % height of editor within the right column
+    const [isLgUp, setIsLgUp] = useState(false);
+    const horizSplitRef = useRef<HTMLDivElement>(null);
+    const rightColRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const mq = window.matchMedia("(min-width: 1024px)");
+        const update = () => setIsLgUp(mq.matches);
+        update();
+        mq.addEventListener("change", update);
+        return () => mq.removeEventListener("change", update);
+    }, []);
+
+    // Restore persisted layout prefs once on mount (in an effect to avoid
+    // SSR/hydration mismatches).
+    useEffect(() => {
+        if (lsGet(MAX_KEY) === "1") setMaximized(true);
+        const lp = Number(lsGet(LEFT_KEY));
+        if (lp >= 28 && lp <= 72) setLeftPaneSize(lp);
+        const ep = Number(lsGet(EDITOR_KEY));
+        if (ep >= 20 && ep <= 88) setEditorPaneSize(ep);
+    }, []);
+
+    // Persist layout prefs.
+    useEffect(() => { lsSet(MAX_KEY, maximized ? "1" : "0"); }, [maximized]);
+    useEffect(() => { lsSet(LEFT_KEY, String(Math.round(leftPaneSize))); }, [leftPaneSize]);
+    useEffect(() => { lsSet(EDITOR_KEY, String(Math.round(editorPaneSize))); }, [editorPaneSize]);
+
+    // Esc exits maximize; lock body scroll while maximized.
+    useEffect(() => {
+        if (!maximized) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setMaximized(false);
+        };
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = prev;
+            window.removeEventListener("keydown", onKey);
+        };
+    }, [maximized]);
+
+    // Drag the vertical divider between the problem pane and the editor column.
+    const startHorizDrag = (e: React.PointerEvent) => {
+        const c = horizSplitRef.current;
+        if (!c) return;
+        e.preventDefault();
+        const rect = c.getBoundingClientRect();
+        const onMove = (ev: PointerEvent) => {
+            const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+            setLeftPaneSize(Math.min(72, Math.max(28, pct)));
+        };
+        const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+    };
+
+    // Drag the horizontal divider between the editor and the console.
+    const startVertDrag = (e: React.PointerEvent) => {
+        const c = rightColRef.current;
+        if (!c) return;
+        e.preventDefault();
+        const rect = c.getBoundingClientRect();
+        const onMove = (ev: PointerEvent) => {
+            const pct = ((ev.clientY - rect.top) / rect.height) * 100;
+            setEditorPaneSize(Math.min(88, Math.max(20, pct)));
+        };
+        const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        document.body.style.cursor = "row-resize";
+        document.body.style.userSelect = "none";
+    };
 
     // Rescue
     const [rescueOpen, setRescueOpen] = useState(false);
@@ -118,16 +290,22 @@ export default function SolveProblemPage() {
             if (!res.ok) throw new Error(data.error || "Failed");
             setProblem(data.problem);
             setProgress(data.progress || null);
-            // Initialise editor.
-            if (data.problem.kind === "sql") {
-                setLanguage("sql");
-                setCode("-- Write your query\n");
-            } else {
-                const langs: CodeLanguage[] = data.problem.languages || ["python"];
-                const lang = langs.includes("python") ? "python" : langs[0];
-                setLanguage(lang);
-                const starter = (data.problem.starters || []).find((s: any) => s.language === lang);
-                setCode(starter?.code || "");
+            // Initialise the editor only once, restoring any saved draft so
+            // re-fetches (after auth resolves / after a submit) and reloads
+            // never clobber the user's language choice or typed code.
+            if (!editorSeededRef.current) {
+                editorSeededRef.current = true;
+                if (data.problem.kind === "sql") {
+                    setLanguage("sql");
+                    setCode(lsGet(draftKey(slug, "sql")) ?? "-- Write your query\n");
+                } else {
+                    const langs: CodeLanguage[] = data.problem.languages || ["python"];
+                    const savedLang = lsGet(langKey(slug)) as CodeLanguage | null;
+                    const lang = savedLang && langs.includes(savedLang) ? savedLang : langs.includes("python") ? "python" : langs[0];
+                    setLanguage(lang);
+                    const starter = (data.problem.starters || []).find((s: any) => s.language === lang);
+                    setCode(lsGet(draftKey(slug, lang)) ?? starter?.code ?? "");
+                }
             }
         } catch (err: any) {
             setError(err.message || "Failed to load");
@@ -136,14 +314,39 @@ export default function SolveProblemPage() {
         }
     }, [slug, firebaseUser]);
 
+    // Wait for Firebase auth to resolve before the first fetch — otherwise a
+    // hard reload fires an unauthenticated request and progress comes back null.
     useEffect(() => {
+        if (authLoading) return;
         load();
-    }, [load]);
+    }, [load, authLoading]);
+
+    // Persist code edits per (problem, language).
+    const onCodeChange = (v: string | undefined) => {
+        const next = v || "";
+        setCode(next);
+        lsSet(draftKey(slug, language), next);
+    };
 
     const onLanguageChange = (lang: CodeLanguage) => {
         setLanguage(lang);
+        lsSet(langKey(slug), lang);
+        // Restore this language's saved draft, else fall back to the starter.
         const starter = problem?.starters.find((s) => s.language === lang);
-        setCode(starter?.code || "");
+        setCode(lsGet(draftKey(slug, lang)) ?? starter?.code ?? "");
+        setResetTick((t) => t + 1);
+    };
+
+    const resetCode = () => {
+        if (!problem) return;
+        lsRemove(draftKey(slug, language));
+        if (problem.kind === "sql") {
+            setCode("-- Write your query\n");
+        } else {
+            const starter = problem.starters.find((s) => s.language === language);
+            setCode(starter?.code || "");
+        }
+        setResetTick((t) => t + 1);
     };
 
     const submit = async (mode: "run" | "submit") => {
@@ -163,6 +366,10 @@ export default function SolveProblemPage() {
             if (!res.ok) throw new Error(data.error || "Failed");
             setResult(data);
             if (mode === "submit") {
+                if (data.accepted) {
+                    setMaximized(false);
+                    fireCelebrate();
+                }
                 // Refresh progress so the revision banner shows.
                 load();
             }
@@ -207,7 +414,15 @@ export default function SolveProblemPage() {
 
     const lensChoices = useMemo(() => problem?.patternChoices?.length ? problem.patternChoices : (problem ? [problem.primaryPattern] : []), [problem]);
 
-    if (loading) return <div className="container-page py-16 text-center text-sm text-slate-500">Loading problem…</div>;
+    if (loading)
+        return (
+            <div className="flex min-h-[60vh] items-center justify-center">
+                <div className="flex items-center gap-3 text-sm text-slate-500">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-primary-600" />
+                    Loading problem…
+                </div>
+            </div>
+        );
     if (error || !problem)
         return (
             <div className="container-page py-16 text-center">
@@ -217,201 +432,236 @@ export default function SolveProblemPage() {
         );
 
     const solved = progress?.status === "solved";
+    const visibleResults = result?.results.filter((r) => !r.isHidden) ?? [];
+    const hiddenCount = result?.results.filter((r) => r.isHidden).length ?? 0;
+    const passRatio = result && result.totalCount ? result.passedCount / result.totalCount : 0;
 
     return (
-        <main className="bg-slate-50 min-h-screen">
-            <div className="container-page py-6 grid gap-6 lg:grid-cols-2">
-                {/* Left: statement */}
-                <div className="space-y-5">
-                    <div>
-                        <Link href="/practice/problems" className="text-xs text-slate-500 hover:text-slate-900">← Problems</Link>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <h1 className="font-display text-2xl font-bold text-slate-900">{problem.title}</h1>
-                            {solved && <span className="chip-success text-xs">Solved</span>}
+        <main className="min-h-screen bg-slate-100">
+            {/* Workspace top bar */}
+            <div className="border-b border-slate-200 bg-white">
+                <div className="container-page flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/practice/problems"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                        >
+                            ← Problems
+                        </Link>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h1 className="font-display text-lg font-bold leading-tight text-slate-900">{problem.title}</h1>
+                                {solved && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                        ✓ Solved
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${difficultyPill(problem.difficulty)}`}>
+                                    {problem.difficulty}
+                                </span>
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/15">
+                                    {patternMeta(problem.primaryPattern as any)?.label || problem.primaryPattern}
+                                </span>
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                    {problem.kind}
+                                </span>
+                            </div>
                         </div>
-                        <p className="mt-1 text-xs uppercase tracking-wider text-slate-400">
-                            {problem.kind} · {problem.difficulty} · {patternMeta(problem.primaryPattern as any)?.label}
-                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div ref={horizSplitRef} className="container-page flex flex-col items-stretch gap-3 py-5 lg:flex-row lg:gap-0">
+                {/* ───────────── Left: problem panel ───────────── */}
+                <div
+                    className={`flex h-auto min-h-[24rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem] ${maximized ? "lg:hidden" : ""}`}
+                    style={isLgUp && !maximized ? { width: `${leftPaneSize}%`, flexBasis: `${leftPaneSize}%`, flexShrink: 0 } : undefined}
+                >
+                    {/* Tabs */}
+                    <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 px-3 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {([
+                            ["desc", "Description"],
+                            ["hints", problem.hints.length ? `Hints (${problem.hints.length})` : "Hints"],
+                            ["editorial", "Editorial"],
+                            ["solutions", "Solutions"],
+                            ["discussion", "Discuss"],
+                        ] as const).map(([key, label]) => (
+                            <button
+                                key={key}
+                                onClick={() => setTab(key)}
+                                className={`relative shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium transition ${
+                                    tab === key ? "text-primary-700" : "text-slate-500 hover:text-slate-800"
+                                }`}
+                            >
+                                {label}
+                                {tab === key && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary-600" />}
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Revision banner */}
-                    {solved && progress?.dueAt && (
-                        <Card intent="info" className="p-3 text-xs">
-                            Next revision scheduled for {new Date(progress.dueAt).toLocaleDateString("en-IN")} (in
-                            {" "}{progress.intervalDays} day{progress.intervalDays === 1 ? "" : "s"}). We&apos;ll resurface it in your Revision Radar.
-                        </Card>
-                    )}
-
-                    <Card className="p-5">
-                        <FormattedContent html={problem.statementHtml} />
-                        {problem.constraintsHtml && (
-                            <div className="mt-4 border-t border-slate-100 pt-4">
-                                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Constraints</p>
-                                <FormattedContent html={problem.constraintsHtml} className="mt-1 text-sm" />
+                    <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+                        {/* Revision banner (always shown when due) */}
+                        {solved && progress?.dueAt && (
+                            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs text-sky-800">
+                                <span className="font-semibold">Revision Radar:</span> next review on{" "}
+                                {new Date(progress.dueAt).toLocaleDateString("en-IN")} (in {progress.intervalDays} day
+                                {progress.intervalDays === 1 ? "" : "s"}).
                             </div>
                         )}
-                    </Card>
 
-                    {/* SQL schema */}
-                    {problem.kind === "sql" && problem.sql && (
-                        <Card className="p-5">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Schema</p>
-                            <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{problem.sql.schemaSql}</pre>
-                        </Card>
-                    )}
+                        {tab === "desc" && (
+                            <>
+                                <FormattedContent html={problem.statementHtml} className="prose-sm" />
 
-                    {/* Samples */}
-                    {problem.samples.length > 0 && (
-                        <Card className="p-5 space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Examples</p>
-                            {problem.samples.map((s, i) => (
-                                <div key={i} className="rounded-lg border border-slate-200 p-3 text-sm">
-                                    <p className="text-slate-500">Input</p>
-                                    <pre className="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs">{s.input}</pre>
-                                    <p className="mt-2 text-slate-500">Output</p>
-                                    <pre className="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs">{s.expectedOutput}</pre>
-                                    {s.explanation && <p className="mt-2 text-xs text-slate-500">{s.explanation}</p>}
-                                </div>
-                            ))}
-                        </Card>
-                    )}
-
-                    {/* Pattern Lens — USP */}
-                    <Card className="p-5">
-                        <p className="text-sm font-semibold text-slate-900">🔍 Pattern Lens</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                            Before you peek at the editorial — which pattern is this? Recognising patterns is the real interview skill.
-                        </p>
-                        {!lensResult ? (
-                            <div className="mt-3 space-y-2">
-                                {lensChoices.map((p) => (
-                                    <label key={p} className="flex items-center gap-2 text-sm">
-                                        <input type="radio" name="lens" value={p} checked={lensChoice === p} onChange={() => setLensChoice(p)} />
-                                        <span>{patternMeta(p as any)?.label || p}</span>
-                                    </label>
-                                ))}
-                                <Button variant="outline" size="sm" disabled={!lensChoice || !isAuthenticated} onClick={answerLens}>
-                                    {isAuthenticated ? "Check my guess" : "Sign in to use Pattern Lens"}
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className={`mt-3 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
-                                {lensResult.correct ? "✓ Spot on — " : "✗ Not quite — it's "}
-                                <strong>{patternMeta(lensResult.correctPattern as any)?.label}</strong>.
-                                {" "}This counts toward your pattern-recognition score on the Mastery Map.
-                            </div>
-                        )}
-                    </Card>
-
-                    {/* Hints */}
-                    {problem.hints.length > 0 && (
-                        <Card className="p-5">
-                            <p className="text-sm font-semibold text-slate-900">Hints</p>
-                            <div className="mt-2 space-y-2">
-                                {problem.hints.slice(0, revealedHints).map((h) => (
-                                    <div key={h.id} className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{h.text}</div>
-                                ))}
-                                {revealedHints < problem.hints.length && (
-                                    <Button variant="ghost" size="sm" onClick={() => setRevealedHints((n) => n + 1)}>
-                                        Reveal hint {revealedHints + 1} of {problem.hints.length}
-                                    </Button>
-                                )}
-                            </div>
-                        </Card>
-                    )}
-
-                    {/* Editorial (gated behind a click so Pattern Lens stays meaningful) */}
-                    {problem.editorialHtml && (
-                        <Card className="p-5">
-                            {!showEditorial ? (
-                                <Button variant="outline" size="sm" onClick={() => setShowEditorial(true)}>
-                                    Show editorial
-                                </Button>
-                            ) : (
-                                <>
-                                    <p className="text-sm font-semibold text-slate-900 mb-2">Editorial</p>
-                                    <FormattedContent html={problem.editorialHtml} className="text-sm" />
-                                </>
-                            )}
-                        </Card>
-                    )}
-                </div>
-
-                {/* Right: editor + run */}
-                <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-                    <Card className="overflow-hidden p-0">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
-                            {problem.kind === "dsa" ? (
-                                <select
-                                    className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                                    value={language}
-                                    onChange={(e) => onLanguageChange(e.target.value as CodeLanguage)}
-                                >
-                                    {problem.languages.map((l) => (
-                                        <option key={l} value={l}>{l}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <span className="text-sm font-medium text-slate-600">SQL</span>
-                            )}
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => submit("run")} isLoading={running}>
-                                    Run
-                                </Button>
-                                <Button variant="primary" size="sm" onClick={() => submit("submit")} isLoading={running}>
-                                    Submit
-                                </Button>
-                            </div>
-                        </div>
-                        <MonacoEditor
-                            height="420px"
-                            language={MONACO_LANG[language] || "plaintext"}
-                            theme="vs-dark"
-                            value={code}
-                            onChange={(v) => setCode(v || "")}
-                            options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, automaticLayout: true }}
-                        />
-                    </Card>
-
-                    {/* Result */}
-                    {result && (
-                        <Card className={`p-4 border ${verdictTone(result.verdict)}`}>
-                            <div className="flex items-center justify-between">
-                                <p className="font-semibold">{verdictLabel(result.verdict)}</p>
-                                <p className="text-sm">
-                                    {result.passedCount}/{result.totalCount} tests
-                                    {result.runtimeMs ? ` · ${result.runtimeMs}ms` : ""}
-                                </p>
-                            </div>
-                            {result.accepted && result.grade != null && (
-                                <p className="mt-1 text-xs">
-                                    Scheduled into Revision Radar (recall grade {result.grade}/5). We&apos;ll bring it back before you forget.
-                                </p>
-                            )}
-                            <div className="mt-3 space-y-2">
-                                {result.results.filter((r) => !r.isHidden).map((r) => (
-                                    <div key={r.index} className="rounded border border-current/20 bg-white/60 p-2 text-xs">
-                                        <p className={r.passed ? "text-emerald-700" : "text-rose-700"}>
-                                            Test {r.index + 1}: {r.passed ? "passed" : "failed"}
-                                        </p>
-                                        {!r.passed && r.actualOutput && (
-                                            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-slate-700">{String(r.actualOutput).slice(0, 600)}</pre>
-                                        )}
+                                {problem.constraintsHtml && (
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Constraints</p>
+                                        <FormattedContent html={problem.constraintsHtml} className="mt-1 text-sm" />
                                     </div>
-                                ))}
-                                {result.results.some((r) => r.isHidden) && (
-                                    <p className="text-xs opacity-70">+ hidden tests evaluated</p>
+                                )}
+
+                                {/* SQL schema */}
+                                {problem.kind === "sql" && problem.sql && (
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Schema</p>
+                                        <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-950 p-3 font-mono text-xs leading-relaxed text-slate-100">{problem.sql.schemaSql}</pre>
+                                    </div>
+                                )}
+
+                                {/* Examples */}
+                                {problem.samples.length > 0 && (
+                                    <div className="space-y-3">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Examples</p>
+                                        {problem.samples.map((s, i) => (
+                                            <div key={i} className="overflow-hidden rounded-xl border border-slate-200">
+                                                <div className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-500">
+                                                    Example {i + 1}
+                                                </div>
+                                                <div className="space-y-2 p-3 text-sm">
+                                                    <div>
+                                                        <span className="text-xs font-medium text-slate-500">Input</span>
+                                                        <pre className="mt-1 overflow-x-auto rounded-lg bg-slate-50 p-2 font-mono text-xs">{s.input}</pre>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs font-medium text-slate-500">Output</span>
+                                                        <pre className="mt-1 overflow-x-auto rounded-lg bg-slate-50 p-2 font-mono text-xs">{s.expectedOutput}</pre>
+                                                    </div>
+                                                    {s.explanation && <p className="text-xs text-slate-500">{s.explanation}</p>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Pattern Lens — USP */}
+                                <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+                                    <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-900">
+                                        <span>🔍</span> Pattern Lens
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-violet-700/80">
+                                        Before the editorial — which pattern is this? Recognising patterns is the real interview skill.
+                                    </p>
+                                    {!lensResult ? (
+                                        <div className="mt-3 space-y-1.5">
+                                            {lensChoices.map((p) => (
+                                                <label
+                                                    key={p}
+                                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                                                        lensChoice === p
+                                                            ? "border-violet-400 bg-white"
+                                                            : "border-transparent bg-white/60 hover:bg-white"
+                                                    }`}
+                                                >
+                                                    <input type="radio" name="lens" value={p} checked={lensChoice === p} onChange={() => setLensChoice(p)} className="accent-violet-600" />
+                                                    <span>{patternMeta(p as any)?.label || p}</span>
+                                                </label>
+                                            ))}
+                                            <Button variant="outline" size="sm" disabled={!lensChoice || !isAuthenticated} onClick={answerLens} className="mt-1">
+                                                {isAuthenticated ? "Check my guess" : "Sign in to use Pattern Lens"}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className={`mt-3 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
+                                            {lensResult.correct ? "✓ Spot on — " : "✗ Not quite — it's "}
+                                            <strong>{patternMeta(lensResult.correctPattern as any)?.label}</strong>. This counts toward your pattern-recognition score on the Mastery Map.
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {tab === "hints" && (
+                            <div className="space-y-2">
+                                {problem.hints.length === 0 ? (
+                                    <p className="text-sm text-slate-500">No hints for this problem — try the Pattern Lens or a mentor rescue.</p>
+                                ) : (
+                                    <>
+                                        {problem.hints.slice(0, revealedHints).map((h, i) => (
+                                            <div key={h.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                                <span className="font-semibold">Hint {i + 1}.</span> {h.text}
+                                            </div>
+                                        ))}
+                                        {revealedHints < problem.hints.length ? (
+                                            <Button variant="outline" size="sm" onClick={() => setRevealedHints((n) => n + 1)}>
+                                                Reveal hint {revealedHints + 1} of {problem.hints.length}
+                                            </Button>
+                                        ) : (
+                                            <p className="text-xs text-slate-400">All hints revealed.</p>
+                                        )}
+                                    </>
                                 )}
                             </div>
-                        </Card>
-                    )}
+                        )}
 
-                    {/* Mentor Rescue — USP */}
-                    <Card className="p-4">
+                        {tab === "editorial" && (
+                            <div>
+                                {!problem.editorialHtml ? (
+                                    <p className="text-sm text-slate-500">No editorial published yet.</p>
+                                ) : !showEditorial ? (
+                                    <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
+                                        <p className="text-sm text-slate-500">Try the Pattern Lens first — then reveal the full solution walkthrough.</p>
+                                        <Button variant="primary" size="sm" onClick={() => setShowEditorial(true)} className="mt-3">
+                                            Reveal editorial
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <FormattedContent html={problem.editorialHtml} className="prose-sm" />
+                                )}
+                            </div>
+                        )}
+
+                        {tab === "solutions" && (
+                            <PracticeCommunity
+                                mode="solutions"
+                                problemId={problem.id}
+                                slug={problem.slug}
+                                firebaseUser={firebaseUser}
+                                isAuthenticated={isAuthenticated}
+                            />
+                        )}
+
+                        {tab === "discussion" && (
+                            <PracticeCommunity
+                                mode="discussion"
+                                problemId={problem.id}
+                                slug={problem.slug}
+                                firebaseUser={firebaseUser}
+                                isAuthenticated={isAuthenticated}
+                            />
+                        )}
+                    </div>
+
+                    {/* Mentor rescue footer */}
+                    <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-3">
                         {rescueDone ? (
                             <p className="text-sm text-emerald-700">{rescueDone}</p>
                         ) : !rescueOpen ? (
-                            <button onClick={() => (isAuthenticated ? setRescueOpen(true) : router.push(`/login?redirect=/practice/problems/${slug}`))} className="text-sm font-medium text-primary-700 hover:underline">
+                            <button
+                                onClick={() => (isAuthenticated ? setRescueOpen(true) : router.push(`/login?redirect=/practice/problems/${slug}`))}
+                                className="text-sm font-medium text-primary-700 hover:underline"
+                            >
                                 🆘 Stuck? Ask a mentor for a targeted hint
                             </button>
                         ) : (
@@ -431,9 +681,235 @@ export default function SolveProblemPage() {
                                 </div>
                             </div>
                         )}
-                    </Card>
+                    </div>
+                </div>
+
+                {/* Horizontal resize handle (lg+, not maximized) */}
+                {isLgUp && !maximized && (
+                    <div
+                        onPointerDown={startHorizDrag}
+                        className="group hidden w-3 shrink-0 cursor-col-resize items-center justify-center lg:flex"
+                        title="Drag to resize"
+                    >
+                        <span className="h-12 w-1 rounded-full bg-slate-300 transition group-hover:bg-primary-400" />
+                    </div>
+                )}
+
+                {/* ───────────── Right: editor + console ───────────── */}
+                <div
+                    ref={rightColRef}
+                    className={
+                        maximized
+                            ? "fixed inset-0 z-[60] flex flex-col gap-0 bg-slate-100 p-3"
+                            : "flex h-[78vh] min-h-[26rem] flex-1 flex-col gap-0 lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem]"
+                    }
+                    style={isLgUp && !maximized ? { width: `${100 - leftPaneSize}%` } : undefined}
+                >
+                    {/* Editor */}
+                    <div
+                        className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#1e1e1e] shadow-sm"
+                        style={{ flexBasis: `${editorPaneSize}%`, flexGrow: 0, flexShrink: 1 }}
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+                            {problem.kind === "dsa" ? (
+                                <div className="relative">
+                                    <select
+                                        className="appearance-none rounded-lg border border-white/15 bg-white/5 py-1.5 pl-3 pr-8 text-sm font-medium text-slate-200 outline-none focus:border-primary-400"
+                                        value={language}
+                                        onChange={(e) => onLanguageChange(e.target.value as CodeLanguage)}
+                                    >
+                                        {problem.languages.map((l) => (
+                                            <option key={l} value={l} className="text-slate-900">{LANG_LABEL[l] || l}</option>
+                                        ))}
+                                    </select>
+                                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">▾</span>
+                                </div>
+                            ) : (
+                                <span className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200">SQL</span>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={resetCode}
+                                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+                                    title="Reset to starter code"
+                                >
+                                    ↺ Reset
+                                </button>
+                                <button
+                                    onClick={() => setMaximized((m) => !m)}
+                                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+                                    title={maximized ? "Exit fullscreen (Esc)" : "Maximize editor"}
+                                    aria-label={maximized ? "Exit fullscreen" : "Maximize editor"}
+                                >
+                                    {maximized ? "⤡ Minimize" : "⤢ Maximize"}
+                                </button>
+                                <Button variant="outline" size="sm" onClick={() => submit("run")} isLoading={running} className="!border-white/20 !bg-white/5 !text-slate-100 hover:!bg-white/10">
+                                    Run
+                                </Button>
+                                <Button variant="primary" size="sm" onClick={() => submit("submit")} isLoading={running}>
+                                    Submit
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1">
+                            <MonacoEditor
+                                key={`${language}-${resetTick}`}
+                                height="100%"
+                                language={MONACO_LANG[language] || "plaintext"}
+                                theme="vs-dark"
+                                value={code}
+                                onChange={onCodeChange}
+                                options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 } }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Vertical resize handle (editor | console) */}
+                    <div
+                        onPointerDown={startVertDrag}
+                        className="group flex h-3 shrink-0 cursor-row-resize items-center justify-center"
+                        title="Drag to resize"
+                    >
+                        <span className="h-1 w-12 rounded-full bg-slate-300 transition group-hover:bg-primary-400" />
+                    </div>
+
+                    {/* Console / results */}
+                    <div
+                        className="flex min-h-[5rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                        style={{ flexBasis: `${100 - editorPaneSize}%`, flexGrow: 1, flexShrink: 1 }}
+                    >
+                        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+                            <p className="text-sm font-semibold text-slate-700">Console</p>
+                            {result && (
+                                <div className="flex items-center gap-2">
+                                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-200">
+                                        <span
+                                            className={`block h-full rounded-full ${result.accepted ? "bg-emerald-500" : "bg-rose-500"}`}
+                                            style={{ width: `${Math.round(passRatio * 100)}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-slate-500">
+                                        {result.passedCount}/{result.totalCount}{result.runtimeMs ? ` · ${result.runtimeMs}ms` : ""}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-4 py-3">
+                            {running && !result ? (
+                                <p className="flex items-center gap-2 text-sm text-slate-500">
+                                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-primary-600" />
+                                    Running your code…
+                                </p>
+                            ) : !result ? (
+                                <p className="text-sm text-slate-400">Run your code to see sample results here. Submit to run against all hidden tests.</p>
+                            ) : (
+                                <>
+                                    <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${verdictTone(result.verdict)}`}>
+                                        <span>{result.accepted ? "✓" : result.verdict === "pending" ? "⏳" : "✕"}</span>
+                                        {verdictLabel(result.verdict)}
+                                    </div>
+                                    {result.accepted && result.grade != null && (
+                                        <p className="mt-2 text-xs text-emerald-700">
+                                            Scheduled into Revision Radar (recall grade {result.grade}/5) — we&apos;ll bring it back before you forget.
+                                        </p>
+                                    )}
+                                    <div className="mt-3 space-y-2">
+                                        {visibleResults.map((r) => (
+                                            <div key={r.index} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2.5 text-xs">
+                                                <p className={`font-semibold ${r.passed ? "text-emerald-700" : "text-rose-700"}`}>
+                                                    {r.passed ? "✓" : "✕"} Test {r.index + 1}: {r.passed ? "passed" : "failed"}
+                                                </p>
+                                                {!r.passed && (
+                                                    <div className="mt-1.5 grid gap-1.5">
+                                                        {r.input != null && (
+                                                            <div>
+                                                                <span className="text-slate-400">Input</span>
+                                                                <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap rounded bg-white p-1.5 font-mono text-slate-700">{String(r.input).slice(0, 600)}</pre>
+                                                            </div>
+                                                        )}
+                                                        {r.expectedOutput != null && (
+                                                            <div>
+                                                                <span className="text-slate-400">Expected</span>
+                                                                <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap rounded bg-white p-1.5 font-mono text-emerald-700">{String(r.expectedOutput).slice(0, 600)}</pre>
+                                                            </div>
+                                                        )}
+                                                        {r.actualOutput != null && (
+                                                            <div>
+                                                                <span className="text-slate-400">Your output</span>
+                                                                <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap rounded bg-white p-1.5 font-mono text-rose-700">{String(r.actualOutput).slice(0, 600)}</pre>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {hiddenCount > 0 && (
+                                            <p className="text-xs text-slate-400">+ {hiddenCount} hidden test{hiddenCount === 1 ? "" : "s"} evaluated</p>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {/* ───────────── Success celebration ───────────── */}
+            {celebrate && (
+                <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={dismissCelebrate}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " " || e.key === "Escape") dismissCelebrate(); }}
+                    className={`fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-slate-900/30 backdrop-blur-[2px] ${celebrateOut ? "practice-fade-out" : "practice-fade-in"}`}
+                >
+                    {/* Confetti */}
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                        {Array.from({ length: 70 }).map((_, i) => {
+                            const colors = ["#22c55e", "#06b6d4", "#f59e0b", "#ec4899", "#8b5cf6", "#3b82f6", "#ef4444", "#14b8a6"];
+                            const left = Math.random() * 100;
+                            const delay = Math.random() * 0.9;
+                            const duration = 2.4 + Math.random() * 1.8;
+                            const size = 6 + Math.random() * 9;
+                            const round = i % 4 === 0;
+                            const sway = i % 2 === 0 ? "practice-confetti" : "practice-confetti-sway";
+                            return (
+                                <span
+                                    key={i}
+                                    className={`${sway} absolute top-[-10%] ${round ? "rounded-full" : "rounded-sm"}`}
+                                    style={{
+                                        left: `${left}%`,
+                                        width: size,
+                                        height: round ? size : size * 1.6,
+                                        background: colors[i % colors.length],
+                                        animationDelay: `${delay}s`,
+                                        animationDuration: `${duration}s`,
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
+
+                    {/* Badge */}
+                    <div className={`relative rounded-3xl border border-emerald-200 bg-white/95 px-10 py-8 text-center shadow-2xl ${celebrateOut ? "practice-badge-out" : "practice-pop"}`}>
+                        <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
+                            <span className="practice-ring absolute inset-0 rounded-full bg-emerald-400/40" />
+                            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                                <svg viewBox="0 0 24 24" className="practice-check h-9 w-9 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                            </span>
+                        </div>
+                        <p className="mt-4 font-display text-2xl font-bold text-slate-900">Accepted! 🎉</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                            {result?.passedCount}/{result?.totalCount} tests passed
+                            {result?.grade != null ? " · scheduled for revision" : ""}
+                        </p>
+                        <p className="mt-4 text-xs text-slate-400">Click anywhere to continue</p>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

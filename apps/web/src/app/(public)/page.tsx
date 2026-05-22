@@ -342,9 +342,9 @@ export default function HomePage() {
                                 })}
                             </div>
 
-                            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                            <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                                 <Link href={activePanel.ctaPrimary.href}>
-                                    <Button size="lg" className="w-full sm:w-auto">
+                                    <Button size="lg">
                                         {activePanel.ctaPrimary.label}
                                     </Button>
                                 </Link>
@@ -352,7 +352,7 @@ export default function HomePage() {
                                     <Button
                                         variant="outline"
                                         size="lg"
-                                        className="w-full !border-white/20 !bg-white/10 !text-white hover:!bg-white hover:!text-slate-950 sm:w-auto"
+                                        className="!border-white/20 !bg-white/10 !text-white hover:!bg-white hover:!text-slate-950"
                                     >
                                         {activePanel.ctaSecondary.label}
                                     </Button>
@@ -824,7 +824,7 @@ export default function HomePage() {
                 <div className="container-page">
                     <div className="landing-motion max-w-3xl" data-motion>
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-200">Voices from the floor</p>
-                        <h2 className="font-display mt-2 text-3xl font-bold sm:text-4xl">
+                        <h2 className="font-display mt-2 text-3xl font-bold text-white sm:text-4xl">
                             Students, teachers, and institutes — all in one place.
                         </h2>
                     </div>
