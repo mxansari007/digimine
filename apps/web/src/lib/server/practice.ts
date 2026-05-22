@@ -5,7 +5,6 @@ import {
     masteryLevel,
     scheduleRevision,
     type PracticeDifficulty,
-    type PracticePattern,
     type PracticeProblem,
 } from "@digimine/types";
 import { adminDb } from "@/lib/firebase/admin";

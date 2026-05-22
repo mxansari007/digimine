@@ -29,7 +29,6 @@ function ProblemsInner() {
     const sp = useSearchParams();
     const { firebaseUser } = useAuthContext();
     const [items, setItems] = useState<Row[]>([]);
-    const [statusByProblem, setStatusByProblem] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
 
     const [kind, setKind] = useState<string>(sp?.get("kind") || "all");
