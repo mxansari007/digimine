@@ -14,7 +14,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribed }: ProductCardProps) {
-    const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
+    // Boolean(...) is essential: `0 && <span>` renders a literal "0" in JSX.
+    const hasDiscount = Boolean(product.compareAtPrice && product.compareAtPrice > product.price);
+    const typeLabel = (product.type || "").replace(/_/g, " ");
 
     const href = product.type === 'test_series' ? `/tests/${product.slug}` : `/products/${product.slug}`;
 
@@ -78,7 +80,7 @@ export function ProductCard({ product, rating, reviewCount, isOwned, isSubscribe
                     {/* Category - Hidden on mobile */}
                     <div className="mb-1 hidden md:block">
                         <span className="inline-block text-[10px] font-bold tracking-widest text-primary-700 uppercase bg-primary-50 px-2 py-1 rounded-md border border-primary-100">
-                            {product.type}
+                            {typeLabel}
                         </span>
                     </div>
 
