@@ -1,8 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FacebookPixel } from "@/components/common";
+import {
+    DEFAULT_OG_IMAGE,
+    SITE_LOCALE,
+    SITE_NAME,
+    SITE_TAGLINE,
+    SITE_TWITTER,
+    absoluteUrl,
+    jsonLdScript,
+    organizationJsonLd,
+    siteOrigin,
+    websiteJsonLd,
+} from "@/lib/seo";
 
 const inter = Inter({
     subsets: ["latin"],
@@ -14,44 +26,78 @@ const outfit = Outfit({
     variable: "--font-outfit",
 });
 
+export const viewport: Viewport = {
+    themeColor: "#0d9488",
+    colorScheme: "light",
+    width: "device-width",
+    initialScale: 1,
+};
+
 export const metadata: Metadata = {
+    metadataBase: new URL(siteOrigin()),
     title: {
-        default: "Digimine - Digital Products Marketplace",
-        template: "%s | Digimine",
+        default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+        template: `%s · ${SITE_NAME}`,
     },
     description:
-        "Discover and purchase premium digital products. eBooks, courses, templates, and more from creators worldwide.",
+        "Digimine is an Indian learning platform for tests, quizzes, courses, contests, and a teacher marketplace. Practice for NEET, JEE, school boards, and more.",
+    applicationName: SITE_NAME,
     keywords: [
-        "digital products",
-        "ebooks",
+        "mock tests",
+        "online quizzes",
         "online courses",
-        "templates",
-        "marketplace",
+        "NEET preparation",
+        "JEE preparation",
+        "school tests",
+        "teacher marketplace",
+        "coding tests",
+        "study material India",
     ],
-    authors: [{ name: "Digimine" }],
+    authors: [{ name: SITE_NAME, url: siteOrigin() }],
+    creator: SITE_NAME,
+    publisher: SITE_NAME,
+    alternates: {
+        canonical: siteOrigin(),
+    },
     openGraph: {
         type: "website",
-        locale: "en_US",
-        url: "https://digimine.com",
-        siteName: "Digimine",
-        title: "Digimine - Digital Products Marketplace",
+        locale: SITE_LOCALE,
+        url: siteOrigin(),
+        siteName: SITE_NAME,
+        title: `${SITE_NAME} — ${SITE_TAGLINE}`,
         description:
-            "Discover and purchase premium digital products from creators worldwide.",
+            "Tests, quizzes, courses, contests, and a teacher marketplace for every kind of learner in India.",
+        images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE), width: 1200, height: 630, alt: SITE_NAME }],
     },
     twitter: {
         card: "summary_large_image",
-        title: "Digimine - Digital Products Marketplace",
+        site: SITE_TWITTER,
+        creator: SITE_TWITTER,
+        title: `${SITE_NAME} — ${SITE_TAGLINE}`,
         description:
-            "Discover and purchase premium digital products from creators worldwide.",
+            "Tests, quizzes, courses, contests, and a teacher marketplace for every kind of learner in India.",
+        images: [absoluteUrl(DEFAULT_OG_IMAGE)],
     },
     robots: {
         index: true,
         follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+            "max-video-preview": -1,
+        },
     },
     icons: {
         icon: "/favicon.ico",
         shortcut: "/favicon.ico",
         apple: "/favicon.ico",
+    },
+    formatDetection: {
+        email: false,
+        address: false,
+        telephone: false,
     },
 };
 
@@ -61,7 +107,20 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+        <html lang="en-IN" className={`${inter.variable} ${outfit.variable}`}>
+            <head>
+                {/* Site-wide JSON-LD: Organization + WebSite (sitelinks search box) */}
+                <script
+                    type="application/ld+json"
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
+                />
+                <script
+                    type="application/ld+json"
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }}
+                />
+            </head>
             <body className="font-sans antialiased">
                 <FacebookPixel />
                 <AuthProvider>

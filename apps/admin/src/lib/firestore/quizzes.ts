@@ -110,10 +110,14 @@ export async function createQuiz(data: CreateQuizInput, createdBy: string): Prom
         shuffleOptions: data.shuffleOptions ?? false,
         showExplanations: data.showExplanations ?? true,
         linkedCourseIds: data.linkedCourseIds || [],
+        // Admin-authored public catalog markers — required so the public list
+        // query (`teacherId == ""`) matches this doc.
+        teacherId: "",
+        isDeleted: false,
         createdAt: now.toDate(),
         updatedAt: now.toDate(),
         createdBy,
-    };
+    } as Omit<Quiz, "id">;
 
     await setDoc(quizRef, sanitizeData(quizData));
     return quizId;

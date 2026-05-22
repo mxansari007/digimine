@@ -21,6 +21,7 @@ import type {
     CreateQuizQuestionInput,
     QuestionBankFilters,
     QuestionBankQuestion,
+    QuestionBankType,
     QuestionType,
     UpdateQuestionBankQuestionInput,
 } from "@digimine/types";
@@ -60,7 +61,7 @@ function sanitizeData(data: any): any {
 }
 
 function normalizeOptions(data: Pick<CreateQuestionBankQuestionInput, "type" | "options">) {
-    if (data.type !== "mcq" || !data.options) return undefined;
+    if (!isChoiceBankType(data.type) || !data.options) return undefined;
     return data.options.map((option) => ({
         ...option,
         id: (option as { id?: string }).id || uuidv4(),
@@ -71,6 +72,31 @@ function normalizeTags(tags?: string[]) {
     return Array.from(new Set((tags || []).map((tag) => tag.trim()).filter(Boolean)));
 }
 
+function isCodeBankType(type: QuestionBankType) {
+    return type === "code" || type === "coding";
+}
+
+function isTextBankType(type: QuestionBankType) {
+    return type === "text_input" || type === "nat" || type === "numerical" || type === "subjective";
+}
+
+function isChoiceBankType(type: QuestionBankType) {
+    return type === "mcq" || type === "msq" || type === "true_false" || type === "aptitude";
+}
+
+function toQuestionType(type: QuestionBankType): QuestionType {
+    if (isCodeBankType(type)) return "code";
+    if (isTextBankType(type)) return "text_input";
+    return "mcq";
+}
+
+function toQuizQuestionType(type: QuestionBankType): Exclude<QuestionType, "code"> {
+    if (isCodeBankType(type)) {
+        throw new Error("Code questions can only be used in full tests.");
+    }
+    return isTextBankType(type) ? "text_input" : "mcq";
+}
+
 export async function getQuestionBankQuestions(filters?: QuestionBankFilters): Promise<QuestionBankQuestion[]> {
     const snapshot = await getDocs(query(questionBankCollection, orderBy("createdAt", "desc")));
     const search = filters?.search?.trim().toLowerCase() || "";
@@ -78,8 +104,8 @@ export async function getQuestionBankQuestions(filters?: QuestionBankFilters): P
 
     return snapshot.docs
         .map((item) => mapDoc<QuestionBankQuestion>(item))
-        .filter((question) => filters?.includeCode || question.type !== "code")
-        .filter((question) => !filters?.type || filters.type === "all" || question.type === filters.type)
+        .filter((question) => filters?.includeCode || !isCodeBankType(question.type))
+        .filter((question) => !filters?.type || filters.type === "all" || toQuestionType(question.type) === toQuestionType(filters.type))
         .filter((question) => !filters?.difficulty || filters.difficulty === "all" || question.difficulty === filters.difficulty)
         .filter((question) => !filters?.status || filters.status === "all" || question.status === filters.status)
         .filter((question) => !filters?.topic || question.topic.toLowerCase() === filters.topic.toLowerCase())
@@ -115,7 +141,7 @@ export async function createQuestionBankQuestion(data: CreateQuestionBankQuestio
         type: data.type,
         questionText: data.questionText,
         options: normalizeOptions(data),
-        correctAnswer: data.type === "text_input" ? data.correctAnswer?.trim() : undefined,
+        correctAnswer: isTextBankType(data.type) ? data.correctAnswer?.trim() : undefined,
         explanation: data.explanation || undefined,
         marks: Number(data.marks) || 1,
         negativeMarks: Number(data.negativeMarks) || 0,
@@ -125,12 +151,12 @@ export async function createQuestionBankQuestion(data: CreateQuestionBankQuestio
         subcategory: data.subcategory?.trim() || undefined,
         tags: normalizeTags(data.tags),
         status: data.status || "draft",
-        supportedLanguages: data.type === "code" ? data.supportedLanguages || [] : undefined,
-        starters: data.type === "code" ? data.starters || [] : undefined,
-        testCases: data.type === "code" ? data.testCases || [] : undefined,
-        codeScoringMode: data.type === "code" ? data.codeScoringMode || "all_or_nothing" : undefined,
-        timeLimit: data.type === "code" ? data.timeLimit || 2 : undefined,
-        memoryLimit: data.type === "code" ? data.memoryLimit || 128 : undefined,
+        supportedLanguages: isCodeBankType(data.type) ? data.supportedLanguages || [] : undefined,
+        starters: isCodeBankType(data.type) ? data.starters || [] : undefined,
+        testCases: isCodeBankType(data.type) ? data.testCases || [] : undefined,
+        codeScoringMode: isCodeBankType(data.type) ? data.codeScoringMode || "all_or_nothing" : undefined,
+        timeLimit: isCodeBankType(data.type) ? data.timeLimit || 2 : undefined,
+        memoryLimit: isCodeBankType(data.type) ? data.memoryLimit || 128 : undefined,
         passageGroup: data.passageGroup?.trim() || undefined,
         passage: data.passage || undefined,
         usageCount: 0,
@@ -145,7 +171,7 @@ export async function createQuestionBankQuestion(data: CreateQuestionBankQuestio
 
 export async function updateQuestionBankQuestion(data: UpdateQuestionBankQuestionInput): Promise<void> {
     const { id, ...updateData } = data;
-    const options = updateData.type === "mcq" && updateData.options
+    const options = updateData.type && isChoiceBankType(updateData.type) && updateData.options
         ? updateData.options.map((option) => ({ ...option, id: (option as { id?: string }).id || uuidv4() }))
         : updateData.options;
 
@@ -179,13 +205,15 @@ export async function incrementQuestionBankUsage(questionIds: string[]): Promise
 }
 
 function baseQuestionPayload(question: QuestionBankQuestion) {
+    const type = toQuestionType(question.type);
+
     return {
-        type: question.type,
+        type,
         questionText: question.questionText,
-        options: question.type === "mcq"
+        options: type === "mcq"
             ? question.options?.map((option) => ({ text: option.text, isCorrect: option.isCorrect }))
             : undefined,
-        correctAnswer: question.type === "text_input" ? question.correctAnswer : undefined,
+        correctAnswer: type === "text_input" ? question.correctAnswer : undefined,
         explanation: question.explanation || undefined,
         marks: question.marks,
         negativeMarks: question.negativeMarks || undefined,
@@ -208,24 +236,24 @@ export function questionBankToTestQuestionInput(
         ...baseQuestionPayload(question),
         order,
         sectionId: sectionId || undefined,
-        supportedLanguages: question.type === "code" ? question.supportedLanguages : undefined,
-        starters: question.type === "code" ? question.starters : undefined,
-        testCases: question.type === "code" ? question.testCases : undefined,
-        codeScoringMode: question.type === "code" ? question.codeScoringMode : undefined,
-        timeLimit: question.type === "code" ? question.timeLimit : undefined,
-        memoryLimit: question.type === "code" ? question.memoryLimit : undefined,
+        supportedLanguages: isCodeBankType(question.type) ? question.supportedLanguages : undefined,
+        starters: isCodeBankType(question.type) ? question.starters : undefined,
+        testCases: isCodeBankType(question.type) ? question.testCases : undefined,
+        codeScoringMode: isCodeBankType(question.type) ? question.codeScoringMode : undefined,
+        timeLimit: isCodeBankType(question.type) ? question.timeLimit : undefined,
+        memoryLimit: isCodeBankType(question.type) ? question.memoryLimit : undefined,
     };
 }
 
 export function questionBankToQuizQuestionInput(question: QuestionBankQuestion, quizId: string, order: number): CreateQuizQuestionInput {
-    if (question.type === "code") {
+    if (isCodeBankType(question.type)) {
         throw new Error("Code questions can only be used in full tests.");
     }
 
     return {
         quizId,
         ...(baseQuestionPayload(question) as Omit<CreateQuizQuestionInput, "quizId" | "type"> & { type: Exclude<QuestionType, "code"> }),
-        type: question.type,
+        type: toQuizQuestionType(question.type),
         order,
     };
 }

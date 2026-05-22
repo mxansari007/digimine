@@ -86,7 +86,7 @@ export default function MyTestSeriesPage() {
         [attempts, attemptPage, attemptPageSize]
     );
 
-    if (loading) return <PageLoading />;
+    if (loading) return <PageLoading variant="inline" />;
 
     const attemptColumns: DataTableColumn<TestAttempt>[] = [
         {
@@ -153,7 +153,7 @@ export default function MyTestSeriesPage() {
                 if (attempt.status === 'completed' || attempt.status === 'timed_out') {
                     return (
                         <Link href={`/dashboard/tests/results/${attempt.id}`}>
-                            <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 font-bold">
+                            <Button variant="ghost" size="sm" className="text-primary-700 hover:text-primary-800 font-bold">
                                 View Result
                             </Button>
                         </Link>
@@ -181,7 +181,7 @@ export default function MyTestSeriesPage() {
                     <h3 className="text-xl font-bold text-gray-900">No Test Series Found</h3>
                     <p className="text-gray-500 max-w-sm mt-2">You haven&apos;t purchased any test series yet. Explore our catalog to find the right practice tests for you.</p>
                     <Link href="/tests" className="mt-6">
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-8">
+                        <Button className="px-8">
                             Explore Test Series
                         </Button>
                     </Link>
@@ -210,7 +210,7 @@ export default function MyTestSeriesPage() {
                                     <div className="w-2/3 p-6 flex flex-col justify-between bg-white">
                                         <div>
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">
                                                     {series.category || "General"}
                                                 </span>
                                             </div>
@@ -226,7 +226,7 @@ export default function MyTestSeriesPage() {
                                                 </span>
                                             </div>
                                             <Link href={`/tests/${series.slug}`}>
-                                                <Button size="sm" className="bg-gray-900 hover:bg-black text-white px-6">
+                                                <Button size="sm" className="px-6">
                                                     Open Series
                                                 </Button>
                                             </Link>

@@ -4,12 +4,17 @@ import * as React from "react";
  * Card component props
  */
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-    /** Add a subtle shadow */
+    /** Add a subtle shadow (default true). */
     elevated?: boolean;
-    /** Add hover effect */
+    /** Add hover lift + brand tint. */
     hoverable?: boolean;
     /** Padding size */
-    padding?: "none" | "sm" | "md" | "lg";
+    padding?: "none" | "sm" | "md" | "lg" | "xl";
+    /**
+     * Semantic tint, applies a subtle background tint and matching left
+     * border. Helpful for callouts (success, warning, info, danger, accent).
+     */
+    intent?: "default" | "primary" | "success" | "warning" | "danger" | "info" | "accent";
     children: React.ReactNode;
 }
 
@@ -21,6 +26,17 @@ const paddingClasses: Record<NonNullable<CardProps["padding"]>, string> = {
     sm: "p-3",
     md: "p-4",
     lg: "p-6",
+    xl: "p-8",
+};
+
+const intentClasses: Record<NonNullable<CardProps["intent"]>, string> = {
+    default: "border-slate-200 bg-white",
+    primary: "border-primary-200 bg-primary-50/60",
+    success: "border-success-200 bg-success-50/60",
+    warning: "border-warning-200 bg-warning-50/60",
+    danger: "border-danger-200 bg-danger-50/60",
+    info: "border-info-200 bg-info-50/60",
+    accent: "border-accent-200 bg-accent-50/60",
 };
 
 /**
@@ -30,19 +46,30 @@ export function Card({
     elevated = true,
     hoverable = false,
     padding = "md",
+    intent = "default",
     children,
     className = "",
     ...props
 }: CardProps): React.JSX.Element {
-    const baseClasses = "bg-white/90 rounded-2xl border border-white/70 ring-1 ring-slate-200/70 backdrop-blur-sm transition-all duration-300";
-    const elevatedClasses = elevated ? "shadow-[0_18px_50px_rgba(15,23,42,0.08)]" : "";
+    const baseClasses =
+        "rounded-2xl border transition-[transform,box-shadow,border-color] duration-200 ease-out";
+    const elevatedClasses = elevated ? "shadow-soft-sm" : "";
     const hoverClasses = hoverable
-        ? "hover:shadow-[0_22px_60px_rgba(15,23,42,0.12)] hover:border-primary-200/80 hover:-translate-y-0.5 cursor-pointer"
+        ? "hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-soft cursor-pointer"
         : "";
 
     return (
         <div
-            className={`${baseClasses} ${elevatedClasses} ${hoverClasses} ${paddingClasses[padding]} ${className}`}
+            className={[
+                baseClasses,
+                intentClasses[intent],
+                elevatedClasses,
+                hoverClasses,
+                paddingClasses[padding],
+                className,
+            ]
+                .filter(Boolean)
+                .join(" ")}
             {...props}
         >
             {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@digimine/config";
 import type { User } from "@digimine/types";
@@ -11,21 +11,27 @@ interface UserState {
     error: Error | null;
 }
 
-/**
- * Hook to fetch and subscribe to user profile from Firestore
- */
 export function useUser(userId: string | undefined): UserState {
     const [state, setState] = useState<UserState>({
         user: null,
         loading: true,
         error: null,
     });
+    const prevUserId = useRef<string | undefined>(userId);
 
     useEffect(() => {
         if (!userId) {
             setState({ user: null, loading: false, error: null });
+            prevUserId.current = userId;
             return;
         }
+
+        // When userId changes from falsy to truthy, reset loading
+        // This prevents a flash where loading=false but user=null
+        if (prevUserId.current !== userId) {
+            setState({ user: null, loading: true, error: null });
+        }
+        prevUserId.current = userId;
 
         const unsubscribe = onSnapshot(
             doc(db, "users", userId),

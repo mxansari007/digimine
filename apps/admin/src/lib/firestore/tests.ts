@@ -149,10 +149,15 @@ export async function createTestSeries(data: CreateTestSeriesInput, createdBy: s
         allowRetake: data.allowRetake ?? false,
         shuffleQuestions: data.shuffleQuestions ?? false,
         shuffleOptions: data.shuffleOptions ?? false,
+        // Mark this doc explicitly as admin-authored public catalog content.
+        // The public catalog query filters by `teacherId == ""` so the field
+        // must exist; the Firestore rule keys public reads off this combo.
+        teacherId: "",
+        isDeleted: false,
         createdAt: now.toDate(),
         updatedAt: now.toDate(),
         createdBy,
-    };
+    } as Omit<TestSeries, "id">;
 
     await setDoc(docRef, sanitizeData(seriesData));
     return data.slug;

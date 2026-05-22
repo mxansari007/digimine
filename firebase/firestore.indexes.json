@@ -1,119 +1,450 @@
 {
     "indexes": [
         {
-            "collectionGroup": "reviews",
+            "collectionGroup": "institute_signup_logs",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "productId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "ipHash", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "ASCENDING" }
             ]
         },
         {
-            "collectionGroup": "products",
+            "collectionGroup": "articles",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "publishedAt", "order": "DESCENDING" }
             ]
         },
         {
-            "collectionGroup": "orders",
+            "collectionGroup": "articles",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "category", "order": "ASCENDING" },
+                { "fieldPath": "publishedAt", "order": "DESCENDING" }
             ]
         },
         {
-            "collectionGroup": "orders",
+            "collectionGroup": "articles",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                }
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "isFeatured", "order": "ASCENDING" },
+                { "fieldPath": "publishedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "students",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "studentId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "students",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "studentId", "order": "ASCENDING" },
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "testAttempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "testId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "testAttempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "contestId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "testAttempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "quizAttempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "quizId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizAttempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "contestId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "classes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "isArchived", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "classIds", "arrayConfig": "CONTAINS" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "category", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "category", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "quizzes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "tests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "classIds", "arrayConfig": "CONTAINS" }
             ]
         },
         {
             "collectionGroup": "tests",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
         {
-            "collectionGroup": "testAttempts",
+            "collectionGroup": "tests",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
         {
-            "collectionGroup": "testAttempts",
+            "collectionGroup": "tests",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "testId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
         {
-            "collectionGroup": "testPurchases",
+            "collectionGroup": "tests",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "seriesId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                }
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "tests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "category", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "tests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "category", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "tests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "tests",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "order", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "contests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "classIds", "arrayConfig": "CONTAINS" }
+            ]
+        },
+        {
+            "collectionGroup": "contests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "contests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "classIds", "arrayConfig": "CONTAINS" }
+            ]
+        },
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "courses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "type", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "type", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "purchaseType", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "products",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "type", "order": "ASCENDING" },
+                { "fieldPath": "purchaseType", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "orders",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "reviews",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "productId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "reviews",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "productId", "order": "ASCENDING" },
+                { "fieldPath": "userId", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "teachers",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "subscription.status", "order": "ASCENDING" },
+                { "fieldPath": "subscription.expiresAt", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "teachers",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "subscription.status", "order": "ASCENDING" },
+                { "fieldPath": "subscription.gracePeriodEndsAt", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "teachers",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "profile.phone", "order": "ASCENDING" },
+                { "fieldPath": "subscription.status", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "jobs",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "queue", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "jobs",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "queue", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
             ]
         }
     ],

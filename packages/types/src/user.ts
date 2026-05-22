@@ -1,7 +1,7 @@
 /**
  * User role types
  */
-export type UserRole = "customer" | "admin" | "super_admin";
+export type UserRole = "customer" | "admin" | "super_admin" | "teacher" | "institute_admin";
 
 /**
  * Purchase record for tracking product access and subscription expiry
@@ -34,7 +34,11 @@ export interface User {
     lastName: string | null;
     phoneNumber: string | null;
     photoURL: string | null;
-    role: UserRole;
+    /**
+     * `null` means the user has not picked a role yet. The web app forces
+     * these users through `/auth/role-select` before they can use a dashboard.
+     */
+    role: UserRole | null;
     // Legacy: string[] for backward compatibility, new: PurchaseRecord[]
     purchasedProducts: string[] | PurchaseRecord[];
     // Test purchases for quick lookup
@@ -43,6 +47,8 @@ export interface User {
     purchasedTestSeriesIds?: string[];
     createdAt: Date;
     updatedAt: Date;
+    // Enrolled classroom teacher IDs (reliable source for dashboard)
+    enrolledClassrooms?: string[];
 }
 
 /**

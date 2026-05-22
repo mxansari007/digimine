@@ -33,7 +33,7 @@ export async function POST(req: Request) {
             total: 0,
             status: "completed", // Instantly completed since it's free
             customerEmail,
-            customerPhone,
+            customerPhone: customerPhone || null,
             paymentMethod: "free",
             paymentId: `free_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
             accessKey,

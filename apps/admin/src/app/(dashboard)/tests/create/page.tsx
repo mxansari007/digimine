@@ -267,7 +267,7 @@ export default function CreateTestSeriesPage() {
                 </Card>
 
                 <div className="flex gap-4">
-                    <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button type="submit" disabled={loading}>
                         {loading ? "Creating..." : "Create Test Series"}
                     </Button>
                     <Link href="/tests">

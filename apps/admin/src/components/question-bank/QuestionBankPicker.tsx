@@ -26,6 +26,12 @@ function optionLabel(value: string) {
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function toPickerQuestionType(type: QuestionBankQuestion["type"]): QuestionType {
+    if (type === "code" || type === "coding") return "code";
+    if (type === "mcq" || type === "msq" || type === "true_false" || type === "aptitude") return "mcq";
+    return "text_input";
+}
+
 export function QuestionBankPicker({ open, mode, onClose, onSelect, title = "Select from Question Bank" }: QuestionBankPickerProps) {
     const [questions, setQuestions] = useState<QuestionBankQuestion[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -77,7 +83,7 @@ export function QuestionBankPicker({ open, mode, onClose, onSelect, title = "Sel
         const q = search.trim().toLowerCase();
         const requiredTags = splitTags(tags).map((tag) => tag.toLowerCase());
         return questions
-            .filter((question) => type === "all" || question.type === type)
+            .filter((question) => type === "all" || toPickerQuestionType(question.type) === type)
             .filter((question) => difficulty === "all" || question.difficulty === difficulty)
             .filter((question) => category === "all" || question.category === category)
             .filter((question) => topic === "all" || question.topic === topic)

@@ -116,7 +116,7 @@ export default function TestsPage() {
                     <p className="text-gray-500 mt-1">Manage your test series and questions</p>
                 </div>
                 <Link href="/tests/create">
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button>
                         <span className="mr-2">+</span>
                         Create Test
                     </Button>
@@ -210,7 +210,7 @@ export default function TestsPage() {
                     </p>
                     {!searchQuery && (
                         <Link href="/tests/create">
-                            <Button className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <Button className="mt-4">
                                 <span className="mr-2">+</span>
                                 Create Test
                             </Button>

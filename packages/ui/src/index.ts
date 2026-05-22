@@ -18,3 +18,11 @@ export {
     stripFormattedContent,
     type FormattedContentProps,
 } from "./FormattedContent";
+export {
+    AppSidebar,
+    type AppSidebarProps,
+    type AppSidebarRole,
+    type AppSidebarNavItem,
+} from "./AppSidebar";
+export { DashboardShell, type DashboardShellProps } from "./DashboardShell";
+export { Logo, type LogoProps } from "./Logo";

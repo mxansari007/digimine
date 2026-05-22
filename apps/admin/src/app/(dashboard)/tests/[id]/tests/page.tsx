@@ -117,7 +117,7 @@ export default function SeriesTestsPage() {
             <div className="text-center py-12">
                 <h1 className="text-2xl font-bold text-gray-900">Series Not Found</h1>
                 <Link href="/tests">
-                    <Button className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button className="mt-4">
                         Back to Test Series
                     </Button>
                 </Link>
@@ -143,7 +143,7 @@ export default function SeriesTestsPage() {
                     </div>
                 </div>
                 <Link href={`/tests/${seriesId}/tests/create`}>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button>
                         + Add Test
                     </Button>
                 </Link>
@@ -200,7 +200,7 @@ export default function SeriesTestsPage() {
                     <Card className="p-12 text-center">
                         <p className="text-gray-500 mb-4">No tests added to this series yet</p>
                         <Link href={`/tests/${seriesId}/tests/create`}>
-                            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <Button>
                                 + Add First Test
                             </Button>
                         </Link>
@@ -222,7 +222,7 @@ export default function SeriesTestsPage() {
                                             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800">
                                                 {test.totalQuestions} Questions
                                             </span>
-                                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
                                                 {test.totalMarks} Marks
                                             </span>
                                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${

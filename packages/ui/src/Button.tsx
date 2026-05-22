@@ -3,12 +3,19 @@ import * as React from "react";
 /**
  * Button variants
  */
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+export type ButtonVariant =
+    | "primary"
+    | "secondary"
+    | "outline"
+    | "ghost"
+    | "danger"
+    | "success"
+    | "gradient";
 
 /**
  * Button sizes
  */
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 /**
  * Button component props
@@ -19,32 +26,40 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     isLoading?: boolean;
     leftIcon?: React.ReactNode;
     rightIcon?: React.ReactNode;
+    fullWidth?: boolean;
     children: React.ReactNode;
 }
 
 /**
- * Variant class mappings
+ * Variant class mappings — tuned for the teal primary / amber accent palette.
+ * Each variant defines a base appearance, hover, focus ring, and disabled
+ * state in one string so the component itself stays simple.
  */
 const variantClasses: Record<ButtonVariant, string> = {
     primary:
-        "bg-gradient-to-b from-primary-400 via-primary-500 to-primary-700 text-white shadow-[0_10px_24px_rgba(14,165,233,0.22)] hover:from-primary-500 hover:via-primary-600 hover:to-primary-800 hover:shadow-[0_14px_30px_rgba(14,165,233,0.28)] focus:ring-primary-500 disabled:from-primary-300 disabled:via-primary-300 disabled:to-primary-400",
+        "border border-primary-600 bg-primary-600 text-white shadow-soft-sm hover:bg-primary-700 hover:border-primary-700 hover:shadow-soft focus-visible:ring-primary-300 disabled:border-primary-200 disabled:bg-primary-200 disabled:shadow-none",
     secondary:
-        "bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] hover:from-slate-900 hover:via-slate-950 hover:to-black hover:shadow-[0_14px_30px_rgba(15,23,42,0.22)] focus:ring-slate-500 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-400",
+        "border border-slate-200 bg-white text-slate-800 shadow-soft-sm hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-200 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none",
     outline:
-        "border border-slate-200/90 bg-white/90 text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] hover:bg-white hover:border-primary-200 hover:text-primary-700 hover:shadow-[0_12px_26px_rgba(15,23,42,0.08)] focus:ring-primary-100 disabled:border-slate-100 disabled:text-slate-300",
+        "border border-slate-200 bg-white text-slate-700 shadow-soft-sm hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus-visible:ring-primary-200 disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
     ghost:
-        "text-slate-600 hover:bg-slate-100/80 hover:text-slate-950 focus:ring-slate-200 disabled:text-slate-300",
+        "border border-transparent text-slate-600 hover:bg-primary-50 hover:text-primary-800 focus-visible:ring-primary-200 disabled:text-slate-300",
     danger:
-        "bg-gradient-to-b from-red-500 via-red-600 to-red-700 text-white shadow-[0_10px_24px_rgba(239,68,68,0.18)] hover:from-red-600 hover:via-red-700 hover:to-red-800 hover:shadow-[0_14px_30px_rgba(239,68,68,0.24)] focus:ring-red-500 disabled:from-red-300 disabled:via-red-300 disabled:to-red-400",
+        "border border-danger-600 bg-danger-600 text-white shadow-soft-sm hover:bg-danger-700 hover:border-danger-700 focus-visible:ring-danger-200 disabled:border-danger-200 disabled:bg-danger-200 disabled:shadow-none",
+    success:
+        "border border-success-600 bg-success-600 text-white shadow-soft-sm hover:bg-success-700 hover:border-success-700 focus-visible:ring-success-200 disabled:border-success-200 disabled:bg-success-200 disabled:shadow-none",
+    gradient:
+        "border border-transparent bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 text-white shadow-soft hover:shadow-glow-primary hover:brightness-110 focus-visible:ring-primary-300 disabled:from-primary-200 disabled:via-primary-200 disabled:to-accent-200 disabled:shadow-none",
 };
 
 /**
  * Size class mappings
  */
 const sizeClasses: Record<ButtonSize, string> = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-base",
-    lg: "px-6 py-3 text-lg",
+    sm: "px-3 py-1.5 text-sm gap-1.5",
+    md: "px-4 py-2 text-sm gap-2",
+    lg: "px-5 py-2.5 text-base gap-2",
+    xl: "px-6 py-3 text-base gap-2.5",
 };
 
 /**
@@ -56,23 +71,34 @@ export function Button({
     isLoading = false,
     leftIcon,
     rightIcon,
+    fullWidth = false,
     children,
     className = "",
     disabled,
     ...props
 }: ButtonProps): React.JSX.Element {
     const baseClasses =
-        "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 disabled:shadow-none";
+        "relative inline-flex items-center justify-center font-semibold rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out " +
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white " +
+        "active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 select-none";
 
     return (
         <button
-            className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+            className={[
+                baseClasses,
+                variantClasses[variant],
+                sizeClasses[size],
+                fullWidth ? "w-full" : "",
+                className,
+            ]
+                .filter(Boolean)
+                .join(" ")}
             disabled={disabled || isLoading}
             {...props}
         >
             {isLoading ? (
                 <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4"
+                    className="-ml-0.5 mr-1 h-4 w-4 animate-spin"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -92,10 +118,10 @@ export function Button({
                     />
                 </svg>
             ) : leftIcon ? (
-                <span className="mr-2">{leftIcon}</span>
+                <span className="inline-flex shrink-0 items-center">{leftIcon}</span>
             ) : null}
-            {children}
-            {rightIcon && !isLoading && <span className="ml-2">{rightIcon}</span>}
+            <span className="inline-flex items-center">{children}</span>
+            {rightIcon && !isLoading && <span className="inline-flex shrink-0 items-center">{rightIcon}</span>}
         </button>
     );
 }

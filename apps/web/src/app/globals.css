@@ -12,48 +12,49 @@
   }
 
   body {
-    @apply font-sans antialiased text-slate-800 bg-slate-50;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    letter-spacing: -0.011em;
-    background:
-      linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(239, 246, 255, 0.82)),
-      linear-gradient(90deg, rgba(14, 165, 233, 0.05), transparent 38%, rgba(217, 70, 239, 0.035));
+    @apply font-sans antialiased text-slate-800;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    letter-spacing: 0;
+    /* Cool slate base — works under both teal brand and white surfaces.
+       Dashboards use `.app-canvas` / `.dashboard-professional-theme` for
+       their richer backgrounds. */
+    background: #f8fafc;
   }
 
   /* Responsive Typography System — Outfit for headings */
   h1 {
-    @apply font-display font-bold text-4xl md:text-5xl lg:text-6xl tracking-tight text-slate-900;
-    letter-spacing: -0.025em;
+    @apply font-display font-bold text-4xl md:text-5xl lg:text-6xl text-slate-900;
+    letter-spacing: 0;
     line-height: 1.1;
   }
 
   h2 {
-    @apply font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-slate-900;
-    letter-spacing: -0.025em;
+    @apply font-display font-bold text-3xl md:text-4xl lg:text-5xl text-slate-900;
+    letter-spacing: 0;
     line-height: 1.15;
   }
 
   h3 {
-    @apply font-display font-bold text-2xl md:text-3xl tracking-tight text-slate-900;
-    letter-spacing: -0.02em;
+    @apply font-display font-bold text-2xl md:text-3xl text-slate-900;
+    letter-spacing: 0;
     line-height: 1.2;
   }
 
   h4 {
-    @apply font-display font-semibold text-xl md:text-2xl tracking-tight text-slate-900;
-    letter-spacing: -0.015em;
+    @apply font-display font-semibold text-xl md:text-2xl text-slate-900;
+    letter-spacing: 0;
     line-height: 1.25;
   }
 
   h5 {
-    @apply font-display font-semibold text-lg md:text-xl tracking-tight text-slate-900;
-    letter-spacing: -0.01em;
+    @apply font-display font-semibold text-lg md:text-xl text-slate-900;
+    letter-spacing: 0;
     line-height: 1.3;
   }
 
   h6 {
-    @apply font-display font-semibold text-base md:text-lg tracking-tight text-slate-800;
-    letter-spacing: -0.01em;
+    @apply font-display font-semibold text-base md:text-lg text-slate-800;
+    letter-spacing: 0;
     line-height: 1.35;
   }
 
@@ -70,31 +71,39 @@
 
   /* Selection color */
   ::selection {
-    @apply bg-primary-200/60 text-primary-900;
+    @apply bg-primary-200/50 text-primary-950;
   }
 
-  /* Focus styles */
+  /* Focus styles — keyboard-visible only, brand-tinted */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-primary-500;
   }
 
-  /* Custom Scrollbar */
+  /* Custom Scrollbar — thinner, brand-tinted on hover */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 rounded-full;
+    @apply rounded-full bg-slate-200/80;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-300;
+    @apply bg-primary-300/80;
+  }
+  /* Firefox */
+  * {
+    scrollbar-color: rgb(226 232 240 / 0.8) transparent;
+    scrollbar-width: thin;
   }
 
   /* Strong / bold text */
-  strong, b {
+  strong,
+  b {
     @apply font-semibold text-slate-900;
   }
 
@@ -111,21 +120,121 @@ body.test-attempt-mode > div > footer {
   display: none !important;
 }
 
+/* Hide reCAPTCHA badge from users */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+/* Unified phone input — makes react-international-phone look like one seamless field */
+.phone-input-unified .react-international-phone-input-container {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.phone-input-unified .react-international-phone-country-selector-button {
+  border: none !important;
+  border-right: 1px solid #e5e7eb !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+  background: transparent !important;
+  padding: 0.75rem 0.75rem !important;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.phone-input-unified .react-international-phone-country-selector-button:hover {
+  background-color: rgba(249, 250, 251, 0.8) !important;
+}
+
+.phone-input-unified .react-international-phone-input {
+  border: none !important;
+  border-radius: 0 0.75rem 0.75rem 0 !important;
+  background: transparent !important;
+  font-size: 1.125rem !important;
+  padding: 0.75rem 1rem !important;
+  color: #0f172a !important;
+  outline: none !important;
+  box-shadow: none !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-input-unified .react-international-phone-input::placeholder {
+  color: #9ca3af !important;
+}
+
+.phone-input-unified .react-international-phone-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Custom component styles */
 @layer components {
   .container-page {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  /* Dashboard canvas — soft teal + amber wash on a cool slate base.
+     Subtle enough not to fight cards, distinct enough that admin / teacher
+     pages don't look like the marketing site. */
+  .dashboard-professional-theme {
+    background:
+      radial-gradient(
+        circle at 12% 8%,
+        rgba(20, 184, 166, 0.06),
+        transparent 32rem
+      ),
+      radial-gradient(
+        circle at 88% 0%,
+        rgba(245, 158, 11, 0.05),
+        transparent 36rem
+      ),
+      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+
+  .dashboard-professional-theme[data-role="teacher"] {
+    background:
+      radial-gradient(
+        circle at 14% 8%,
+        rgba(20, 184, 166, 0.07),
+        transparent 32rem
+      ),
+      radial-gradient(
+        circle at 90% 4%,
+        rgba(245, 158, 11, 0.045),
+        transparent 36rem
+      ),
+      linear-gradient(180deg, #f8fafc 0%, #eff6f5 100%);
+  }
+
+  .dashboard-professional-theme[data-role="student"] {
+    background:
+      radial-gradient(
+        circle at 14% 8%,
+        rgba(20, 184, 166, 0.055),
+        transparent 32rem
+      ),
+      radial-gradient(
+        circle at 88% 4%,
+        rgba(245, 158, 11, 0.06),
+        transparent 36rem
+      ),
+      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+
   /* Section eyebrow text — the small label above section headings */
   .section-eyebrow {
-    @apply text-primary-600 font-semibold tracking-widest text-xs uppercase mb-3 block;
+    @apply text-primary-700 font-semibold tracking-widest text-xs uppercase mb-3 block;
     letter-spacing: 0.1em;
   }
 
-  /* Gradient text utility */
+  /* Legacy gradient text utility — kept for back-compat. New code should
+     use .text-gradient-brand or .text-gradient-cool. */
   .text-gradient {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-accent-500;
+    @apply text-gradient-brand;
   }
 
   /* Prose-like paragraph spacing for long content */
@@ -134,15 +243,167 @@ body.test-attempt-mode > div > footer {
   }
 
   .app-canvas {
-    background-color: #f8fbff;
-    background-image:
-      linear-gradient(rgba(14, 165, 233, 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(14, 165, 233, 0.035) 1px, transparent 1px);
-    background-size: 44px 44px;
+    background:
+      radial-gradient(
+        circle at 16% 10%,
+        rgba(20, 184, 166, 0.055),
+        transparent 32rem
+      ),
+      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   }
 
   .surface-panel {
-    @apply rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/60 backdrop-blur-sm;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-soft-sm;
+  }
+
+  /* ─── New utility palette ──────────────────────────────────────────────
+     These classes are the "high-frequency" patterns that show up across
+     dashboards, marketing, and the test-taking surfaces. Keeping them in
+     CSS rather than inline lets us change the look-and-feel platform-wide
+     without grep-and-replace. */
+
+  /* CTA — large brand-gradient button. Use sparingly; reserved for hero
+     CTAs and conversion moments. */
+  .btn-cta {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white;
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 45%, #f59e0b 130%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 10px 24px rgba(20, 184, 166, 0.22),
+      0 2px 6px rgba(15, 23, 42, 0.06);
+    transition:
+      transform 0.18s ease-out,
+      box-shadow 0.18s ease-out,
+      filter 0.18s ease-out;
+  }
+  .btn-cta:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.2) inset,
+      0 14px 32px rgba(20, 184, 166, 0.28),
+      0 4px 10px rgba(15, 23, 42, 0.08);
+  }
+  .btn-cta:active {
+    transform: translateY(0);
+  }
+
+  /* Small pill / badge. Use `.chip-primary` / `.chip-success` etc. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold;
+  }
+  .chip-primary {
+    @apply chip border-primary-200 bg-primary-50 text-primary-700;
+  }
+  .chip-success {
+    @apply chip border-success-200 bg-success-50 text-success-700;
+  }
+  .chip-warning {
+    @apply chip border-warning-200 bg-warning-50 text-warning-700;
+  }
+  .chip-danger {
+    @apply chip border-danger-200 bg-danger-50 text-danger-700;
+  }
+  .chip-info {
+    @apply chip border-info-200 bg-info-50 text-info-700;
+  }
+  .chip-neutral {
+    @apply chip border-slate-200 bg-slate-50 text-slate-600;
+  }
+  .chip-accent {
+    @apply chip border-accent-200 bg-accent-50 text-accent-700;
+  }
+
+  /* Large stat displays — used on dashboards, marketing stat strips. */
+  .stat-number {
+    @apply font-display text-4xl font-black tracking-tight text-slate-900;
+    font-feature-settings: "tnum";
+  }
+  .stat-label {
+    @apply text-[11px] font-bold uppercase tracking-wider text-slate-500;
+  }
+
+  /* Brand gradient text — for hero headlines, big numbers. */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #f59e0b 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-cool {
+    background: linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Background utilities */
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #f59e0b 130%);
+  }
+  .bg-gradient-cool {
+    background: linear-gradient(180deg, #f0fdfa 0%, #ecfdf5 100%);
+  }
+  .bg-noise {
+    background-image: radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.06) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  /* Soft glow ring — for hovered / active "live" elements. */
+  .glow-primary {
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12);
+  }
+  .glow-accent {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+  }
+
+  /* Skeleton — shimmering placeholder. Pair with width/height utilities. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-slate-200/70;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
+  }
+
+  /* Section divider — quiet horizontal rule. */
+  .section-divider {
+    @apply my-12 h-px w-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(15, 23, 42, 0.08),
+      transparent
+    );
+  }
+
+  /* Form input — drop-in styling for raw <input>/<textarea> when not using
+     a shared component. */
+  .field-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft-sm transition-[border-color,box-shadow] focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200;
+  }
+
+  /* Inline live indicator — a small dot used in chips like "TEST IN PROGRESS". */
+  .live-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full bg-success-500 animate-pulse-soft;
+  }
+
+  /* Card with a coloured top accent border. Use with `intent` colours. */
+  .accent-card {
+    @apply relative rounded-2xl border border-slate-200 bg-white shadow-soft-sm overflow-hidden;
+  }
+  .accent-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, #0d9488, #14b8a6, #f59e0b);
   }
 
   .landing-dynamic-section {
@@ -158,10 +419,17 @@ body.test-attempt-mode > div > footer {
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(circle at var(--landing-x, 18%) var(--landing-y, 35%), rgba(14, 165, 233, 0.12), transparent 34%),
-      radial-gradient(circle at 82% 18%, rgba(16, 185, 129, 0.09), transparent 30%),
-      radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.08), transparent 34%);
-    opacity: 0.9;
+      radial-gradient(
+        circle at var(--landing-x, 18%) var(--landing-y, 35%),
+        rgba(82, 109, 104, 0.065),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 82% 18%,
+        rgba(146, 120, 84, 0.055),
+        transparent 30%
+      );
+    opacity: 0.72;
     animation: landing-drift 16s ease-in-out infinite alternate;
   }
 
@@ -200,14 +468,20 @@ body.test-attempt-mode > div > footer {
   .landing-orbit {
     position: absolute;
     border-radius: 9999px;
-    border: 1px solid rgba(14, 165, 233, 0.16);
+    border: 1px solid rgba(82, 109, 104, 0.14);
     opacity: 0.7;
     pointer-events: none;
     animation: landing-orbit 22s linear infinite;
   }
 
   .landing-rail {
-    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 10%,
+      #000 90%,
+      transparent
+    );
   }
 
   .landing-rail-track {
@@ -233,7 +507,6 @@ body.test-attempt-mode > div > footer {
     .feature-card-float,
     .prep-progress-fill,
     .timeline-pulse,
-    .score-wave,
     .feature-marquee-track {
       animation: none;
     }
@@ -253,7 +526,12 @@ body.test-attempt-mode > div > footer {
     position: absolute;
     inset: -40% 0 auto 0;
     height: 34%;
-    background: linear-gradient(180deg, transparent, rgba(125, 211, 252, 0.14), transparent);
+    background: linear-gradient(
+      180deg,
+      transparent,
+      rgba(173, 195, 191, 0.13),
+      transparent
+    );
     animation: hero-scan 4.8s linear infinite;
   }
 
@@ -270,13 +548,14 @@ body.test-attempt-mode > div > footer {
     animation: timeline-pulse 1.8s ease-in-out infinite;
   }
 
-  .score-wave {
-    animation: score-wave 2.8s ease-in-out infinite;
-    transform-origin: bottom center;
-  }
-
   .feature-marquee {
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 12%,
+      #000 88%,
+      transparent
+    );
   }
 
   .feature-marquee-track {
@@ -321,7 +600,8 @@ body.test-attempt-mode > div > footer {
 }
 
 @keyframes landing-chip-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -330,7 +610,8 @@ body.test-attempt-mode > div > footer {
 }
 
 @keyframes feature-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotateX(0deg) rotateY(0deg);
   }
   50% {
@@ -339,7 +620,8 @@ body.test-attempt-mode > div > footer {
 }
 
 @keyframes prep-fill {
-  0%, 100% {
+  0%,
+  100% {
     transform: scaleX(0.92);
     filter: brightness(0.95);
   }
@@ -350,22 +632,12 @@ body.test-attempt-mode > div > footer {
 }
 
 @keyframes timeline-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.18);
   }
   50% {
     box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
-  }
-}
-
-@keyframes score-wave {
-  0%, 100% {
-    transform: scaleY(0.72);
-    opacity: 0.72;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
   }
 }
 

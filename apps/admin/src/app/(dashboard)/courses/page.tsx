@@ -172,7 +172,7 @@ export default function CoursesPage() {
                     <p className="mt-1 text-gray-500">Manage study material, chapters, videos, quizzes, and linked tests.</p>
                 </div>
                 <Link href="/courses/create">
-                    <Button className="bg-indigo-600 text-white hover:bg-indigo-700">
+                    <Button>
                         <span className="mr-2">+</span>
                         Create Course
                     </Button>

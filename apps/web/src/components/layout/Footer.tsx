@@ -5,15 +5,15 @@ export function Footer() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <footer className="bg-gray-900 text-gray-300">
+        <footer className="border-t border-slate-200 bg-white text-slate-600">
             <div className="container-page py-12">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Brand */}
                     <div className="col-span-1 md:col-span-2">
                         <Link href="/" className="inline-flex items-center mb-4">
-                            <Logo variant="light" iconSize={28} />
+                            <Logo variant="dark" iconSize={28} />
                         </Link>
-                        <p className="text-gray-400 max-w-sm">
+                        <p className="max-w-sm text-slate-500">
                             Your marketplace for premium digital products. Discover eBooks,
                             courses, templates, and more from creators worldwide.
                         </p>
@@ -21,14 +21,14 @@ export function Footer() {
 
                     {/* Quick Links */}
                     <div>
-                        <h3 className="font-display font-semibold text-white mb-4">
+                        <h3 className="mb-4 font-display font-semibold text-slate-900">
                             Quick Links
                         </h3>
                         <ul className="space-y-2">
                             <li>
                                 <Link
                                     href="/courses"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Courses & Notes
                                 </Link>
@@ -36,7 +36,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/courses"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Study Material
                                 </Link>
@@ -44,7 +44,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/tests"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Mock Tests
                                 </Link>
@@ -52,7 +52,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/quizzes"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Quizzes
                                 </Link>
@@ -60,7 +60,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/products?type=template"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Templates
                                 </Link>
@@ -70,19 +70,19 @@ export function Footer() {
 
                     {/* Support */}
                     <div>
-                        <h3 className="font-display font-semibold text-white mb-4">
+                        <h3 className="mb-4 font-display font-semibold text-slate-900">
                             Support
                         </h3>
                         <ul className="space-y-2">
                             <li>
-                                <Link href="/help" className="hover:text-white transition-colors">
+                                <Link href="/help" className="transition-colors hover:text-primary-700">
                                     Help Center
                                 </Link>
                             </li>
                             <li>
                                 <Link
                                     href="/contact"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Contact Us
                                 </Link>
@@ -90,7 +90,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/privacy"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Privacy Policy
                                 </Link>
@@ -98,7 +98,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/terms"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Terms of Service
                                 </Link>
@@ -106,7 +106,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/refund-policy"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Refunds & Cancellations
                                 </Link>
@@ -114,7 +114,7 @@ export function Footer() {
                             <li>
                                 <Link
                                     href="/shipping-policy"
-                                    className="hover:text-white transition-colors"
+                                    className="transition-colors hover:text-primary-700"
                                 >
                                     Shipping & Delivery
                                 </Link>
@@ -124,17 +124,17 @@ export function Footer() {
                 </div>
 
                 {/* Bottom bar */}
-                <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-sm text-gray-500">
+                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 md:flex-row">
+                    <p className="text-sm text-slate-500">
                         © {currentYear} Digimine. All rights reserved.{" "}
-                        <span className="text-gray-600">Owned by Mohd Maaz Ansari.</span>
+                        <span className="text-slate-400">Owned by Mohd Maaz Ansari.</span>
                     </p>
                     <div className="flex items-center gap-4">
                         <a
                             href="https://twitter.com"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-white transition-colors"
+                            className="text-slate-400 transition-colors hover:text-primary-700"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
@@ -144,7 +144,7 @@ export function Footer() {
                             href="https://github.com"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-white transition-colors"
+                            className="text-slate-400 transition-colors hover:text-primary-700"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <path

@@ -23,6 +23,10 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     /** User is admin */
     isAdmin: boolean;
+    /** User is teacher */
+    isTeacher: boolean;
+    /** User is an institute admin */
+    isInstituteAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -45,6 +49,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: authState.error || userState.error,
         isAuthenticated: !!authState.user,
         isAdmin: userState.user?.role === "admin" || userState.user?.role === "super_admin",
+        isTeacher: userState.user?.role === "teacher",
+        isInstituteAdmin: userState.user?.role === "institute_admin",
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

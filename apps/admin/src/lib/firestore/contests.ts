@@ -226,7 +226,15 @@ async function buildContestPayload(data: CreateContestInput | UpdateContestInput
         startTime,
         endTime,
         updatedAt: Timestamp.now().toDate(),
-        ...(createdBy ? { createdBy, createdAt: Timestamp.now().toDate() } : {}),
+        ...(createdBy
+            ? {
+                  createdBy,
+                  createdAt: Timestamp.now().toDate(),
+                  // Admin-authored public catalog markers.
+                  teacherId: "",
+                  isDeleted: false,
+              }
+            : {}),
     });
 }
 

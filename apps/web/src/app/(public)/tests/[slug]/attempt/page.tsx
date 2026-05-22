@@ -28,7 +28,13 @@ const LANGUAGE_MAP: Record<CodeLanguage, string> = {
     java: "java",
 };
 
-type QuestionStatus = "not_visited" | "visited" | "answered" | "marked_for_review" | "code_unrun";
+type QuestionStatus =
+    | "not_visited"
+    | "visited"
+    | "answered"
+    | "marked_for_review"        // flagged, no answer yet
+    | "answered_and_marked"      // flagged AND answered (GATE/UGC convention)
+    | "code_unrun";
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -157,12 +163,13 @@ export default function TestAttemptPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { user, loading: authLoading } = useAuthContext();
+    const { user, firebaseUser, loading: authLoading } = useAuthContext();
 
     const slug = params.slug as string;
     const testId = searchParams.get("testId");
     const attemptIdFromUrl = searchParams.get("attemptId");
     const contestId = searchParams.get("contestId");
+    const classroomTeacherId = searchParams.get("teacherId");
 
     const [_series, setSeries] = useState<TestSeries | null>(null);
     const [contest, setContest] = useState<Contest | null>(null);
@@ -254,13 +261,19 @@ export default function TestAttemptPage() {
         try { localStorage.removeItem(getStorageKey(attemptId)); } catch { /* ignore */ }
     };
 
+    // Guard: ensure init() runs at most once per (user, slug, testId, contestId,
+    // classroomTeacherId, attemptIdFromUrl) tuple. React Strict Mode and Next.js
+    // router replace can otherwise re-trigger init mid-flight, causing duplicate
+    // attempt creation and the "instruction window appears twice" flash.
+    const initOnceRef = useRef<string | null>(null);
+
     // Load initial data
     useEffect(() => {
         if (authLoading) return;
 
         if (!user || !testId) {
             if (!user) {
-                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}`;
+                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ''}`;
                 router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
             } else {
                 setLoadError("No test was selected. Please choose a test from the series page.");
@@ -268,6 +281,10 @@ export default function TestAttemptPage() {
             }
             return;
         }
+
+        const initKey = `${user.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${attemptIdFromUrl || ""}`;
+        if (initOnceRef.current === initKey) return;
+        initOnceRef.current = initKey;
 
         const withTimeout = async <T,>(promise: Promise<T>, message: string, timeoutMs = 30000): Promise<T> => {
             let timeoutId: NodeJS.Timeout | undefined;
@@ -286,42 +303,89 @@ export default function TestAttemptPage() {
             try {
                 setLoading(true);
                 setLoadError(null);
-                const seriesData = await withTimeout(
-                    getTestSeriesBySlug(slug),
-                    "The test series took too long to load. Please check your connection and try again."
-                );
+
+                let seriesData: TestSeries | null = null;
+                let classroomToken: string | null = null;
+
+                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
+                if (classroomTeacherId) {
+                    if (!firebaseUser) {
+                        router.push(`/login?redirect=${encodeURIComponent(`/tests/${slug}/attempt?testId=${testId}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ""}`)}`);
+                        return;
+                    }
+                    classroomToken = await firebaseUser.getIdToken();
+                    const res = await fetch(`/api/content/data?type=test&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                        headers: { Authorization: `Bearer ${classroomToken}` },
+                    });
+                    const serverData = await res.json();
+                    if (!res.ok) throw new Error(serverData.error || "You do not have access to this classroom test.");
+                    seriesData = (serverData.content || null) as TestSeries | null;
+                } else {
+                    seriesData = await withTimeout(
+                        getTestSeriesBySlug(slug),
+                        "The test series took too long to load. Please check your connection and try again."
+                    );
+                }
+
                 if (!seriesData) {
                     router.push("/tests");
                     return;
                 }
 
-                const isEnrolled = await withTimeout(
-                    hasUserPurchasedTest(user!.id, seriesData.id),
-                    "Could not verify your enrollment. Please refresh and try again."
-                );
+                if (classroomTeacherId) {
+                    // Classroom students get access without purchase
+                    // No purchase check needed — proceed to load test data
+                } else {
+                    const isEnrolled = await withTimeout(
+                        hasUserPurchasedTest(user!.id, seriesData.id),
+                        "Could not verify your enrollment. Please refresh and try again."
+                    );
 
-                if (!isEnrolled) {
-                    if (seriesData.accessType === "free") {
-                        await withTimeout(
-                            enrollInFreeTestSeries(user!.id, seriesData.id),
-                            "Could not enroll you in this free test series. Please try again."
-                        );
-                    } else {
-                        router.push(`/tests/${seriesData.slug}/purchase`);
-                        return;
+                    if (!isEnrolled) {
+                        // Check classroom enrollment — enrolled students get free access
+                        let classroomAccess = false;
+                        try {
+                            const accessRes = await fetch(`/api/classroom/content-access?userId=${user!.id}&teacherId=${(seriesData as any).teacherId || ""}`);
+                            classroomAccess = (await accessRes.json())?.hasAccess || false;
+                        } catch { /* ignore */ }
+
+                        if (classroomAccess) {
+                            // Enrolled in classroom — proceed
+                        } else if (seriesData.accessType === "free") {
+                            await withTimeout(
+                                enrollInFreeTestSeries(user!.id, seriesData.id),
+                                "Could not enroll you in this free test series. Please try again."
+                            );
+                        } else {
+                            router.push(`/tests/${seriesData.slug}/purchase`);
+                            return;
+                        }
                     }
                 }
 
-                const [testData, questionsData] = await Promise.all([
-                    withTimeout(
-                        getTestById(seriesData.id, testId!),
-                        "The selected test took too long to load. Please try again."
-                    ),
-                    withTimeout(
-                        getTestQuestions(seriesData.id, testId!),
-                        "The questions took too long to load. Please try again."
-                    )
-                ]);
+                let testData: Test | null = null;
+                let questionsData: Question[] = [];
+
+                if (classroomTeacherId) {
+                    const testRes = await fetch(`/api/content/data?type=test&parentId=${encodeURIComponent(seriesData.id)}&childId=${encodeURIComponent(testId!)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                        headers: classroomToken ? { Authorization: `Bearer ${classroomToken}` } : {},
+                    });
+                    const testServerData = await testRes.json();
+                    if (!testRes.ok) throw new Error(testServerData.error || "Could not load this classroom test.");
+                    testData = (testServerData.test || null) as Test | null;
+                    questionsData = (testServerData.questions || []) as Question[];
+                } else {
+                    [testData, questionsData] = await Promise.all([
+                        withTimeout(
+                            getTestById(seriesData.id, testId!),
+                            "The selected test took too long to load. Please try again."
+                        ),
+                        withTimeout(
+                            getTestQuestions(seriesData.id, testId!),
+                            "The questions took too long to load. Please try again."
+                        )
+                    ]);
+                }
 
                 if (!testData) {
                     router.push("/tests");
@@ -334,6 +398,7 @@ export default function TestAttemptPage() {
 
                 setSeries(seriesData);
                 setTest(testData);
+                setQuestions(questionsData);
 
                 let contestData: Contest | null = null;
                 if (contestId) {
@@ -370,12 +435,29 @@ export default function TestAttemptPage() {
                         endTime: contestData.endTime,
                     }
                     : undefined;
-                const createAttempt = (timeoutMessage: string) => withTimeout(
-                    startTestAttempt(user!.id, seriesData.id, testId!, {
-                        userAgent: window.navigator.userAgent
-                    }, contestAttemptContext),
-                    timeoutMessage
-                );
+                const createAttempt = async (timeoutMessage: string) => {
+                    // Always route through the transactional server API. This makes
+                    // attempt creation idempotent (two parallel requests return the
+                    // same in-progress attempt) and removes the client-Firestore
+                    // race that previously produced duplicate attempts.
+                    const res = await fetch("/api/tests/start-attempt", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            userId: user!.id,
+                            seriesId: seriesData.id,
+                            testId: testId!,
+                            contestContext: contestAttemptContext,
+                            userAgent: window.navigator.userAgent,
+                            // For classroom tests the questions doc isn't readable
+                            // by the server unless we hand them over.
+                            ...(classroomTeacherId ? { questions: questionsData } : {}),
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || timeoutMessage);
+                    return data.attempt as TestAttempt;
+                };
 
                 // Check if we should load a specific attempt or start a new one
                 let newAttempt: TestAttempt;
@@ -394,7 +476,9 @@ export default function TestAttemptPage() {
                         );
                     } else if (existing.status === 'completed' || existing.status === 'timed_out') {
                         // Attempt already finished - redirect to results
-                        router.push(contestAttemptContext || testData.instantResults ? `/dashboard/tests/results/${existing.id}` : `/tests/${seriesData.slug}?submitted=1`);
+                        const classroomSuffix = classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
+                        const showResults = classroomTeacherId || contestAttemptContext || testData.instantResults;
+                        router.push(showResults ? `/dashboard/tests/results/${existing.id}${classroomSuffix}` : `/tests/${seriesData.slug}?submitted=1`);
                         return;
                     } else if (existing.status === 'in_progress') {
                         newAttempt = existing;
@@ -420,10 +504,19 @@ export default function TestAttemptPage() {
                 setTimeLeft(contestData ? sharedContestRemaining : newAttempt.remainingTime ?? 0);
                 setCurrentQuestionIndex(newAttempt.currentQuestionIndex ?? 0);
 
-                // Update URL with attemptId so reloads consistently restore progress
+                // Update URL with attemptId so reloads consistently restore progress.
+                // We use history.replaceState (not router.replace) to avoid
+                // re-triggering this effect via `useSearchParams`, which would
+                // otherwise reload the test data and flash the instructions screen.
                 if (!attemptIdFromUrl) {
-                    const newUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}&attemptId=${newAttempt.id}`;
-                    router.replace(newUrl, { scroll: false });
+                    const newUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}&attemptId=${newAttempt.id}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ''}`;
+                    if (typeof window !== "undefined") {
+                        window.history.replaceState(null, "", newUrl);
+                    }
+                    // Keep the init guard in sync with the now-present attemptId so a
+                    // legitimate hook re-render (e.g. firebaseUser refresh) doesn't
+                    // think this is a brand-new session.
+                    initOnceRef.current = `${user!.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${newAttempt.id}`;
                 }
 
                 // Load existing answers
@@ -544,7 +637,7 @@ export default function TestAttemptPage() {
         }
 
         initTest();
-    }, [user, slug, testId, contestId, attemptIdFromUrl, authLoading, router]);
+    }, [user, firebaseUser, slug, testId, contestId, attemptIdFromUrl, classroomTeacherId, authLoading, router]);
 
     // Timer Logic
     useEffect(() => {
@@ -595,7 +688,7 @@ export default function TestAttemptPage() {
             }
 
             setSaveStatus('saving');
-            updateTestAttempt(s.attempt.id, {
+            persistAttempt(s.attempt.id, {
                 answers: buildAnswersArray(s.answers, mergedCodeAnswers),
                 remainingTime: s.timeLeft,
                 currentQuestionIndex: s.currentQuestionIndex
@@ -909,11 +1002,64 @@ export default function TestAttemptPage() {
         return [...mcqArray, ...codeArray];
     };
 
+    // Save attempt progress. For classroom students we route through the
+    // server because the testAttempts rules indirectly require reading the
+    // teacher-private series doc (which client SDK cannot do).
+    const persistAttempt = async (
+        attemptId: string,
+        data: { answers: any[]; remainingTime: number; currentQuestionIndex: number }
+    ) => {
+        if (classroomTeacherId) {
+            if (!firebaseUser) throw new Error("Not authenticated.");
+            const token = await firebaseUser.getIdToken();
+            const res = await fetch(`/api/tests/save-attempt`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ attemptId, ...data }),
+            });
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload.error || "Failed to save attempt.");
+            }
+            return;
+        }
+        await updateTestAttempt(attemptId, data);
+    };
+
+    const finalizeAttempt = async (
+        attemptId: string,
+        data: { answers: any[]; remainingTime: number; finalStatus: "completed" | "timed_out" }
+    ): Promise<TestAttempt> => {
+        if (classroomTeacherId) {
+            if (!firebaseUser) throw new Error("Not authenticated.");
+            const token = await firebaseUser.getIdToken();
+            const res = await fetch(`/api/tests/submit-attempt`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ attemptId, ...data }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(payload.error || "Failed to submit test.");
+            return payload.attempt as TestAttempt;
+        }
+        return submitTestAttempt(attemptId, data);
+    };
+
+    const fetchAttempt = async (attemptId: string): Promise<TestAttempt | null> => {
+        if (classroomTeacherId) {
+            const res = await fetch(`/api/tests/attempt?attemptId=${encodeURIComponent(attemptId)}`);
+            if (!res.ok) return null;
+            const payload = await res.json().catch(() => ({}));
+            return (payload.attempt as TestAttempt) || null;
+        }
+        return getTestAttempt(attemptId);
+    };
+
     const _saveProgress = async () => {
         if (!attempt || !isStarted) return;
         try {
             const answersArray = buildAnswersArray(answers, codeAnswers);
-            await updateTestAttempt(attempt.id, {
+            await persistAttempt(attempt.id, {
                 answers: answersArray,
                 remainingTime: timeLeft,
                 currentQuestionIndex
@@ -953,7 +1099,7 @@ export default function TestAttemptPage() {
                             mergedCodeAnswers = { ...s.codeAnswers, [currentQuestion.id]: draft };
                         }
                     }
-                    await updateTestAttempt(attempt.id, {
+                    await persistAttempt(attempt.id, {
                         answers: buildAnswersArray(newAnswers, mergedCodeAnswers),
                         remainingTime: s.timeLeft,
                         currentQuestionIndex: s.currentQuestionIndex
@@ -982,7 +1128,7 @@ export default function TestAttemptPage() {
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = setTimeout(async () => {
                 try {
-                    await updateTestAttempt(attempt.id, {
+                    await persistAttempt(attempt.id, {
                         answers: buildAnswersArray(newAnswers, newCodeAnswers),
                         remainingTime: stateRef.current.timeLeft,
                         currentQuestionIndex: stateRef.current.currentQuestionIndex
@@ -1031,7 +1177,7 @@ export default function TestAttemptPage() {
         setCurrentQuestionIndex(index);
         if (attempt && isStarted) {
             try {
-                await updateTestAttempt(attempt.id, {
+                await persistAttempt(attempt.id, {
                     answers: buildAnswersArray(answers, mergedCodeAnswers),
                     remainingTime: timeLeft,
                     currentQuestionIndex: index
@@ -1076,7 +1222,7 @@ export default function TestAttemptPage() {
         try {
             const answersArray = buildAnswersArray(targetAnswers, mergedCodeAnswers);
 
-            await submitTestAttempt(targetAttempt.id, {
+            await finalizeAttempt(targetAttempt.id, {
                 answers: answersArray,
                 remainingTime: targetTimeLeft,
                 finalStatus,
@@ -1085,15 +1231,15 @@ export default function TestAttemptPage() {
             // Verify on the server that the attempt really left in_progress.
             // If a transient error left it stuck, retry the submit once with
             // empty answers so the doc gets finalized either way.
-            let confirmed = await getTestAttempt(targetAttempt.id);
+            let confirmed = await fetchAttempt(targetAttempt.id);
             if (confirmed && confirmed.status === "in_progress") {
                 try {
-                    await submitTestAttempt(targetAttempt.id, {
+                    await finalizeAttempt(targetAttempt.id, {
                         answers: answersArray,
                         remainingTime: targetTimeLeft,
                         finalStatus,
                     });
-                    confirmed = await getTestAttempt(targetAttempt.id);
+                    confirmed = await fetchAttempt(targetAttempt.id);
                 } catch {
                     // fall through to error state below
                 }
@@ -1105,7 +1251,12 @@ export default function TestAttemptPage() {
 
             clearLocalProgress(targetAttempt.id);
 
-            if (contest || confirmed?.contestId || test?.instantResults) {
+            const classroomSuffix = classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
+            if (classroomTeacherId) {
+                // Classroom students always see their result page (instant results
+                // are implicit — teachers don't moderate them).
+                router.push(`/dashboard/tests/results/${targetAttempt.id}${classroomSuffix}`);
+            } else if (contest || confirmed?.contestId || test?.instantResults) {
                 router.push(`/dashboard/tests/results/${targetAttempt.id}`);
             } else {
                 router.push(`/tests/${slug}?submitted=1`);
@@ -1240,7 +1391,12 @@ export default function TestAttemptPage() {
         }
 
         const hasAnswer = hasMcqAnswer || hasCodeAnswer;
-        if (markedForReview.has(questionId) && hasAnswer) return "marked_for_review";
+        const isMarked = markedForReview.has(questionId);
+        // Two-tone "marked for review": separate state for answered vs not, so
+        // the palette can show both clearly. Clicking the flag alone always
+        // changes the colour even if the question has no answer yet.
+        if (isMarked && hasAnswer) return "answered_and_marked";
+        if (isMarked) return "marked_for_review";
         if (hasAnswer) return "answered";
         // Code question with code written but never executed -> distinct state
         if (isCode && hasCodeDraft) return "code_unrun";
@@ -1252,7 +1408,11 @@ export default function TestAttemptPage() {
         if (isCurrent) return "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100";
         switch (status) {
             case "answered": return "bg-green-100 text-green-700 hover:bg-green-200";
-            case "marked_for_review": return "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 ring-2 ring-yellow-300";
+            // Flagged but no answer: purple (the standard "I'll come back" colour).
+            case "marked_for_review": return "bg-purple-100 text-purple-700 hover:bg-purple-200 ring-2 ring-purple-300";
+            // Flagged AND answered: green with a purple ring so both signals
+            // read at a glance — answered = good, ring = come back to review.
+            case "answered_and_marked": return "bg-green-100 text-green-700 hover:bg-green-200 ring-2 ring-purple-400";
             case "code_unrun": return "bg-orange-100 text-orange-700 hover:bg-orange-200 ring-2 ring-orange-300";
             case "visited": return "bg-blue-50 text-blue-600 hover:bg-blue-100";
             default: return "bg-gray-50 text-gray-400 hover:bg-gray-100";
@@ -1280,9 +1440,11 @@ export default function TestAttemptPage() {
         return "bg-gray-50 border-gray-200";
     };
 
+    // "Answered" for the progress meter counts both clean answers and
+    // answered-and-marked. Marked-but-unanswered is still pending.
     const answeredCount = questions.reduce((acc, q, i) => {
         const s = getQuestionStatus(q.id, i);
-        return s === 'answered' || s === 'marked_for_review' ? acc + 1 : acc;
+        return s === 'answered' || s === 'answered_and_marked' ? acc + 1 : acc;
     }, 0);
     const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
@@ -1291,7 +1453,7 @@ export default function TestAttemptPage() {
         .map((_, i) => i)
         .filter((i) => {
             const s = getQuestionStatus(questions[i].id, i);
-            return s !== 'answered' && s !== 'marked_for_review';
+            return s !== 'answered' && s !== 'answered_and_marked';
         });
     const flaggedIndexes = questions
         .map((_, i) => i)
@@ -2121,7 +2283,7 @@ export default function TestAttemptPage() {
                             const codeUnrunCount = questions.filter((q, i) => getQuestionStatus(q.id, i) === 'code_unrun').length;
                             const answeredTotal = questions.filter((q, i) => {
                                 const s = getQuestionStatus(q.id, i);
-                                return s === 'answered' || s === 'marked_for_review';
+                                return s === 'answered' || s === 'answered_and_marked';
                             }).length;
                             const codeQuestionCount = questions.filter(q => q.type === 'code').length;
                             return (
@@ -2131,8 +2293,12 @@ export default function TestAttemptPage() {
                                         <span>Answered ({answeredTotal})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-200 ring-1 ring-yellow-300"></div>
+                                        <div className="w-4 h-4 rounded bg-purple-100 border border-purple-200 ring-1 ring-purple-300"></div>
                                         <span>Marked for Review ({markedForReview.size})</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                                        <div className="w-4 h-4 rounded bg-green-100 border border-green-200 ring-1 ring-purple-400"></div>
+                                        <span>Answered & Marked ({questions.filter((q, i) => getQuestionStatus(q.id, i) === 'answered_and_marked').length})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
                                         <div className="w-4 h-4 rounded bg-orange-100 border border-orange-200 ring-1 ring-orange-300"></div>
@@ -2178,7 +2344,7 @@ export default function TestAttemptPage() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Marked for Review</span>
-                                    <span className="font-bold text-yellow-600">{markedForReview.size}</span>
+                                    <span className="font-bold text-purple-600">{markedForReview.size}</span>
                                 </div>
                             </div>
                             <Button

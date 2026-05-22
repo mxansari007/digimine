@@ -100,6 +100,12 @@ function optionLabel(value: string) {
     return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function toFormQuestionType(type: QuestionBankQuestion["type"]): QuestionType {
+    if (type === "code" || type === "coding") return "code";
+    if (type === "mcq" || type === "msq" || type === "true_false" || type === "aptitude") return "mcq";
+    return "text_input";
+}
+
 function normalizeImportRef(value: string | undefined): string {
     return (value || "")
         .trim()
@@ -311,7 +317,7 @@ export default function QuestionBankPage() {
     const filteredQuestions = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         return questions
-            .filter((question) => typeFilter === "all" || question.type === typeFilter)
+            .filter((question) => typeFilter === "all" || toFormQuestionType(question.type) === typeFilter)
             .filter((question) => difficultyFilter === "all" || question.difficulty === difficultyFilter)
             .filter((question) => statusFilter === "all" || question.status === statusFilter)
             .filter((question) => categoryFilter === "all" || question.category === categoryFilter)
@@ -345,7 +351,7 @@ export default function QuestionBankPage() {
         setEditingQuestion({
             id: question.id,
             title: question.title,
-            type: question.type,
+            type: toFormQuestionType(question.type),
             questionText: question.questionText,
             options: question.options?.map((option) => ({ text: option.text, isCorrect: option.isCorrect })) || [],
             correctAnswer: question.correctAnswer || "",

@@ -1,0 +1,10 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { ContentAttemptsView } from "@/components/teacher/ContentAttemptsView";
+
+export default function TeacherQuizAttemptsPage() {
+    const params = useParams();
+    const id = params.id as string;
+    return <ContentAttemptsView contentId={id} kind="quiz" backHref="/teacher/content" />;
+}

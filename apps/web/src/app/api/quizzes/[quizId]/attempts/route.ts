@@ -11,6 +11,8 @@ import {
     syncTimedOutAttempt,
 } from "@/lib/server/quizAttempts";
 
+export const dynamic = "force-dynamic";
+
 function coursePayload(courses: Array<{ id: string; slug?: string; title?: string; accessType?: string }>) {
     return courses.map((course) => ({
         id: course.id,

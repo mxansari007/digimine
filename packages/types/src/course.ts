@@ -12,6 +12,24 @@ export interface CourseNoteVideo {
     videoId: string;
 }
 
+/**
+ * SEO overrides for a single course subtopic. Optional — when blank, the
+ * public course page falls back to the subtopic title and summary.
+ *
+ * Shape intentionally mirrors `ArticleSeo` so the same builder UI can
+ * back both surfaces.
+ */
+export interface CourseSubtopicSeo {
+    metaTitle?: string;
+    metaDescription?: string;
+    canonicalUrl?: string | null;
+    ogImageUrl?: string | null;
+    focusKeyword?: string | null;
+    keywords?: string[];
+    structuredDataType?: "Article" | "BlogPosting" | "NewsArticle" | "TechArticle" | "HowTo";
+    noIndex?: boolean;
+}
+
 export interface CourseNoteSubtopic {
     id: string;
     title: string;
@@ -20,6 +38,8 @@ export interface CourseNoteSubtopic {
     imageUrls: string[];
     videos: CourseNoteVideo[];
     order?: number;
+    /** Optional SEO overrides — applied when the subtopic is rendered standalone. */
+    seo?: CourseSubtopicSeo;
 }
 
 export interface CourseNoteChapter {

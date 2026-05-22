@@ -24,3 +24,16 @@ export * from "./test";
 
 // Reusable question bank types
 export * from "./questionBank";
+
+// Teacher portal types
+export * from "./teacher";
+export * from "./subscription";
+export * from "./enrollment";
+export * from "./class";
+export * from "./institute";
+export * from "./instituteBilling";
+export * from "./teacherBilling";
+export * from "./article";
+export * from "./contentMetadata";
+export * from "./payout";
+export * from "./job";

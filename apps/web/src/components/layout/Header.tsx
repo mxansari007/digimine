@@ -6,8 +6,20 @@ import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { Logo } from "@/components/common/Logo";
+import { TeachersDropdown } from "@/components/teacher/TeachersDropdown";
+import { userHomePath } from "@/lib/auth/redirects";
+
 export function Header() {
     const { isAuthenticated, user, loading } = useAuthContext();
+    // Send each role to its own home — teacher → /teacher/dashboard,
+    // institute admin → /institute/dashboard, admin → /admin, customer →
+    // /dashboard. Falls back to /dashboard when user state hasn't loaded
+    // yet so the link target is never undefined.
+    const dashboardHref = user ? userHomePath(user) : "/dashboard";
+    // The "My Teachers" dropdown is a student-only utility — it lists the
+    // classes the caller is enrolled in. Hiding it for non-customers
+    // avoids a Firestore-rules-denied read storm on every public page.
+    const showTeachersDropdown = user?.role === "customer";
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Close mobile menu on route change
@@ -38,7 +50,7 @@ export function Header() {
 
     const navLinks = [
         { href: "/courses", label: "Courses" },
-        { href: "/courses", label: "Notes" },
+        { href: "/articles", label: "Articles" },
         { href: "/tests", label: "Mock Tests" },
         { href: "/quizzes", label: "Quizzes" },
         { href: "/contests", label: "Contests" },
@@ -46,21 +58,21 @@ export function Header() {
 
     return (
         <>
-            <header className="bg-slate-950/95 border-b border-white/10 sticky top-0 z-50 backdrop-blur-xl shadow-[0_10px_34px_rgba(2,6,23,0.16)]">
+            <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl">
                 <div className="container-page">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <Link href="/" className="flex items-center">
-                            <Logo variant="light" iconSize={24} />
+                            <Logo variant="dark" iconSize={24} />
                         </Link>
 
                         {/* Desktop Navigation */}
-                        <nav className="hidden md:flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
+                        <nav className="hidden md:flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
                             {navLinks.map((link) => (
                                 <Link
                                     key={`${link.href}-${link.label}`}
                                     href={link.href}
-                                    className="rounded-full px-3.5 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white font-semibold transition-colors tracking-wide"
+                                    className="rounded-full px-3.5 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-colors hover:bg-white hover:text-primary-700"
                                 >
                                     {link.label}
                                 </Link>
@@ -72,23 +84,24 @@ export function Header() {
                             {/* Desktop Auth buttons */}
                             <div className="hidden md:flex items-center gap-2">
                                 {loading ? (
-                                    <div className="w-20 h-9 bg-gray-800 animate-pulse rounded-lg" />
+                                    <div className="h-9 w-20 animate-pulse rounded-lg bg-slate-100" />
                                 ) : isAuthenticated ? (
                                     <div className="flex items-center gap-3">
+                                        {showTeachersDropdown && <TeachersDropdown />}
                                         <Link
-                                            href="/dashboard"
-                                            className="rounded-full px-3 py-2 text-white hover:bg-white/10 hover:text-primary-200 font-semibold transition-colors"
+                                            href={dashboardHref}
+                                            className="rounded-full px-3 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-primary-700"
                                         >
                                             {user?.displayName || "Dashboard"}
                                         </Link>
-                                        <Button variant="ghost" size="sm" onClick={handleSignOut} className="!text-white hover:bg-white/10 font-medium">
+                                        <Button variant="ghost" size="sm" onClick={handleSignOut} className="font-medium">
                                             Sign Out
                                         </Button>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <Link href="/login">
-                                            <Button variant="ghost" size="sm" className="!text-white hover:bg-white/10 font-medium">Sign In</Button>
+                                            <Button variant="ghost" size="sm" className="font-medium">Sign In</Button>
                                         </Link>
                                         <Link href="/register">
                                             <Button variant="primary" size="sm">Get Started</Button>
@@ -100,7 +113,7 @@ export function Header() {
                             {/* Mobile Menu Button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="md:hidden p-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 md:hidden"
                                 aria-label="Toggle menu"
                             >
                                 {isMobileMenuOpen ? (
@@ -120,7 +133,7 @@ export function Header() {
 
             {/* Mobile Menu Overlay */}
             <div
-                className={`fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                className={`fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={() => setIsMobileMenuOpen(false)}
             />
@@ -131,11 +144,11 @@ export function Header() {
                     }`}
             >
                 {/* Mobile Menu Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <div className="flex items-center justify-between border-b border-slate-200 p-4">
                     <Logo variant="dark" iconSize={22} />
                     <button
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="p-2 text-gray-500 hover:text-gray-700"
+                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -150,7 +163,7 @@ export function Header() {
                                             key={`${link.href}-${link.label}`}
                             href={link.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="block px-4 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-xl font-semibold transition-colors"
+                            className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 hover:text-primary-700"
                         >
                             {link.label}
                         </Link>
@@ -158,21 +171,21 @@ export function Header() {
                 </nav>
 
                 {/* Mobile Auth Section */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50">
+                <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-slate-50 p-4">
                     {loading ? (
                         <div className="w-full h-10 bg-gray-200 animate-pulse rounded-lg" />
                     ) : isAuthenticated ? (
                         <div className="space-y-2">
                             <Link
-                                href="/dashboard"
+                                href={dashboardHref}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full text-center py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium"
+                                className="block w-full rounded-lg bg-white px-4 py-2 text-center font-medium text-slate-700 ring-1 ring-slate-200"
                             >
                                 My Dashboard
                             </Link>
                             <button
                                 onClick={handleSignOut}
-                                className="block w-full py-2 px-4 text-gray-600 hover:text-gray-800 text-center"
+                                className="block w-full px-4 py-2 text-center text-slate-600 hover:text-slate-900"
                             >
                                 Sign Out
                             </button>
@@ -182,14 +195,14 @@ export function Header() {
                             <Link
                                 href="/register"
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full text-center py-3 px-4 bg-primary-600 text-white rounded-lg font-medium"
+                                className="block w-full rounded-lg bg-primary-600 px-4 py-3 text-center font-medium text-white"
                             >
                                 Get Started
                             </Link>
                             <Link
                                 href="/login"
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full text-center py-2 px-4 text-gray-600"
+                                className="block w-full px-4 py-2 text-center text-slate-600"
                             >
                                 Sign In
                             </Link>

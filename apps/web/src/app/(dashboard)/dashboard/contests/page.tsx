@@ -212,7 +212,7 @@ export default function MyContestsPage() {
         setPage(1);
     }, [rows.length, pageSize]);
 
-    if (loading) return <PageLoading />;
+    if (loading) return <PageLoading variant="inline" />;
 
     const columns: DataTableColumn<ContestAttemptRow>[] = [
         {

@@ -133,7 +133,7 @@ function ResultsContent() {
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Result Not Found</h2>
                 <p className="text-gray-500 mb-6">We couldn&apos;t find the test result you&apos;re looking for.</p>
                 <Link href="/tests">
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">Browse Tests</Button>
+                    <Button>Browse Tests</Button>
                 </Link>
             </Card>
         </div>
@@ -146,7 +146,7 @@ function ResultsContent() {
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Result Not Available Yet</h2>
                     <p className="text-gray-500 mb-6">Your test was submitted successfully. Results will be shown once the admin enables instant results.</p>
                     <Link href={`/tests/${series.slug}`}>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">Back to Series</Button>
+                        <Button>Back to Series</Button>
                     </Link>
                 </Card>
             </div>
@@ -540,7 +540,7 @@ function ResultsContent() {
                 <div className="flex flex-col sm:flex-row justify-center gap-4 pb-8">
                     <Link href={`/tests/${series.slug}`}><Button variant="outline" className="w-full sm:w-auto">Back to Series</Button></Link>
                     {test.allowRetake && (
-                        <Link href={`/tests/${series.slug}/attempt?testId=${test.id}`}><Button className="w-full sm:w-auto bg-indigo-600 text-white">Retake Test</Button></Link>
+                        <Link href={`/tests/${series.slug}/attempt?testId=${test.id}`}><Button className="w-full sm:w-auto">Retake Test</Button></Link>
                     )}
                 </div>
             </div>

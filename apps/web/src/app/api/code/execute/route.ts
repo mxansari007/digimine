@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeDirect } from "@/lib/code-executor/direct";
+import { adminDb } from "@/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 // ============================================================
 // Code Execution API Proxy
@@ -137,7 +139,7 @@ async function executeWithJudge0(
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { language, code, stdin } = body;
+        const { language, code, stdin, teacherId } = body;
 
         if (!language || !code) {
             return NextResponse.json(
@@ -146,9 +148,104 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const provider = detectProvider();
-        let result;
+        // Determine queue based on teacher plan
+        let queue: "shared" | "dedicated" = "shared";
+        if (teacherId) {
+            const teacherRef = adminDb.collection("teachers").doc(teacherId);
+            const teacherSnap = await teacherRef.get();
+            if (teacherSnap.exists) {
+                const planId = teacherSnap.data()?.subscription?.planId;
+                if (planId === "institution") {
+                    queue = "dedicated";
+                }
+            }
+        }
 
+        // For Piston provider with queue management
+        const provider = detectProvider();
+        if (provider === "piston") {
+            // Check if queue is full for shared users
+            if (queue === "shared") {
+                const runningJobs = await adminDb
+                    .collection("jobs")
+                    .where("queue", "==", "shared")
+                    .where("status", "==", "running")
+                    .count()
+                    .get();
+
+                const maxShared = parseInt(process.env.PISTON_QUEUE_MAX_SHARED || "3", 10);
+                if (runningJobs.data().count >= maxShared) {
+                    // Queue is full, create a job document and return 202
+                    const jobRef = adminDb.collection("jobs").doc();
+                    await jobRef.set({
+                        teacherId: teacherId || null,
+                        queue: "shared",
+                        status: "queued",
+                        language,
+                        code,
+                        stdin: stdin || "",
+                        result: null,
+                        error: null,
+                        createdAt: FieldValue.serverTimestamp(),
+                    });
+                    return NextResponse.json(
+                        {
+                            status: "queued",
+                            jobId: jobRef.id,
+                            message: "Queue is full. Your job has been queued.",
+                        },
+                        { status: 202 }
+                    );
+                }
+            }
+
+            // Execute directly or create dedicated job
+            const url = process.env.CODE_EXECUTION_URL;
+            if (!url) {
+                return NextResponse.json(
+                    { error: "CODE_EXECUTION_URL is required for Piston provider" },
+                    { status: 500 }
+                );
+            }
+
+            if (queue === "dedicated") {
+                // For dedicated queue, create a job doc and let the trigger handle it
+                const jobRef = adminDb.collection("jobs").doc();
+                await jobRef.set({
+                    teacherId: teacherId || null,
+                    queue: "dedicated",
+                    status: "queued",
+                    language,
+                    code,
+                    stdin: stdin || "",
+                    result: null,
+                    error: null,
+                    createdAt: FieldValue.serverTimestamp(),
+                });
+                return NextResponse.json(
+                    {
+                        status: "queued",
+                        jobId: jobRef.id,
+                        message: "Job submitted to dedicated queue.",
+                    },
+                    { status: 202 }
+                );
+            }
+
+            const result = await executeWithPiston(url, language, code, stdin || "");
+            return NextResponse.json({
+                stdout: result.stdout,
+                stderr: result.stderr,
+                compileOutput: result.compileOutput,
+                status: result.status,
+                exitCode: result.exitCode,
+                provider,
+                queue,
+            });
+        }
+
+        // Direct or Judge0 execution (no queue)
+        let result;
         if (provider === "direct") {
             const directResult = await executeDirect(language, code, stdin || "");
             result = {
@@ -158,15 +255,6 @@ export async function POST(req: NextRequest) {
                 status: directResult.exitCode === 0 ? "Accepted" : "Error",
                 exitCode: directResult.exitCode,
             };
-        } else if (provider === "piston") {
-            const url = process.env.CODE_EXECUTION_URL;
-            if (!url) {
-                return NextResponse.json(
-                    { error: "CODE_EXECUTION_URL is required for Piston provider" },
-                    { status: 500 }
-                );
-            }
-            result = await executeWithPiston(url, language, code, stdin || "");
         } else {
             const url = process.env.CODE_EXECUTION_URL || DEFAULT_JUDGE0_URL;
             result = await executeWithJudge0(url, language, code, stdin || "");
@@ -179,6 +267,7 @@ export async function POST(req: NextRequest) {
             status: result.status,
             exitCode: result.exitCode,
             provider,
+            queue,
         });
     } catch (error: any) {
         console.error("Code execution error:", error);

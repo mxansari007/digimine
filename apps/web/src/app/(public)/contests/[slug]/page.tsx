@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { getContestBySlug, getContestPhase } from "@/lib/firestore/contests";
 import {
@@ -35,12 +35,45 @@ function formatDuration(seconds: number) {
     return `${minutes}m`;
 }
 
+function toDate(value: any): Date {
+    if (!value) return new Date();
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === "function") return value.toDate();
+    if (typeof value === "string") return new Date(value);
+    if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+    return new Date(value);
+}
+
+function hydrateDateFields<T extends Record<string, any>>(value: T | null | undefined): T | null {
+    if (!value) return null;
+    return {
+        ...value,
+        startTime: value.startTime ? toDate(value.startTime) : value.startTime,
+        endTime: value.endTime ? toDate(value.endTime) : value.endTime,
+        createdAt: value.createdAt ? toDate(value.createdAt) : value.createdAt,
+        updatedAt: value.updatedAt ? toDate(value.updatedAt) : value.updatedAt,
+    };
+}
+
+async function fetchClassroomJson<T>(url: string, token: string): Promise<T> {
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.error || "You do not have access to this classroom content.");
+    }
+    return data;
+}
+
 export default function ContestDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const slug = params.slug as string;
-    const { user } = useAuthContext();
-    const userId = user?.id;
+    const classroomTeacherId = searchParams.get("teacherId");
+    const { user, firebaseUser, loading: authLoading } = useAuthContext();
+    const userId = user?.id || firebaseUser?.uid;
 
     const [contest, setContest] = useState<Contest | null>(null);
     const [series, setSeries] = useState<TestSeries | null>(null);
@@ -52,11 +85,38 @@ export default function ContestDetailPage() {
     const [loading, setLoading] = useState(true);
     const [enrolling, setEnrolling] = useState(false);
 
+    // Guard against duplicate load runs (React Strict Mode, hook re-renders).
+    const loadOnceRef = useRef<string | null>(null);
+
     useEffect(() => {
+        const loadKey = `${slug}|${classroomTeacherId || ""}|${userId || ""}|${authLoading ? "loading" : "ready"}`;
+        if (loadOnceRef.current === loadKey) return;
+        loadOnceRef.current = loadKey;
+
         async function loadContest() {
+            if (classroomTeacherId && authLoading) return;
+
             try {
                 setLoading(true);
-                const contestData = await getContestBySlug(slug);
+                let classroomToken: string | null = null;
+                let contestData: Contest | null = null;
+
+                if (classroomTeacherId) {
+                    if (!firebaseUser) {
+                        router.push(`/login?redirect=${encodeURIComponent(`/contests/${slug}?teacherId=${classroomTeacherId}`)}`);
+                        return;
+                    }
+
+                    classroomToken = await firebaseUser.getIdToken();
+                    const data = await fetchClassroomJson<{ content?: Contest }>(
+                        `/api/content/data?type=contest&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                        classroomToken
+                    );
+                    contestData = hydrateDateFields(data.content);
+                } else {
+                    contestData = await getContestBySlug(slug);
+                }
+
                 if (!contestData) {
                     router.push("/contests");
                     return;
@@ -74,10 +134,30 @@ export default function ContestDetailPage() {
                         router.push("/contests");
                         return;
                     }
-                    const [seriesData, testData] = await Promise.all([
-                        getTestSeries(contestData.seriesId),
-                        getTestById(contestData.seriesId, contestData.testId),
-                    ]);
+
+                    let seriesData: TestSeries | null = null;
+                    let testData: Test | null = null;
+
+                    if (classroomTeacherId && classroomToken) {
+                        const [seriesRes, testRes] = await Promise.all([
+                            fetchClassroomJson<{ content?: TestSeries }>(
+                                `/api/content/data?type=test&slug=${encodeURIComponent(contestData.seriesId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                                classroomToken
+                            ),
+                            fetchClassroomJson<{ test?: Test }>(
+                                `/api/content/data?type=test&parentId=${encodeURIComponent(contestData.seriesId)}&childId=${encodeURIComponent(contestData.testId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                                classroomToken
+                            ),
+                        ]);
+                        seriesData = hydrateDateFields(seriesRes.content);
+                        testData = hydrateDateFields(testRes.test);
+                    } else {
+                        [seriesData, testData] = await Promise.all([
+                            getTestSeries(contestData.seriesId),
+                            getTestById(contestData.seriesId, contestData.testId),
+                        ]);
+                    }
+
                     if (!seriesData || !testData) {
                         router.push("/contests");
                         return;
@@ -85,11 +165,18 @@ export default function ContestDetailPage() {
                     setSeries(seriesData);
                     setTest(testData);
                     if (userId) {
-                        const [access, userAttempts] = await Promise.all([
-                            hasUserPurchasedTest(userId, contestData.seriesId),
-                            getUserTestAttempts(userId, contestData.seriesId, contestData.testId),
-                        ]);
-                        setHasAccess(access);
+                        const userAttempts = await getUserTestAttempts(userId, contestData.seriesId, contestData.testId);
+                        if (classroomTeacherId) {
+                            setHasAccess(true);
+                        } else {
+                            const access = await hasUserPurchasedTest(userId, contestData.seriesId);
+                            let hasClassroomAccess = false;
+                            try {
+                                const accessRes = await fetch(`/api/classroom/content-access?userId=${userId}&teacherId=${(seriesData as any).teacherId || ""}`);
+                                hasClassroomAccess = (await accessRes.json())?.hasAccess || false;
+                            } catch { /* ignore */ }
+                            setHasAccess(access || hasClassroomAccess);
+                        }
                         setAttempts(userAttempts.filter((attempt) => attempt.contestId === contestData.id));
                     } else {
                         setHasAccess(false);
@@ -99,13 +186,29 @@ export default function ContestDetailPage() {
                         router.push("/contests");
                         return;
                     }
-                    const quizData = await getQuizById(contestData.quizId);
+                    let quizData: Quiz | null = null;
+                    if (classroomTeacherId && classroomToken) {
+                        const quizRes = await fetchClassroomJson<{ quiz?: Quiz }>(
+                            `/api/quizzes/data?slug=${encodeURIComponent(contestData.quizId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                            classroomToken
+                        );
+                        quizData = hydrateDateFields(quizRes.quiz);
+                    } else {
+                        quizData = await getQuizById(contestData.quizId);
+                    }
                     if (!quizData) {
                         router.push("/contests");
                         return;
                     }
                     setQuiz(quizData);
-                    setHasAccess(quizData.accessType === "free" || contestData.sourceType === "custom");
+                    let quizHasAccess = Boolean(classroomTeacherId) || quizData.accessType === "free" || contestData.sourceType === "custom";
+                    if (userId && !quizHasAccess && (quizData as any).teacherId) {
+                        try {
+                            const accessRes = await fetch(`/api/classroom/content-access?userId=${userId}&teacherId=${(quizData as any).teacherId}`);
+                            quizHasAccess = (await accessRes.json())?.hasAccess || false;
+                        } catch { /* ignore */ }
+                    }
+                    setHasAccess(quizHasAccess);
                     if (userId) {
                         const userAttempts = await getUserQuizAttempts(userId, quizData.id);
                         setQuizAttempts(userAttempts.filter((attempt) => attempt.contestId === contestData.id));
@@ -113,12 +216,13 @@ export default function ContestDetailPage() {
                 }
             } catch (error) {
                 console.error("Failed to load contest:", error);
+                setContest(null);
             } finally {
                 setLoading(false);
             }
         }
         loadContest();
-    }, [router, slug, userId]);
+    }, [authLoading, classroomTeacherId, firebaseUser, router, slug, userId]);
 
     const latestAttempt = useMemo(
         () => attempts.find((attempt) => attempt.status !== "abandoned") || null,
@@ -150,18 +254,34 @@ export default function ContestDetailPage() {
     const isTestContest = contest.sourceType === "test";
     const activeAttempt = isTestContest ? latestAttempt : latestQuizAttempt;
     const isFreeSeries = Boolean(series?.accessType === "free");
-    const canStart = Boolean(user && hasAccess && isLive && !activeAttempt);
-    const startHref = isTestContest && series && contest.testId
-        ? `/tests/${series.slug}/attempt?testId=${contest.testId}&contestId=${contest.id}`
-        : quiz
-            ? `/quizzes/${quiz.slug || quiz.id}?contestId=${contest.id}`
-            : `/contests/${contest.slug || contest.id}`;
+    const canStart = Boolean(userId && hasAccess && isLive && !activeAttempt);
+    const currentContestPath = `/contests/${contest.slug || contest.id}${classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : ""}`;
+    const startHref = (() => {
+        if (isTestContest && series && contest.testId) {
+            const query = new URLSearchParams({
+                testId: contest.testId,
+                contestId: contest.id,
+            });
+            if (classroomTeacherId) query.set("teacherId", classroomTeacherId);
+            return `/tests/${series.slug}/attempt?${query.toString()}`;
+        }
+        if (quiz) {
+            const query = new URLSearchParams({ contestId: contest.id });
+            if (classroomTeacherId) query.set("teacherId", classroomTeacherId);
+            return `/quizzes/${quiz.slug || quiz.id}?${query.toString()}`;
+        }
+        return currentContestPath;
+    })();
+    const resultSuffix = classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
     const resultHref = isTestContest
-        ? latestAttempt ? `/dashboard/tests/results/${latestAttempt.id}` : ""
-        : latestQuizAttempt ? `/dashboard/quizzes/results/${latestQuizAttempt.id}` : "";
+        ? latestAttempt ? `/dashboard/tests/results/${latestAttempt.id}${resultSuffix}` : ""
+        : latestQuizAttempt ? `/dashboard/quizzes/results/${latestQuizAttempt.id}${resultSuffix}` : "";
     const resumeHref = isTestContest && latestAttempt
-        ? `${startHref}&attemptId=${latestAttempt.id}`
+        ? `${startHref}${startHref.includes("?") ? "&" : "?"}attemptId=${latestAttempt.id}`
         : startHref;
+    const quizAccessHref = quiz
+        ? `/quizzes/${quiz.slug || quiz.id}${classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : ""}`
+        : "/quizzes";
     const paperMinutes = test?.duration || quiz?.timeLimitMinutes || Math.max(1, Math.ceil((contest.endTime.getTime() - contest.startTime.getTime()) / 60000));
     const passingMark = test?.passingMarks || contest.passingMarks || 0;
     const contestStatusText = isLive
@@ -171,10 +291,10 @@ export default function ContestDetailPage() {
             : "Contest ended";
 
     const handleFreeEnroll = async () => {
-        if (!user || enrolling || !series) return;
+        if (!userId || enrolling || !series) return;
         try {
             setEnrolling(true);
-            await enrollInFreeTestSeries(user.id, series.id);
+            await enrollInFreeTestSeries(userId, series.id);
             setHasAccess(true);
         } catch (error) {
             alert(error instanceof Error ? error.message : "Could not enroll.");
@@ -283,8 +403,8 @@ export default function ContestDetailPage() {
                                     <Link href={resultHref}>
                                         <Button className="w-full">View Result & Leaderboard</Button>
                                     </Link>
-                                ) : !user ? (
-                                    <Link href={`/login?redirect=${encodeURIComponent(`/contests/${contest.slug || contest.id}`)}`}>
+                                ) : !userId ? (
+                                    <Link href={`/login?redirect=${encodeURIComponent(currentContestPath)}`}>
                                         <Button className="w-full">Login to Join</Button>
                                     </Link>
                                 ) : isTestContest && !hasAccess && isFreeSeries ? (
@@ -296,7 +416,7 @@ export default function ContestDetailPage() {
                                         <Button className="w-full">Unlock Series to Join</Button>
                                     </Link>
                                 ) : !hasAccess ? (
-                                    <Link href={quiz ? `/quizzes/${quiz.slug || quiz.id}` : "/quizzes"}>
+                                    <Link href={quizAccessHref}>
                                         <Button className="w-full">Open Quiz Access</Button>
                                     </Link>
                                 ) : canStart ? (

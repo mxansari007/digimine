@@ -347,6 +347,118 @@ export function CourseNotesEditor({
                                                 )}
                                             </div>
                                         </div>
+
+                                        <details className="mt-4 rounded-2xl border border-slate-200 bg-white">
+                                            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                SEO overrides
+                                                <span className="ml-2 text-xs font-normal text-slate-400">
+                                                    Optional — controls how this subtopic appears in search & shares
+                                                </span>
+                                            </summary>
+                                            <div className="space-y-3 border-t border-slate-100 p-4">
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    <label className="block">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meta title</span>
+                                                        <input
+                                                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                                            value={subtopic.seo?.metaTitle || ""}
+                                                            onChange={(e) =>
+                                                                updateSubtopic(chapter.id, subtopic.id, {
+                                                                    seo: { ...(subtopic.seo || {}), metaTitle: e.target.value },
+                                                                })
+                                                            }
+                                                            placeholder={subtopic.title}
+                                                            maxLength={70}
+                                                        />
+                                                    </label>
+                                                    <label className="block">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Focus keyword</span>
+                                                        <input
+                                                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                                            value={subtopic.seo?.focusKeyword || ""}
+                                                            onChange={(e) =>
+                                                                updateSubtopic(chapter.id, subtopic.id, {
+                                                                    seo: { ...(subtopic.seo || {}), focusKeyword: e.target.value },
+                                                                })
+                                                            }
+                                                            placeholder="Primary keyword for this topic"
+                                                        />
+                                                    </label>
+                                                </div>
+                                                <label className="block">
+                                                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meta description</span>
+                                                    <textarea
+                                                        className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                                        rows={2}
+                                                        value={subtopic.seo?.metaDescription || ""}
+                                                        onChange={(e) =>
+                                                            updateSubtopic(chapter.id, subtopic.id, {
+                                                                seo: { ...(subtopic.seo || {}), metaDescription: e.target.value },
+                                                            })
+                                                        }
+                                                        placeholder={subtopic.summary || "Defaults to the summary line"}
+                                                        maxLength={180}
+                                                    />
+                                                </label>
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    <label className="block">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Keywords</span>
+                                                        <input
+                                                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                                            value={(subtopic.seo?.keywords || []).join(", ")}
+                                                            onChange={(e) =>
+                                                                updateSubtopic(chapter.id, subtopic.id, {
+                                                                    seo: {
+                                                                        ...(subtopic.seo || {}),
+                                                                        keywords: e.target.value
+                                                                            .split(",")
+                                                                            .map((s) => s.trim())
+                                                                            .filter(Boolean),
+                                                                    },
+                                                                })
+                                                            }
+                                                            placeholder="trig, identities"
+                                                        />
+                                                    </label>
+                                                    <label className="block">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Schema.org type</span>
+                                                        <select
+                                                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                                            value={subtopic.seo?.structuredDataType || "Article"}
+                                                            onChange={(e) =>
+                                                                updateSubtopic(chapter.id, subtopic.id, {
+                                                                    seo: { ...(subtopic.seo || {}), structuredDataType: e.target.value as any },
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="Article">Article</option>
+                                                            <option value="TechArticle">Tech Article</option>
+                                                            <option value="HowTo">How-To</option>
+                                                            <option value="BlogPosting">Blog Post</option>
+                                                            <option value="NewsArticle">News Article</option>
+                                                        </select>
+                                                    </label>
+                                                </div>
+                                                <label className="flex items-start gap-2 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-0.5"
+                                                        checked={Boolean(subtopic.seo?.noIndex)}
+                                                        onChange={(e) =>
+                                                            updateSubtopic(chapter.id, subtopic.id, {
+                                                                seo: { ...(subtopic.seo || {}), noIndex: e.target.checked },
+                                                            })
+                                                        }
+                                                    />
+                                                    <span>
+                                                        <span className="font-medium">Don&apos;t index this subtopic</span>
+                                                        <span className="block text-xs text-slate-400">
+                                                            Use for drafts or sensitive content.
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </details>
                                     </div>
                                 ))}
 

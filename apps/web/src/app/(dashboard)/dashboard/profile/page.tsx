@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase/client";
 import { formatCurrency } from "@digimine/utils";
 import { getUserTestPurchases, getTestSeriesBySlug } from "@/lib/firestore/tests";
 import type { Order, TestPurchase } from "@digimine/types";
+import { PageLoading } from "@/components/common";
 
 export default function ProfilePage() {
     const { user, firebaseUser } = useAuthContext();
@@ -245,7 +246,7 @@ export default function ProfilePage() {
                         </h2>
 
                         {loadingOrders ? (
-                            <div className="text-center py-8 text-gray-500">Loading purchases...</div>
+                            <PageLoading variant="inline" />
                         ) : orders.length === 0 ? (
                             <div className="text-center py-8">
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

@@ -87,9 +87,9 @@ export default function UsersPage() {
             render: (user) => (
                 <span
                     className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${user.role === "super_admin"
-                        ? "bg-purple-100 text-purple-800"
+                        ? "bg-slate-100 text-slate-700"
                         : user.role === "admin"
-                            ? "bg-blue-100 text-blue-800"
+                            ? "bg-primary-50 text-primary-700"
                             : "bg-slate-100 text-slate-700"
                     }`}
                 >

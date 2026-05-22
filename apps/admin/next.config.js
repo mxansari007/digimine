@@ -1,11 +1,30 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
+const WEB_API_URL =
+    process.env.WEB_API_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000";
+
 const nextConfig = {
     reactStrictMode: true,
-    transpilePackages: ["@digimine/ui", "@digimine/config", "@digimine/utils"],
+    transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         domains: ["firebasestorage.googleapis.com"],
+    },
+    async rewrites() {
+        // Admin app has no API routes of its own; proxy server-side calls
+        // to the @digimine/web app which owns all server logic + Admin SDK.
+        return [
+            {
+                source: "/api/admin/:path*",
+                destination: `${WEB_API_URL}/api/admin/:path*`,
+            },
+            {
+                source: "/api/teacher/:path*",
+                destination: `${WEB_API_URL}/api/teacher/:path*`,
+            },
+        ];
     },
     webpack: (config, { isServer }) => {
         // Fix for Firebase/undici compatibility with Next.js 14

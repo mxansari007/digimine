@@ -171,12 +171,38 @@ function progressClass(status?: QuestionResult["status"], answered?: boolean) {
     return "border-slate-200 bg-white text-slate-500";
 }
 
+// Mirrors the test attempt page's palette so contests / standalone quizzes
+// show the same five states students are used to.
+type QuizQuestionStatus =
+    | "not_visited"
+    | "visited"
+    | "answered"
+    | "marked_for_review"
+    | "answered_and_marked";
+
+function quizStatusClass(status: QuizQuestionStatus, isCurrent: boolean): string {
+    if (isCurrent) return "border-slate-950 bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]";
+    switch (status) {
+        case "answered_and_marked":
+            return "border-purple-400 bg-emerald-50 text-emerald-700 ring-2 ring-purple-300";
+        case "marked_for_review":
+            return "border-purple-300 bg-purple-50 text-purple-700 ring-2 ring-purple-200";
+        case "answered":
+            return "border-emerald-300 bg-emerald-50 text-emerald-700";
+        case "visited":
+            return "border-blue-200 bg-blue-50 text-blue-600";
+        default:
+            return "border-slate-200 bg-white text-slate-500";
+    }
+}
+
 export default function QuizDetailPage() {
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const contestId = searchParams.get("contestId");
+    const classroomTeacherId = searchParams.get("teacherId");
     const { firebaseUser, loading: authLoading } = useAuthContext();
 
     const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -189,6 +215,8 @@ export default function QuizDetailPage() {
     const [mode, setMode] = useState<QuizMode>("intro");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
+    const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
     const [timeLeft, setTimeLeft] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<QuizResult | null>(null);
@@ -208,7 +236,15 @@ export default function QuizDetailPage() {
         return () => document.body.classList.remove("test-attempt-mode");
     }, [mode]);
 
+    // Guard: prevent the quiz loader from racing against itself (React Strict
+    // Mode + hook deps re-renders). Only re-run when the URL identity changes.
+    const loadQuizOnceRef = useRef<string | null>(null);
+
     useEffect(() => {
+        const key = `${slug}|${classroomTeacherId || ""}|${firebaseUser?.uid || ""}|${authLoading ? "loading" : "ready"}`;
+        if (loadQuizOnceRef.current === key) return;
+        loadQuizOnceRef.current = key;
+
         async function loadQuiz() {
             setLoading(true);
             setAccessError(null);
@@ -223,7 +259,24 @@ export default function QuizDetailPage() {
             setRankingLoading(false);
             setSaveStatus("idle");
             try {
-                const quizData = await getQuizBySlug(slug);
+                let quizData: Quiz | null = null;
+                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
+                if (classroomTeacherId) {
+                    if (authLoading) return;
+                    if (!firebaseUser) {
+                        router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${slug}?teacherId=${classroomTeacherId}`)}`);
+                        return;
+                    }
+                    const token = await firebaseUser.getIdToken();
+                    const res = await fetch(`/api/quizzes/data?slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const serverData = await res.json();
+                    if (!res.ok) throw new Error(serverData.error || "You do not have access to this classroom quiz.");
+                    quizData = serverData.quiz || null;
+                } else {
+                    quizData = await getQuizBySlug(slug);
+                }
                 setQuiz(quizData);
             } catch (error) {
                 console.error("Failed to load quiz:", error);
@@ -233,7 +286,7 @@ export default function QuizDetailPage() {
         }
 
         loadQuiz();
-    }, [slug]);
+    }, [authLoading, classroomTeacherId, firebaseUser, router, slug]);
 
     const applyAttemptPayload = useCallback((data: { attempt: QuizAttemptSummary | null; questions?: AttemptQuestion[] }) => {
         if (!data.attempt) {
@@ -274,6 +327,13 @@ export default function QuizDetailPage() {
         setQuestions(data.questions || []);
         setCurrentIndex(nextIndex);
         setAnswers(nextAnswers);
+        // Reset palette state for a new (or resumed) attempt. Seed the
+        // resumed question as visited so its tile shows the visited colour.
+        setMarkedForReview(new Set());
+        const initialVisited = new Set<string>();
+        const resumeQuestion = (data.questions || [])[nextIndex];
+        if (resumeQuestion) initialVisited.add(resumeQuestion.id);
+        setVisitedQuestions(initialVisited);
         setTimeLeft(nextTimeLeft);
         setSaveStatus(hasNewerCache ? "saving" : "saved");
         setLastSavedAt(hasNewerCache && cachedState ? cachedState.savedAt : serverUpdatedAt || null);
@@ -282,8 +342,16 @@ export default function QuizDetailPage() {
         setRankingLoading(false);
     }, [quiz?.timeLimitMinutes]);
 
+    // Guard: only fetch the active attempt once per (quiz, contestId, user).
+    // Without this, the effect re-runs whenever applyAttemptPayload's identity
+    // changes, causing redundant GETs.
+    const loadActiveOnceRef = useRef<string | null>(null);
+
     useEffect(() => {
         if (!quiz || quiz.status !== "published" || authLoading || !firebaseUser) return;
+        const key = `${quiz.id}|${contestId || ""}|${firebaseUser.uid}`;
+        if (loadActiveOnceRef.current === key) return;
+        loadActiveOnceRef.current = key;
 
         async function loadActiveAttempt() {
             if (!quiz || !firebaseUser) return;
@@ -364,7 +432,25 @@ export default function QuizDetailPage() {
         const nextIndex = Math.min(Math.max(0, index), Math.max(0, questions.length - 1));
         persistLocalAttempt(answers, nextIndex);
         setCurrentIndex(nextIndex);
-    }, [answers, persistLocalAttempt, questions.length]);
+        const visitedQuestion = questions[nextIndex];
+        if (visitedQuestion) {
+            setVisitedQuestions((prev) => {
+                if (prev.has(visitedQuestion.id)) return prev;
+                const next = new Set(prev);
+                next.add(visitedQuestion.id);
+                return next;
+            });
+        }
+    }, [answers, persistLocalAttempt, questions]);
+
+    const toggleMarkForReview = useCallback((questionId: string) => {
+        setMarkedForReview((prev) => {
+            const next = new Set(prev);
+            if (next.has(questionId)) next.delete(questionId);
+            else next.add(questionId);
+            return next;
+        });
+    }, []);
 
     const submitQuiz = useCallback(async (autoSubmitted = false) => {
         if (!attempt || submitting || result) return;
@@ -373,7 +459,11 @@ export default function QuizDetailPage() {
         try {
             const token = firebaseUser ? await firebaseUser.getIdToken() : null;
             if (!token) {
-                router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${slug}${contestId ? `?contestId=${contestId}` : ""}`)}`);
+                const query = new URLSearchParams();
+                if (contestId) query.set("contestId", contestId);
+                if (classroomTeacherId) query.set("teacherId", classroomTeacherId);
+                const suffix = query.toString() ? `?${query.toString()}` : "";
+                router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${slug}${suffix}`)}`);
                 return;
             }
             const response = await fetch(`/api/quiz-attempts/${attempt.id}`, {
@@ -429,7 +519,7 @@ export default function QuizDetailPage() {
         } finally {
             setSubmitting(false);
         }
-    }, [answerPayload, attempt, contestId, currentIndex, firebaseUser, result, router, slug, submitting, timeLeft]);
+    }, [answerPayload, attempt, classroomTeacherId, contestId, currentIndex, firebaseUser, result, router, slug, submitting, timeLeft]);
 
     useEffect(() => {
         if (mode !== "attempt" || (!quiz?.timeLimitMinutes && !attempt?.endTime) || result) return;
@@ -496,8 +586,15 @@ export default function QuizDetailPage() {
 
     const startQuiz = async () => {
         if (!quiz) return;
+        // Reject double-clicks on Start. The server is also race-safe, but
+        // refusing the second click locally avoids spurious load spinners.
+        if (loadingQuestions || mode === "attempt") return;
         if (!firebaseUser) {
-            router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${quiz.slug}${contestId ? `?contestId=${contestId}` : ""}`)}`);
+            const query = new URLSearchParams();
+            if (contestId) query.set("contestId", contestId);
+            if (classroomTeacherId) query.set("teacherId", classroomTeacherId);
+            const suffix = query.toString() ? `?${query.toString()}` : "";
+            router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${quiz.slug}${suffix}`)}`);
             return;
         }
 
@@ -514,7 +611,7 @@ export default function QuizDetailPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ contestId }),
+                body: JSON.stringify({ contestId, teacherId: classroomTeacherId }),
             });
             const data = await response.json();
             if (!response.ok) {
@@ -541,6 +638,8 @@ export default function QuizDetailPage() {
     const retakeQuiz = () => {
         if (attempt?.id) clearCachedAttemptState(attempt.id);
         setAnswers({});
+        setMarkedForReview(new Set());
+        setVisitedQuestions(new Set());
         setAttempt(null);
         setQuestions([]);
         setResult(null);
@@ -658,6 +757,7 @@ export default function QuizDetailPage() {
                         rankingLoading={rankingLoading}
                         rankingError={rankingError}
                         onRetake={retakeQuiz}
+                        isPreviewAttempt={Boolean((attempt as any)?.isPreview)}
                     />
                 ) : currentQuestion ? (
                     <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -713,22 +813,60 @@ export default function QuizDetailPage() {
                                     </div>
 
                                     <div className="grid grid-cols-5 gap-2">
-                                        {questions.map((question, index) => (
-                                            <button
-                                                key={question.id}
-                                                type="button"
-                                                onClick={() => goToQuestion(index)}
-                                                className={`h-10 rounded-xl border text-sm font-black transition ${index === currentIndex ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]" : progressClass(undefined, Boolean(answers[question.id]))}`}
-                                                aria-label={`Go to question ${index + 1}`}
-                                            >
-                                                {index + 1}
-                                            </button>
-                                        ))}
+                                        {questions.map((question, index) => {
+                                            const answered = Boolean(answers[question.id]);
+                                            const marked = markedForReview.has(question.id);
+                                            const visited = visitedQuestions.has(question.id) || index === currentIndex;
+                                            let status: QuizQuestionStatus = "not_visited";
+                                            if (marked && answered) status = "answered_and_marked";
+                                            else if (marked) status = "marked_for_review";
+                                            else if (answered) status = "answered";
+                                            else if (visited) status = "visited";
+                                            return (
+                                                <button
+                                                    key={question.id}
+                                                    type="button"
+                                                    onClick={() => goToQuestion(index)}
+                                                    className={`h-10 rounded-xl border text-sm font-black transition ${quizStatusClass(status, index === currentIndex)}`}
+                                                    aria-label={`Go to question ${index + 1}`}
+                                                >
+                                                    {index + 1}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-slate-600">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3 w-3 rounded border border-emerald-300 bg-emerald-50" />
+                                            <span>Answered ({questions.filter((q) => Boolean(answers[q.id]) && !markedForReview.has(q.id)).length})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3 w-3 rounded border border-purple-300 bg-purple-50 ring-1 ring-purple-200" />
+                                            <span>Marked ({Array.from(markedForReview).filter((id) => !answers[id]).length})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3 w-3 rounded border border-purple-400 bg-emerald-50 ring-1 ring-purple-300" />
+                                            <span>Marked & Answered ({Array.from(markedForReview).filter((id) => Boolean(answers[id])).length})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-3 w-3 rounded border border-blue-200 bg-blue-50" />
+                                            <span>Visited</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="surface-panel p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className={`mb-2 w-full ${markedForReview.has(currentQuestion.id) ? "!border-purple-300 !bg-purple-50 !text-purple-700" : ""}`}
+                                    onClick={() => toggleMarkForReview(currentQuestion.id)}
+                                >
+                                    {markedForReview.has(currentQuestion.id) ? "✓ Marked for Review" : "Mark for Review"}
+                                </Button>
                                 <div className="flex gap-2">
                                     <Button
                                         type="button"
@@ -1101,6 +1239,7 @@ function ResultView({
     rankingLoading,
     rankingError,
     onRetake,
+    isPreviewAttempt = false,
 }: {
     quiz: Quiz;
     questions: AttemptQuestion[];
@@ -1111,9 +1250,19 @@ function ResultView({
     rankingLoading: boolean;
     rankingError: string | null;
     onRetake: () => void;
+    isPreviewAttempt?: boolean;
 }) {
     return (
         <div className="space-y-6">
+            {isPreviewAttempt && (
+                <div className="rounded-2xl border border-info-200 bg-info-50 p-4 text-sm">
+                    <p className="font-semibold text-info-700">Preview attempt</p>
+                    <p className="text-info-700/80 mt-0.5">
+                        You attempted this as a non-student (teacher / institute admin). Your score is visible here for
+                        review but is excluded from public leaderboards and content analytics.
+                    </p>
+                </div>
+            )}
             <div className="surface-panel overflow-hidden">
                 <div className="grid gap-6 p-6 lg:grid-cols-[1fr_280px] lg:p-8">
                     <div>

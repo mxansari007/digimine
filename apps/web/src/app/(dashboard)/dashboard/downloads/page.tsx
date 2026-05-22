@@ -8,6 +8,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { HandIcon } from "@/components/icons/AppIcons";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { PageLoading } from "@/components/common";
 import type { Product } from "@digimine/types";
 
 interface ProductWithFiles {
@@ -68,11 +69,7 @@ export default function DownloadsPage() {
     }, [user?.purchasedProducts]);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <div className="text-gray-500 animate-pulse">Loading your library...</div>
-            </div>
-        );
+        return <PageLoading variant="inline" />;
     }
 
     const userName = user?.firstName || user?.displayName?.split(' ')[0] || "there";

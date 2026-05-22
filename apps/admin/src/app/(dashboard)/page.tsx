@@ -51,15 +51,15 @@ export default function DashboardPage() {
             label: "Total Revenue",
             value: formatCurrency(stats.revenue),
             hint: "Gross tracked sales",
-            accent: "from-emerald-500 to-teal-500",
-            bg: "bg-emerald-50 text-emerald-700",
+            accent: "bg-accent-500",
+            bg: "bg-accent-50 text-accent-700",
             icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 4V3m0 18v-1m8-8h1M3 12h1m14.95 6.95l-.707-.707M5.757 5.757l-.707-.707m13.9 0l-.707.707M5.757 18.243l-.707.707",
         },
         {
             label: "Active Orders",
             value: stats.orders,
             hint: "All customer orders",
-            accent: "from-primary-500 to-blue-600",
+            accent: "bg-primary-500",
             bg: "bg-primary-50 text-primary-700",
             icon: "M3 7h18M6 7v11a2 2 0 002 2h8a2 2 0 002-2V7M9 7V5a3 3 0 016 0v2",
         },
@@ -67,15 +67,15 @@ export default function DashboardPage() {
             label: "Products",
             value: stats.products,
             hint: "Published inventory",
-            accent: "from-violet-500 to-indigo-500",
-            bg: "bg-violet-50 text-violet-700",
+            accent: "bg-slate-400",
+            bg: "bg-slate-100 text-slate-700",
             icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
         },
         {
             label: "Total Users",
             value: stats.users,
             hint: "Registered accounts",
-            accent: "from-amber-500 to-orange-500",
+            accent: "bg-amber-500",
             bg: "bg-amber-50 text-amber-700",
             icon: "M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4 6v-2a4 4 0 00-8 0v2m8 0h-8m12-10a4 4 0 10-8 0 4 4 0 008 0m6 0a3 3 0 11-6 0 3 3 0 016 0",
         },
@@ -94,11 +94,11 @@ export default function DashboardPage() {
                             Monitor the marketplace, orders, customers, and test content from one sharper workspace.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-slate-950 p-4 text-white shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-200">Revenue pulse</p>
+                    <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 text-primary-900 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">Revenue pulse</p>
                         <p className="mt-3 text-3xl font-bold">{formatCurrency(stats.revenue)}</p>
-                        <div className="mt-4 h-2 rounded-full bg-white/10">
-                            <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-primary-400 to-emerald-400" />
+                        <div className="mt-4 h-2 rounded-full bg-primary-100">
+                            <div className="h-full w-3/4 rounded-full bg-primary-500" />
                         </div>
                     </div>
                 </div>
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={stat.icon} />
                                 </svg>
                             </div>
-                            <div className={`h-1.5 w-16 rounded-full bg-gradient-to-r ${stat.accent}`} />
+                            <div className={`h-1.5 w-16 rounded-full ${stat.accent}`} />
                         </div>
                         <p className="mt-5 text-sm font-semibold text-slate-500">{stat.label}</p>
                         <p className="mt-1 text-3xl font-bold text-slate-950">{stat.value}</p>

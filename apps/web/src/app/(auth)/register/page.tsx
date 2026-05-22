@@ -10,15 +10,27 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { User } from "@digimine/types";
 
+type RoleChoice = "student" | "teacher" | "institute";
+
+function afterSignupPath(role: RoleChoice): string {
+    if (role === "teacher") return "/teacher/onboarding/phone";
+    if (role === "institute") return "/institute/onboarding";
+    return "/dashboard";
+}
+
 export default function RegisterPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const prefillEmail = searchParams.get("email") || "";
+    const intent = (searchParams.get("intent") || "").toLowerCase();
+    const defaultRole: RoleChoice =
+        intent === "institute" ? "institute" : intent === "teacher" ? "teacher" : "student";
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState(prefillEmail);
     const [password, setPassword] = useState("");
+    const [role, setRole] = useState<RoleChoice>(defaultRole);
     const [error, setError] = useState("");
     const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; email?: string; password?: string }>({});
     const [loading, setLoading] = useState(false);
@@ -61,7 +73,11 @@ export default function RegisterPage() {
                 lastName: lastName,
                 phoneNumber: null,
                 photoURL: null,
-                role: "customer",
+                // Teacher and institute roles are written atomically by their
+                // respective onboarding flows; defer the role until then so
+                // role-less abandoners don't end up with stale teacher/institute
+                // role bits.
+                role: role === "student" ? "customer" : null,
                 purchasedProducts: [],
                 purchasedTests: [],
                 createdAt: new Date(),
@@ -70,7 +86,7 @@ export default function RegisterPage() {
 
             await setDoc(doc(db, "users", credential.user.uid), newUser);
 
-            router.push("/dashboard");
+            router.push(afterSignupPath(role));
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to create account";
             setError(errorMessage);
@@ -100,7 +116,7 @@ export default function RegisterPage() {
                     lastName: nameParts.slice(1).join(" ") || null,
                     phoneNumber: null,
                     photoURL: credential.user.photoURL,
-                    role: "customer",
+                    role: role === "student" ? "customer" : null,
                     purchasedProducts: [],
                     purchasedTests: [],
                     createdAt: new Date(),
@@ -109,7 +125,7 @@ export default function RegisterPage() {
                 await setDoc(userRef, newUser);
             }
 
-            router.push("/dashboard");
+            router.push(afterSignupPath(role));
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to sign up with Google";
             setError(errorMessage);
@@ -274,6 +290,42 @@ export default function RegisterPage() {
                         <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                             {fieldErrors.password}
+                        </p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        I am a...
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {(
+                            [
+                                { id: "student" as const, label: "Student", caption: "Learn" },
+                                { id: "teacher" as const, label: "Teacher", caption: "Teach" },
+                                { id: "institute" as const, label: "Institute", caption: "Run one" },
+                            ] as Array<{ id: RoleChoice; label: string; caption: string }>
+                        ).map((opt) => (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setRole(opt.id)}
+                                className={`flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
+                                    role === opt.id
+                                        ? "border-primary-500 bg-primary-50 text-primary-700"
+                                        : "border-gray-300 text-gray-700 hover:border-gray-400"
+                                }`}
+                            >
+                                <span>{opt.label}</span>
+                                <span className="text-[10px] uppercase tracking-wider text-gray-400">
+                                    {opt.caption}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    {role === "institute" && (
+                        <p className="mt-2 text-xs text-gray-500">
+                            You&apos;ll set up your institute right after signup — name, contact, invite code.
                         </p>
                     )}
                 </div>

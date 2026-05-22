@@ -20,9 +20,9 @@ function LogoMark({ size = 28, className = "" }: { size?: number; className?: st
         >
             <defs>
                 <linearGradient id={`lg-${id}`} x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#38BDF8" />
-                    <stop offset="0.5" stopColor="#0EA5E9" />
-                    <stop offset="1" stopColor="#0369A1" />
+                    <stop stopColor="#6AA7C5" />
+                    <stop offset="0.5" stopColor="#4388AA" />
+                    <stop offset="1" stopColor="#2D5A73" />
                 </linearGradient>
 
                 {/* Clip path to constrain shine inside the gem */}

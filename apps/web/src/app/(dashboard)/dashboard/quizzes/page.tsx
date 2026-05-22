@@ -183,7 +183,7 @@ export default function MyQuizzesPage() {
         [attemptPage, attemptPageSize, attempts]
     );
 
-    if (loading) return <PageLoading />;
+    if (loading) return <PageLoading variant="inline" />;
 
     const attemptColumns: DataTableColumn<QuizAttempt>[] = [
         {

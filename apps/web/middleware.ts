@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 /**
  * Protected routes that require authentication
  */
-const protectedRoutes = ["/dashboard", "/checkout"];
+const protectedRoutes = ["/dashboard", "/checkout", "/teacher"];
 
 /**
  * Auth routes that should redirect if already authenticated

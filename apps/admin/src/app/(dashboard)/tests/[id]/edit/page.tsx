@@ -239,7 +239,7 @@ export default function EditTestSeriesPage() {
                 </Card>
 
                 <div className="flex gap-4">
-                    <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button type="submit" disabled={saving}>
                         {saving ? "Saving..." : "Save Changes"}
                     </Button>
                     <Link href="/tests">

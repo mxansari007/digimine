@@ -45,7 +45,7 @@ export async function POST(req: Request) {
             total: subtotal,
             status: "pending",
             customerEmail,
-            customerPhone,
+            customerPhone: customerPhone || null,
             paymentMethod: "razorpay",
             paymentId: razorpayOrder.id, // storing razorpay order id here initially
             createdAt: Timestamp.now() as any,

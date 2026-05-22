@@ -85,6 +85,12 @@ function toRankingEntry(id: string, data: Record<string, unknown>, currentUserId
     const status = readString(data, "status");
     const userId = readString(data, "userId");
     if (!userId || !isFinalizedStatus(status)) return null;
+    // Exclude preview attempts (teacher / institute admin / platform admin
+    // taking the quiz from the public catalog) from the public leaderboard
+    // so a teacher running through their own content never appears at #1.
+    // The attempting user can still see their own preview attempt because
+    // it's surfaced via getUserQuizAttempts, not via ranking.
+    if (data.isPreview === true) return null;
 
     const completedAtMillis = toMillis(data.completedAt) || toMillis(data.updatedAt) || toMillis(data.createdAt);
     return {

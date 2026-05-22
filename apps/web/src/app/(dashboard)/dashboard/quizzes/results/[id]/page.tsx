@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
 import { PageLoading } from "@/components/common";
 import { CheckIcon, ClockIcon, TargetIcon, XIcon } from "@/components/icons/AppIcons";
@@ -109,7 +109,9 @@ function statusTone(status?: QuestionResult["status"]) {
 
 export default function QuizResultPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const attemptId = params.id as string;
+    const classroomTeacherId = searchParams.get("teacherId");
     const { firebaseUser } = useAuthContext();
 
     const [attempt, setAttempt] = useState<QuizAttemptResponse | null>(null);
@@ -139,7 +141,20 @@ export default function QuizResultPage() {
                 setAttempt(attemptPayload);
                 setQuestions(payload.questions || []);
 
-                const quizData = await getQuizById(attemptPayload.quizId).catch(() => null);
+                let quizData: Quiz | null = null;
+                if (classroomTeacherId) {
+                    try {
+                        const quizRes = await fetch(`/api/quizzes/data?slug=${encodeURIComponent(attemptPayload.quizId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                        if (quizRes.ok) {
+                            const quizPayload = await quizRes.json().catch(() => ({}));
+                            quizData = (quizPayload.quiz || null) as Quiz | null;
+                        }
+                    } catch { /* ignore */ }
+                } else {
+                    quizData = await getQuizById(attemptPayload.quizId).catch(() => null);
+                }
                 setQuiz(quizData);
 
                 if (attemptPayload.status === "completed" || attemptPayload.status === "timed_out") {
@@ -161,7 +176,7 @@ export default function QuizResultPage() {
         }
 
         loadResult();
-    }, [attemptId, firebaseUser]);
+    }, [attemptId, firebaseUser, classroomTeacherId]);
 
     const resultByQuestionId = useMemo(() => {
         const map = new Map<string, QuestionResult>();
@@ -169,7 +184,7 @@ export default function QuizResultPage() {
         return map;
     }, [attempt?.questionResults]);
 
-    if (loading) return <PageLoading />;
+    if (loading) return <PageLoading variant="inline" />;
 
     if (!attempt) {
         return (
@@ -187,8 +202,12 @@ export default function QuizResultPage() {
     const finalized = attempt.status === "completed" || attempt.status === "timed_out";
     const rankedAttemptIsSelected = rankingData?.selectedAttemptIsRanked !== false;
     const isContestResult = Boolean(attempt.contestId || attempt.sourceType === "contest");
-    const backHref = isContestResult ? "/dashboard/contests" : "/dashboard/quizzes";
-    const backLabel = isContestResult ? "My Contests" : "My Quizzes";
+    const backHref = classroomTeacherId
+        ? `/classroom/${classroomTeacherId}/quizzes`
+        : isContestResult ? "/dashboard/contests" : "/dashboard/quizzes";
+    const backLabel = classroomTeacherId
+        ? "Classroom Quizzes"
+        : isContestResult ? "My Contests" : "My Quizzes";
 
     return (
         <div className="space-y-6">

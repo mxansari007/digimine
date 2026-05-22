@@ -481,7 +481,7 @@ export default function QuestionsPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Not Found</h1>
                 <p className="text-gray-500 mt-2">The test or series you are looking for does not exist.</p>
                 <Link href="/tests">
-                    <Button className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button className="mt-4">
                         Back to Tests
                     </Button>
                 </Link>
@@ -537,10 +537,7 @@ export default function QuestionsPage() {
                     >
                         Add from Bank
                     </Button>
-                    <Button
-                        onClick={handleAddQuestion}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
+                    <Button onClick={handleAddQuestion}>
                         + Add Question
                     </Button>
                 </div>
@@ -551,10 +548,7 @@ export default function QuestionsPage() {
                 {questions.length === 0 ? (
                     <Card className="p-12 text-center">
                         <p className="text-gray-500 mb-4">No questions added to this test yet</p>
-                        <Button
-                            onClick={handleAddQuestion}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                        >
+                        <Button onClick={handleAddQuestion}>
                             + Add First Question
                         </Button>
                     </Card>
@@ -562,7 +556,7 @@ export default function QuestionsPage() {
                     questions.map((question, index) => (
                         <Card key={question.id} className="p-6">
                             <div className="flex items-start gap-4">
-                                <span className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-medium">
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 font-medium text-primary-700">
                                     {index + 1}
                                 </span>
                                 <div className="flex-1">
@@ -587,7 +581,7 @@ export default function QuestionsPage() {
                                             </span>
                                         )}
                                         {question.sectionId && sectionById.get(question.sectionId)?.marksPerQuestion !== undefined && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+                                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
                                                 {sectionById.get(question.sectionId)?.marksPerQuestion} marks/question
                                             </span>
                                         )}
@@ -1250,7 +1244,6 @@ export default function QuestionsPage() {
                                     type="button"
                                     onClick={handleSaveQuestion}
                                     disabled={saving}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
                                 >
                                     {saving ? "Saving..." : editingQuestion?.id ? "Update" : "Save"}
                                 </Button>
@@ -1326,7 +1319,7 @@ export default function QuestionsPage() {
                                     {importProgress.total > 0 && (
                                         <div className="mt-3 h-2 rounded-full bg-white overflow-hidden">
                                             <div
-                                                className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                                                className="h-full rounded-full bg-primary-600 transition-all duration-300"
                                                 style={{ width: `${importProgressPercent}%` }}
                                             />
                                         </div>
@@ -1415,7 +1408,6 @@ export default function QuestionsPage() {
                                 <Button
                                     onClick={handleConfirmImport}
                                     disabled={importing || importPreview.length === 0}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
                                 >
                                     {importing ? "Importing..." : `Import ${importPreview.length} question${importPreview.length === 1 ? "" : "s"}`}
                                 </Button>

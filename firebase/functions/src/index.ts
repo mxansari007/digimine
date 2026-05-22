@@ -53,7 +53,7 @@ export const onUserDelete = functions.auth.user().onDelete(async (user) => {
 });
 
 /**
- * Callable: Process a payment (placeholder for Stripe/PayPal integration)
+ * Callable: Process a payment (placeholder for Razorpay integration)
  */
 export const processPayment = functions.https.onCall(async (data, context) => {
     // Ensure user is authenticated
@@ -73,7 +73,7 @@ export const processPayment = functions.https.onCall(async (data, context) => {
         );
     }
 
-    // TODO: Implement payment processing with Stripe/PayPal
+    // TODO: Implement payment processing with Razorpay
     functions.logger.info("Payment processing placeholder", {
         userId: context.auth.uid,
         items,
@@ -95,3 +95,22 @@ export const healthCheck = functions.https.onRequest((_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+// ── Subscription Triggers ──────────────────────────────────────────────────
+export { checkSubscriptionExpiry } from "./triggers/subscription";
+
+// ── Usage Counter Triggers ─────────────────────────────────────────────────
+export {
+    onQuizCreated,
+    onTestCreated,
+    onContestCreated,
+    onCourseCreated,
+    onQuestionCreated,
+    onStudentEnrolled,
+} from "./triggers/usage";
+
+// ── Revenue Tracking Triggers ──────────────────────────────────────────────
+export { onOrderCreated } from "./triggers/revenue";
+
+// ── Piston Job Queue Triggers ──────────────────────────────────────────────
+export { processPistonJob } from "./triggers/pistonQueue";

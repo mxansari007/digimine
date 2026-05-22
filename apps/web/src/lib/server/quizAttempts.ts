@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { previewAttemptOverlay } from "@/lib/server/userRole";
 
 export type SanitizedQuizQuestion = {
     id: string;
@@ -53,6 +54,8 @@ type QuizRecord = {
     status?: string;
     accessType?: "free" | "course_only";
     linkedCourseIds?: string[];
+    teacherId?: string;
+    visibility?: string;
     timeLimitMinutes?: number;
     passingPercentage?: number;
     shuffleQuestions?: boolean;
@@ -259,6 +262,25 @@ export async function getLinkedCourses(quiz: QuizRecord): Promise<CourseRecord[]
 export async function assertQuizAccess(userId: string, quiz: QuizRecord) {
     if (quiz.status !== "published") {
         return { allowed: false, status: 404, error: "Quiz not found", courses: [] as CourseRecord[] };
+    }
+
+    // Teacher classroom quizzes are private to enrolled students unless they
+    // have gone through admin approval and were promoted into the public catalog.
+    if (quiz.teacherId) {
+        if (quiz.visibility === "published" || quiz.visibility === "public") {
+            return { allowed: true, status: 200, courses: [] as CourseRecord[] };
+        }
+
+        const enrollmentSnap = await adminDb
+            .collection("teacher_enrollments")
+            .doc(quiz.teacherId)
+            .collection("students")
+            .doc(userId)
+            .get();
+        if (enrollmentSnap.exists && enrollmentSnap.data()?.status === "active") {
+            return { allowed: true, status: 200, courses: [] as CourseRecord[] };
+        }
+        return { allowed: false, status: 403, error: "Join this teacher's classroom to access this quiz.", courses: [] as CourseRecord[] };
     }
 
     if (quiz.accessType === "free") {
@@ -520,75 +542,143 @@ export async function syncTimedOutAttempt(attempt: RawAttempt): Promise<RawAttem
 }
 
 export async function createQuizAttempt(userId: string, quiz: QuizRecord, contestContext?: ContestAttemptContext): Promise<RawAttempt> {
-    const attempts = await getUserQuizAttempts(userId, quiz.id);
-    const active = attempts.find((attempt) => attempt.status === "in_progress" && (
-        contestContext ? attempt.contestId === contestContext.contestId : !attempt.contestId
-    ));
-    if (active) {
-        const synced = await syncTimedOutAttempt(active);
-        if (synced.status === "in_progress") return synced;
-    }
-    if (contestContext && attempts.some((attempt) => attempt.contestId === contestContext.contestId && (attempt.status === "completed" || attempt.status === "timed_out"))) {
+    // Tag attempts from non-customer roles (teachers, institute admins,
+    // platform admins) as preview attempts so they're excluded from
+    // public leaderboards and class analytics downstream.
+    const previewOverlay = await previewAttemptOverlay(userId);
+    // Pre-check (outside the transaction) for completed contest submissions so
+    // we can fail fast with a clean 4xx.
+    const allAttempts = await getUserQuizAttempts(userId, quiz.id);
+    if (
+        contestContext &&
+        allAttempts.some(
+            (attempt) =>
+                attempt.contestId === contestContext.contestId &&
+                (attempt.status === "completed" || attempt.status === "timed_out")
+        )
+    ) {
         throw new Error("You have already submitted this contest.");
     }
 
-    const questions = await getRawQuestions(quiz.id);
-    const attemptId = uuidv4();
-    const now = Timestamp.now();
-    const durationInSeconds = contestContext
-        ? Math.max(0, Math.floor((contestContext.endTime.getTime() - now.toMillis()) / 1000))
-        : Number(quiz.timeLimitMinutes || 0) > 0 ? Number(quiz.timeLimitMinutes || 0) * 60 : undefined;
-    if (contestContext && (!durationInSeconds || durationInSeconds <= 0)) {
-        throw new Error("This contest has already ended.");
+    // If a non-stale in-progress attempt already exists outside the transaction,
+    // return it directly to avoid the unnecessary write path.
+    const existingActive = allAttempts.find(
+        (attempt) =>
+            attempt.status === "in_progress" &&
+            (contestContext ? attempt.contestId === contestContext.contestId : !attempt.contestId)
+    );
+    if (existingActive) {
+        const synced = await syncTimedOutAttempt(existingActive);
+        if (synced.status === "in_progress") return synced;
     }
-    const endTime = contestContext
-        ? Timestamp.fromDate(contestContext.endTime)
-        : durationInSeconds ? Timestamp.fromMillis(now.toMillis() + durationInSeconds * 1000) : undefined;
-    const maxPossibleScore = questions.reduce((total, question) => total + Number(question.marks || 0), 0);
 
-    const attemptData = {
-        userId,
-        quizId: quiz.id,
-        ...(contestContext ? {
-            contestId: contestContext.contestId,
-            sourceType: "contest",
-            contestTitle: contestContext.title,
-        } : {
-            sourceType: "quiz",
-        }),
-        title: `Attempt ${attempts.length + 1}`,
-        attemptNumber: attempts.length + 1,
-        status: "in_progress",
-        startedAt: now,
-        endTime,
-        currentQuestionIndex: 0,
-        answers: [],
-        questionOrder: buildQuestionOrder(quiz, questions, attemptId),
-        optionOrder: buildOptionOrder(quiz, questions, attemptId),
-        totalScore: 0,
-        maxPossibleScore,
-        correctAnswers: 0,
-        wrongAnswers: 0,
-        skipped: questions.length,
-        percentage: 0,
-        passed: null,
-        passingPercentage: Number(quiz.passingPercentage || 0),
-        totalTimeSpent: 0,
-        remainingTime: durationInSeconds,
-        createdAt: now,
-        updatedAt: now,
-    };
-
-    await adminDb.collection("quizAttempts").doc(attemptId).set(stripUndefinedDeep(attemptData));
-    await adminDb.collection("users").doc(userId).set(
-        {
-            quizAttemptIds: FieldValue.arrayUnion(attemptId),
-            updatedAt: now,
-        },
-        { merge: true }
+    const questions = await getRawQuestions(quiz.id);
+    const attemptsCollection = adminDb.collection("quizAttempts");
+    const attemptId = uuidv4();
+    const maxPossibleScore = questions.reduce(
+        (total, question) => total + Number(question.marks || 0),
+        0
     );
 
-    return { id: attemptId, ...attemptData } as unknown as RawAttempt;
+    // Race-safe create: re-query inside a transaction so two parallel calls
+    // both observe the same state and only one writes a new attempt.
+    const result = await adminDb.runTransaction(async (tx) => {
+        const activeQuery = contestContext
+            ? attemptsCollection
+                  .where("userId", "==", userId)
+                  .where("contestId", "==", contestContext.contestId)
+                  .where("status", "==", "in_progress")
+                  .limit(1)
+            : attemptsCollection
+                  .where("userId", "==", userId)
+                  .where("quizId", "==", quiz.id)
+                  .where("status", "==", "in_progress")
+                  .limit(1);
+        const existingSnap = await tx.get(activeQuery);
+        const existingDoc = existingSnap.docs.find((d) => {
+            const data = d.data() || {};
+            if (data.quizId !== quiz.id) return false;
+            if (!contestContext && data.contestId) return false;
+            return true;
+        });
+        if (existingDoc) {
+            return mapAttempt(existingDoc.id, existingDoc.data() || {});
+        }
+
+        const now = Timestamp.now();
+        const durationInSeconds = contestContext
+            ? Math.max(
+                  0,
+                  Math.floor((contestContext.endTime.getTime() - now.toMillis()) / 1000)
+              )
+            : Number(quiz.timeLimitMinutes || 0) > 0
+            ? Number(quiz.timeLimitMinutes || 0) * 60
+            : undefined;
+        if (contestContext && (!durationInSeconds || durationInSeconds <= 0)) {
+            throw new Error("This contest has already ended.");
+        }
+        const endTime = contestContext
+            ? Timestamp.fromDate(contestContext.endTime)
+            : durationInSeconds
+            ? Timestamp.fromMillis(now.toMillis() + durationInSeconds * 1000)
+            : undefined;
+
+        const attemptData = {
+            userId,
+            quizId: quiz.id,
+            ...(contestContext
+                ? {
+                      contestId: contestContext.contestId,
+                      sourceType: "contest",
+                      contestTitle: contestContext.title,
+                  }
+                : {
+                      sourceType: "quiz",
+                  }),
+            title: `Attempt ${allAttempts.length + 1}`,
+            attemptNumber: allAttempts.length + 1,
+            status: "in_progress",
+            startedAt: now,
+            endTime,
+            currentQuestionIndex: 0,
+            answers: [],
+            questionOrder: buildQuestionOrder(quiz, questions, attemptId),
+            optionOrder: buildOptionOrder(quiz, questions, attemptId),
+            totalScore: 0,
+            maxPossibleScore,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+            skipped: questions.length,
+            percentage: 0,
+            passed: null,
+            passingPercentage: Number(quiz.passingPercentage || 0),
+            totalTimeSpent: 0,
+            remainingTime: durationInSeconds,
+            createdAt: now,
+            updatedAt: now,
+            ...(previewOverlay || {}),
+        };
+        const newRef = attemptsCollection.doc(attemptId);
+        tx.set(newRef, stripUndefinedDeep(attemptData));
+        return { id: attemptId, ...attemptData } as unknown as RawAttempt;
+    });
+
+    // Mirror the attempt id onto the user doc (best-effort, outside the txn).
+    await adminDb
+        .collection("users")
+        .doc(userId)
+        .set(
+            {
+                quizAttemptIds: FieldValue.arrayUnion(result.id),
+                updatedAt: Timestamp.now(),
+            },
+            { merge: true }
+        )
+        .catch(() => {
+            /* mirror is non-critical */
+        });
+
+    return result;
 }
 
 export function buildAttemptResponse(attempt: RawAttempt, questions: RawQuizQuestion[]) {

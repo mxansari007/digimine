@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type MouseEvent } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Button, Card, FormattedContent } from "@digimine/ui";
 import { getTestAttempt, getTestById, getTestSeries, getTestQuestions } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -124,7 +124,9 @@ interface DistributionHover {
 
 export default function TestResultPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const attemptId = params.id as string;
+    const classroomTeacherId = searchParams.get("teacherId");
     const { firebaseUser } = useAuthContext();
 
     const [attempt, setAttempt] = useState<TestAttempt | null>(null);
@@ -143,19 +145,52 @@ export default function TestResultPage() {
     useEffect(() => {
         if (!firebaseUser) return;
         const currentFirebaseUser = firebaseUser;
+        const teacherIdForApi = classroomTeacherId;
 
         async function loadData() {
             try {
-                const attemptData = await getTestAttempt(attemptId);
-                if (!attemptData) return;
+                let attemptData: TestAttempt | null = null;
+                let testData: Test | null = null;
+                let seriesData: TestSeries | null = null;
+                let questionsData: Question[] = [];
 
-                setAttempt(attemptData);
+                if (teacherIdForApi) {
+                    const token = await currentFirebaseUser.getIdToken();
+                    const attemptRes = await fetch(`/api/tests/attempt?attemptId=${encodeURIComponent(attemptId)}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const attemptPayload = await attemptRes.json().catch(() => ({}));
+                    if (!attemptRes.ok) throw new Error(attemptPayload.error || "Result not found.");
+                    attemptData = attemptPayload.attempt as TestAttempt;
+                    if (!attemptData) return;
+                    setAttempt(attemptData);
 
-                const [testData, seriesData, questionsData] = await Promise.all([
-                    getTestById(attemptData.seriesId, attemptData.testId),
-                    getTestSeries(attemptData.seriesId),
-                    getTestQuestions(attemptData.seriesId, attemptData.testId)
-                ]);
+                    const [seriesRes, testRes] = await Promise.all([
+                        fetch(`/api/content/data?type=test&slug=${encodeURIComponent(attemptData.seriesId)}&teacherId=${encodeURIComponent(teacherIdForApi)}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }),
+                        fetch(`/api/content/data?type=test&parentId=${encodeURIComponent(attemptData.seriesId)}&childId=${encodeURIComponent(attemptData.testId)}&teacherId=${encodeURIComponent(teacherIdForApi)}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }),
+                    ]);
+                    const seriesPayload = await seriesRes.json().catch(() => ({}));
+                    const testPayload = await testRes.json().catch(() => ({}));
+                    if (!seriesRes.ok) throw new Error(seriesPayload.error || "Could not load classroom test series.");
+                    if (!testRes.ok) throw new Error(testPayload.error || "Could not load classroom test.");
+                    seriesData = (seriesPayload.content || null) as TestSeries | null;
+                    testData = (testPayload.test || null) as Test | null;
+                    questionsData = (testPayload.questions || []) as Question[];
+                } else {
+                    attemptData = await getTestAttempt(attemptId);
+                    if (!attemptData) return;
+                    setAttempt(attemptData);
+
+                    [testData, seriesData, questionsData] = await Promise.all([
+                        getTestById(attemptData.seriesId, attemptData.testId),
+                        getTestSeries(attemptData.seriesId),
+                        getTestQuestions(attemptData.seriesId, attemptData.testId)
+                    ]);
+                }
 
                 setTest(testData);
                 setSeries(seriesData);
@@ -185,13 +220,13 @@ export default function TestResultPage() {
             }
         }
         loadData();
-    }, [attemptId, firebaseUser]);
+    }, [attemptId, firebaseUser, classroomTeacherId]);
 
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-700 mx-auto mb-4"></div>
                     <p className="text-gray-500">Loading your results...</p>
                 </div>
             </div>
@@ -209,22 +244,23 @@ export default function TestResultPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Result Not Found</h2>
                 <p className="text-gray-500 mb-6">We couldn&apos;t find the test result you&apos;re looking for.</p>
                 <Link href="/dashboard/tests">
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">Back to My Tests</Button>
+                    <Button>Back to My Tests</Button>
                 </Link>
             </Card>
         </div>
     );
 
     const isContestResult = Boolean(attempt.contestId || rankingData?.scope === "contest");
+    const isClassroomResult = Boolean(classroomTeacherId);
 
-    if (!test.instantResults && !isContestResult) {
+    if (!test.instantResults && !isContestResult && !isClassroomResult) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Card className="p-8 text-center max-w-md">
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Result Not Available Yet</h2>
                     <p className="text-gray-500 mb-6">Your test was submitted successfully. Results will be shown once the admin enables instant results.</p>
                     <Link href={`/tests/${series?.slug}`}>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">Back to Series</Button>
+                        <Button>Back to Series</Button>
                     </Link>
                 </Card>
             </div>
@@ -449,7 +485,7 @@ export default function TestResultPage() {
                             <div className="min-w-0">
                                 <div className="font-bold text-gray-400 text-sm">Question {questionNumberById.get(question.id) || 0}</div>
                                 {hasRealSections && (
-                                    <div className="text-xs font-semibold text-indigo-600 mt-0.5">{questionSection?.title || 'Unsectioned'}</div>
+                                    <div className="text-xs font-semibold text-primary-700 mt-0.5">{questionSection?.title || 'Unsectioned'}</div>
                                 )}
                             </div>
                         </div>
@@ -543,7 +579,7 @@ export default function TestResultPage() {
                         <div className="mt-4">
                             <button
                                 onClick={() => setExpandedExplanation(expandedExplanation === question.id ? null : question.id)}
-                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                className="flex items-center gap-2 text-sm font-bold text-primary-700 hover:text-primary-800 transition-colors"
                             >
                                 <svg className={`w-4 h-4 transition-transform ${expandedExplanation === question.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -551,9 +587,9 @@ export default function TestResultPage() {
                                 {expandedExplanation === question.id ? 'Hide Explanation' : 'Show Explanation'}
                             </button>
                             {expandedExplanation === question.id && (
-                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
-                                    <FormattedContent html={question.explanation} size="sm" className="text-indigo-900" />
+                                <div className="mt-3 p-4 bg-primary-50 rounded-lg border border-primary-100">
+                                    <h4 className="text-xs font-bold text-primary-800 uppercase mb-1">Explanation</h4>
+                                    <FormattedContent html={question.explanation} size="sm" className="text-primary-950" />
                                 </div>
                             )}
                         </div>
@@ -563,19 +599,39 @@ export default function TestResultPage() {
         );
     };
 
+    const isPreviewAttempt = Boolean((attempt as any)?.isPreview);
+
     return (
         <div className="min-h-screen bg-slate-50 py-6 sm:py-10">
             <div className="max-w-5xl mx-auto px-4 space-y-6">
                 {/* Breadcrumb / Back */}
                 <div className="flex items-center justify-between">
-                    <Link href={isContestResult ? "/dashboard/contests" : "/dashboard/tests"} className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                    <Link
+                        href={
+                            classroomTeacherId
+                                ? `/classroom/${classroomTeacherId}/tests`
+                                : isContestResult ? "/dashboard/contests" : "/dashboard/tests"
+                        }
+                        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                    >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        {isContestResult ? "My Contests" : "My Tests"}
+                        {classroomTeacherId ? "Classroom Tests" : isContestResult ? "My Contests" : "My Tests"}
                     </Link>
                     {submittedAt && (
                         <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
                     )}
                 </div>
+
+                {isPreviewAttempt && (
+                    <Card intent="info" className="p-4 text-sm">
+                        <p className="font-semibold text-info-700">Preview attempt</p>
+                        <p className="text-info-700/80 mt-0.5">
+                            You attempted this as a non-student (teacher / institute admin). Your score is recorded
+                            against your account so you can review it, but is excluded from public leaderboards and
+                            content analytics.
+                        </p>
+                    </Card>
+                )}
 
                 {/* Hero Card */}
                 <Card className="overflow-hidden border-none shadow-xl">
@@ -647,7 +703,7 @@ export default function TestResultPage() {
                             <div className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">{derived.skipped}</div>
                         </div>
                         <div className="p-5 text-center">
-                            <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Accuracy</div>
+                            <div className="text-xs font-bold text-primary-700 uppercase tracking-wider mb-1">Accuracy</div>
                             <div className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">{accuracy}<span className="text-base">%</span></div>
                         </div>
                     </div>
@@ -664,7 +720,7 @@ export default function TestResultPage() {
                                     <span className="font-bold text-slate-900 tabular-nums">{attempt.totalScore} <span className="text-slate-400 font-normal">/ {attempt.maxPossibleScore}</span></span>
                                 </div>
                                 <div className="relative h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-1000" style={{ width: `${scorePercentage}%` }} />
+                                    <div className="absolute inset-y-0 left-0 rounded-full bg-primary-600 transition-all duration-1000" style={{ width: `${scorePercentage}%` }} />
                                     {/* Pass marker */}
                                     {maxScore > 0 && (
                                         <div
@@ -751,7 +807,7 @@ export default function TestResultPage() {
                         <div className="mt-auto flex flex-col gap-2.5 pt-2">
                             {test.allowRetake && !isContestResult && (
                                 <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
-                                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                                    <Button className="w-full">
                                         Retake Test
                                     </Button>
                                 </Link>
@@ -800,7 +856,7 @@ export default function TestResultPage() {
                                 </div>
                                 <div className="text-right border-l border-slate-200 pl-3">
                                     <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">Percentile</div>
-                                    <div className="text-2xl font-bold text-indigo-600 tabular-nums">{percentile}<span className="text-sm">th</span></div>
+                                    <div className="text-2xl font-bold text-primary-700 tabular-nums">{percentile}<span className="text-sm">th</span></div>
                                 </div>
                             </div>
                         )}
@@ -904,7 +960,7 @@ export default function TestResultPage() {
                                     </div>
 
                                     <div
-                                        className="absolute top-1.5 -translate-x-1/2 rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white shadow"
+                                        className="absolute top-1.5 -translate-x-1/2 rounded-md bg-primary-600 px-2 py-0.5 text-[10px] font-bold text-white shadow"
                                         style={{ left: labelLeft(currentLineX) }}
                                     >
                                         You
@@ -921,7 +977,7 @@ export default function TestResultPage() {
                                         >
                                             <div className={`rounded-full border-2 border-white shadow ${
                                                 marker.isCurrentUser
-                                                    ? 'h-4 w-4 bg-indigo-600'
+                                                    ? 'h-4 w-4 bg-primary-600'
                                                     : 'h-3 w-3 bg-slate-400'
                                             }`} />
                                             <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[10px] font-medium text-white shadow group-hover:block whitespace-nowrap">
@@ -975,7 +1031,7 @@ export default function TestResultPage() {
                                 </div>
                                 <div>
                                     <div className="text-xs text-slate-500">Your score</div>
-                                    <div className="font-bold text-indigo-600 tabular-nums">{attempt.totalScore}</div>
+                                    <div className="font-bold text-primary-700 tabular-nums">{attempt.totalScore}</div>
                                 </div>
                                 <div>
                                     <div className="text-xs text-slate-500">Participants</div>
@@ -985,7 +1041,7 @@ export default function TestResultPage() {
 
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 pt-1">
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-full bg-indigo-600"></span>
+                                    <span className="h-3 w-3 rounded-full bg-primary-600"></span>
                                     Your score
                                 </span>
                                 <span className="flex items-center gap-1.5">
@@ -993,7 +1049,7 @@ export default function TestResultPage() {
                                     Other participants
                                 </span>
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-sm bg-indigo-500/20 border border-indigo-400"></span>
+                                    <span className="w-3 h-3 rounded-sm bg-primary-500/20 border border-primary-400"></span>
                                     Normal curve
                                 </span>
                                 <span className="flex items-center gap-1.5">
@@ -1028,7 +1084,7 @@ export default function TestResultPage() {
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {rankingEntries.map((entry) => (
-                                                    <tr key={entry.id} className={entry.isCurrentUser ? "bg-indigo-50/70" : "bg-white"}>
+                                                    <tr key={entry.id} className={entry.isCurrentUser ? "bg-primary-50/70" : "bg-white"}>
                                                         <td className="px-4 py-3 font-bold text-slate-900">#{entry.rank}</td>
                                                         <td className="px-4 py-3">
                                                             <div className="font-bold text-slate-900">
@@ -1102,7 +1158,7 @@ export default function TestResultPage() {
                                         onClick={() => setSelectedSectionId('all')}
                                         className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                             effectiveSectionId === 'all'
-                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                ? 'border-primary-500 bg-primary-50 text-primary-950'
                                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                         }`}
                                     >
@@ -1118,7 +1174,7 @@ export default function TestResultPage() {
                                                 onClick={() => setSelectedSectionId(section.id)}
                                                 className={`min-w-[180px] shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                                     effectiveSectionId === section.id
-                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                        ? 'border-primary-500 bg-primary-50 text-primary-950'
                                                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                                 }`}
                                             >
@@ -1193,7 +1249,7 @@ export default function TestResultPage() {
                     </Link>
                     {test.allowRetake && !isContestResult && (
                         <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
-                            <Button className="w-full sm:w-auto bg-indigo-600 text-white">Retake Test</Button>
+                            <Button className="w-full sm:w-auto">Retake Test</Button>
                         </Link>
                     )}
                 </div>

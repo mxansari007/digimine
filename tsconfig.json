@@ -21,6 +21,12 @@
         "declarationMap": true,
         "composite": false,
         "paths": {
+            "@digimine/shared": [
+                "./packages/shared/src"
+            ],
+            "@digimine/shared/*": [
+                "./packages/shared/src/*"
+            ],
             "@digimine/ui": [
                 "./packages/ui/src"
             ],

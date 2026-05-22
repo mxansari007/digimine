@@ -158,10 +158,13 @@ export async function createCourse(data: CreateCourseInput, createdBy: string): 
         notesSummary: buildNotesSummary(chapters),
         linkedTestSeriesIds: data.linkedTestSeriesIds || [],
         linkedQuizzes: data.linkedQuizzes || [],
+        // Admin-authored public catalog markers (see `firestore.rules`).
+        teacherId: "",
+        isDeleted: false,
         createdAt: now.toDate(),
         updatedAt: now.toDate(),
         createdBy,
-    };
+    } as Omit<Course, "id" | "chapters">;
 
     await setDoc(docRef, sanitizeData(courseData));
     await writeCourseChapters(docRef.id, chapters);

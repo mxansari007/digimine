@@ -1,13 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // ─────────────────────────────────────────────────────────────────
+    // ACCESS POLICY (role × resource matrix)
+    //
+    // The platform has four signed-in roles:
+    //   - customer        (student, default after register)
+    //   - teacher         (owns a teacher doc; can sell content)
+    //   - institute_admin (owns one institute; manages teachers + classes)
+    //   - admin / super_admin (platform operators; god-mode via isAdmin())
+    //
+    // ──────────── PUBLIC CATALOG ────────────────────────────────────
+    // Every signed-in (and most anonymous) requests can browse public
+    // catalog content — published admin courses/tests/quizzes/contests
+    // and approved-public teacher content. Buying, attempting, and
+    // enrolling are open to every role: a teacher buying a course as a
+    // learner is a legitimate use case. The marketplace is NOT
+    // student-only; it's just the catalog every signed-in user shops
+    // from.
+    //
+    // ──────────── PRIVATE / CLASSROOM CONTENT ───────────────────────
+    // Teacher-authored private content (visibility=private) is
+    // restricted to the owning teacher, the teacher's enrolled
+    // students, the teacher's institute admins, and platform admins.
+    //
+    // ──────────── ROLE-SPECIFIC RESOURCES ───────────────────────────
+    //   - users/{uid}                   ← owner + bootstrap admin
+    //   - teachers/{uid}                ← self + enrolled students + admin
+    //   - institutes/{id}/...           ← institute admins + admin
+    //   - classes/{id}                  ← class teacher + enrolled + admin
+    //
+    // ──────────── CLIENT-SIDE READ DISCIPLINE ───────────────────────
+    // Rules can't filter a list query. If a client does a
+    // collection-wide `getDocs(collection(db, X))`, every doc must
+    // satisfy the rule or the WHOLE query is denied — this is the
+    // most common source of "insufficient permissions" toasts. Public
+    // listing endpoints therefore use the admin SDK via /api/catalog/*
+    // or /api/classroom/my-enrollments, NOT raw client-side scans.
+    // ─────────────────────────────────────────────────────────────────
+
     // --- Helper Functions ---
 
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
@@ -18,17 +56,17 @@ service cloud.firestore {
 
     // "God Mode" for Bootstrap Admins - Bypasses all DB lookups
     function isBootstrapAdmin() {
-      return isAuthenticated() && 
-             (authEmail() == 'admin@digimine.com' || 
+      return isAuthenticated() &&
+             (authEmail() == 'admin@digimine.com' ||
               authEmail() == 'maazansari@digimine.com' ||
               authEmail() == 'mxansari007@gmail.com' ||
               authEmail() == 'maazansari@gmail.com' ||
               authEmail() == 'admin@digimine.shop');
     }
-    
+
     // Standard Admin check (Lookup)
     function isDatabaseAdmin() {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'none') in ['admin', 'super_admin'];
     }
@@ -38,29 +76,169 @@ service cloud.firestore {
       return isBootstrapAdmin() || isDatabaseAdmin();
     }
 
+    // ─── Teacher freemium helpers ────────────────────────────────────────────
+    // A teacher has an "active" subscription when the doc exists and status is
+    // one of trial / active / grace_period. Expired teachers retain READ access
+    // to their existing content but cannot create new ones.
+    function isTeacher(uid) {
+      return isAuthenticated()
+          && exists(/databases/$(database)/documents/teachers/$(uid));
+    }
+
+    function teacherCanCreate(uid) {
+      return isTeacher(uid)
+          && get(/databases/$(database)/documents/teachers/$(uid))
+             .data.get('subscription', {}).get('status', 'free') in ['free', 'trial', 'active', 'grace_period'];
+    }
+
+    function isOwnTeacherContent() {
+      return isAuthenticated()
+          && resource.data.get('teacherId', '') == request.auth.uid;
+    }
+
+    // Public catalog pages must never expose teacher-authored *classroom-
+    // only* content. Two paths count as public:
+    //   - Admin-authored content: no teacherId (or empty), status published.
+    //   - Teacher-authored content that the admin has approved for the
+    //     public marketplace: visibility is 'published' or 'public'.
+    // Teacher content with visibility='private' is classroom-only and is
+    // governed by the separate `isPublishedClassroomContentForStudent`
+    // helper.
+    function isPublicCatalogContent() {
+      return resource.data.get('status', 'draft') == 'published'
+          && resource.data.get('isDeleted', false) == false
+          && (
+            resource.data.get('teacherId', '') == ''
+            ||
+            resource.data.get('visibility', 'private') in ['published', 'public']
+          );
+    }
+
+    function isCreatingOwnTeacherContent() {
+      return isAuthenticated()
+          && request.resource.data.get('teacherId', '') == request.auth.uid
+          && request.resource.data.get('teacherId', '') != ''
+          && request.resource.data.get('visibility', '') == 'private'
+          && request.resource.data.get('reviewStatus', 'draft') == 'draft'
+          && request.resource.data.get('isDeleted', false) == false;
+    }
+
+    // Enrollment in a teacher's classroom is stored as a subcollection.
+    //
+    // Legacy path: teacher_enrollments/{teacherId}/students/{uid}
+    // New path:    classes/{classId}/students/{uid}      (a teacher can own many classes)
+    //
+    // For backward compatibility we keep `isEnrolledStudent(teacherId)` as a
+    // "is the user enrolled in any class this teacher owns" check. Rules
+    // can't iterate, so the gate combines the legacy doc-exists check with
+    // a denormalized `enrolledTeacherIds` array on the user doc that the
+    // class enrollment API keeps in sync.
+    function isEnrolledStudent(teacherId) {
+      return isAuthenticated()
+          && teacherId != ''
+          && (
+            (exists(/databases/$(database)/documents/teacher_enrollments/$(teacherId)/students/$(request.auth.uid))
+              && get(/databases/$(database)/documents/teacher_enrollments/$(teacherId)/students/$(request.auth.uid))
+                 .data.get('status', 'removed') == 'active')
+            ||
+            (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+              && teacherId in get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.get('enrolledTeacherIds', []))
+          );
+    }
+
+    // True iff the caller is the teacher who owns this class document.
+    function isClassTeacher(classId) {
+      return isAuthenticated()
+          && classId != ''
+          && exists(/databases/$(database)/documents/classes/$(classId))
+          && get(/databases/$(database)/documents/classes/$(classId))
+             .data.get('teacherId', '') == request.auth.uid;
+    }
+
+    // ─── Institute helpers ──────────────────────────────────────────────
+    // True iff the caller is an admin of the given institute.
+    function isInstituteAdminOf(instituteId) {
+      return isAuthenticated()
+          && instituteId != ''
+          && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid));
+    }
+
+    // True iff the caller administers the institute that employs this teacher.
+    // Combines two lookups: teacher's `instituteId`, then institute's admins.
+    function isInstituteAdminForTeacher(teacherId) {
+      return isAuthenticated()
+          && teacherId != ''
+          && exists(/databases/$(database)/documents/teachers/$(teacherId))
+          && isInstituteAdminOf(
+               get(/databases/$(database)/documents/teachers/$(teacherId)).data.get('instituteId', '')
+             );
+    }
+
+    // True iff the caller is an admin of the institute being stamped on the
+    // CREATE payload. Used to let an institute admin author content even when
+    // they don't have a teacher subscription.
+    function isWritingInstituteContentAsAdmin() {
+      return isAuthenticated()
+          && request.resource.data.get('instituteId', '') != ''
+          && isInstituteAdminOf(request.resource.data.get('instituteId', ''));
+    }
+
+    // True iff the existing doc is institute-owned AND the caller is an
+    // admin of that institute. Used on update/delete.
+    function ownsInstituteContent() {
+      return isAuthenticated()
+          && resource.data.get('instituteId', '') != ''
+          && isInstituteAdminOf(resource.data.get('instituteId', ''));
+    }
+
+    // Students can read teacher-authored classroom content only after the
+    // teacher has published it for the classroom. Draft/private work remains
+    // visible only to the teacher and admins.
+    function isPublishedClassroomContentForStudent(teacherId) {
+      return isEnrolledStudent(teacherId)
+          && resource.data.get('status', 'draft') == 'published'
+          && resource.data.get('isDeleted', false) == false;
+    }
+
+    // Teacher MUST NOT self-promote to public / approved. Only admin can set
+    // visibility=published. Teachers may switch classroom status draft ↔
+    // published and may submit/re-submit content for public review.
+    function teacherDoesNotSelfApproveForPublic() {
+      return request.resource.data.get('visibility', resource.data.get('visibility', 'private')) in ['private', 'submitted_for_review', 'rejected']
+          && request.resource.data.get('reviewStatus', resource.data.get('reviewStatus', 'draft')) in ['draft', 'pending_review', 'rejected'];
+    }
+
+    // Identity fields stay immutable across owner edits.
+    function teacherContentIdentityUnchanged() {
+      return request.resource.data.teacherId == resource.data.teacherId
+          && request.resource.data.get('createdBy', resource.data.get('createdBy', null))
+             == resource.data.get('createdBy', null);
+    }
+
     // --- Collection Rules ---
 
     // Users collection
     match /users/{userId} {
       // READ: Users can read own profile OR Bootstrap Admin can read everything (for management)
       allow read: if isOwner(userId) || isBootstrapAdmin();
-      
+
       // CREATE: Users can create their own profile
       allow create: if isOwner(userId);
-      
-      // UPDATE: 
+
+      // UPDATE:
       // 1. Bootstrap admin can update ANYONE (including their own role)
       // 2. Regular users can update non-sensitive fields
-      allow update: if isBootstrapAdmin() 
+      allow update: if isBootstrapAdmin()
                     || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
-      
+
       // DELETE: Only bootstrap admin
       allow delete: if isBootstrapAdmin();
     }
 
     // Check if user has purchased a specific product
     function hasPurchased(productId) {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              productId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchasedProducts', []);
     }
@@ -71,7 +249,7 @@ service cloud.firestore {
       allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
       // Write: Admins only
       allow create, update, delete: if isAdmin();
-      
+
       // Product Files subcollection - Buyers and Admins only
       match /files/{fileId} {
         allow read: if isAdmin() || hasPurchased(productId);
@@ -87,19 +265,59 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+                  || isPublicCatalogContent()
+                  || (isAuthenticated() && resource.data.get('teacherId', '') == request.auth.uid)
+                  || isPublishedClassroomContentForStudent(resource.data.get('teacherId', ''))
+                  || isInstituteAdminForTeacher(resource.data.get('teacherId', ''));
+
+      allow create: if isAdmin()
+                    || (
+                      teacherCanCreate(request.auth.uid)
+                      && isCreatingOwnTeacherContent()
+                    )
+                    || isWritingInstituteContentAsAdmin();
+
+      allow update: if isAdmin()
+                    || (
+                      isOwnTeacherContent()
+                      && resource.data.get('reviewStatus', 'draft') in ['draft', 'rejected', 'pending_review']
+                      && teacherContentIdentityUnchanged()
+                      && teacherDoesNotSelfApproveForPublic()
+                    )
+                    || ownsInstituteContent();
+
+      allow delete: if isAdmin() || isOwnTeacherContent() || ownsInstituteContent();
 
       match /chapters/{chapterId} {
         allow read: if isAdmin()
                     || (
-                      get(/databases/$(database)/documents/courses/$(courseId)).data.get('status', 'draft') == 'published'
+                      get(/databases/$(database)/documents/courses/$(courseId)).data.get('teacherId', '') == ''
+                      && get(/databases/$(database)/documents/courses/$(courseId)).data.get('status', 'draft') == 'published'
                       && (
                         get(/databases/$(database)/documents/courses/$(courseId)).data.get('accessType', 'free') == 'free'
                         || hasEnrolledCourse(courseId)
                       )
-                    );
-        allow write: if isAdmin();
+                    )
+                    // Teacher owner sees all their own chapters regardless of status.
+                    || (isAuthenticated()
+                        && get(/databases/$(database)/documents/courses/$(courseId)).data.get('teacherId', '') == request.auth.uid)
+                    // Enrolled students only see chapters when the parent course is published.
+                    || (isAuthenticated()
+                        && get(/databases/$(database)/documents/courses/$(courseId)).data.get('teacherId', '') != ''
+                        && get(/databases/$(database)/documents/courses/$(courseId)).data.get('status', 'draft') == 'published'
+                        && get(/databases/$(database)/documents/courses/$(courseId)).data.get('isDeleted', false) == false
+                        && isEnrolledStudent(get(/databases/$(database)/documents/courses/$(courseId)).data.get('teacherId', '')));
+
+        allow write: if isAdmin()
+                     || (
+                       isAuthenticated()
+                       && get(/databases/$(database)/documents/courses/$(courseId)).data.get('teacherId', '') == request.auth.uid
+                     )
+                     || (
+                       isAuthenticated()
+                       && isInstituteAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.get('instituteId', ''))
+                     );
       }
     }
 
@@ -112,15 +330,58 @@ service cloud.firestore {
     }
 
     // Standalone quizzes
+    //
+    // Admin quizzes use status=published as the public gate.
+    // Teacher-authored quizzes are private-by-default and only visible to
+    // the owning teacher and their enrolled students until admin approves
+    // them, at which point visibility flips to "public".
     match /quizzes/{quizId} {
-      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+                  || isPublicCatalogContent()
+                  || (isAuthenticated() && resource.data.get('teacherId', '') == request.auth.uid)
+                  || isPublishedClassroomContentForStudent(resource.data.get('teacherId', ''))
+                  || isInstituteAdminForTeacher(resource.data.get('teacherId', ''));
+
+      allow create: if isAdmin()
+                    || (
+                      teacherCanCreate(request.auth.uid)
+                      && isCreatingOwnTeacherContent()
+                    )
+                    || isWritingInstituteContentAsAdmin();
+
+      // Owners (teachers) can edit only while the quiz is in `draft` or
+      // `rejected`, and they cannot self-publish. Admins have full rights.
+      allow update: if isAdmin()
+                    || (
+                      isOwnTeacherContent()
+                      && resource.data.get('reviewStatus', 'draft') in ['draft', 'rejected', 'pending_review']
+                      && teacherContentIdentityUnchanged()
+                      && teacherDoesNotSelfApproveForPublic()
+                    )
+                    || ownsInstituteContent();
+
+      allow delete: if isAdmin() || isOwnTeacherContent() || ownsInstituteContent();
 
       match /questions/{questionId} {
-        // Web learners load sanitized quiz questions through /api/quizzes/{quizId}/questions.
-        // Raw question docs contain answer keys and explanations, so keep direct reads admin-only.
-        allow read: if isAdmin();
-        allow write: if isAdmin();
+        // Web learners load sanitized quiz questions through
+        // /api/quizzes/{quizId}/questions. Raw question docs contain answer
+        // keys and explanations, so direct reads remain restricted to the
+        // owning teacher (for editing) and admins.
+        allow read: if isAdmin()
+                    || get(/databases/$(database)/documents/quizzes/$(quizId))
+                       .data.get('teacherId', '') == request.auth.uid
+                    || (isAuthenticated()
+                        && isInstituteAdminOf(get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('instituteId', '')));
+        allow write: if isAdmin()
+                     || (
+                       isAuthenticated()
+                       && get(/databases/$(database)/documents/quizzes/$(quizId))
+                          .data.get('teacherId', '') == request.auth.uid
+                     )
+                     || (
+                       isAuthenticated()
+                       && isInstituteAdminOf(get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('instituteId', ''))
+                     );
       }
     }
 
@@ -140,8 +401,29 @@ service cloud.firestore {
     // Scheduled live contests. A contest points at one existing test and uses
     // testAttempts for progress/results.
     match /contests/{contestId} {
-      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+                  || isPublicCatalogContent()
+                  || (isAuthenticated() && resource.data.get('teacherId', '') == request.auth.uid)
+                  || isPublishedClassroomContentForStudent(resource.data.get('teacherId', ''))
+                  || isInstituteAdminForTeacher(resource.data.get('teacherId', ''));
+
+      allow create: if isAdmin()
+                    || (
+                      teacherCanCreate(request.auth.uid)
+                      && isCreatingOwnTeacherContent()
+                    )
+                    || isWritingInstituteContentAsAdmin();
+
+      allow update: if isAdmin()
+                    || (
+                      isOwnTeacherContent()
+                      && resource.data.get('reviewStatus', 'draft') in ['draft', 'rejected', 'pending_review']
+                      && teacherContentIdentityUnchanged()
+                      && teacherDoesNotSelfApproveForPublic()
+                    )
+                    || ownsInstituteContent();
+
+      allow delete: if isAdmin() || isOwnTeacherContent() || ownsInstituteContent();
     }
 
     // Orders collection
@@ -149,19 +431,19 @@ service cloud.firestore {
       // Guest Checkout: Public Create
       allow create: if true;
       // Public Read (needed for success page immediate access)
-      allow read: if true; 
-      
+      allow read: if true;
+
       // Update Rule for "Claiming" Orders:
       // A user can update an order (e.g. to set userId) IF:
       // 1. They are authenticated
       // 2. The order currently has NO userId (it's a guest order)
       // 3. They are only updating allowed fields (userId, updatedAt)
-      allow update: if isAdmin() 
-                    || (isAuthenticated() 
-                        && resource.data.get('userId', null) == null 
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.get('userId', null) == null
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId', 'updatedAt'])
                         && request.resource.data.userId == request.auth.uid);
-                        
+
       // Admin management for other writes
       allow delete: if isAdmin();
     }
@@ -170,15 +452,15 @@ service cloud.firestore {
     match /reviews/{reviewId} {
       // Read: Anyone can read reviews
       allow read: if true;
-      
+
       // Create: Admins can create fake reviews, authenticated users can create verified reviews
-      allow create: if isAdmin() 
+      allow create: if isAdmin()
                     || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
-      
+
       // Update: Users can only update their own reviews
       allow update: if isAdmin()
                     || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      
+
       // Delete: Admins only
       allow delete: if isAdmin();
     }
@@ -189,7 +471,7 @@ service cloud.firestore {
 
     // Check if user has purchased a test series
     function hasPurchasedTest(seriesId) {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              (
                seriesId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchasedTestSeriesIds', []) ||
@@ -203,29 +485,96 @@ service cloud.firestore {
 
     // Test Series collection (Product Container)
     match /tests/{seriesId} {
-      // Read: Public can see published series metadata, admins can see all
-      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
-      // Write: Admins only
-      allow create, update, delete: if isAdmin();
-      
+      // Read: Public can see published series metadata, admins can see all.
+      // Teacher-authored series follow the freemium privacy rules.
+      allow read: if isAdmin()
+                  || isPublicCatalogContent()
+                  || (isAuthenticated() && resource.data.get('teacherId', '') == request.auth.uid)
+                  || isPublishedClassroomContentForStudent(resource.data.get('teacherId', ''))
+                  || isInstituteAdminForTeacher(resource.data.get('teacherId', ''));
+
+      allow create: if isAdmin()
+                    || (
+                      teacherCanCreate(request.auth.uid)
+                      && isCreatingOwnTeacherContent()
+                    )
+                    || isWritingInstituteContentAsAdmin();
+
+      allow update: if isAdmin()
+                    || (
+                      isOwnTeacherContent()
+                      && resource.data.get('reviewStatus', 'draft') in ['draft', 'rejected', 'pending_review']
+                      && teacherContentIdentityUnchanged()
+                      && teacherDoesNotSelfApproveForPublic()
+                    )
+                    || ownsInstituteContent();
+
+      allow delete: if isAdmin() || isOwnTeacherContent() || ownsInstituteContent();
+
       // Individual Tests within a series
       match /tests/{testId} {
         // Allow public to see test metadata if series is published
         // Allow full access if admin or purchased or (authenticated and free)
-        allow read: if isAdmin() 
-                    || hasPurchasedTest(seriesId) 
-                    || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.accessType == 'free')
-                    || get(/databases/$(database)/documents/tests/$(seriesId)).data.status == 'published';
-        
-        allow write: if isAdmin();
-        
+        // Or owning teacher / their enrolled student.
+        allow read: if isAdmin()
+                    || (
+                      get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == ''
+                      && (
+                        hasPurchasedTest(seriesId)
+                        || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('accessType', 'paid') == 'free')
+                        || get(/databases/$(database)/documents/tests/$(seriesId)).data.get('status', 'draft') == 'published'
+                      )
+                    )
+                    // Teacher owner sees all their own sub-tests.
+                    || (isAuthenticated()
+                        && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == request.auth.uid)
+                    // Enrolled students only when the parent series is published.
+                    || (isAuthenticated()
+                        && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') != ''
+                        && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('status', 'draft') == 'published'
+                        && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('isDeleted', false) == false
+                        && isEnrolledStudent(get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '')));
+
+        allow write: if isAdmin()
+                     || (
+                       isAuthenticated()
+                       && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == request.auth.uid
+                     )
+                     || (
+                       isAuthenticated()
+                       && isInstituteAdminOf(get(/databases/$(database)/documents/tests/$(seriesId)).data.get('instituteId', ''))
+                     );
+
         // Questions within a specific test
         match /questions/{questionId} {
-          // Only allow access if admin, purchased, or (authenticated and free)
-          allow read: if isAdmin() 
-                      || hasPurchasedTest(seriesId)
-                      || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.accessType == 'free');
-          allow write: if isAdmin();
+          // Only allow access if admin, purchased, (authenticated and free),
+          // or the owning teacher (for editing).
+          allow read: if isAdmin()
+                      || (
+                        get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == ''
+                        && (
+                          hasPurchasedTest(seriesId)
+                          || (isAuthenticated() && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('accessType', 'paid') == 'free')
+                        )
+                      )
+                      // Teacher owner reads their own questions.
+                      || (isAuthenticated()
+                          && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == request.auth.uid)
+                      // Enrolled students only when the parent series is published.
+                      || (isAuthenticated()
+                          && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') != ''
+                          && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('status', 'draft') == 'published'
+                          && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('isDeleted', false) == false
+                          && isEnrolledStudent(get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '')));
+          allow write: if isAdmin()
+                       || (
+                         isAuthenticated()
+                         && get(/databases/$(database)/documents/tests/$(seriesId)).data.get('teacherId', '') == request.auth.uid
+                       )
+                       || (
+                         isAuthenticated()
+                         && isInstituteAdminOf(get(/databases/$(database)/documents/tests/$(seriesId)).data.get('instituteId', ''))
+                       );
         }
       }
     }
@@ -283,7 +632,7 @@ service cloud.firestore {
     // Test Purchases collection - Personal access only
     match /testPurchases/{purchaseId} {
       // Read: Owner or Admin
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
                     (resource.data.userId == request.auth.uid || isAdmin());
       // Create: Admins or during purchase flow
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -291,6 +640,388 @@ service cloud.firestore {
       allow update: if isAdmin();
       // Delete: Admins only
       allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // TEACHER PORTAL COLLECTIONS
+    // ============================================================================
+
+    // Subscription plans - public read
+    match /subscription_plans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Teachers collection
+    //
+    // - Profile fields (name, bio, avatarUrl, payout, etc.) are owner-editable.
+    // - subscription.* and isVerified are admin-only — they're driven by the
+    //   Razorpay webhook + admin moderation, never by the teacher themselves.
+    // - New teacher docs must start on the `trial` plan (no self-promotion).
+    match /teachers/{teacherId} {
+      // Teacher profile is readable by the teacher themselves, admins,
+      // AND any student enrolled in this teacher's classroom.
+      allow read: if isAuthenticated() && (
+        request.auth.uid == teacherId || 
+        isAdmin() || 
+        isEnrolledStudent(teacherId)
+      );
+
+      allow create: if isAuthenticated()
+                    && request.auth.uid == teacherId
+                    && request.resource.data.get('subscription', {}).get('status', 'trial') == 'trial'
+                    && request.resource.data.get('isVerified', false) == false;
+
+      allow update: if isAdmin()
+                    || (
+                      isAuthenticated()
+                      && request.auth.uid == teacherId
+                      // Cannot self-mutate subscription / verification state.
+                      && request.resource.data.subscription == resource.data.subscription
+                      && request.resource.data.get('isVerified', false) == resource.data.get('isVerified', false)
+                    );
+
+      allow delete: if isAdmin();
+
+      // Teacher's private question bank
+      match /questions/{questionId} {
+        allow read: if isAuthenticated() && (request.auth.uid == teacherId || isAdmin());
+        allow write: if isAuthenticated() && request.auth.uid == teacherId;
+      }
+    }
+
+    // Teacher enrollments
+    //
+    // - Teachers list their roster; students see their own enrollment row.
+    // - A teacher can add a student, OR a student can self-enrol via invite.
+    //   In both cases, the docId MUST equal the studentId and the embedded
+    //   teacherId/studentId fields must match the path.
+    match /teacher_enrollments/{teacherId} {
+      allow read: if isAuthenticated() && (request.auth.uid == teacherId || isAdmin());
+
+      match /students/{studentId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == teacherId ||
+          request.auth.uid == studentId ||
+          isAdmin()
+        );
+
+        allow create: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && (request.auth.uid == teacherId || request.auth.uid == studentId)
+                        && request.resource.data.get('studentId', studentId) == studentId
+                        && request.resource.data.get('teacherId', teacherId) == teacherId
+                        && request.resource.data.get('status', 'active') == 'active'
+                      );
+
+        // Teachers (and admins) toggle status: active / banned / removed.
+        // Students cannot self-promote off the roster.
+        allow update: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && request.auth.uid == teacherId
+                        && request.resource.data.studentId == resource.data.studentId
+                        && request.resource.data.teacherId == resource.data.teacherId
+                      );
+
+        allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == teacherId);
+      }
+    }
+
+    // Classes — each class is owned by exactly one teacher and has its own
+    // student roster + invite code. A teacher may own many classes.
+    match /classes/{classId} {
+      // Teacher-only writes; reads are open to the teacher, enrolled students,
+      // admins, and (new) the institute admin who employs the teacher. Public
+      // read is intentionally NOT granted.
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.get('teacherId', '') == request.auth.uid ||
+        exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)) ||
+        isInstituteAdminForTeacher(resource.data.get('teacherId', ''))
+      );
+
+      // Class create — two valid shapes:
+      //   1. Independent teacher creates a class for themselves: teacherId = self,
+      //      no instituteId, and the teacher must not be employed by an institute
+      //      (the API enforces the employment check via the teacher doc).
+      //   2. Institute admin creates a class under their institute: instituteId
+      //      points at the institute, and the creator must be an admin there.
+      allow create: if isAdmin()
+                    || (
+                      isAuthenticated()
+                      && request.resource.data.get('teacherId', '') == request.auth.uid
+                      && request.resource.data.get('instituteId', '') == ''
+                      && teacherCanCreate(request.auth.uid)
+                    )
+                    || (
+                      isAuthenticated()
+                      && request.resource.data.get('instituteId', '') != ''
+                      && isInstituteAdminOf(request.resource.data.get('instituteId', ''))
+                    );
+
+      // Updates — owning teacher OR (when the class is institute-managed) the
+      // institute admin. Teachers can edit their own classes; the institute
+      // admin can re-assign teachers (allowed to mutate teacherId), rename,
+      // archive, etc. Independent classes stay institute-less forever (the
+      // instituteId field is locked to its current value).
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.get('teacherId', '') == request.auth.uid
+                        && request.resource.data.teacherId == resource.data.teacherId
+                        && request.resource.data.get('instituteId', '') == resource.data.get('instituteId', ''))
+                    || (isAuthenticated()
+                        && resource.data.get('instituteId', '') != ''
+                        && isInstituteAdminOf(resource.data.get('instituteId', ''))
+                        && request.resource.data.get('instituteId', '') == resource.data.get('instituteId', ''));
+
+      allow delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.get('teacherId', '') == request.auth.uid)
+                    || (isAuthenticated()
+                        && resource.data.get('instituteId', '') != ''
+                        && isInstituteAdminOf(resource.data.get('instituteId', '')));
+
+      // Class roster. Mirror of the legacy teacher_enrollments students rules.
+      match /students/{studentId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid == studentId ||
+          isClassTeacher(classId) ||
+          isInstituteAdminForTeacher(
+            get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherId', '')
+          )
+        );
+
+        allow create: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && (
+                          isClassTeacher(classId)
+                          || request.auth.uid == studentId
+                          || isInstituteAdminForTeacher(
+                               get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherId', '')
+                             )
+                        )
+                        && request.resource.data.get('studentId', studentId) == studentId
+                        && request.resource.data.get('classId', classId) == classId
+                        && request.resource.data.get('status', 'active') == 'active'
+                      );
+
+        allow update: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && (
+                          isClassTeacher(classId)
+                          || isInstituteAdminForTeacher(
+                               get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherId', '')
+                             )
+                        )
+                        && request.resource.data.studentId == resource.data.studentId
+                        && request.resource.data.classId == resource.data.classId
+                      );
+
+        allow delete: if isAdmin()
+                      || (isAuthenticated() && isClassTeacher(classId))
+                      || (isAuthenticated()
+                          && isInstituteAdminForTeacher(
+                               get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherId', '')
+                             ));
+      }
+    }
+
+    // ─── Institutes ─────────────────────────────────────────────────────
+    // An institute owns a roster of teachers and a set of admins. Independent
+    // teachers have no `instituteId`, so this section adds the org layer
+    // without disturbing them.
+    match /institutes/{instituteId} {
+      // Read is open to: platform admin, institute admins, and the teachers
+      // affiliated with the institute (so they can render its branding /
+      // see they're employed).
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/institutes/$(instituteId)/teachers/$(request.auth.uid))
+      );
+
+      // Anyone may create an institute as themselves (becomes the owner).
+      // The API checks teacher caps and writes the founding admin row.
+      allow create: if isAuthenticated()
+                    && request.resource.data.get('ownerId', '') == request.auth.uid
+                    && request.resource.data.get('isArchived', false) == false;
+
+      allow update: if isAdmin()
+                    || (
+                      isAuthenticated()
+                      && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+                      // Owner cannot be changed except by platform admin.
+                      && request.resource.data.ownerId == resource.data.ownerId
+                    );
+
+      allow delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.get('ownerId', '') == request.auth.uid);
+
+      // Admin roster — who can manage this institute.
+      match /admins/{userId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid == userId ||
+          exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+        );
+
+        // Owner adds admins; an admin can also add another admin (managed in
+        // the API). The user record must match the doc path.
+        allow create: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+                        && request.resource.data.get('userId', userId) == userId
+                      );
+
+        allow update: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+                        && request.resource.data.userId == resource.data.userId
+                      );
+
+        allow delete: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && get(/databases/$(database)/documents/institutes/$(instituteId)).data.get('ownerId', '') == request.auth.uid
+                      );
+      }
+
+      // Shared question bank — owned by the institute, read by all active
+      // affiliated teachers, write-controlled by institute admins.
+      match /questionBank/{questionId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          isInstituteAdminOf(instituteId) ||
+          exists(/databases/$(database)/documents/institutes/$(instituteId)/teachers/$(request.auth.uid))
+        );
+        allow create, update, delete: if isAdmin() || isInstituteAdminOf(instituteId);
+      }
+
+      // Teacher roster — affiliated teachers (status: invited / active / removed)
+      match /teachers/{teacherId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid == teacherId ||
+          exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+        );
+
+        allow create, update: if isAdmin()
+                              || (
+                                isAuthenticated()
+                                && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+                              )
+                              // The teacher themselves can also flip status to "active" when accepting an invite.
+                              || (
+                                isAuthenticated()
+                                && request.auth.uid == teacherId
+                                && resource.data.get('status', 'invited') == 'invited'
+                                && request.resource.data.get('status', '') == 'active'
+                              );
+
+        allow delete: if isAdmin()
+                      || (
+                        isAuthenticated()
+                        && exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+                      );
+      }
+
+      // Invoices issued by the platform super_admin. Institute admins read
+      // only — they can't issue or mutate invoices themselves.
+      match /invoices/{invoiceId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          exists(/databases/$(database)/documents/institutes/$(instituteId)/admins/$(request.auth.uid))
+        );
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Plan change requests — institute admin queues a request, super_admin
+      // resolves it. Admins can read their own institute's requests.
+      match /planChangeRequests/{requestId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          isInstituteAdminOf(instituteId)
+        );
+
+        allow create: if isAdmin()
+                      || (
+                        isInstituteAdminOf(instituteId)
+                        && request.resource.data.get('instituteId', '') == instituteId
+                        && request.resource.data.get('status', '') == 'pending'
+                        && request.resource.data.get('requestedBy', '') == request.auth.uid
+                      );
+
+        // Institute admin may cancel their own pending request; super_admin
+        // owns approve/reject transitions.
+        allow update: if isAdmin()
+                      || (
+                        isInstituteAdminOf(instituteId)
+                        && resource.data.get('status', '') == 'pending'
+                        && request.resource.data.get('status', '') == 'cancelled'
+                      );
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Teacher signup logs — append-only audit trail used for abuse detection.
+    // Authenticated users can log their own attempt; only admins can read.
+    match /teacher_signup_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated()
+                    && request.resource.data.get('userId', '') == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Institute signup logs — written exclusively from /api/institute/register
+    // (admin SDK). No client writes; read access is super_admin only.
+    match /institute_signup_logs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Subscription orders
+    match /subscriptionOrders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.customerEmail == authEmail() || isAdmin());
+      allow create: if true;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Payouts
+    match /payouts/{payoutId} {
+      allow read: if isAuthenticated() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Execution jobs
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Public content (marketplace)
+    match /public_content/{contentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Articles — long-form admin-authored content (tech news, tutorials,
+    // subject deep-dives, announcements). Published articles are public
+    // reads; everything else is admin-only.
+    match /articles/{articleId} {
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

@@ -43,9 +43,10 @@ export default function TestSeriesDetailPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user } = useAuthContext();
+    const { user, firebaseUser, loading: authLoading } = useAuthContext();
     const slug = params.slug as string;
     const wasSubmitted = searchParams.get("submitted") === "1";
+    const classroomTeacherId = searchParams.get("teacherId");
 
     const [series, setSeries] = useState<TestSeries | null>(null);
     const [tests, setTests] = useState<Test[]>([]);
@@ -55,29 +56,67 @@ export default function TestSeriesDetailPage() {
     const [enrolling, setEnrolling] = useState(false);
 
     useEffect(() => {
+        if (classroomTeacherId && authLoading) return;
         loadData();
-    }, [slug, user?.id]);
+    }, [slug, user?.id, firebaseUser, authLoading, classroomTeacherId]);
 
     async function loadData() {
         try {
             setLoading(true);
-            const seriesData = await getTestSeriesBySlug(slug);
+            let seriesData: TestSeries | null = null;
+            let classroomToken: string | null = null;
+
+            // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
+            if (classroomTeacherId) {
+                if (!firebaseUser) {
+                    router.push(`/login?redirect=${encodeURIComponent(`/tests/${slug}?teacherId=${classroomTeacherId}`)}`);
+                    return;
+                }
+                classroomToken = await firebaseUser.getIdToken();
+                const res = await fetch(`/api/content/data?type=test&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                    headers: { Authorization: `Bearer ${classroomToken}` },
+                });
+                const serverData = await res.json();
+                if (!res.ok) throw new Error(serverData.error || "You do not have access to this classroom test.");
+                seriesData = (serverData.content || null) as TestSeries | null;
+            } else {
+                seriesData = await getTestSeriesBySlug(slug);
+            }
+
             if (!seriesData) {
                 router.push("/tests");
                 return;
             }
             setSeries(seriesData);
             
-            const testsData = await getTestsInSeries(seriesData.id);
+            // Load tests: use server API if classroom context to avoid Firestore rules
+            let testsData: Test[];
+            if (classroomTeacherId) {
+                const testsRes = await fetch(`/api/content/data?type=test&parentId=${encodeURIComponent(seriesData.id)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                    headers: classroomToken ? { Authorization: `Bearer ${classroomToken}` } : {},
+                });
+                const testsJson = await testsRes.json();
+                if (!testsRes.ok) throw new Error(testsJson.error || "Could not load classroom tests.");
+                testsData = (testsJson.tests || []) as Test[];
+            } else {
+                testsData = await getTestsInSeries(seriesData.id);
+            }
             setTests(sortTestsByLatest(testsData));
 
             if (user) {
-                const [purchased, attemptsData] = await Promise.all([
-                    hasUserPurchasedTest(user.id, seriesData.id),
-                    getUserTestAttempts(user.id, seriesData.id)
-                ]);
-                setHasPurchased(purchased);
-                setAttempts(attemptsData);
+                if (classroomTeacherId) {
+                    // Classroom students get access without purchase, while their
+                    // own attempt history still drives resume/result buttons.
+                    setHasPurchased(true);
+                    setAttempts(await getUserTestAttempts(user.id, seriesData.id));
+                } else {
+                    const [purchased, attemptsData] = await Promise.all([
+                        hasUserPurchasedTest(user.id, seriesData.id),
+                        getUserTestAttempts(user.id, seriesData.id)
+                    ]);
+                    setHasPurchased(purchased);
+                    setAttempts(attemptsData);
+                }
             } else {
                 setHasPurchased(false);
                 setAttempts([]);
@@ -107,10 +146,11 @@ export default function TestSeriesDetailPage() {
     const activeAttemptSeriesTest = activeAttempt
         ? tests.find((test) => test.id === activeAttempt.testId)
         : null;
+    const teacherParam = classroomTeacherId ? `&teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
     const primaryStartHref = activeAttempt && activeAttemptSeriesTest
-        ? `/tests/${series.slug}/attempt?testId=${activeAttempt.testId}&attemptId=${activeAttempt.id}`
+        ? `/tests/${series.slug}/attempt?testId=${activeAttempt.testId}&attemptId=${activeAttempt.id}${teacherParam}`
         : firstAvailableTest
-            ? `/tests/${series.slug}/attempt?testId=${firstAvailableTest.id}`
+            ? `/tests/${series.slug}/attempt?testId=${firstAvailableTest.id}${teacherParam}`
             : `/tests/${series.slug}`;
 
     const handleFreeEnrollment = async () => {
@@ -216,7 +256,7 @@ export default function TestSeriesDetailPage() {
                                                 {isUnlocked ? (
                                                     <div className="flex flex-col sm:flex-row gap-2">
                                                         {hasInProgress && resumableAttempt ? (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}`}>
+                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${teacherParam}`}>
                                                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full">
                                                                     <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                                                                     Continue Test
@@ -232,13 +272,13 @@ export default function TestSeriesDetailPage() {
                                                                     <Button variant="outline" size="sm" disabled className="w-full">Submitted</Button>
                                                                 )}
                                                                 {test.allowRetake && (
-                                                                    <Link href={`/tests/${series.slug}/attempt?testId=${test.id}`}>
+                                                                    <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${teacherParam}`}>
                                                                         <Button size="sm" className="bg-indigo-600 text-white w-full">Retake Test</Button>
                                                                     </Link>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}`}>
+                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${teacherParam}`}>
                                                                 <Button className="bg-green-600 hover:bg-green-700 text-white w-full">Start Test</Button>
                                                             </Link>
                                                         )}

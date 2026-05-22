@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@digimine/config": "workspace:*",
+        "@digimine/shared": "workspace:*",
         "@digimine/types": "workspace:*",
         "@digimine/ui": "workspace:*",
         "@digimine/utils": "workspace:*",

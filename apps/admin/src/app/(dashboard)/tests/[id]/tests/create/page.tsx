@@ -316,7 +316,7 @@ export default function CreateSubTestPage() {
                     </div>
 
                     <div className="flex justify-end pt-6 border-t">
-                        <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <Button type="submit" disabled={saving}>
                             {saving ? "Saving..." : "Create Test"}
                         </Button>
                     </div>

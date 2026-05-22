@@ -3,7 +3,7 @@ const path = require('path');
 
 const nextConfig = {
     reactStrictMode: true,
-    transpilePackages: ["@digimine/ui", "@digimine/config", "@digimine/utils"],
+    transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         remotePatterns: [
             {

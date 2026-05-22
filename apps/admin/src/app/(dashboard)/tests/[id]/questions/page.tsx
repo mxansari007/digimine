@@ -22,7 +22,7 @@ export default function LegacyQuestionsPage() {
                     Questions are now managed inside each individual test. Choose a test first, then open its question editor.
                 </p>
                 <Link href={`/tests/${seriesId}/tests`}>
-                    <Button className="mt-6 bg-indigo-600 text-white hover:bg-indigo-700">
+                    <Button className="mt-6">
                         Open Test Manager
                     </Button>
                 </Link>

@@ -1,0 +1,22 @@
+    // ============================================================================
+    // TEACHER FREEMIUM CONTENT RULES
+    // ============================================================================
+
+    // Check if student is enrolled under a teacher
+    function isEnrolledUnder(teacherId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/teacher_enrollments/$(teacherId)/students/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/teacher_enrollments/$(teacherId)/students/$(request.auth.uid)).data.get('status', 'banned') == 'active';
+    }
+
+    // Check if teacher has active subscription
+    function teacherHasActiveSub() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.get('subscription', {}).get('status', 'free') in ['trial', 'active'];
+    }
+
+    // Check if content belongs to the calling teacher
+    function isTeacherContent(teacherId) {
+      return isAuthenticated() && request.auth.uid == teacherId;
+    }
