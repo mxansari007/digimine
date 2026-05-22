@@ -111,7 +111,6 @@ export async function GET(
         }
 
         const questions = await loadQuestions(kind, params.contentId, testId);
-        const questionById = new Map(questions.map((q) => [q.id, q]));
 
         type Stats = {
             attempts: number;

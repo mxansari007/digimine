@@ -114,7 +114,7 @@ export default function InstituteTeachersPage() {
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Teachers</h1>
                 <p className="mt-1 text-gray-500">
-                    Invite teachers, manage status, and see who's actively teaching under your institute.
+                    Invite teachers, manage status, and see who&apos;s actively teaching under your institute.
                 </p>
             </div>
 

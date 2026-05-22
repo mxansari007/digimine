@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { assertClassOwner } from "@/lib/server/classes";
 import {
     buildDailyActivity,
@@ -10,8 +9,6 @@ import {
     loadClassRoster,
     loadTeacherContentIds,
     toMillis,
-    type AttemptRecord,
-    type StudentSummary,
 } from "@/lib/server/teacherAnalytics";
 
 export const dynamic = "force-dynamic";

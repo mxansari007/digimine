@@ -50,7 +50,7 @@ const editPath = (row: ContentRow) => {
 
 export default function InstituteContentPage() {
     const { firebaseUser } = useAuthContext();
-    const [instituteId, setInstituteId] = useState("");
+    const [, setInstituteId] = useState("");
     const [items, setItems] = useState<ContentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { toIsoDate } from "@/lib/server/classroomAccess";
-import { ARTICLE_CATEGORIES, DEFAULT_ARTICLE_SEO, type ArticleCategory } from "@digimine/types";
+import { ARTICLE_CATEGORIES, type ArticleCategory } from "@digimine/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

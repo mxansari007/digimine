@@ -9,7 +9,6 @@ import {
     loadAttemptsForUsers,
     loadTeacherContentIds,
     toMillis,
-    type AttemptRecord,
 } from "@/lib/server/teacherAnalytics";
 
 export const dynamic = "force-dynamic";

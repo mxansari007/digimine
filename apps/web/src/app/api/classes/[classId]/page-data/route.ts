@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: { params: { classId: string 
         }
 
         // Count content currently assigned to this class.
-        let counts = { quizzes: 0, tests: 0, contests: 0, courses: 0 };
+        const counts = { quizzes: 0, tests: 0, contests: 0, courses: 0 };
         if (enrolled) {
             const collections: Array<["quizzes" | "tests" | "contests" | "courses", keyof typeof counts]> = [
                 ["quizzes", "quizzes"],

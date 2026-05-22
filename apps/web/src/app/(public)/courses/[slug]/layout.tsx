@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { adminDb } from "@/lib/firebase/admin";
 import {
-    absoluteUrl,
     breadcrumbJsonLd,
     buildMetadata,
     courseJsonLd,

@@ -11,7 +11,6 @@ import {
     getTestQuestions,
     hasUserPurchasedTest,
     enrollInFreeTestSeries,
-    startTestAttempt,
     updateTestAttempt,
     submitTestAttempt,
     getTestAttempt

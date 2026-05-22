@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { getBearerUserId, isPublishedContent, toIsoDate } from "@/lib/server/classroomAccess";
+import { getBearerUserId, toIsoDate } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 

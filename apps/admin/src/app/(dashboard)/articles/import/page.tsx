@@ -341,7 +341,7 @@ export default function ImportArticlesPage() {
                     </li>
                     <li>
                         <code>tags</code> and <code>seo.keywords</code> use JSON array syntax, e.g.{" "}
-                        <code>["physics", "neet"]</code>.
+                        <code>{`["physics", "neet"]`}</code>.
                     </li>
                     <li>
                         Nested objects (<code>author</code>, <code>seo</code>) use 2-space indentation with{" "}

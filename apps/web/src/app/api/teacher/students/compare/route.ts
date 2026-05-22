@@ -7,7 +7,6 @@ import {
     computeRiskScore,
     loadAttemptsForUsers,
     loadTeacherContentIds,
-    toMillis,
     type AttemptRecord,
 } from "@/lib/server/teacherAnalytics";
 

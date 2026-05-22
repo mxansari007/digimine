@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { assertInstituteAdmin, bumpInstituteCounts } from "@/lib/server/institutes";
 import { toIsoDate } from "@/lib/server/classroomAccess";

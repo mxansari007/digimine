@@ -27,7 +27,7 @@ const HIGHLIGHTS = [
     },
     {
         title: "Per-student risk & analytics",
-        body: "See who's slipping before parent-teacher meetings. Trend lines, weak topics, engagement heatmaps — out of the box.",
+        body: "See who&apos;s slipping before parent-teacher meetings. Trend lines, weak topics, engagement heatmaps — out of the box.",
     },
     {
         title: "Custom branding (Growth+)",
@@ -180,7 +180,7 @@ export default function ForInstitutesPage() {
                         </h1>
                         <p className="mt-5 max-w-2xl text-base leading-7 text-slate-700 sm:text-lg">
                             Onboard every teacher, every batch, every student under your brand. Set tests for the whole
-                            institute. See who's slipping before they fail. Pay one annual fee — no per-student gotchas.
+                            institute. See who&apos;s slipping before they fail. Pay one annual fee — no per-student gotchas.
                         </p>
                         <div className="mt-7 flex flex-wrap gap-3">
                             <Link href="/register?intent=institute">
@@ -280,7 +280,7 @@ export default function ForInstitutesPage() {
                         </h2>
                         <p className="mt-3 text-sm text-slate-600">
                             All plans include analytics, question bank, classes, and centralised content. Trial is on by
-                            default — you choose a plan when you're ready.
+                            default — you choose a plan when you&apos;re ready.
                         </p>
                     </div>
                     <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
