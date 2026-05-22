@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
         description:
             product.shortDescription ||
             product.description?.slice(0, 160) ||
-            "Digital product on Digimine.",
+            "Digital product on PlacementRanker.",
         path: `/products/${product.slug}`,
         ogImage: product.thumbnailURL || product.imageURL || null,
         keywords: Array.isArray(product.tags) ? product.tags.slice(0, 12) : undefined,

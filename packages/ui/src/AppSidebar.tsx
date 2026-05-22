@@ -49,7 +49,7 @@ export interface AppSidebarProps {
   LinkComponent?: ComponentType<any>;
   /** Optional sign-out handler — when omitted the button is hidden. */
   onSignOut?: () => void | Promise<void>;
-  /** Brand name shown in the header. Defaults to "Digimine". */
+  /** Brand name shown in the header. Defaults to "PlacementRanker". */
   brand?: string;
   /** Mobile drawer state. */
   isOpen?: boolean;
@@ -103,7 +103,7 @@ export function AppSidebar({
   user,
   LinkComponent = DefaultLink,
   onSignOut,
-  brand = "Digimine",
+  brand = "PlacementRanker",
   isOpen = false,
   onClose,
 }: AppSidebarProps) {

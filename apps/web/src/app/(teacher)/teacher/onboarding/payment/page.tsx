@@ -30,7 +30,7 @@ export default function PaymentOnboardingPage() {
             if (!orderRes.ok) throw new Error(orderData.error);
 
             const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, amount: orderData.amount, currency: "INR", name: "Digimine", description: "Teacher Verification (₹1)", order_id: orderData.razorpayOrderId,
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, amount: orderData.amount, currency: "INR", name: "PlacementRanker", description: "Teacher Verification (₹1)", order_id: orderData.razorpayOrderId,
                 prefill: { email: firebaseUser?.email },
                 handler: async (response: any) => {
                     await fetch("/api/razorpay/verify-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: orderData.orderId, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature }) });

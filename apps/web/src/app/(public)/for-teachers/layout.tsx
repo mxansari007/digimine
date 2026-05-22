@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { buildMetadata, faqJsonLd, jsonLdScript } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-    title: "Teach on Digimine — plans, pricing, and tools for independent teachers",
+    title: "Teach on PlacementRanker — plans, pricing, and tools for independent teachers",
     description:
         "Run your classes, sell on the marketplace, and track every student — all on one platform. Free to start. Pro plans from ₹499/month.",
     path: "/for-teachers",

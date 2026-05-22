@@ -10,7 +10,7 @@ export const IS_CLIENT = !IS_SERVER;
 /**
  * App configuration constants
  */
-export const APP_NAME = "Digimine";
+export const APP_NAME = "PlacementRanker";
 export const APP_DESCRIPTION = "Your digital product marketplace";
 export const APP_VERSION = "0.0.1";
 

@@ -191,7 +191,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: orderData.amount,
                 currency: orderData.currency,
-                name: "Digimine",
+                name: "PlacementRanker",
                 description: `Course: ${course.title}`,
                 order_id: orderData.razorpayOrderId,
                 prefill: {

@@ -23,17 +23,17 @@ export const PasswordResetEmail = ({
     return (
         <Html>
             <Head />
-            <Preview>Reset your Digimine password</Preview>
+            <Preview>Reset your PlacementRanker password</Preview>
             <Body style={main}>
                 <Container style={container}>
                     <Section style={header}>
-                        <Heading style={heading}>Digimine</Heading>
+                        <Heading style={heading}>PlacementRanker</Heading>
                     </Section>
                     
                     <Section style={bodySection}>
                         <Heading style={h2}>Reset Password Request</Heading>
                         <Text style={text}>
-                            We received a request to reset your password for your Digimine account. 
+                            We received a request to reset your password for your PlacementRanker account. 
                             If you didn&apos;t make this request, you can safely ignore this email.
                         </Text>
                         
@@ -55,7 +55,7 @@ export const PasswordResetEmail = ({
                     <Hr style={hr} />
                     <Section style={footer}>
                         <Text style={footerText}>
-                            &copy; {new Date().getFullYear()} Digimine. All rights reserved.
+                            &copy; {new Date().getFullYear()} PlacementRanker. All rights reserved.
                         </Text>
                     </Section>
                 </Container>

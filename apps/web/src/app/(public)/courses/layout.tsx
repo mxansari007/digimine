@@ -19,7 +19,7 @@ export default function CoursesLayout({ children }: { children: React.ReactNode 
                     __html: jsonLdScript(
                         itemListJsonLd(
                             [{ name: "Courses catalog", path: "/courses" }],
-                            "Digimine Courses"
+                            "PlacementRanker Courses"
                         )
                     ),
                 }}

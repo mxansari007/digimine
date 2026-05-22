@@ -451,7 +451,7 @@ export default function HomePage() {
                         </h2>
                         <p className="mt-3 text-sm text-slate-600 sm:text-base">
                             Whether you&apos;re studying, teaching, or running a whole institute — there&apos;s a path on
-                            Digimine that fits.
+                            PlacementRanker that fits.
                         </p>
                     </div>
 

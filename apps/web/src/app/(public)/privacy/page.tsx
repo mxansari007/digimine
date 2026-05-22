@@ -3,7 +3,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
     title: "Privacy Policy",
-    description: "How Digimine collects, uses, and protects your personal data.",
+    description: "How PlacementRanker collects, uses, and protects your personal data.",
     path: "/privacy",
 });
 
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
                         <p className="text-sm text-gray-400 mb-8">Last Updated: May 14, 2026</p>
 
                         <p>
-                            At Digimine, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and purchase our digital products.
+                            At PlacementRanker, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and purchase our digital products.
                         </p>
 
                         <h3>1. Information We Collect</h3>

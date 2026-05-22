@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         template: `%s · ${SITE_NAME}`,
     },
     description:
-        "Digimine is an Indian learning platform for tests, quizzes, courses, contests, and a teacher marketplace. Practice for NEET, JEE, school boards, and more.",
+        "PlacementRanker is an Indian learning platform for tests, quizzes, courses, contests, and a teacher marketplace. Practice for NEET, JEE, school boards, and more.",
     applicationName: SITE_NAME,
     keywords: [
         "mock tests",

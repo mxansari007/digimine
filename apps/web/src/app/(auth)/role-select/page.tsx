@@ -52,8 +52,8 @@ export default function RoleSelectPage() {
     return (
         <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
             <div className="max-w-lg w-full text-center">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Digimine!</h1>
-                <p className="text-gray-500 mb-8">Choose how you want to use Digimine.</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to PlacementRanker!</h1>
+                <p className="text-gray-500 mb-8">Choose how you want to use PlacementRanker.</p>
                 {error && <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <button onClick={() => selectRole("student")} disabled={saving} className="p-6 bg-white border border-gray-200 rounded-2xl hover:border-indigo-300 hover:shadow-md transition-all text-left group disabled:opacity-50">

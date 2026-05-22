@@ -22,7 +22,7 @@ function siteOrigin(): string {
     return (
         process.env.NEXT_PUBLIC_SITE_URL ||
         process.env.NEXT_PUBLIC_APP_URL ||
-        "https://digimine.com"
+        "https://placementranker.com"
     ).replace(/\/$/, "");
 }
 
@@ -72,7 +72,7 @@ async function loadArticle(slug: string): Promise<(Article & { id: string }) | n
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const article = await loadArticle(decodeURIComponent(params.slug || ""));
     if (!article) {
-        return { title: "Article not found · Digimine", robots: { index: false, follow: false } };
+        return { title: "Article not found · PlacementRanker", robots: { index: false, follow: false } };
     }
     const origin = siteOrigin();
     const url = article.seo.canonicalUrl || `${origin}/articles/${article.slug}`;
@@ -95,7 +95,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             url,
             title: socialTitle,
             description: socialDescription,
-            siteName: "Digimine",
+            siteName: "PlacementRanker",
             images: image ? [{ url: image, alt: article.title }] : undefined,
             publishedTime: article.publishedAt?.toISOString(),
             modifiedTime: article.updatedAt.toISOString(),
@@ -136,7 +136,7 @@ function buildJsonLd(article: Article & { id: string }, url: string) {
         },
         publisher: {
             "@type": "Organization",
-            name: "Digimine",
+            name: "PlacementRanker",
             logo: { "@type": "ImageObject", url: `${siteOrigin()}/logo.png` },
         },
         keywords: article.seo.keywords?.join(", "),

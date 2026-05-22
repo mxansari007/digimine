@@ -76,7 +76,7 @@ export default function SubscribePage() {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: data.amount,
                 currency: "INR",
-                name: "Digimine",
+                name: "PlacementRanker",
                 description: `${plan.name} • ${cadence === "annual" ? "Annual" : "Monthly"}`,
                 order_id: data.razorpayOrderId,
                 handler: async (response: any) => {

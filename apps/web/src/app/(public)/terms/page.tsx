@@ -3,7 +3,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
     title: "Terms & Conditions",
-    description: "The terms governing your use of Digimine's products and services.",
+    description: "The terms governing your use of PlacementRanker's products and services.",
     path: "/terms",
 });
 
@@ -21,7 +21,7 @@ export default function TermsPage() {
 
                         <h3>1. Introduction</h3>
                         <p>
-                            Welcome to Digimine (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). By accessing or using our website, services, and digital products, you agree to be bound by these Terms and Conditions.
+                            Welcome to PlacementRanker (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). By accessing or using our website, services, and digital products, you agree to be bound by these Terms and Conditions.
                         </p>
 
                         <h3>2. Digital Products</h3>
@@ -46,12 +46,12 @@ export default function TermsPage() {
 
                         <h3>6. Intellectual Property</h3>
                         <p>
-                            All content, designs, and products on Digimine are the intellectual property of Digimine or its creators. Unauthorized use is strictly prohibited.
+                            All content, designs, and products on PlacementRanker are the intellectual property of PlacementRanker or its creators. Unauthorized use is strictly prohibited.
                         </p>
 
                         <h3>7. Limitation of Liability</h3>
                         <p>
-                            Digimine shall not be liable for any indirect, incidental, or consequential damages arising arising out of the use or inability to use our products.
+                            PlacementRanker shall not be liable for any indirect, incidental, or consequential damages arising arising out of the use or inability to use our products.
                         </p>
 
                         <h3>8. Contact Information</h3>

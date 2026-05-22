@@ -214,8 +214,8 @@ export default function CheckoutPage() {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: amount,
                 currency: currency,
-                name: "Digimine",
-                description: "Purchase from Digimine",
+                name: "PlacementRanker",
+                description: "Purchase from PlacementRanker",
                 order_id: razorpayOrderId,
                 handler: async function (response: any) {
                     paymentCompletedRef.current = true;

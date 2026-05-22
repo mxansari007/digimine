@@ -1662,7 +1662,7 @@ export default function TestAttemptPage() {
                     </Button>
 
                     <p className="text-center text-xs text-gray-400 mt-6 uppercase tracking-widest font-bold">
-                        Professional Testing Environment by Digimine
+                        Professional Testing Environment by PlacementRanker
                     </p>
                 </Card>
             </div>

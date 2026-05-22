@@ -6,7 +6,7 @@ import { adminDb } from "@/lib/firebase/admin";
 // Brevo Configuration
 const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
 const FROM_EMAIL = process.env.BREVO_FROM_EMAIL || "noreply@digimine.shop";
-const FROM_NAME = process.env.BREVO_FROM_NAME || "Digimine";
+const FROM_NAME = process.env.BREVO_FROM_NAME || "PlacementRanker";
 
 async function sendViaBrevo(to: string, subject: string, html: string) {
     if (!BREVO_API_KEY) {
@@ -115,7 +115,7 @@ export async function sendPasswordResetBrevo(email: string, resetLink: string) {
             })
         );
 
-        await sendViaBrevo(email, "Reset your Digimine password", emailHtml);
+        await sendViaBrevo(email, "Reset your PlacementRanker password", emailHtml);
     } catch (error) {
         console.error("Failed to send password reset email via Brevo:", error);
         throw error;

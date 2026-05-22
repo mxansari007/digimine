@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
         description:
             series.shortDescription ||
             series.description?.slice(0, 160) ||
-            "Online mock test series on Digimine.",
+            "Online mock test series on PlacementRanker.",
         path: `/tests/${series.slug}`,
         ogImage: series.thumbnailURL || null,
         keywords: Array.isArray(series.tags) ? series.tags.slice(0, 12) : undefined,

@@ -1,10 +1,10 @@
 import * as React from "react";
 
 /**
- * Digimine logo mark — a stylized gem/prism shape representing
- * "digital mine" in a clean geometric form. Colours match the teal brand
- * palette so the mark feels native everywhere it lands (sidebar, header,
- * marketing, auth pages).
+ * PlacementRanker logo mark — an upward zig-zag line graph capped with an
+ * arrowhead, reading instantly as "ranking / growth / trending up". Colours
+ * match the teal brand palette so the mark feels native everywhere it lands
+ * (sidebar, header, marketing, auth pages).
  */
 function LogoMark({
     size = 28,
@@ -31,67 +31,43 @@ function LogoMark({
             <defs>
                 <linearGradient
                     id={`lg-${id}`}
-                    x1="4"
-                    y1="2"
-                    x2="28"
-                    y2="30"
+                    x1="3"
+                    y1="23"
+                    x2="29"
+                    y2="9"
                     gradientUnits="userSpaceOnUse"
                 >
-                    {/* Teal primary palette gradient */}
-                    <stop stopColor="#2dd4bf" />
-                    <stop offset="0.5" stopColor="#14b8a6" />
-                    <stop offset="1" stopColor="#0f766e" />
-                </linearGradient>
-
-                {/* Clip path constrains the shine inside the gem outline */}
-                <clipPath id={`clip-${id}`}>
-                    <path d="M16 2L28 12L16 30L4 12L16 2Z" />
-                </clipPath>
-
-                {/* Shine — a narrow bright band that sweeps on hover */}
-                <linearGradient id={`shine-${id}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="white" stopOpacity="0" />
-                    <stop offset="0.3" stopColor="white" stopOpacity="0" />
-                    <stop offset="0.5" stopColor="white" stopOpacity="0.45" />
-                    <stop offset="0.7" stopColor="white" stopOpacity="0" />
-                    <stop offset="1" stopColor="white" stopOpacity="0" />
+                    {/* Teal primary palette gradient, rising bottom-left → top-right */}
+                    <stop stopColor="#0f766e" />
+                    <stop offset="0.55" stopColor="#14b8a6" />
+                    <stop offset="1" stopColor="#2dd4bf" />
                 </linearGradient>
             </defs>
 
-            {/* Gem body */}
-            <path d="M16 2L28 12L16 30L4 12L16 2Z" fill={`url(#lg-${id})`} />
-
-            {/* Top facet — highlight */}
-            <path d="M16 2L10 12H22L16 2Z" fill="white" fillOpacity="0.22" />
-
-            {/* Left facet — soft shadow */}
-            <path d="M4 12L10 12L16 30L4 12Z" fill="white" fillOpacity="0.08" />
-
-            {/* Animated shine sweep */}
-            <g clipPath={`url(#clip-${id})`}>
-                <rect
-                    x="-14"
-                    y="-4"
-                    width="22"
-                    height="44"
-                    fill={`url(#shine-${id})`}
-                    className={`shine-rect-${id}`}
-                />
+            <g
+                stroke={`url(#lg-${id})`}
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+            >
+                {/* Trending-up line (even segments, draws on hover) */}
+                <path d="M2.7 22.7 L11.3 14 L18 20.7 L29.3 9.3" className={`line-${id}`} />
+                {/* Arrowhead — a clean corner sitting exactly on the line tip */}
+                <path d="M21.3 9.3 L29.3 9.3 L29.3 17.3" />
             </g>
 
             <style>{`
-                .shine-rect-${id} {
-                    opacity: 0;
-                    transform: translateX(-24px) rotate(25deg);
+                .line-${id} {
+                    stroke-dasharray: 62;
+                    stroke-dashoffset: 0;
                 }
-                svg:hover .shine-rect-${id}, .group:hover .shine-rect-${id} {
-                    animation: gem-shine 1.5s ease-in-out;
+                svg:hover .line-${id}, .group:hover .line-${id} {
+                    animation: lr-draw 1.1s ease-in-out;
                 }
-                @keyframes gem-shine {
-                    0% { transform: translateX(-24px) rotate(25deg); opacity: 0; }
-                    15% { opacity: 1; }
-                    85% { transform: translateX(40px) rotate(25deg); opacity: 1; }
-                    100% { transform: translateX(40px) rotate(25deg); opacity: 0; }
+                @keyframes lr-draw {
+                    0% { stroke-dashoffset: 62; }
+                    100% { stroke-dashoffset: 0; }
                 }
             `}</style>
         </svg>
@@ -114,9 +90,9 @@ export function Logo({
     iconSize = 24,
     className = "",
 }: LogoProps) {
-    const fontSize = iconSize * 0.68;
+    const fontSize = iconSize * 0.66;
     const mutedColor =
-        variant === "light" ? "rgba(255,255,255,0.7)" : "rgba(51,65,85,0.8)";
+        variant === "light" ? "rgba(255,255,255,0.72)" : "rgba(51,65,85,0.85)";
     const boldColor = variant === "light" ? "#fff" : "#0f172a";
 
     return (
@@ -124,15 +100,15 @@ export function Logo({
             <LogoMark size={iconSize} />
             {showText && (
                 <span
-                    className="font-display uppercase"
+                    className="font-display"
                     style={{
                         fontSize: `${fontSize}px`,
-                        letterSpacing: "0.08em",
+                        letterSpacing: "-0.01em",
                         lineHeight: 1,
                     }}
                 >
-                    <span style={{ fontWeight: 500, color: mutedColor }}>Digi</span>
-                    <span style={{ fontWeight: 800, color: boldColor }}>mine</span>
+                    <span style={{ fontWeight: 500, color: mutedColor }}>Placement</span>
+                    <span style={{ fontWeight: 800, color: boldColor }}>Ranker</span>
                 </span>
             )}
         </span>

@@ -119,7 +119,7 @@ export default function MembershipPage() {
                 key: data.keyId,
                 amount: data.amount,
                 currency: data.currency || "INR",
-                name: "Digimine",
+                name: "PlacementRanker",
                 description: `${data.planName} membership`,
                 order_id: data.razorpayOrderId,
                 handler: async (resp: any) => {

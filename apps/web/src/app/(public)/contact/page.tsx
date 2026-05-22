@@ -4,7 +4,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
     title: "Contact Us",
-    description: "Get in touch with the Digimine team for support, partnerships, or product enquiries.",
+    description: "Get in touch with the PlacementRanker team for support, partnerships, or product enquiries.",
     path: "/contact",
 });
 

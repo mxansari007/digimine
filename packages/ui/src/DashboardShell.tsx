@@ -23,7 +23,7 @@ export interface DashboardShellProps {
 
 export function DashboardShell({
   sidebar,
-  brand = "Digimine",
+  brand = "PlacementRanker",
   role,
   children,
 }: DashboardShellProps) {

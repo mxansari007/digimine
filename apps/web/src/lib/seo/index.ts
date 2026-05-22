@@ -13,9 +13,9 @@
  */
 import type { Metadata } from "next";
 
-export const SITE_NAME = "Digimine";
+export const SITE_NAME = "PlacementRanker";
 export const SITE_TAGLINE = "Tests, quizzes, courses & marketplace for learners and educators";
-export const SITE_TWITTER = "@digimine";
+export const SITE_TWITTER = "@placementranker";
 export const SITE_LOCALE = "en_IN";
 export const DEFAULT_OG_IMAGE = "/og-default.png";
 
@@ -23,7 +23,7 @@ export function siteOrigin(): string {
     return (
         process.env.NEXT_PUBLIC_SITE_URL ||
         process.env.NEXT_PUBLIC_APP_URL ||
-        "https://digimine.com"
+        "https://placementranker.com"
     ).replace(/\/$/, "");
 }
 
@@ -103,8 +103,8 @@ export function organizationJsonLd() {
         url: siteOrigin(),
         logo: absoluteUrl("/logo.png"),
         sameAs: [
-            "https://twitter.com/digimine",
-            "https://www.linkedin.com/company/digimine",
+            "https://twitter.com/placementranker",
+            "https://www.linkedin.com/company/placementranker",
         ],
         contactPoint: [
             {

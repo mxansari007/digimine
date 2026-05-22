@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
         description:
             contest.shortDescription ||
             contest.description?.slice(0, 160) ||
-            "Live online contest on Digimine.",
+            "Live online contest on PlacementRanker.",
         path: `/contests/${contest.slug}`,
         ogImage: contest.thumbnailURL || null,
         keywords: Array.isArray(contest.tags) ? contest.tags.slice(0, 12) : undefined,

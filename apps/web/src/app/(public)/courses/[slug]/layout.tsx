@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
         description:
             course.shortDescription ||
             course.description?.slice(0, 160) ||
-            "Self-paced online course on Digimine.",
+            "Self-paced online course on PlacementRanker.",
         path: `/courses/${course.slug}`,
         ogImage: course.thumbnailURL || null,
         keywords: Array.isArray(course.tags) ? course.tags.slice(0, 12) : undefined,

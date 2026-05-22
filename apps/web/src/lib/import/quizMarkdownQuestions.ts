@@ -399,7 +399,7 @@ export const QUIZ_QUESTION_TEMPLATE_MD = `# Quiz Question Import Template
     - "key: value" metadata lines configure each question.
     - @question, @passage, @answer, and @explanation blocks capture rich HTML.
 
-  The rendered content is raw HTML because Digimine renders it with the same
+  The rendered content is raw HTML because PlacementRanker renders it with the same
   rich content renderer used in the question editor. You can use:
       <p>, <h3>, <strong>, <em>, <code>, <pre><code>, <ul>, <ol>, <table>,
       <img src="..." alt="..." />, and embedded video HTML created by the editor.

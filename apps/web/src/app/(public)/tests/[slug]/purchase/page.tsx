@@ -112,7 +112,7 @@ export default function TestPurchasePage() {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: data.amount,
                 currency: data.currency,
-                name: "Digimine",
+                name: "PlacementRanker",
                 description: `Purchase: ${test.title}`,
                 order_id: data.razorpayOrderId,
                 handler: async (response: any) => {

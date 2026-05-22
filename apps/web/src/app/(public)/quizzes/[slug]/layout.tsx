@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
         description:
             quiz.shortDescription ||
             quiz.description?.slice(0, 160) ||
-            "Practice quiz on Digimine — instant feedback, explanations per question.",
+            "Practice quiz on PlacementRanker — instant feedback, explanations per question.",
         path: `/quizzes/${quiz.slug}`,
         ogImage: quiz.thumbnailURL || null,
         keywords: Array.isArray(quiz.tags) ? quiz.tags.slice(0, 12) : undefined,

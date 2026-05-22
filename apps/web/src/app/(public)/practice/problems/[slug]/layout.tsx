@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     if (!problem) {
         return buildMetadata({
             title: "Practice Problem",
-            description: "Solve DSA & SQL practice problems with instant judging on Digimine.",
+            description: "Solve DSA & SQL practice problems with instant judging on PlacementRanker.",
             path: `/practice/problems/${slug}`,
         });
     }
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     const kindLabel = problem.kind === "sql" ? "SQL" : "DSA";
     const difficulty = problem.difficulty ? String(problem.difficulty) : "";
     const stmt = stripArticleHtml(problem.statementHtml || "").slice(0, 155).trim();
-    const description = stmt || `Solve "${problem.title}", a ${difficulty} ${kindLabel} practice problem, with instant judging and spaced-repetition tracking on Digimine.`;
+    const description = stmt || `Solve "${problem.title}", a ${difficulty} ${kindLabel} practice problem, with instant judging and spaced-repetition tracking on PlacementRanker.`;
 
     return buildMetadata({
         title: `${problem.title} — ${difficulty ? difficulty[0].toUpperCase() + difficulty.slice(1) + " " : ""}${kindLabel} Practice`,

@@ -25,7 +25,7 @@ export default function AuthLayout({
             {/* Minimal Footer */}
             <footer className="py-6">
                 <div className="container-page text-center text-sm text-gray-500">
-                    © {new Date().getFullYear()} Digimine. All rights reserved.
+                    © {new Date().getFullYear()} PlacementRanker. All rights reserved.
                 </div>
             </footer>
         </div>

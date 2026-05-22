@@ -3,7 +3,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
     title: "Shipping & Delivery Policy",
-    description: "How and when you receive access to your digital purchases on Digimine.",
+    description: "How and when you receive access to your digital purchases on PlacementRanker.",
     path: "/shipping-policy",
 });
 
@@ -21,7 +21,7 @@ export default function ShippingPolicyPage() {
 
                         <h3>1. Digital Delivery</h3>
                         <p>
-                            Digimine sells digital products exclusively. All purchases are delivered electronically — there is no physical shipping involved.
+                            PlacementRanker sells digital products exclusively. All purchases are delivered electronically — there is no physical shipping involved.
                         </p>
 
                         <h3>2. Delivery Method</h3>
@@ -41,7 +41,7 @@ export default function ShippingPolicyPage() {
 
                         <h3>4. Access &amp; Re-downloads</h3>
                         <p>
-                            You can access and re-download your purchased products at any time by logging into your Digimine account and visiting your orders section.
+                            You can access and re-download your purchased products at any time by logging into your PlacementRanker account and visiting your orders section.
                         </p>
 
                         <h3>5. Delivery Issues</h3>
@@ -55,7 +55,7 @@ export default function ShippingPolicyPage() {
 
                         <h3>6. No Physical Shipping</h3>
                         <p>
-                            As all our products are digital, we do not ship any physical goods. No shipping charges apply to any orders on Digimine.
+                            As all our products are digital, we do not ship any physical goods. No shipping charges apply to any orders on PlacementRanker.
                         </p>
                     </div>
                 </div>

@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
     title: "Help Center & FAQ",
-    description: "Answers to common questions about purchases, downloads, tests, and accounts on Digimine.",
+    description: "Answers to common questions about purchases, downloads, tests, and accounts on PlacementRanker.",
     path: "/help",
 });
 
