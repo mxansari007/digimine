@@ -16,7 +16,7 @@ import {
     type CreateArticleInput,
 } from "@digimine/types";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
-import { FileUpload } from "@/components/common/FileUpload";
+import { ImageInput } from "@/components/common/ImageInput";
 
 export type ArticleFormSubmit = (input: CreateArticleInput) => Promise<void> | void;
 
@@ -294,12 +294,11 @@ export function ArticleForm({
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Field label="Social share image (og:image)" hint="1200×630 recommended · falls back to cover image">
-                            <FileUpload
-                                label="Upload og:image"
+                            <ImageInput
+                                value={ogImageUrl}
+                                onChange={setOgImageUrl}
                                 path="articles/og"
-                                accept="image/*"
-                                existingUrl={ogImageUrl || undefined}
-                                onUploadComplete={(url) => setOgImageUrl(url)}
+                                urlPlaceholder="https://… (1200×630 recommended)"
                             />
                         </Field>
                         <Field label="Twitter card">
@@ -503,12 +502,11 @@ export function ArticleForm({
                 <Card className="p-5 space-y-4">
                     <h2 className="text-sm font-semibold text-slate-700">Cover image</h2>
                     <Field label="Cover image" hint="Used at the top of the article and as fallback og:image">
-                        <FileUpload
-                            label="Upload cover image"
+                        <ImageInput
+                            value={coverImageUrl}
+                            onChange={setCoverImageUrl}
                             path="articles/covers"
-                            accept="image/*"
-                            existingUrl={coverImageUrl || undefined}
-                            onUploadComplete={(url) => setCoverImageUrl(url)}
+                            urlPlaceholder="https://… (Unsplash, Pexels, or any CDN)"
                         />
                     </Field>
                     <Field label="Caption">
