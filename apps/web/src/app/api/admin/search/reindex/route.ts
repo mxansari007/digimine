@@ -89,7 +89,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `article:${slug}`,
+            id: `article__${slug}`,
             type: "article",
             title: str(x.title),
             description: str(x.excerpt),
@@ -110,7 +110,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `problem:${slug}`,
+            id: `problem__${slug}`,
             type: "problem",
             title: str(x.title),
             description: `${str(x.kind, "DSA").toUpperCase()} · ${str(x.difficulty, "easy")}`,
@@ -130,7 +130,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `test:${slug}`,
+            id: `test__${slug}`,
             type: "test",
             title: str(x.title),
             description: str(x.shortDescription),
@@ -149,7 +149,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `quiz:${slug}`,
+            id: `quiz__${slug}`,
             type: "quiz",
             title: str(x.title),
             description: str(x.shortDescription),
@@ -168,7 +168,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `contest:${slug}`,
+            id: `contest__${slug}`,
             type: "contest",
             title: str(x.title),
             description: str(x.shortDescription) || str(x.description),
@@ -187,7 +187,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `course:${slug}`,
+            id: `course__${slug}`,
             type: "course",
             title: str(x.title),
             description: str(x.shortDescription),
@@ -206,7 +206,7 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
         docs.push({
-            id: `product:${slug}`,
+            id: `product__${slug}`,
             type: "product",
             title: str(x.name),
             description: str(x.shortDescription) || str(x.description),
