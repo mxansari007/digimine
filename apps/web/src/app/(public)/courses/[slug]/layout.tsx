@@ -1,32 +1,19 @@
 import type { Metadata } from "next";
-import { adminDb } from "@/lib/firebase/admin";
 import {
     breadcrumbJsonLd,
     buildMetadata,
     courseJsonLd,
     jsonLdScript,
 } from "@/lib/seo";
+import { getCachedDocBySlug } from "@/lib/server/slugCache";
 
 interface RouteParams {
     params: { slug: string };
 }
 
 async function loadCourse(slug: string) {
-    if (!slug) return null;
-    try {
-        const snap = await adminDb
-            .collection("courses")
-            .where("slug", "==", slug)
-            .limit(1)
-            .get();
-        if (snap.empty) return null;
-        const d = snap.docs[0];
-        const data = d.data() || {};
-        if ((data.status || "draft") !== "published" || data.isDeleted) return null;
-        return { id: d.id, ...data } as any;
-    } catch {
-        return null;
-    }
+    // Cached + slug-fast-path + public-catalog gate (see slugCache.ts).
+    return getCachedDocBySlug("courses", slug).catch(() => null);
 }
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {

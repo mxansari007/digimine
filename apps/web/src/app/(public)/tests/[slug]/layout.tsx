@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { adminDb } from "@/lib/firebase/admin";
+import { getCachedDocBySlug } from "@/lib/server/slugCache";
 import {
     breadcrumbJsonLd,
     buildMetadata,
@@ -12,21 +12,7 @@ interface RouteParams {
 }
 
 async function loadTestSeries(slug: string) {
-    if (!slug) return null;
-    try {
-        const snap = await adminDb
-            .collection("tests")
-            .where("slug", "==", slug)
-            .limit(1)
-            .get();
-        if (snap.empty) return null;
-        const d = snap.docs[0];
-        const data = d.data() || {};
-        if ((data.status || "draft") !== "published" || data.isDeleted) return null;
-        return { id: d.id, ...data } as any;
-    } catch {
-        return null;
-    }
+    return getCachedDocBySlug("tests", slug).catch(() => null);
 }
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {

@@ -11,7 +11,7 @@ import {
     type ArticleStructuredDataType,
 } from "@digimine/types";
 import { adminDb } from "@/lib/firebase/admin";
-import { toIsoDate } from "@/lib/server/classroomAccess";
+import { getCachedArticleBySlug, type CachedArticle } from "@/lib/server/articleCache";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,47 +26,40 @@ function siteOrigin(): string {
     ).replace(/\/$/, "");
 }
 
-async function loadArticle(slug: string): Promise<(Article & { id: string }) | null> {
-    if (!slug) return null;
-    const snap = await adminDb.collection("articles").where("slug", "==", slug).limit(1).get();
-    if (snap.empty) return null;
-    const docSnap = snap.docs[0];
-    const raw = docSnap.data() || {};
-    if ((raw.status || "draft") !== "published") return null;
-
+/**
+ * Hydrate the cached (JSON-safe) article shape back into the rich
+ * `Article` type the rest of this file expects — primarily reviving the
+ * ISO-string dates into `Date` instances.
+ */
+function hydrate(cached: CachedArticle): Article & { id: string } {
     return {
-        id: docSnap.id,
-        slug: raw.slug || "",
-        title: raw.title || "",
-        subtitle: raw.subtitle ?? null,
-        excerpt: raw.excerpt || "",
-        body: raw.body || "",
-        coverImageUrl: raw.coverImageUrl ?? null,
-        coverCaption: raw.coverCaption ?? null,
-        category: raw.category || "guide",
-        subject: raw.subject ?? null,
-        tags: Array.isArray(raw.tags) ? raw.tags : [],
+        id: cached.id,
+        slug: cached.slug,
+        title: cached.title,
+        subtitle: cached.subtitle,
+        excerpt: cached.excerpt,
+        body: cached.body,
+        coverImageUrl: cached.coverImageUrl,
+        coverCaption: cached.coverCaption,
+        category: cached.category as Article["category"],
+        subject: cached.subject,
+        tags: cached.tags,
         status: "published",
-        publishedAt: toIsoDate(raw.publishedAt) ? new Date(toIsoDate(raw.publishedAt) as string) : null,
+        publishedAt: cached.publishedAt ? new Date(cached.publishedAt) : null,
         scheduledFor: null,
-        author: {
-            userId: raw.author?.userId || "",
-            name: raw.author?.name || "Editorial",
-            avatarUrl: raw.author?.avatarUrl ?? null,
-            bio: raw.author?.bio ?? null,
-            twitter: raw.author?.twitter ?? null,
-            linkedin: raw.author?.linkedin ?? null,
-        },
-        reading: {
-            wordCount: raw.reading?.wordCount ?? 0,
-            readingMinutes: raw.reading?.readingMinutes ?? 1,
-        },
-        seo: { ...DEFAULT_ARTICLE_SEO, ...(raw.seo || {}) } as ArticleSeo,
-        isFeatured: Boolean(raw.isFeatured),
-        viewCount: raw.viewCount ?? 0,
-        createdAt: toIsoDate(raw.createdAt) ? new Date(toIsoDate(raw.createdAt) as string) : new Date(),
-        updatedAt: toIsoDate(raw.updatedAt) ? new Date(toIsoDate(raw.updatedAt) as string) : new Date(),
+        author: cached.author,
+        reading: cached.reading,
+        seo: { ...DEFAULT_ARTICLE_SEO, ...(cached.seo || {}) } as ArticleSeo,
+        isFeatured: cached.isFeatured,
+        viewCount: cached.viewCount,
+        createdAt: cached.createdAt ? new Date(cached.createdAt) : new Date(),
+        updatedAt: cached.updatedAt ? new Date(cached.updatedAt) : new Date(),
     };
+}
+
+async function loadArticle(slug: string): Promise<(Article & { id: string }) | null> {
+    const cached = await getCachedArticleBySlug(slug);
+    return cached ? hydrate(cached) : null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

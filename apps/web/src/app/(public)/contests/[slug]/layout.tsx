@@ -1,41 +1,31 @@
 import type { Metadata } from "next";
-import { adminDb } from "@/lib/firebase/admin";
 import {
     breadcrumbJsonLd,
     buildMetadata,
     contestJsonLd,
     jsonLdScript,
 } from "@/lib/seo";
+import { getCachedDocBySlug } from "@/lib/server/slugCache";
 
 interface RouteParams {
     params: { slug: string };
 }
 
-function toIso(value: any): string | null {
+/** Kept for use further down in this file (start/end time formatting). */
+function toIso(value: unknown): string | null {
     if (!value) return null;
-    if (typeof value?.toDate === "function") return value.toDate().toISOString();
+    const ts = value as { toDate?: () => Date; seconds?: number };
+    if (typeof ts.toDate === "function") return ts.toDate().toISOString();
     if (value instanceof Date) return value.toISOString();
     if (typeof value === "string") return value;
-    if (typeof value?.seconds === "number") return new Date(value.seconds * 1000).toISOString();
+    if (typeof ts.seconds === "number") return new Date(ts.seconds * 1000).toISOString();
     return null;
 }
 
 async function loadContest(slug: string) {
-    if (!slug) return null;
-    try {
-        const snap = await adminDb
-            .collection("contests")
-            .where("slug", "==", slug)
-            .limit(1)
-            .get();
-        if (snap.empty) return null;
-        const d = snap.docs[0];
-        const data = d.data() || {};
-        if ((data.status || "draft") !== "published" || data.isDeleted) return null;
-        return { id: d.id, ...data } as any;
-    } catch {
-        return null;
-    }
+    // The cached helper already converts nested Timestamp fields (startTime,
+    // endTime, etc.) to ISO strings, so call sites can use them directly.
+    return getCachedDocBySlug("contests", slug).catch(() => null);
 }
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {
