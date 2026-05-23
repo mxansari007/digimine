@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { getCachedContests, type ContestCard } from "@/lib/server/catalog";
 import { CalendarIcon, ClockIcon, FileTextIcon, TargetIcon, TrophyIcon } from "@/components/icons/AppIcons";
+import PastContestsList from "./_components/PastContestsList";
 
 // Server-rendered so every contest card + link is in the initial HTML
 // (crawlable). Rendered per request (phase is time-sensitive) but the data
@@ -125,7 +126,7 @@ export default async function ContestsPage() {
                         {ended.length > 0 && (
                             <section className="space-y-4">
                                 <h2 className="text-2xl font-bold text-slate-950">Past Contests</h2>
-                                <div className="grid gap-5">{ended.map(({ c, phase }) => <ContestCardView key={c.id} contest={c} phase={phase} />)}</div>
+                                <PastContestsList contests={ended.map(({ c }) => c)} />
                             </section>
                         )}
                     </div>

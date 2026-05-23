@@ -8,6 +8,9 @@ import { signOut } from "@/lib/firebase/auth";
 import { Logo } from "@/components/common/Logo";
 import { TeachersDropdown } from "@/components/teacher/TeachersDropdown";
 import { userHomePath } from "@/lib/auth/redirects";
+import UserMenu from "@/components/layout/UserMenu";
+import Avatar from "@/components/common/Avatar";
+import HeaderSearch from "@/components/layout/HeaderSearch";
 
 export function Header() {
     const { isAuthenticated, user, loading } = useAuthContext();
@@ -82,22 +85,17 @@ export function Header() {
 
                         {/* Right side actions */}
                         <div className="flex items-center gap-2 md:gap-4">
+                            {/* Header search — compact icon trigger; opens a centered
+                                modal. Visible on all viewports since it's just an icon. */}
+                            <HeaderSearch />
                             {/* Desktop Auth buttons */}
                             <div className="hidden md:flex items-center gap-2">
                                 {loading ? (
-                                    <div className="h-9 w-20 animate-pulse rounded-lg bg-slate-100" />
+                                    <div className="h-9 w-28 animate-pulse rounded-full bg-slate-100" />
                                 ) : isAuthenticated ? (
                                     <div className="flex items-center gap-3">
                                         {showTeachersDropdown && <TeachersDropdown />}
-                                        <Link
-                                            href={dashboardHref}
-                                            className="rounded-full px-3 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-primary-700"
-                                        >
-                                            {user?.displayName || "Dashboard"}
-                                        </Link>
-                                        <Button variant="ghost" size="sm" onClick={handleSignOut} className="font-medium">
-                                            Sign Out
-                                        </Button>
+                                        <UserMenu user={user} onSignOut={handleSignOut} />
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -178,11 +176,25 @@ export function Header() {
                     {loading ? (
                         <div className="w-full h-10 bg-gray-200 animate-pulse rounded-lg" />
                     ) : isAuthenticated ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-slate-200">
+                                <Avatar
+                                    src={user?.photoURL}
+                                    name={user?.displayName}
+                                    email={user?.email}
+                                    size={40}
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                        {user?.displayName || "Account"}
+                                    </p>
+                                    <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                                </div>
+                            </div>
                             <Link
                                 href={dashboardHref}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full rounded-lg bg-white px-4 py-2 text-center font-medium text-slate-700 ring-1 ring-slate-200"
+                                className="block w-full rounded-lg bg-primary-600 px-4 py-2 text-center font-medium text-white"
                             >
                                 My Dashboard
                             </Link>

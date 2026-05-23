@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
 import { patternMeta, type CodeLanguage } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import PracticeCommunity from "@/components/practice/PracticeCommunity";
 
@@ -130,6 +131,9 @@ export default function SolveProblemPage() {
     const router = useRouter();
     const slug = params.slug as string;
     const { firebaseUser, isAuthenticated, loading: authLoading } = useAuthContext();
+    // Role-less signed-in users get bounced to /role-select first. Anonymous
+    // users are unaffected here (existing "Sign in" CTAs handle that branch).
+    useAttemptGate();
 
     const [problem, setProblem] = useState<Problem | null>(null);
     const [progress, setProgress] = useState<Progress>(null);

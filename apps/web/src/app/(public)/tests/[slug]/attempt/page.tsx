@@ -17,6 +17,7 @@ import {
 } from "@/lib/firestore/tests";
 import { getContestById } from "@/lib/firestore/contests";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { FileTextIcon, RefreshIcon } from "@/components/icons/AppIcons";
 import type { Contest, TestSeries, Test, TestSection, Question, TestAttempt, CodeLanguage } from "@digimine/types";
 
@@ -163,6 +164,8 @@ export default function TestAttemptPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, firebaseUser, loading: authLoading } = useAuthContext();
+    // Force signed-in-but-role-less users through /role-select first.
+    useAttemptGate();
 
     const slug = params.slug as string;
     const testId = searchParams.get("testId");

@@ -297,3 +297,53 @@ export const getCachedStoreItems = shared("catalog:store:v1", unstable_cache(fet
     revalidate: TTL,
     tags: [CATALOG_TAG],
 }));
+
+/**
+ * Lightweight article summary for the homepage "What's new" block. We avoid
+ * pulling the article body or seo blob — just the few fields the card needs.
+ */
+export type HomeArticleCard = {
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string;
+    coverImageUrl: string | null;
+    category: string;
+    readingMinutes: number;
+    publishedAtMs: number;
+};
+
+async function fetchHomeArticles(): Promise<HomeArticleCard[]> {
+    // Don't `orderBy("publishedAt")` — Firestore drops docs missing it. Fetch
+    // a small batch of published articles and sort in JS (article volumes are
+    // small enough that this is cheap).
+    const snap = await adminDb
+        .collection("articles")
+        .where("status", "==", "published")
+        .limit(24)
+        .get();
+    const items: HomeArticleCard[] = snap.docs
+        .map((d) => ({ id: d.id, x: d.data() || {} }))
+        .filter((r) => str(r.x.slug) && str(r.x.title))
+        .map(({ id, x }) => ({
+            id,
+            slug: str(x.slug),
+            title: str(x.title),
+            excerpt: str(x.excerpt),
+            coverImageUrl: typeof x.coverImageUrl === "string" ? x.coverImageUrl : null,
+            category: str(x.category, "guide"),
+            readingMinutes: num(x.reading?.readingMinutes, 1),
+            publishedAtMs: toMillis(x.publishedAt) || toMillis(x.createdAt),
+        }))
+        .sort((a, b) => b.publishedAtMs - a.publishedAtMs)
+        .slice(0, 4);
+    return items;
+}
+
+export const getCachedHomeArticles = shared(
+    "catalog:home-articles:v1",
+    unstable_cache(fetchHomeArticles, ["catalog:home-articles:v1"], {
+        revalidate: TTL,
+        tags: [CATALOG_TAG],
+    })
+);

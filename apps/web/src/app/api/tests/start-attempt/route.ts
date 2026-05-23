@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { v4 as uuidv4 } from "uuid";
 import { previewAttemptOverlay } from "@/lib/server/userRole";
+import { requireAssignedRole } from "@/lib/server/roleGate";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,10 @@ export async function POST(req: Request) {
         if (!userId || !seriesId || !testId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
+
+        // Defense-in-depth: refuse to create attempts for role-less users.
+        const gate = await requireAssignedRole(String(userId));
+        if (!gate.ok) return gate.response;
 
         // Load test data
         const testSnap = await adminDb

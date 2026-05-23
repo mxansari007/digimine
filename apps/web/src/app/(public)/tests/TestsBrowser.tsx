@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { BookOpenIcon, FileTextIcon, FlaskIcon } from "@/components/icons/AppIcons";
 import type { TestCard } from "@/lib/server/catalog";
+import { LoadMoreButton } from "@/components/common";
+import { useVisibleSlice } from "@/hooks/useVisibleSlice";
 
 type SortOption = "newest" | "price-low" | "price-high" | "questions";
 
@@ -52,6 +54,8 @@ export default function TestsBrowser({ tests }: { tests: TestCard[] }) {
         }
         return list;
     }, [tests, searchQuery, accessFilter, categoryFilter, sortBy]);
+
+    const { visible, hasMore, remaining, loadMore } = useVisibleSlice(visibleTests, 9);
 
     return (
         <>
@@ -116,8 +120,9 @@ export default function TestsBrowser({ tests }: { tests: TestCard[] }) {
                     )}
                 </Card>
             ) : (
+                <>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {visibleTests.map((test) => (
+                    {visible.map((test) => (
                         <Card key={test.id} className="group overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
                             <div className="relative h-48 overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600">
                                 {test.thumbnailURL ? (
@@ -168,6 +173,13 @@ export default function TestsBrowser({ tests }: { tests: TestCard[] }) {
                         </Card>
                     ))}
                 </div>
+                <LoadMoreButton
+                    hasMore={hasMore}
+                    remaining={remaining}
+                    onLoadMore={loadMore}
+                    label="Load more tests"
+                />
+                </>
             )}
         </>
     );

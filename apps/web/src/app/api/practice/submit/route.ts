@@ -4,6 +4,7 @@ import { loadProblemById, loadProblemBySlug, recordSubmission } from "@/lib/serv
 import { judgeDsa, judgeSql } from "@/lib/server/practiceJudge";
 import { checkQuota } from "@/lib/server/entitlements";
 import { rateLimit } from "@/lib/server/ratelimit";
+import { requireAssignedRole } from "@/lib/server/roleGate";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,12 @@ export async function POST(req: Request) {
     try {
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) return NextResponse.json({ error: "Sign in to submit." }, { status: 401 });
+
+        // Defense-in-depth: useAttemptGate funnels role-less users through
+        // /role-select on the client, but we re-verify here for stale tabs
+        // and hand-rolled requests.
+        const gate = await requireAssignedRole(userId);
+        if (!gate.ok) return gate.response;
 
         // Protect the judge (Piston) from floods/abuse: cap code executions per
         // user. Fail-open if Redis is down. Tune as needed.

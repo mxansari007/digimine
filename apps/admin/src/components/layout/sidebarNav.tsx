@@ -80,11 +80,18 @@ const ArticleIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const DiscussionIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 21l1.4-4.2A8.5 8.5 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+);
+
 export const adminNav: AppSidebarNavItem[] = [
     { name: "Dashboard", href: "/", icon: HomeIcon },
     { name: "Products", href: "/products", icon: TagIcon },
     { name: "Courses", href: "/courses", icon: CourseIcon },
     { name: "Articles", href: "/articles", icon: ArticleIcon },
+    { name: "Discussions", href: "/discussions", icon: DiscussionIcon },
     { name: "Subscription", href: "/subscription", icon: PayoutIcon },
     { name: "Orders", href: "/orders", icon: ShoppingCartIcon },
     { name: "Test Series", href: "/tests", icon: TestIcon },

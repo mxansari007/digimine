@@ -10,6 +10,7 @@ import {
     getContestAttemptContext,
     syncTimedOutAttempt,
 } from "@/lib/server/quizAttempts";
+import { requireAssignedRole } from "@/lib/server/roleGate";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,11 @@ export async function POST(req: Request, { params }: { params: { quizId: string 
         if (!userId) {
             return NextResponse.json({ error: "Sign in to start this quiz." }, { status: 401 });
         }
+
+        // Defense-in-depth: refuse to start attempts for role-less users.
+        // useAttemptGate sends them through /role-select before they hit this.
+        const gate = await requireAssignedRole(userId);
+        if (!gate.ok) return gate.response;
 
         const quiz = await getQuiz(params.quizId);
         if (!quiz) return NextResponse.json({ error: "Quiz not found" }, { status: 404 });

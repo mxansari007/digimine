@@ -14,6 +14,7 @@ import {
 } from "@/lib/firestore/tests";
 import { getQuizById, getUserQuizAttempts } from "@/lib/firestore/quizzes";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { CalendarIcon, CheckIcon, ClockIcon, FileTextIcon, LockIcon, TargetIcon, TrophyIcon } from "@/components/icons/AppIcons";
 import type { Contest, Quiz, QuizAttempt, Test, TestAttempt, TestSeries } from "@digimine/types";
 
@@ -74,6 +75,8 @@ export default function ContestDetailPage() {
     const classroomTeacherId = searchParams.get("teacherId");
     const { user, firebaseUser, loading: authLoading } = useAuthContext();
     const userId = user?.id || firebaseUser?.uid;
+    // Force signed-in-but-role-less users through /role-select first.
+    useAttemptGate();
 
     const [contest, setContest] = useState<Contest | null>(null);
     const [series, setSeries] = useState<TestSeries | null>(null);

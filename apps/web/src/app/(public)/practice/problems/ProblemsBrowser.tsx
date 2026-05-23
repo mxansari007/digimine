@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card } from "@digimine/ui";
 import { ALL_PATTERNS, patternMeta } from "@digimine/types";
+import { LoadMoreButton } from "@/components/common";
+import { useVisibleSlice } from "@/hooks/useVisibleSlice";
 
 export type Row = {
     id: string;
@@ -57,6 +59,8 @@ export default function ProblemsBrowser({
         return ALL_PATTERNS;
     }, [kind]);
 
+    const { visible, hasMore, remaining, loadMore } = useVisibleSlice(filtered, 25);
+
     return (
         <>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -90,6 +94,10 @@ export default function ProblemsBrowser({
                 {filtered.length === 0 ? (
                     <Card className="p-12 text-center text-sm text-slate-500">No problems match these filters.</Card>
                 ) : (
+                    <>
+                    <p className="mb-3 text-xs text-slate-500">
+                        Showing <span className="font-semibold text-slate-700">{visible.length}</span> of {filtered.length} problem{filtered.length === 1 ? "" : "s"}
+                    </p>
                     <Card className="overflow-hidden p-0">
                         <table className="min-w-full text-sm">
                             <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
@@ -101,7 +109,7 @@ export default function ProblemsBrowser({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filtered.map((p) => (
+                                {visible.map((p) => (
                                     <tr key={p.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-3">
                                             <Link href={`/practice/problems/${p.slug}`} className="font-medium text-slate-900 hover:text-primary-700">
@@ -119,6 +127,13 @@ export default function ProblemsBrowser({
                             </tbody>
                         </table>
                     </Card>
+                    <LoadMoreButton
+                        hasMore={hasMore}
+                        remaining={remaining}
+                        onLoadMore={loadMore}
+                        label="Load more problems"
+                    />
+                    </>
                 )}
             </div>
         </>

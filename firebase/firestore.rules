@@ -1022,6 +1022,23 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
       allow create, update, delete: if isAdmin();
+
+      // Article discussions — public-read, signed-in-create. Authors can
+      // delete their own comment; admins moderate via a trusted server
+      // endpoint (Admin SDK bypasses these rules), so we don't grant
+      // cross-user delete on the client.
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() > 0
+                      && request.resource.data.body.size() <= 2000;
+        allow delete: if request.auth != null
+                      && resource.data.userId == request.auth.uid;
+        // Comments are immutable: no edits to keep moderation history clean.
+        allow update: if false;
+      }
     }
 
     // ─── DSA / SQL practice ("Mastery Engine") ──────────────────────────

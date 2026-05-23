@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { getQuizBySlug } from "@/lib/firestore/quizzes";
 import { BookOpenIcon, CheckIcon, ClockIcon, LockIcon, TargetIcon, TrophyIcon, XIcon } from "@/components/icons/AppIcons";
 import type { Quiz } from "@digimine/types";
@@ -204,6 +205,8 @@ export default function QuizDetailPage() {
     const contestId = searchParams.get("contestId");
     const classroomTeacherId = searchParams.get("teacherId");
     const { firebaseUser, loading: authLoading } = useAuthContext();
+    // Force signed-in-but-role-less users through /role-select first.
+    useAttemptGate();
 
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [questions, setQuestions] = useState<AttemptQuestion[]>([]);

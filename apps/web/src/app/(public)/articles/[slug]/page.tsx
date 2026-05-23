@@ -12,6 +12,8 @@ import {
 } from "@digimine/types";
 import { adminDb } from "@/lib/firebase/admin";
 import { getCachedArticleBySlug, type CachedArticle } from "@/lib/server/articleCache";
+import ArticleToc from "./_components/ArticleToc";
+import ArticleDiscussion from "./_components/ArticleDiscussion";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -168,7 +170,9 @@ export default async function ArticleDetailPage({ params }: Props) {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
 
-            <article className="container-page py-10 sm:py-14 max-w-3xl mx-auto">
+            <div className="container-page py-10 sm:py-14">
+                <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+                    <article className="min-w-0 max-w-3xl">
                 <div className="mb-6 text-xs text-slate-500">
                     <Link href="/articles" className="hover:underline">
                         ← All articles
@@ -231,7 +235,7 @@ export default async function ArticleDetailPage({ params }: Props) {
                     </figure>
                 )}
 
-                <div className="prose prose-slate mt-10 max-w-none">
+                <div id="article-body" className="prose prose-slate mt-10 max-w-none">
                     <FormattedContent html={article.body} />
                 </div>
 
@@ -280,7 +284,20 @@ export default async function ArticleDetailPage({ params }: Props) {
                         </div>
                     </Card>
                 )}
-            </article>
+
+                <ArticleDiscussion articleId={article.id} />
+                    </article>
+
+                    {/* Right-rail TOC — sticky on desktop, hidden on mobile.
+                        Renders client-side (extracts headings from #article-body
+                        after mount, so existing articles work without re-import). */}
+                    <aside className="hidden lg:block">
+                        <div className="sticky top-24">
+                            <ArticleToc bodyId="article-body" />
+                        </div>
+                    </aside>
+                </div>
+            </div>
         </main>
     );
 }

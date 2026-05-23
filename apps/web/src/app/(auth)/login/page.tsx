@@ -8,7 +8,7 @@ import { signIn, signInWithGoogle } from "@/lib/firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { User } from "@digimine/types";
-import { roleHomePath } from "@/lib/auth/redirects";
+import { roleHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -23,17 +23,30 @@ export default function LoginPage() {
     const [googleLoading, setGoogleLoading] = useState(false);
 
     const getRedirectPath = async (uid: string): Promise<string> => {
-        if (searchParams.get("redirect")) return redirect;
+        const intendedRedirect = searchParams.get("redirect");
         try {
             const userSnap = await getDoc(doc(db, "users", uid));
             if (userSnap.exists()) {
-                return roleHomePath(userSnap.data().role ?? null);
+                const role = userSnap.data().role ?? null;
+                if (role) {
+                    // Has a committed role — honor an explicit redirect if the
+                    // caller asked for one, else send them to their home.
+                    return intendedRedirect || roleHomePath(role);
+                }
+                // Orphan: signed in but no role yet (fresh Google sign-in, or
+                // a teacher/institute onboarding that was abandoned before the
+                // role was written). Don't drop them onto the destination URL
+                // role-less — funnel through role-select and thread the
+                // intended landing via `?next=` so we can return them there
+                // once a role is committed (or onboarding completes).
+                const next = intendedRedirect || "/dashboard";
+                return `${ROLE_SELECT_PATH}?next=${encodeURIComponent(next)}`;
             }
         } catch {
-            return "/auth/role-select";
+            return ROLE_SELECT_PATH;
         }
         // No profile doc at all → force role selection.
-        return "/auth/role-select";
+        return ROLE_SELECT_PATH;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +81,7 @@ export default function LoginPage() {
             if (!userSnap.exists()) {
                 const nameParts = credential.user.displayName?.split(" ") || [];
                 // First-time Google sign-in: leave role unset so the user is
-                // forced through /auth/role-select before reaching a dashboard.
+                // forced through /role-select before reaching a dashboard.
                 const newUser: User = {
                     id: credential.user.uid,
                     email: credential.user.email || "",

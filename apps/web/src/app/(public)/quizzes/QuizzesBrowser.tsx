@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button } from "@digimine/ui";
 import { BookOpenIcon, ClockIcon, LockIcon, SearchIcon, TargetIcon } from "@/components/icons/AppIcons";
 import type { QuizItem } from "@/lib/server/catalog";
+import { LoadMoreButton } from "@/components/common";
+import { useVisibleSlice } from "@/hooks/useVisibleSlice";
 
 type AccessFilter = "all" | "free" | "course_only";
 
@@ -37,6 +39,8 @@ export default function QuizzesBrowser({ quizzes }: { quizzes: QuizItem[] }) {
             return matchesSearch && matchesCategory && matchesAccess;
         });
     }, [accessFilter, categoryFilter, quizzes, searchQuery]);
+
+    const { visible, hasMore, remaining, loadMore } = useVisibleSlice(filteredQuizzes, 12);
 
     return (
         <>
@@ -84,11 +88,19 @@ export default function QuizzesBrowser({ quizzes }: { quizzes: QuizItem[] }) {
                     <p className="mt-2 text-slate-500">Try another search or reset your filters.</p>
                 </div>
             ) : (
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredQuizzes.map((quiz) => (
-                        <QuizCard key={quiz.id} quiz={quiz} />
-                    ))}
-                </div>
+                <>
+                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        {visible.map((quiz) => (
+                            <QuizCard key={quiz.id} quiz={quiz} />
+                        ))}
+                    </div>
+                    <LoadMoreButton
+                        hasMore={hasMore}
+                        remaining={remaining}
+                        onLoadMore={loadMore}
+                        label="Load more quizzes"
+                    />
+                </>
             )}
         </>
     );

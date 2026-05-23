@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@digimine/ui";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "@digimine/types";
+import { LoadMoreButton } from "@/components/common";
+import { useVisibleSlice } from "@/hooks/useVisibleSlice";
 
 type ArticleSummary = {
     id: string;
@@ -24,10 +27,12 @@ type ArticleSummary = {
 const ALL_CATEGORY = "all";
 
 export default function ArticlesIndexPage() {
+    const searchParams = useSearchParams();
+    const initialQuery = searchParams.get("q") || "";
     const [items, setItems] = useState<ArticleSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState<ArticleCategory | typeof ALL_CATEGORY>(ALL_CATEGORY);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState(initialQuery);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -59,7 +64,11 @@ export default function ArticlesIndexPage() {
     }, [items, search]);
 
     const featured = filtered.find((a) => a.isFeatured);
-    const rest = filtered.filter((a) => a !== featured);
+    const rest = useMemo(
+        () => filtered.filter((a) => a !== featured),
+        [filtered, featured]
+    );
+    const { visible, hasMore, remaining, loadMore } = useVisibleSlice(rest, 9);
 
     return (
         <main className="bg-white">
@@ -114,7 +123,7 @@ export default function ArticlesIndexPage() {
 
             <section className="container-page py-10 space-y-10">
                 {loading ? (
-                    <Card className="p-12 text-center text-sm text-slate-500">Loading articles…</Card>
+                    <ArticlesSkeleton />
                 ) : filtered.length === 0 ? (
                     <Card className="p-12 text-center">
                         <p className="text-slate-500">No articles match. Try a different category or search.</p>
@@ -163,7 +172,7 @@ export default function ArticlesIndexPage() {
                         )}
 
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {rest.map((a) => (
+                            {visible.map((a) => (
                                 <Link key={a.id} href={`/articles/${a.slug}`} className="block group">
                                     <Card className="h-full overflow-hidden flex flex-col">
                                         {a.coverImageUrl ? (
@@ -195,9 +204,53 @@ export default function ArticlesIndexPage() {
                                 </Link>
                             ))}
                         </div>
+
+                        <LoadMoreButton
+                            hasMore={hasMore}
+                            remaining={remaining}
+                            onLoadMore={loadMore}
+                            label="Load more articles"
+                        />
                     </>
                 )}
             </section>
         </main>
+    );
+}
+
+function ArticlesSkeleton() {
+    return (
+        <div className="space-y-10">
+            {/* Featured card placeholder */}
+            <Card className="overflow-hidden grid gap-6 lg:grid-cols-2">
+                <div className="aspect-[16/9] lg:aspect-auto lg:h-full animate-pulse bg-slate-200/70" />
+                <div className="p-6 lg:p-8 space-y-3">
+                    <div className="h-5 w-20 animate-pulse rounded-full bg-slate-200/70" />
+                    <div className="h-8 w-3/4 animate-pulse rounded bg-slate-200/70" />
+                    <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/70" />
+                    <div className="space-y-2 pt-2">
+                        <div className="h-3 w-full animate-pulse rounded bg-slate-200/70" />
+                        <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200/70" />
+                        <div className="h-3 w-3/4 animate-pulse rounded bg-slate-200/70" />
+                    </div>
+                </div>
+            </Card>
+
+            {/* Grid placeholder */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={i} className="h-full overflow-hidden flex flex-col">
+                        <div className="aspect-[16/9] w-full animate-pulse bg-slate-200/70" />
+                        <div className="p-5 space-y-3">
+                            <div className="h-3 w-24 animate-pulse rounded bg-slate-200/70" />
+                            <div className="h-5 w-5/6 animate-pulse rounded bg-slate-200/70" />
+                            <div className="h-3 w-full animate-pulse rounded bg-slate-200/70" />
+                            <div className="h-3 w-4/5 animate-pulse rounded bg-slate-200/70" />
+                            <div className="h-3 w-1/3 animate-pulse rounded bg-slate-200/70" />
+                        </div>
+                    </Card>
+                ))}
+            </div>
+        </div>
     );
 }

@@ -11,8 +11,42 @@
  * Theme is a shared light professional look across all roles.
  */
 
-import type { ComponentType, ReactNode } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 import { Logo } from "./Logo";
+
+/**
+ * Image with onError → initials fallback. Some Google/Firebase photoURLs
+ * become invalid (token expiry, deleted account, OAuth scope change) and
+ * the bare `<img>` then renders the browser's broken-image icon — ugly,
+ * and very visible in the sidebar footer. This component swaps to the
+ * same circular initials chip we use when no photo is provided.
+ */
+function AvatarFigure({
+  photoURL,
+  fallback,
+}: {
+  photoURL: string | null | undefined;
+  fallback: string;
+}) {
+  const [errored, setErrored] = useState(false);
+  const showImg = !!photoURL && !errored;
+  return (
+    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-white text-sm font-bold text-primary-700">
+      {showImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photoURL as string}
+          alt=""
+          referrerPolicy="no-referrer"
+          onError={() => setErrored(true)}
+          className="h-full w-full rounded-full object-cover"
+        />
+      ) : (
+        fallback
+      )}
+    </div>
+  );
+}
 
 export type AppSidebarRole = "student" | "teacher" | "admin" | "institute";
 
@@ -186,17 +220,7 @@ export function AppSidebar({
         <div className="border-t border-slate-200/80 bg-slate-50/60 p-4">
           <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 shadow-sm shadow-slate-900/5">
             <div className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80">
-              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-white text-sm font-bold text-primary-700">
-                {user?.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt=""
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  initial
-                )}
-              </div>
+              <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-900">

@@ -7,7 +7,7 @@ import { AppSidebar, DashboardShell } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
-import { userHomePath } from "@/lib/auth/redirects";
+import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 import { studentNav } from "@/components/layout/sidebarNav";
 
 /**
@@ -50,11 +50,11 @@ export default function DashboardLayout({
     if (isResultsPath) return;
     // Anyone whose home isn't the student dashboard (teacher / admin /
     // role-less) is redirected away — admins to /admin, teachers to
-    // /teacher/dashboard, role-less users to /auth/role-select.
+    // /teacher/dashboard, role-less users to /role-select.
     if (user.role && user.role !== "customer") {
       router.push(userHomePath(user));
     } else if (!user.role) {
-      router.push("/auth/role-select");
+      router.push(ROLE_SELECT_PATH);
     }
   }, [loading, isAuthenticated, router, user, isResultsPath]);
 
