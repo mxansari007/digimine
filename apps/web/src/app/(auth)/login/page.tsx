@@ -13,7 +13,6 @@ import { roleHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirect = searchParams.get("redirect") || "/dashboard";
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

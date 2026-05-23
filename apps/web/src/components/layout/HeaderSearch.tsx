@@ -220,15 +220,11 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                 type="button"
                 aria-label="Close search"
                 onClick={onClose}
-                className="absolute inset-0 -z-10 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-                style={{ animation: "search-fade-in 160ms ease-out" }}
+                className="search-fade-in absolute inset-0 -z-10 bg-slate-900/40 backdrop-blur-sm transition-opacity"
             />
 
             {/* Modal */}
-            <div
-                className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10"
-                style={{ animation: "search-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1)" }}
-            >
+            <div className="search-pop-in w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
                 {/* Input row */}
                 <div className="flex items-center gap-3 border-b border-slate-100 px-4">
                     <SearchIcon className="h-5 w-5 shrink-0 text-slate-400" />
@@ -383,26 +379,6 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                 </div>
             </div>
 
-            <style jsx>{`
-                @keyframes search-fade-in {
-                    from {
-                        opacity: 0;
-                    }
-                    to {
-                        opacity: 1;
-                    }
-                }
-                @keyframes search-pop-in {
-                    from {
-                        opacity: 0;
-                        transform: translate3d(0, -8px, 0) scale(0.98);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translate3d(0, 0, 0) scale(1);
-                    }
-                }
-            `}</style>
         </div>,
         document.body
     );
