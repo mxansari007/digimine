@@ -253,6 +253,11 @@ export async function updateArticle(
         if (input.status === "published" && !existing.publishedAt) {
             next.publishedAt = serverTimestamp();
         }
+    } else if (existing.status === "published" && !existing.publishedAt) {
+        // Defensive: an already-published article missing publishedAt would
+        // be invisible to listings that order by that field. Backfill it now
+        // (one-shot per stale doc — harmless if it never triggers).
+        next.publishedAt = serverTimestamp();
     }
 
     await updateDoc(doc(articlesCol(), id), next);

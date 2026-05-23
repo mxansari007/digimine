@@ -49,8 +49,24 @@ export async function GET(req: Request) {
             q = q.where("isFeatured", "==", true);
         }
 
-        const snap = await q.orderBy("publishedAt", "desc").limit(limit * 2).get();
-        let items = snap.docs.map((d) => serializeArticleSummary(d.id, d.data() || {}));
+        // Don't `orderBy("publishedAt")` — Firestore silently drops docs
+        // missing that field, which hides articles where the
+        // draft→published transition didn't stamp publishedAt. Fetch a
+        // bounded set and sort in memory (article volumes are small).
+        const snap = await q.limit(limit * 4).get();
+        let items = snap.docs
+            .map((d) => serializeArticleSummary(d.id, d.data() || {}))
+            .filter((a) => !!a.slug && !!a.title);
+
+        // Newest first. Prefer `publishedAt`, fall back to `id` (slug-keyed
+        // docs alphabetise reasonably; even random IDs at least give a
+        // stable order).
+        items.sort((a, b) => {
+            const aT = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+            const bT = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+            if (bT !== aT) return bT - aT;
+            return b.id.localeCompare(a.id);
+        });
 
         // Subject/tag filters done in JS — adding indexes for every combo
         // would balloon the index list. Articles volumes are small.

@@ -24,7 +24,7 @@
  * boundary to client components.
  */
 import { adminDb } from "@/lib/firebase/admin";
-import { cachedJson } from "@/lib/server/cache";
+import { cachedJson, invalidateCache } from "@/lib/server/cache";
 
 // Permissive shape so callers can dot-access fields (`doc.title`,
 // `doc.tags?.slice(0, 12)`, etc.) without per-call type narrowing — the
@@ -86,6 +86,15 @@ async function fetchBySlug(collection: string, slug: string): Promise<RawDoc | n
 }
 
 const TTL_SECONDS = 600;
+/**
+ * Short TTL for null results. Prevents a "you visited the URL before
+ * publishing → page 404s for 10 minutes after publishing" stuck-state.
+ */
+const NEGATIVE_TTL_SECONDS = 30;
+
+function keyFor(collection: string, slug: string) {
+    return `${collection}:by-slug:v1:${slug}`;
+}
 
 /**
  * Public API. Generic over the doc shape — pass `T` to type the return:
@@ -99,6 +108,19 @@ export async function getCachedDocBySlug<T = RawDoc>(
     slug: string
 ): Promise<T | null> {
     if (!slug) return null;
-    const key = `${collection}:by-slug:v1:${slug}`;
-    return cachedJson<T | null>(key, TTL_SECONDS, () => fetchBySlug(collection, slug) as Promise<T | null>);
+    return cachedJson<T | null>(
+        keyFor(collection, slug),
+        TTL_SECONDS,
+        () => fetchBySlug(collection, slug) as Promise<T | null>,
+        { negativeTtlSeconds: NEGATIVE_TTL_SECONDS }
+    );
+}
+
+/**
+ * Drop the cached entry for one slug — call this from admin save/publish
+ * paths so changes show up immediately instead of after TTL expiry.
+ */
+export async function invalidateSlugCache(collection: string, slug: string): Promise<void> {
+    if (!slug) return;
+    await invalidateCache(keyFor(collection, slug));
 }

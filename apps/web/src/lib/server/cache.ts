@@ -12,7 +12,22 @@ import { getRedis } from "@/lib/server/redis";
  * through to `fetcher()` so the request still succeeds — Redis can never break
  * a page, only speed it up.
  */
-export async function cachedJson<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>): Promise<T> {
+export interface CachedJsonOptions {
+    /**
+     * Separate TTL applied when the fetcher returns `null` (or `undefined`).
+     * Defaults to a short value so a not-yet-published article isn't stuck
+     * 404'ing for the full positive TTL after the admin publishes it.
+     * Set to `0` to bypass caching null results entirely.
+     */
+    negativeTtlSeconds?: number;
+}
+
+export async function cachedJson<T>(
+    key: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
+    opts?: CachedJsonOptions
+): Promise<T> {
     const redis = getRedis();
     if (!redis) return fetcher();
 
@@ -26,10 +41,17 @@ export async function cachedJson<T>(key: string, ttlSeconds: number, fetcher: ()
 
     const data = await fetcher();
 
-    try {
-        await redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
-    } catch (err) {
-        console.error(`[cache] set failed for ${key}:`, err);
+    // Decide TTL — null/undefined results get a short "negative" window so a
+    // miss caused by a still-being-published doc clears quickly. Default 60s.
+    const negTtl = opts?.negativeTtlSeconds ?? 60;
+    const ttl = data == null ? negTtl : ttlSeconds;
+
+    if (ttl > 0) {
+        try {
+            await redis.set(key, JSON.stringify(data), "EX", ttl);
+        } catch (err) {
+            console.error(`[cache] set failed for ${key}:`, err);
+        }
     }
     return data;
 }
