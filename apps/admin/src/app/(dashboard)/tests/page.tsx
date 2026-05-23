@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { getAllTests, deleteTest } from "@/lib/firestore/tests";
+import { isPlatformOwned } from "@/lib/firestore/ownership";
 import { BookOpenIcon, EditIcon, FileTextIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { TestSeries, TestStatus } from "@digimine/types";
 
@@ -30,7 +31,8 @@ export default function TestsPage() {
                 filters.status = statusFilter;
             }
             const data = await getAllTests(filters);
-            setTests(data);
+            // Hide teacher-private content — those live in /teacher-submissions.
+            setTests(data.filter((t) => isPlatformOwned(t as unknown as { teacherId?: string; visibility?: string })));
         } catch (error) {
             console.error("Error fetching tests:", error);
         } finally {

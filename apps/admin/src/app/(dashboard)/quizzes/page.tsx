@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, DataTable, PaginationControls, getPaginatedItems } from "@digimine/ui";
 import { deleteQuiz, getAllQuizzes } from "@/lib/firestore/quizzes";
+import { isPlatformOwned } from "@/lib/firestore/ownership";
 import { EditIcon, FileTextIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { Quiz, QuizStatus } from "@digimine/types";
 
@@ -39,7 +40,9 @@ export default function QuizzesPage() {
         setLoading(true);
         try {
             const data = await getAllQuizzes();
-            setQuizzes(data);
+            // Hide teacher-private content — those live in /teacher-submissions
+            // and need explicit approval before appearing in the catalog list.
+            setQuizzes(data.filter((q) => isPlatformOwned(q as unknown as { teacherId?: string; visibility?: string })));
         } catch (error) {
             console.error("Error loading quizzes:", error);
         } finally {

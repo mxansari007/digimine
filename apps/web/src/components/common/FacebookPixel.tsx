@@ -18,10 +18,16 @@ const FacebookPixelContent = () => {
 
     return (
         <div>
+            {/*
+              Loaded with `lazyOnload` so the pixel doesn't compete with the
+              hydration of the page for main-thread time. PageView fires once
+              the pixel reports loaded via onLoad — the useEffect above also
+              re-fires on every client-side navigation.
+            */}
             <Script
                 id="fb-pixel"
                 src="/scripts/pixel.js"
-                strategy="afterInteractive"
+                strategy="lazyOnload"
                 onLoad={() => setLoaded(true)}
                 data-pixel-id={pixel.FB_PIXEL_ID}
             />

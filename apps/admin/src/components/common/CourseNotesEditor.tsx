@@ -2,6 +2,7 @@
 
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { GalleryUpload } from "@/components/common/GalleryUpload";
+import { downloadChapterTemplate, downloadSubtopicTemplate } from "@/lib/import/courseTemplates";
 import type { CourseNoteChapter, CourseNoteSubtopic, CourseNoteVideo } from "@digimine/types";
 
 interface CourseNotesEditorProps {
@@ -161,13 +162,23 @@ export function CourseNotesEditor({
                         {chapterCount} chapter{chapterCount === 1 ? "" : "s"} · {subtopicCount} subtopic{subtopicCount === 1 ? "" : "s"}
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => onChange([...chapters, createChapter()])}
-                    className="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-primary-700"
-                >
-                    Add Chapter
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => downloadChapterTemplate()}
+                        title="Download course-chapter-template.json"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                        ⬇ Chapter template
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onChange([...chapters, createChapter()])}
+                        className="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-primary-700"
+                    >
+                        Add Chapter
+                    </button>
+                </div>
             </div>
 
             {chapters.length === 0 ? (
@@ -462,13 +473,23 @@ export function CourseNotesEditor({
                                     </div>
                                 ))}
 
-                                <button
-                                    type="button"
-                                    onClick={() => addSubtopic(chapter.id)}
-                                    className="w-full rounded-2xl border border-dashed border-primary-300 bg-primary-50 px-4 py-3 text-sm font-bold text-primary-700 hover:bg-primary-100"
-                                >
-                                    Add Subtopic
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => addSubtopic(chapter.id)}
+                                        className="flex-1 rounded-2xl border border-dashed border-primary-300 bg-primary-50 px-4 py-3 text-sm font-bold text-primary-700 hover:bg-primary-100"
+                                    >
+                                        Add Subtopic
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => downloadSubtopicTemplate()}
+                                        title="Download course-subtopic-template.json"
+                                        className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                    >
+                                        ⬇ Template
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </details>

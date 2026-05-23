@@ -11,6 +11,8 @@ import {
     type DataTableColumn,
 } from "@digimine/ui";
 import { deleteCourse, getAllCourses } from "@/lib/firestore/courses";
+import { downloadCourseTemplate, downloadChapterTemplate, downloadSubtopicTemplate } from "@/lib/import/courseTemplates";
+import { isPlatformOwned } from "@/lib/firestore/ownership";
 import type { Course, CourseStatus } from "@digimine/types";
 
 type SortOption = "newest" | "oldest" | "title" | "chapters";
@@ -37,7 +39,8 @@ export default function CoursesPage() {
         try {
             setLoading(true);
             const data = await getAllCourses();
-            setCourses(data);
+            // Hide teacher-private content — those live in /teacher-submissions.
+            setCourses(data.filter((c) => isPlatformOwned(c as unknown as { teacherId?: string; visibility?: string })));
         } catch (error) {
             console.error("Error fetching courses:", error);
         } finally {
@@ -171,12 +174,20 @@ export default function CoursesPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Courses & Notes</h1>
                     <p className="mt-1 text-gray-500">Manage study material, chapters, videos, quizzes, and linked tests.</p>
                 </div>
-                <Link href="/courses/create">
-                    <Button>
-                        <span className="mr-2">+</span>
-                        Create Course
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1" title="Download starter JSON templates">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">⬇ Template</span>
+                        <Button variant="ghost" size="sm" onClick={() => downloadCourseTemplate()}>Course</Button>
+                        <Button variant="ghost" size="sm" onClick={() => downloadChapterTemplate()}>Chapter</Button>
+                        <Button variant="ghost" size="sm" onClick={() => downloadSubtopicTemplate()}>Subtopic</Button>
+                    </div>
+                    <Link href="/courses/create">
+                        <Button>
+                            <span className="mr-2">+</span>
+                            Create Course
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-4">

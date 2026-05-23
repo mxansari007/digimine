@@ -12,6 +12,7 @@ import { createCourse, updateCourse } from "@/lib/firestore/courses";
 import { getAllTests } from "@/lib/firestore/tests";
 import { getAllQuizzes } from "@/lib/firestore/quizzes";
 import { CourseNotesEditor } from "@/components/common/CourseNotesEditor";
+import { isPlatformOwned } from "@/lib/firestore/ownership";
 
 interface AdminCourseFormProps {
     initialData?: Course;
@@ -33,8 +34,18 @@ export function CourseForm({ initialData }: AdminCourseFormProps) {
         onSuccess();
     };
 
-    const loadTestSeries = async (): Promise<TestSeries[]> => getAllTests();
-    const loadQuizzes = async (): Promise<Quiz[]> => getAllQuizzes();
+    // Only show content the admin can legitimately attach to a public course:
+    // platform-authored (no teacherId) or teacher-authored AND already approved
+    // into the public catalog (visibility === "published"). Teacher-private
+    // content lives in /teacher-submissions and requires approval first.
+    const loadTestSeries = async (): Promise<TestSeries[]> => {
+        const all = await getAllTests();
+        return all.filter((t) => isPlatformOwned(t as unknown as { teacherId?: string; visibility?: string }));
+    };
+    const loadQuizzes = async (): Promise<Quiz[]> => {
+        const all = await getAllQuizzes();
+        return all.filter((q) => isPlatformOwned(q as unknown as { teacherId?: string; visibility?: string }));
+    };
 
     return (
         <SharedCourseForm

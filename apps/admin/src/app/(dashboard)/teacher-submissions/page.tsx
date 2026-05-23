@@ -157,7 +157,6 @@ export default function TeacherSubmissionsPage() {
                                 <th className="px-5 py-3 text-left font-medium text-slate-500">Title</th>
                                 <th className="px-5 py-3 text-left font-medium text-slate-500">Type</th>
                                 <th className="px-5 py-3 text-left font-medium text-slate-500">Teacher</th>
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Price</th>
                                 <th className="px-5 py-3 text-left font-medium text-slate-500">Submitted</th>
                                 <th className="px-5 py-3 text-left font-medium text-slate-500">Actions</th>
                             </tr>
@@ -172,7 +171,6 @@ export default function TeacherSubmissionsPage() {
                                         </span>
                                     </td>
                                     <td className="px-5 py-3 text-slate-600">{sub.teacherId.slice(0, 12)}...</td>
-                                    <td className="px-5 py-3 text-slate-600">₹{sub.suggestedPrice}</td>
                                     <td className="px-5 py-3 text-slate-600">
                                         {sub.submittedForReviewAt?.toLocaleDateString?.() || "—"}
                                     </td>

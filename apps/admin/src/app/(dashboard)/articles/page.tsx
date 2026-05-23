@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { ARTICLE_CATEGORIES, type Article, type ArticleCategory, type ArticleStatus } from "@digimine/types";
 import { listArticles, deleteArticle } from "@/lib/firestore/articles";
+import { downloadArticleTemplate } from "@/lib/import/markdownArticles";
 
 const STATUS_FILTERS: { id: ArticleStatus | "all"; label: string }[] = [
     { id: "all", label: "All" },
@@ -90,6 +91,9 @@ export default function AdminArticlesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="ghost" onClick={() => downloadArticleTemplate()} title="Download article-template.md">
+                        ⬇ Template
+                    </Button>
                     <Link href="/articles/import">
                         <Button variant="outline">Import .md</Button>
                     </Link>

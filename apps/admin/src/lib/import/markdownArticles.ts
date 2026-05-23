@@ -591,7 +591,7 @@ Open with a strong hook — one sentence that earns the next paragraph.
 ## Body
 
 Use **bold**, *italic*, and \`inline code\` to add texture. Standard Markdown
-links work: [Digimine](https://digimine.com).
+links work: [PlacementRanker](https://placementranker.com).
 
 \`\`\`python
 def hello():

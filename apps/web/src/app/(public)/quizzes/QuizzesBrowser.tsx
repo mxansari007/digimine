@@ -43,7 +43,7 @@ export default function QuizzesBrowser({ quizzes }: { quizzes: QuizItem[] }) {
             <div className="surface-panel mb-8 p-4 lg:p-5">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                     <div className="relative">
-                        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                         <input
                             type="search"
                             value={searchQuery}

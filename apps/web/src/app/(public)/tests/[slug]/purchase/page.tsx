@@ -189,7 +189,7 @@ export default function TestPurchasePage() {
         <div className="min-h-screen bg-gray-50 py-12">
             <Script
                 src="https://checkout.razorpay.com/v1/checkout.js"
-                strategy="afterInteractive"
+                strategy="lazyOnload"
                 onLoad={() => setRazorpayReady(typeof window.Razorpay === "function")}
                 onReady={() => setRazorpayReady(typeof window.Razorpay === "function")}
                 onError={() => setPaymentError("Payment gateway could not be loaded. Please check your connection and refresh.")}

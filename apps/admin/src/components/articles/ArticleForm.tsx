@@ -16,6 +16,7 @@ import {
     type CreateArticleInput,
 } from "@digimine/types";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
+import { FileUpload } from "@/components/common/FileUpload";
 
 export type ArticleFormSubmit = (input: CreateArticleInput) => Promise<void> | void;
 
@@ -292,12 +293,13 @@ export function ArticleForm({
                         />
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Social share image (og:image)" hint="Falls back to cover image">
-                            <input
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                                value={ogImageUrl}
-                                onChange={(e) => setOgImageUrl(e.target.value)}
-                                placeholder="https://… (1200×630 recommended)"
+                        <Field label="Social share image (og:image)" hint="1200×630 recommended · falls back to cover image">
+                            <FileUpload
+                                label="Upload og:image"
+                                path="articles/og"
+                                accept="image/*"
+                                existingUrl={ogImageUrl || undefined}
+                                onUploadComplete={(url) => setOgImageUrl(url)}
                             />
                         </Field>
                         <Field label="Twitter card">
@@ -500,23 +502,15 @@ export function ArticleForm({
 
                 <Card className="p-5 space-y-4">
                     <h2 className="text-sm font-semibold text-slate-700">Cover image</h2>
-                    <Field label="Cover image URL" hint="Used at the top of the article and as fallback og:image">
-                        <input
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                            value={coverImageUrl}
-                            onChange={(e) => setCoverImageUrl(e.target.value)}
-                            placeholder="https://…"
+                    <Field label="Cover image" hint="Used at the top of the article and as fallback og:image">
+                        <FileUpload
+                            label="Upload cover image"
+                            path="articles/covers"
+                            accept="image/*"
+                            existingUrl={coverImageUrl || undefined}
+                            onUploadComplete={(url) => setCoverImageUrl(url)}
                         />
                     </Field>
-                    {coverImageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={coverImageUrl}
-                            alt="Cover preview"
-                            className="w-full rounded-lg border border-slate-200 object-cover"
-                            style={{ maxHeight: 180 }}
-                        />
-                    )}
                     <Field label="Caption">
                         <input
                             className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"

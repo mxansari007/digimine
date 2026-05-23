@@ -266,7 +266,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
             {isPaidCourse && (
                 <Script
                     src="https://checkout.razorpay.com/v1/checkout.js"
-                    strategy="afterInteractive"
+                    strategy="lazyOnload"
                     onLoad={() => setRazorpayReady(typeof getRazorpay() === "function")}
                     onReady={() => setRazorpayReady(typeof getRazorpay() === "function")}
                     onError={() => setError("Payment gateway could not be loaded. Please refresh and try again.")}

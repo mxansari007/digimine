@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, DataTable, PaginationControls, getPaginatedItems } from "@digimine/ui";
 import { deleteContest, getAllContests, updateContestStatus } from "@/lib/firestore/contests";
+import { isPlatformOwned } from "@/lib/firestore/ownership";
 import { EditIcon, TrashIcon } from "@/components/icons/AppIcons";
 import type { Contest, TestStatus } from "@digimine/types";
 
@@ -59,7 +60,9 @@ export default function ContestsPage() {
     async function loadContests() {
         setLoading(true);
         try {
-            setContests(await getAllContests());
+            // Hide teacher-private content — those live in /teacher-submissions.
+            const data = await getAllContests();
+            setContests(data.filter((c) => isPlatformOwned(c as unknown as { teacherId?: string; visibility?: string })));
         } catch (error) {
             console.error("Failed to load contests:", error);
             alert("Failed to load contests.");

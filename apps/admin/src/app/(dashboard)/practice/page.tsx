@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { patternMeta, type PracticeProblem } from "@digimine/types";
 import { deleteProblem, listProblems } from "@/lib/firestore/practiceProblems";
+import { downloadProblemTemplate } from "@/lib/import/practiceProblems";
 
 function statusChip(s: string) {
     if (s === "published") return "chip-success";
@@ -45,6 +46,9 @@ export default function AdminPracticePage() {
                     <p className="mt-1 text-sm text-slate-500">DSA &amp; SQL problems shown to everyone on the public Practice hub.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="ghost" onClick={() => downloadProblemTemplate()} title="Download practice-problems-template.json">
+                        ⬇ Template
+                    </Button>
                     <Link href="/practice/import"><Button variant="outline">Bulk import (JSON)</Button></Link>
                     <Link href="/practice/create"><Button variant="primary">+ New problem</Button></Link>
                 </div>

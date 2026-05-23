@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getAllProducts } from "@/lib/firestore/admin";
+import { downloadProductTemplate } from "@/lib/import/productTemplates";
 import { type Product } from "@digimine/types";
 import { formatCurrency, formatDate } from "@digimine/utils";
 import { Button, Card, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
@@ -127,11 +128,16 @@ export default function ProductsPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-                <Link href="/products/create">
-                    <Button variant="primary" className="flex items-center gap-2">
-                        <span>+ Create Product</span>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" onClick={() => downloadProductTemplate()} title="Download product-template.json">
+                        ⬇ Template
                     </Button>
-                </Link>
+                    <Link href="/products/create">
+                        <Button variant="primary" className="flex items-center gap-2">
+                            <span>+ Create Product</span>
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Filters */}

@@ -36,7 +36,9 @@ export default function ReviewContentPage() {
             if (snap.exists()) {
                 const data = snap.data();
                 setContent(data);
-                setFinalPrice(data.suggestedPrice || "0");
+                // Teachers contribute publicly for free. Admin can override
+                // pricing if/when they decide to monetise the asset.
+                setFinalPrice("0");
                 setPreviewItems([{ ...data, id: snap.id }]);
             }
         } else {
@@ -45,7 +47,9 @@ export default function ReviewContentPage() {
             if (snap.exists()) {
                 const data = snap.data();
                 setContent(data);
-                setFinalPrice(data.suggestedPrice || "0");
+                // Teachers contribute publicly for free. Admin can override
+                // pricing if/when they decide to monetise the asset.
+                setFinalPrice("0");
 
                 // Load preview items based on content type
                 if (contentType === "quiz") {
@@ -177,7 +181,7 @@ export default function ReviewContentPage() {
                         <div className="flex flex-wrap gap-3 text-sm">
                             <span className="rounded-lg bg-primary-50 px-2 py-1 text-primary-700 ring-1 ring-primary-200 capitalize">{contentType}</span>
                             <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600">Teacher: {teacherId || content.teacherId}</span>
-                            <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600">Suggested: ₹{content.suggestedPrice || 0}</span>
+                            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 ring-1 ring-emerald-200">Contributed free</span>
                             {content.difficulty && (
                                 <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600 capitalize">{content.difficulty}</span>
                             )}
