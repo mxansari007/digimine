@@ -295,6 +295,102 @@ function applyInline(text: string): string {
     return safe;
 }
 
+/**
+ * GFM table parser. Recognises:
+ *
+ *   | Section | Questions | Time |
+ *   |---|---|:---:|
+ *   | Numerical | 26 | 40 min |
+ *
+ * Emits semantic `<table class="md-table">` with `data-align` attrs (NOT
+ * inline style) for column alignment. All styling lives in globals.css so
+ * tables stay light and cacheable across articles.
+ */
+function tryParseTable(lines: string[], start: number): { html: string; nextIndex: number } | null {
+    const head = lines[start];
+    const sep = lines[start + 1];
+    if (!head || !sep) return null;
+
+    // Header row must look pipe-delimited (at least one `|` *inside* it).
+    if (!/^\s*\|.+\|\s*$/.test(head) && !/\|/.test(head)) return null;
+    // Separator: dashes/colons separated by pipes, e.g. `|---|---:|:---:|`.
+    if (!/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(sep)) return null;
+
+    const splitRow = (l: string): string[] => {
+        let s = l.trim();
+        if (s.startsWith("|")) s = s.slice(1);
+        if (s.endsWith("|")) s = s.slice(0, -1);
+        return s.split("|").map((c) => c.trim());
+    };
+
+    const headers = splitRow(head);
+    const seps = splitRow(sep);
+    const aligns = seps.map((s) => {
+        const left = s.startsWith(":");
+        const right = s.endsWith(":");
+        if (left && right) return "center";
+        if (right) return "right";
+        if (left) return "left";
+        return null;
+    });
+
+    const rows: string[][] = [];
+    let i = start + 2;
+    while (i < lines.length) {
+        const l = lines[i];
+        if (!l.trim()) break;
+        if (!/\|/.test(l)) break; // table ends as soon as a non-pipe line appears
+        rows.push(splitRow(l));
+        i += 1;
+    }
+
+    const alignAttr = (idx: number) => {
+        const a = aligns[idx];
+        return a ? ` data-align="${a}"` : "";
+    };
+    const headHtml =
+        "<thead><tr>" +
+        headers.map((h, idx) => `<th${alignAttr(idx)}>${applyInline(h)}</th>`).join("") +
+        "</tr></thead>";
+    const bodyHtml =
+        "<tbody>" +
+        rows
+            .map(
+                (r) =>
+                    "<tr>" +
+                    r.map((c, idx) => `<td${alignAttr(idx)}>${applyInline(c)}</td>`).join("") +
+                    "</tr>"
+            )
+            .join("") +
+        "</tbody>";
+
+    return {
+        html: `<table class="md-table">${headHtml}${bodyHtml}</table>`,
+        nextIndex: i,
+    };
+}
+
+/**
+ * Raw HTML block pass-through. Any contiguous run of lines starting with a
+ * `<tag>` is emitted verbatim — useful for tables / figures / iframes / any
+ * structure where Markdown is too limiting. Markdown inline syntax inside
+ * the block is NOT processed (it would conflict with HTML).
+ */
+function tryParseHtmlBlock(lines: string[], start: number): { html: string; nextIndex: number } | null {
+    const first = lines[start];
+    if (!/^\s*<[a-zA-Z][\w-]*(\s|>|\/)/.test(first)) return null;
+
+    const buf: string[] = [];
+    let i = start;
+    while (i < lines.length) {
+        const l = lines[i];
+        if (!l.trim()) break;
+        buf.push(l);
+        i += 1;
+    }
+    return { html: buf.join("\n"), nextIndex: i };
+}
+
 function markdownToHtml(md: string): string {
     if (!md) return "";
     const lines = md.replace(/\r\n/g, "\n").split("\n");
@@ -387,6 +483,28 @@ function markdownToHtml(md: string): string {
             }
             out.push(`<p>${applyInline(bq[1])}</p>`);
             i += 1;
+            continue;
+        }
+
+        // GFM-style table (header row + separator + body rows).
+        const table = tryParseTable(lines, i);
+        if (table) {
+            flushParagraph();
+            closeList();
+            closeBlockquote();
+            out.push(table.html);
+            i = table.nextIndex;
+            continue;
+        }
+
+        // Raw HTML block — pass through verbatim until the next blank line.
+        const htmlBlock = tryParseHtmlBlock(lines, i);
+        if (htmlBlock) {
+            flushParagraph();
+            closeList();
+            closeBlockquote();
+            out.push(htmlBlock.html);
+            i = htmlBlock.nextIndex;
             continue;
         }
 
@@ -679,6 +797,27 @@ You can go up to six heading levels. Keep it shallow when you can.
 1. Numbered lists work
 2. As do unordered ones (-, *, +)
 3. And mixed paragraphs in between.
+
+### Tables
+
+Use standard pipe-and-dash Markdown — alignment is set with the colons in the
+separator row (\`:---\` left, \`---:\` right, \`:---:\` centre):
+
+| Column | Questions | Marks |
+|---|---|---:|
+| Numerical | 26 | 100 |
+| Verbal | 24 | 100 |
+| Reasoning | 30 | 100 |
+
+### Raw HTML (when Markdown isn't enough)
+
+Any block that starts with an HTML tag is passed through verbatim — useful for
+callouts, figures, embeds, or rich tables:
+
+<div class="callout">
+  <strong>Pro tip:</strong> mix Markdown and HTML freely; just leave a blank
+  line between blocks.
+</div>
 
 ![Alt text for the image](https://example.com/diagram.png)
 

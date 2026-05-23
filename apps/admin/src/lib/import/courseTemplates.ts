@@ -39,7 +39,20 @@ export const COURSE_JSON_TEMPLATE = JSON.stringify(
                     {
                         title: "How the Web Works",
                         summary: "An overview of clients, servers, and the request/response cycle.",
-                        contentHtml: "<p>The web is built on a client-server architecture…</p><h2>Key concepts</h2><ul><li>HTTP / HTTPS</li><li>DNS</li><li>Browsers and servers</li></ul>",
+                        contentHtml:
+                            "<p>The web is built on a <strong>client-server architecture</strong>.</p>" +
+                            "<h2>Key concepts</h2>" +
+                            "<ul><li>HTTP / HTTPS</li><li>DNS</li><li>Browsers and servers</li></ul>" +
+                            "<h2>HTTP status codes at a glance</h2>" +
+                            "<table class=\"md-table\">" +
+                            "<thead><tr><th>Range</th><th>Meaning</th><th data-align=\"right\">Examples</th></tr></thead>" +
+                            "<tbody>" +
+                            "<tr><td>2xx</td><td>Success</td><td data-align=\"right\">200, 201, 204</td></tr>" +
+                            "<tr><td>3xx</td><td>Redirect</td><td data-align=\"right\">301, 302, 304</td></tr>" +
+                            "<tr><td>4xx</td><td>Client error</td><td data-align=\"right\">400, 401, 404</td></tr>" +
+                            "<tr><td>5xx</td><td>Server error</td><td data-align=\"right\">500, 502, 503</td></tr>" +
+                            "</tbody></table>" +
+                            "<blockquote>Tip: the contentHtml field accepts any HTML — tables, callouts, figures, embeds.</blockquote>",
                         imageUrls: [],
                         videos: [],
                         order: 1,
@@ -99,7 +112,16 @@ export const COURSE_CHAPTER_JSON_TEMPLATE = JSON.stringify(
             {
                 title: "useEffect: Side Effects in React",
                 summary: "When and how to use the effect hook correctly.",
-                contentHtml: "<p>Effects run after render — use the dependency array carefully.</p>",
+                contentHtml:
+                    "<p>Effects run after render — use the dependency array carefully.</p>" +
+                    "<h3>Cheatsheet</h3>" +
+                    "<table class=\"md-table\">" +
+                    "<thead><tr><th>Dependency array</th><th>When effect runs</th></tr></thead>" +
+                    "<tbody>" +
+                    "<tr><td><code>[]</code></td><td>Once, on mount</td></tr>" +
+                    "<tr><td><code>[a, b]</code></td><td>When <code>a</code> or <code>b</code> changes</td></tr>" +
+                    "<tr><td>omitted</td><td>Every render (usually a bug)</td></tr>" +
+                    "</tbody></table>",
                 imageUrls: [],
                 videos: [],
                 order: 2,
@@ -118,7 +140,18 @@ export const COURSE_SUBTOPIC_JSON_TEMPLATE = JSON.stringify(
         title: "Custom Hooks: Encapsulating Stateful Logic",
         summary: "Learn how to extract reusable logic into custom hooks.",
         contentHtml:
-            "<p>Custom hooks are JavaScript functions whose names start with <code>use</code> and that may call other hooks.</p><h2>Example: useLocalStorage</h2><pre><code>function useLocalStorage(key, initial) { /* … */ }</code></pre>",
+            "<p>Custom hooks are JavaScript functions whose names start with <code>use</code> and that may call other hooks.</p>" +
+            "<h2>When to extract a hook</h2>" +
+            "<table class=\"md-table\">" +
+            "<thead><tr><th>Pattern</th><th>Good custom hook?</th></tr></thead>" +
+            "<tbody>" +
+            "<tr><td>Sharing stateful logic across 2+ components</td><td data-align=\"center\">✅</td></tr>" +
+            "<tr><td>Wrapping a browser API (matchMedia, localStorage)</td><td data-align=\"center\">✅</td></tr>" +
+            "<tr><td>One-off logic in a single component</td><td data-align=\"center\">❌</td></tr>" +
+            "</tbody></table>" +
+            "<h2>Example: useLocalStorage</h2>" +
+            "<pre><code>function useLocalStorage(key, initial) { /* … */ }</code></pre>" +
+            "<blockquote>HTML reminder: this field is HTML — use any tags you need (tables, figures, callouts).</blockquote>",
         imageUrls: [],
         videos: [
             {

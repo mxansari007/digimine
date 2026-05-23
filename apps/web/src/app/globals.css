@@ -725,3 +725,65 @@ body.test-attempt-mode > div > footer {
 @media (prefers-reduced-motion: reduce) {
   .practice-flame { animation: none; }
 }
+
+/* ── Article & RTE table styles ─────────────────────────────────────────
+   Markdown `|...|` tables compile to <table class="md-table">; TipTap also
+   uses .rte-table. Same look both places so editor preview matches the
+   public article. No inline styles on cells — alignment uses data-align. */
+.prose .md-table,
+.prose .rte-table,
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240);
+  background: white;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+.prose .md-table thead,
+.md-table thead {
+  background: linear-gradient(180deg, rgb(248 250 252), rgb(241 245 249));
+}
+.prose .md-table th,
+.md-table th {
+  font-weight: 600;
+  color: rgb(15 23 42);
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+.prose .md-table td,
+.md-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  color: rgb(51 65 85);
+  vertical-align: top;
+}
+.prose .md-table tbody tr:last-child td,
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.prose .md-table tbody tr:nth-child(even),
+.md-table tbody tr:nth-child(even) {
+  background: rgb(250 251 253);
+}
+.prose .md-table tbody tr:hover,
+.md-table tbody tr:hover {
+  background: rgb(240 253 250);
+}
+/* Alignment via attribute (no inline style — clean HTML, cached CSS). */
+.md-table [data-align="left"]   { text-align: left; }
+.md-table [data-align="center"] { text-align: center; }
+.md-table [data-align="right"]  { text-align: right; }
+@media (max-width: 640px) {
+  .prose .md-table,
+  .md-table { font-size: 0.85rem; }
+  .prose .md-table th,
+  .prose .md-table td,
+  .md-table th,
+  .md-table td { padding: 0.45rem 0.6rem; }
+}
