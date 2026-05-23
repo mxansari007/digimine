@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { requireAdmin } from "@/lib/middleware/requireAdmin";
+import { corsPreflight, withCors } from "@/lib/server/adminCors";
 import {
     clearIndex,
     configureIndex,
@@ -25,6 +26,9 @@ import {
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/** Preflight handler — required so cross-origin admin POSTs aren't rejected. */
+export const OPTIONS = corsPreflight;
 
 type Counts = Partial<Record<SearchDoc["type"], number>>;
 
@@ -225,12 +229,18 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: Counts }> {
 
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin(req);
-    if (auth instanceof NextResponse) return auth;
+    // `requireAdmin` returns its own NextResponse on failure; wrap with CORS
+    // so the admin browser actually receives the 401/403 instead of opaque
+    // network error.
+    if (auth instanceof NextResponse) return withCors(req, auth);
 
     if (!isSearchConfigured()) {
-        return NextResponse.json(
-            { error: "Search is not configured. Set MEILISEARCH_URL and MEILISEARCH_MASTER_KEY." },
-            { status: 503 }
+        return withCors(
+            req,
+            NextResponse.json(
+                { error: "Search is not configured. Set MEILISEARCH_URL and MEILISEARCH_MASTER_KEY." },
+                { status: 503 }
+            )
         );
     }
 
@@ -248,15 +258,18 @@ export async function POST(req: NextRequest) {
             await indexDocs(docs.slice(i, i + CHUNK));
         }
 
-        return NextResponse.json({
-            ok: true,
-            total: docs.length,
-            counts,
-            durationMs: Date.now() - started,
-        });
+        return withCors(
+            req,
+            NextResponse.json({
+                ok: true,
+                total: docs.length,
+                counts,
+                durationMs: Date.now() - started,
+            })
+        );
     } catch (error) {
         console.error("[search/reindex] failed:", error);
         const message = error instanceof Error ? error.message : "Reindex failed.";
-        return NextResponse.json({ error: message }, { status: 500 });
+        return withCors(req, NextResponse.json({ error: message }, { status: 500 }));
     }
 }

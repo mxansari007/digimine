@@ -580,28 +580,25 @@ body.test-attempt-mode > div > footer {
   .cloud-rail {
     position: relative;
     overflow: hidden;
-    /* Wide fade zones (22%) on each edge so the entry/exit feels diffuse —
-       like cards emerging from mist, not popping in. */
+    /* Narrower fade zones (12%) so cards spend more time fully visible
+       between cycle wraps — the rail reads as a continuous loop instead
+       of cards-disappearing-into-mist. Mist still present, just thinner. */
     -webkit-mask-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(0, 0, 0, 0.35) 8%,
-      rgba(0, 0, 0, 0.75) 16%,
-      black 22%,
-      black 78%,
-      rgba(0, 0, 0, 0.75) 84%,
-      rgba(0, 0, 0, 0.35) 92%,
+      rgba(0, 0, 0, 0.5) 5%,
+      black 12%,
+      black 88%,
+      rgba(0, 0, 0, 0.5) 95%,
       transparent 100%
     );
             mask-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(0, 0, 0, 0.35) 8%,
-      rgba(0, 0, 0, 0.75) 16%,
-      black 22%,
-      black 78%,
-      rgba(0, 0, 0, 0.75) 84%,
-      rgba(0, 0, 0, 0.35) 92%,
+      rgba(0, 0, 0, 0.5) 5%,
+      black 12%,
+      black 88%,
+      rgba(0, 0, 0, 0.5) 95%,
       transparent 100%
     );
   }
@@ -643,8 +640,44 @@ body.test-attempt-mode > div > footer {
     width: max-content;
     gap: 1.75rem;
     align-items: center;
-    animation: cloud-drift 42s linear infinite;
+    /* 30s is fast enough that the same card reappears within ~7-8s of
+       leaving, so the rail feels alive and repetitive. Linear easing keeps
+       the drift speed constant; cloudy fade at each edge handles the
+       perceived appear/dissolve. */
+    animation: cloud-drift 30s linear infinite;
     will-change: transform;
+  }
+
+  /* Per-card micro-pulses — small repeating animations so the cards feel
+     alive between drift loops, not just static images sliding past. */
+  .cloud-card-pulse {
+    animation: cloud-card-pulse 2.6s ease-in-out infinite;
+  }
+
+  .cloud-card-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cloud-card-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.5) 50%,
+      transparent 65%
+    );
+    animation: cloud-card-shimmer 3.8s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cloud-card-pulse,
+    .cloud-card-shimmer::after {
+      animation: none;
+    }
   }
 
   .cloud-card {
@@ -748,6 +781,31 @@ body.test-attempt-mode > div > footer {
   }
 }
 
+/* Soft brightness pulse — used on highlighted rows (the "You" rank, the
+   correct quiz answer, etc.) so they look like they're still being
+   computed live. */
+@keyframes cloud-card-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.78;
+    transform: translate3d(0, -1px, 0);
+  }
+}
+
+/* Diagonal shine sweep across an element — used on cover images so they
+   feel like they're catching light periodically. */
+@keyframes cloud-card-shimmer {
+  0% {
+    transform: translateX(-150%);
+  }
+  60%, 100% {
+    transform: translateX(150%);
+  }
+}
+
 @keyframes home-aurora-spin {
   from {
     transform: rotate(0deg);
@@ -789,6 +847,32 @@ body.test-attempt-mode > div > footer {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+
+/* Mega-nav panel reveal — gentler + longer than the search modal because
+   the panel is big and "pop" felt jumpy. 320ms ease-out-quint with a small
+   slide from above + barely-perceptible scale gives a calm "fold-down". */
+.mega-panel-enter {
+  animation: mega-panel-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top center;
+}
+
+@keyframes mega-panel-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mega-panel-enter {
+    animation: none;
+  }
+}
+
 
 @keyframes hero-scan {
   0% {

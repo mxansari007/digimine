@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
@@ -10,10 +11,13 @@ import { TeachersDropdown } from "@/components/teacher/TeachersDropdown";
 import { userHomePath } from "@/lib/auth/redirects";
 import UserMenu from "@/components/layout/UserMenu";
 import Avatar from "@/components/common/Avatar";
+import MegaNav from "@/components/layout/MegaNav";
 import HeaderSearch from "@/components/layout/HeaderSearch";
 
 export function Header() {
     const { isAuthenticated, user, loading } = useAuthContext();
+    const pathname = usePathname();
+    const router = useRouter();
     // Send each role to its own home — teacher → /teacher/dashboard,
     // institute admin → /institute/dashboard, admin → /admin, customer →
     // /dashboard. Falls back to /dashboard when user state hasn't loaded
@@ -25,10 +29,12 @@ export function Header() {
     const showTeachersDropdown = user?.role === "customer";
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Close mobile menu on route change
+    // Close mobile menu on route change. Previously this had an empty deps
+    // array so it only fired once on mount — tap a link, navigate, drawer
+    // stayed open. `pathname` is the right dep.
     useEffect(() => {
         setIsMobileMenuOpen(false);
-    }, []);
+    }, [pathname]);
 
     // Lock body scroll when mobile menu is open
     useEffect(() => {
@@ -46,6 +52,10 @@ export function Header() {
         try {
             await signOut();
             setIsMobileMenuOpen(false);
+            // Push to home so the user isn't stranded on a now-protected route
+            // (the (dashboard) layout would redirect them to /login anyway, but
+            // landing on / is friendlier).
+            router.push("/");
         } catch (error) {
             console.error("Error signing out:", error);
         }
@@ -70,23 +80,15 @@ export function Header() {
                             <Logo variant="dark" iconSize={24} />
                         </Link>
 
-                        {/* Desktop Navigation */}
-                        <nav className="hidden md:flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
-                            {navLinks.map((link) => (
-                                <Link
-                                    key={`${link.href}-${link.label}`}
-                                    href={link.href}
-                                    className="rounded-full px-3.5 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-colors hover:bg-white hover:text-primary-700"
-                                >
-                                    {link.label}
-                                </Link>
-                            ))}
-                        </nav>
+                        {/* Desktop Navigation — mega dropdowns per top-level item. */}
+                        <div className="hidden md:block">
+                            <MegaNav />
+                        </div>
 
                         {/* Right side actions */}
                         <div className="flex items-center gap-2 md:gap-4">
-                            {/* Header search — compact icon trigger; opens a centered
-                                modal. Visible on all viewports since it's just an icon. */}
+                            {/* Search icon → opens centered modal. Backed by
+                                Meilisearch (see infra/meilisearch/README.md). */}
                             <HeaderSearch />
                             {/* Desktop Auth buttons */}
                             <div className="hidden md:flex items-center gap-2">
@@ -159,9 +161,9 @@ export function Header() {
 
                 {/* Mobile Navigation Links */}
                 <nav className="p-4 space-y-1">
-                                    {navLinks.map((link) => (
-                                        <Link
-                                            key={`${link.href}-${link.label}`}
+                    {navLinks.map((link) => (
+                        <Link
+                            key={`${link.href}-${link.label}`}
                             href={link.href}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 hover:text-primary-700"

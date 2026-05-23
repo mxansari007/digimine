@@ -165,7 +165,7 @@ function CardSet() {
 function ArticleCard() {
     return (
         <div className="cloud-card flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <div className="aspect-[16/9] shrink-0 rounded-lg bg-gradient-to-br from-primary-100 to-amber-100" />
+            <div className="cloud-card-shimmer aspect-[16/9] shrink-0 rounded-lg bg-gradient-to-br from-primary-100 to-amber-100" />
             <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-primary-700">
                 Article · 6 min read
             </p>
