@@ -139,8 +139,12 @@ export async function createArticle(
     input: CreateArticleInput,
     authorMeta: { userId: string; name: string; avatarUrl: string | null }
 ): Promise<string> {
-    const id = doc(articlesCol()).id;
-    const slug = await allocateUniqueSlug(input.slug || input.title || id);
+    // Resolve the slug FIRST (with dedupe), then use it as the document ID.
+    // This makes future reads a single key-value lookup via `doc(slug)` — no
+    // index, no query. The collision loop in `allocateUniqueSlug` covers both
+    // legacy random-ID docs and the new slug-keyed ones.
+    const slug = await allocateUniqueSlug(input.slug || input.title || "article");
+    const id = slug;
     const body = input.body || "";
     const excerpt = input.excerpt && input.excerpt.trim() ? input.excerpt.trim() : deriveArticleExcerpt(body);
     const reading = computeReadingMeta(body);

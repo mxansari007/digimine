@@ -359,6 +359,16 @@ export async function listPublishedProblemSummaries(max = 300) {
 
 /** Load a published problem by slug (full doc — server only). */
 export async function loadProblemBySlug(slug: string): Promise<(PracticeProblem & { id: string }) | null> {
+    if (!slug) return null;
+
+    // Fast path: slug-as-doc-id. Single key-value read with no index — free.
+    const direct = await adminDb.collection(PROBLEMS).doc(slug).get();
+    if (direct.exists) {
+        const data = direct.data() as any;
+        return { id: direct.id, ...data, sql: decodeSqlFromStore(data.sql) };
+    }
+
+    // Legacy fallback: random-ID docs that store the slug in a field.
     const snap = await adminDb.collection(PROBLEMS).where("slug", "==", slug).limit(1).get();
     if (snap.empty) return null;
     const d = snap.docs[0];

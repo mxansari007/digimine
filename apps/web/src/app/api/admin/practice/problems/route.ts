@@ -101,8 +101,11 @@ export async function POST(req: Request) {
                 errors.push(`Skipped "${input.title || "(untitled)"}": missing title/kind/difficulty/primaryPattern`);
                 continue;
             }
+            // Slug-as-doc-id so future reads use the free `doc(slug)` fast
+            // path (see slugCache / practiceCache). The `uniqueSlug` dedupe
+            // covers both legacy random-ID docs and new slug-keyed ones.
             const slug = await uniqueSlug(input.slug || input.title);
-            const ref = adminDb.collection(PROBLEMS).doc();
+            const ref = adminDb.collection(PROBLEMS).doc(slug);
             await ref.set(buildDoc(input, slug, auth.userId, now));
             created.push({ id: ref.id, slug, title: input.title });
         }

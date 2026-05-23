@@ -148,8 +148,12 @@ function buildPayload(input: CreatePracticeProblemInput, slug: string, adminUid:
 }
 
 export async function createProblem(input: CreatePracticeProblemInput, adminUid: string): Promise<string> {
-    const id = doc(COL()).id;
+    // Resolve a unique slug first, then use it as the document ID so
+    // future reads can take the free `doc(slug).get()` path (no query,
+    // no index). The dedupe in `uniqueSlug` handles collisions with
+    // both legacy random-ID docs and new slug-keyed ones.
     const slug = await uniqueSlug(input.slug || input.title);
+    const id = slug;
     await setDoc(doc(COL(), id), buildPayload(input, slug, adminUid, true));
     return id;
 }
