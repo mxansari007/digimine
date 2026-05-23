@@ -87,6 +87,65 @@ function parseScalar(raw: string): FrontmatterValue {
 }
 
 /**
+ * Peek the next non-empty line and decide whether the block that follows is a
+ * YAML-style dash list (`- "value"`) at the expected `indent`. Used by both
+ * top-level and nested parsers to choose between `parseBlockList` and
+ * `parseNestedObject` for keys whose value is on subsequent lines.
+ */
+function isBlockListAt(lines: string[], start: number, indent: number): boolean {
+    for (let i = start; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        const leadingSpaces = line.length - line.trimStart().length;
+        if (leadingSpaces !== indent) return false;
+        return line.slice(indent).startsWith("- ");
+    }
+    return false;
+}
+
+/**
+ * Parse a YAML-style block list, eg:
+ *
+ *   keywords:
+ *     - "neet"
+ *     - "physics"
+ *
+ * Standard YAML allows this in addition to the inline JSON form
+ * (`keywords: ["neet","physics"]`) we already accept. Supporting both makes
+ * the article template forgiving for writers who reach for whichever feels
+ * more natural.
+ */
+function parseBlockList(
+    lines: string[],
+    start: number,
+    indent: number,
+    errors: string[]
+): { value: FrontmatterValue[]; nextIndex: number } {
+    const value: FrontmatterValue[] = [];
+    let i = start;
+    while (i < lines.length) {
+        const line = lines[i];
+        if (!line.trim()) {
+            i += 1;
+            continue;
+        }
+        const leadingSpaces = line.length - line.trimStart().length;
+        if (leadingSpaces < indent) break;
+        if (leadingSpaces > indent) {
+            errors.push(`Unexpected indent in list at line ${i + 1}`);
+            i += 1;
+            continue;
+        }
+        const inner = line.slice(indent);
+        if (!inner.startsWith("- ") && inner !== "-") break;
+        const item = inner.slice(inner === "-" ? 1 : 2).trim();
+        value.push(parseScalar(item));
+        i += 1;
+    }
+    return { value, nextIndex: i };
+}
+
+/**
  * Parse a multi-line nested object block, eg:
  *
  *   author:
@@ -127,10 +186,16 @@ function parseNestedObject(
         const key = inner.slice(0, colon).trim();
         const rest = inner.slice(colon + 1).trim();
         if (!rest) {
-            // Could be a deeper nested block — recurse one level.
-            const child = parseNestedObject(lines, i + 1, indent + 2, errors);
-            value[key] = child.value;
-            i = child.nextIndex;
+            // Could be a YAML block list OR a deeper nested object.
+            if (isBlockListAt(lines, i + 1, indent + 2)) {
+                const list = parseBlockList(lines, i + 1, indent + 2, errors);
+                value[key] = list.value;
+                i = list.nextIndex;
+            } else {
+                const child = parseNestedObject(lines, i + 1, indent + 2, errors);
+                value[key] = child.value;
+                i = child.nextIndex;
+            }
             continue;
         }
         value[key] = parseScalar(rest);
@@ -170,9 +235,16 @@ function parseFrontmatter(text: string): FrontmatterParseResult {
         const key = line.slice(0, colon).trim();
         const rest = line.slice(colon + 1).trim();
         if (!rest) {
-            const child = parseNestedObject(lines, i + 1, 2, errors);
-            data[key] = child.value;
-            i = child.nextIndex;
+            // Could be a YAML block list at the next indent OR a nested object.
+            if (isBlockListAt(lines, i + 1, 2)) {
+                const list = parseBlockList(lines, i + 1, 2, errors);
+                data[key] = list.value;
+                i = list.nextIndex;
+            } else {
+                const child = parseNestedObject(lines, i + 1, 2, errors);
+                data[key] = child.value;
+                i = child.nextIndex;
+            }
             continue;
         }
         data[key] = parseScalar(rest);

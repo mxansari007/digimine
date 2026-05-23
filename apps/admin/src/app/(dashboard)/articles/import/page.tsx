@@ -340,8 +340,9 @@ export default function ImportArticlesPage() {
                         subject-topic, guide, case-study, announcement, opinion, exam-update, career.
                     </li>
                     <li>
-                        <code>tags</code> and <code>seo.keywords</code> use JSON array syntax, e.g.{" "}
-                        <code>{`["physics", "neet"]`}</code>.
+                        <code>tags</code> and <code>seo.keywords</code> accept either inline JSON
+                        (<code>{`["physics", "neet"]`}</code>) or a YAML-style dash list (
+                        <code>{`- "physics"`}</code> on each line, indented under the key). Pick whichever feels natural.
                     </li>
                     <li>
                         Nested objects (<code>author</code>, <code>seo</code>) use 2-space indentation with{" "}
