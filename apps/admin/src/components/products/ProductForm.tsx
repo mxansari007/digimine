@@ -6,6 +6,7 @@ import { createProduct, updateProduct, deleteProduct } from "@/lib/firestore/adm
 import { type Product } from "@digimine/types";
 import { Button, Card } from "@digimine/ui";
 import { FileUpload } from "@/components/common/FileUpload";
+import { ImageInput } from "@/components/common/ImageInput";
 import { GalleryUpload } from "@/components/common/GalleryUpload";
 import { ContentPreviewEditor } from "@/components/common/ContentPreviewEditor";
 import { HighlightsEditor } from "@/components/common/HighlightsEditor";
@@ -205,12 +206,14 @@ export function ProductForm({ initialData }: ProductFormProps) {
                         <Card padding="lg">
                             <h3 className="font-semibold text-gray-900 mb-4">Digital Files</h3>
                             <div className="space-y-6">
-                                <FileUpload
+                                <ImageInput
                                     label="Thumbnail Image"
                                     path="products/thumbnails"
-                                    accept="image/*"
-                                    existingUrl={formData.thumbnailURL || undefined}
-                                    onUploadComplete={(url) => setFormData(prev => ({ ...prev, thumbnailURL: url }))}
+                                    value={formData.thumbnailURL || ""}
+                                    onChange={(url) => setFormData(prev => ({ ...prev, thumbnailURL: url }))}
+                                    idealSize="1200×900 (4:3)"
+                                    aspectRatio="4/3"
+                                    hint="Rendered at 4:3 on product cards. Centre your subject — edges may be cropped slightly at other display sizes."
                                 />
 
                                 {/* Simplified file upload for now - just one file supported in UI but keeping array structure */}

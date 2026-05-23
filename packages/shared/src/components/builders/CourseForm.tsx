@@ -4,7 +4,7 @@ import type { FirebaseStorage } from "firebase/storage";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
-import { FileUpload } from "../FileUpload";
+import { ImageInput } from "../ImageInput";
 import type {
     Course,
     CourseAccessType,
@@ -509,13 +509,15 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
                     </Card>
 
                     <Card padding="lg">
-                        <FileUpload
+                        <ImageInput
                             label="Course thumbnail"
                             path="courses/thumbnails"
-                            accept="image/*"
                             storage={storage}
-                            existingUrl={formData.thumbnailURL || undefined}
-                            onUploadComplete={(thumbnailURL) => setFormData((prev) => ({ ...prev, thumbnailURL }))}
+                            value={formData.thumbnailURL || ""}
+                            onChange={(thumbnailURL) => setFormData((prev) => ({ ...prev, thumbnailURL }))}
+                            idealSize="1600×900 (16:9)"
+                            aspectRatio="16/9"
+                            hint="Rendered at 16:9 on course cards and the course detail hero. Used as og:image too. Keep the subject centred so the slight crop at other ratios still looks right."
                         />
                     </Card>
 

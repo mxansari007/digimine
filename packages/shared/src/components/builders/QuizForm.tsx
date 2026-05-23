@@ -4,7 +4,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Button, Card } from "@digimine/ui";
 import type { FirebaseStorage } from "firebase/storage";
 import type { CreateQuizInput, Quiz, QuizAccessType, QuizStatus } from "@digimine/types";
-import { FileUpload } from "../FileUpload";
+import { ImageInput } from "../ImageInput";
 
 export interface QuizFormProps {
     /** Existing quiz when editing; undefined when creating. */
@@ -309,13 +309,15 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
                 </Card>
 
                 <Card padding="lg">
-                    <FileUpload
+                    <ImageInput
                         storage={storage}
                         label="Quiz thumbnail"
                         path="quizzes/thumbnails"
-                        accept="image/*"
-                        existingUrl={formData.thumbnailURL || undefined}
-                        onUploadComplete={(thumbnailURL) =>
+                        value={formData.thumbnailURL || ""}
+                        idealSize="1600×900 (16:9)"
+                        aspectRatio="16/9"
+                        hint="Rendered at 16:9 on quiz cards and used as og:image for social shares. Keep the subject centred."
+                        onChange={(thumbnailURL) =>
                             setFormData((prev) => ({ ...prev, thumbnailURL }))
                         }
                     />

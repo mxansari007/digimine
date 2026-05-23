@@ -293,12 +293,15 @@ export function ArticleForm({
                         />
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Social share image (og:image)" hint="1200×630 recommended · falls back to cover image">
+                        <Field label="Social share image (og:image)" hint="Only set this if you want a different image for social shares than the article cover.">
                             <ImageInput
                                 value={ogImageUrl}
                                 onChange={setOgImageUrl}
                                 path="articles/og"
-                                urlPlaceholder="https://… (1200×630 recommended)"
+                                idealSize="1200×630 (1.91:1)"
+                                aspectRatio="1200/630"
+                                urlPlaceholder="https://… (Twitter / LinkedIn / WhatsApp card)"
+                                hint="Shown when the article is shared on Twitter, LinkedIn, WhatsApp, Slack, etc."
                             />
                         </Field>
                         <Field label="Twitter card">
@@ -501,11 +504,13 @@ export function ArticleForm({
 
                 <Card className="p-5 space-y-4">
                     <h2 className="text-sm font-semibold text-slate-700">Cover image</h2>
-                    <Field label="Cover image" hint="Used at the top of the article and as fallback og:image">
+                    <Field label="Cover image" hint="Shown at the top of the article. Also used as og:image when no separate social image is set above.">
                         <ImageInput
                             value={coverImageUrl}
                             onChange={setCoverImageUrl}
                             path="articles/covers"
+                            idealSize="1200×630 (1.91:1)"
+                            aspectRatio="1200/630"
                             urlPlaceholder="https://… (Unsplash, Pexels, or any CDN)"
                         />
                     </Field>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { FileUpload } from "../FileUpload";
+import { ImageInput } from "../ImageInput";
 import type { FirebaseStorage } from "firebase/storage";
 import type { CreateTestSeriesInput, TestAccessType, TestStatus } from "@digimine/types";
 
@@ -172,13 +173,15 @@ export function TestSeriesForm({
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <FileUpload
+                            <ImageInput
                                 storage={storage}
                                 label="Thumbnail Image"
                                 path="tests/thumbnails"
-                                accept="image/*"
-                                existingUrl={formData.thumbnailURL || undefined}
-                                onUploadComplete={(url) => setFormData(prev => ({ ...prev, thumbnailURL: url }))}
+                                value={formData.thumbnailURL || ""}
+                                onChange={(url) => setFormData(prev => ({ ...prev, thumbnailURL: url }))}
+                                idealSize="1600×900 (16:9)"
+                                aspectRatio="16/9"
+                                hint="Rendered at 16:9 on test cards and used as og:image for social shares. Keep the subject centred."
                             />
                         </div>
                         <div className="md:col-span-2">

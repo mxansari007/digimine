@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, stripFormattedContent } from "@digimine/ui";
 import { RichTextEditor } from "../RichTextEditor";
+import { ImageInput } from "../ImageInput";
 
 
 
@@ -486,15 +487,18 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
                             placeholder="Explain the contest format, syllabus, and who should join."
                         />
                     </label>
-                    <label className="space-y-2">
-                        <span className="text-sm font-bold text-slate-700">Thumbnail URL</span>
-                        <input
+                    <div className="space-y-2">
+                        <ImageInput
+                            storage={storage}
+                            label="Thumbnail"
+                            path="contests/thumbnails"
                             value={form.thumbnailURL}
-                            onChange={(event) => updateField("thumbnailURL", event.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                            placeholder="Optional image URL"
+                            onChange={(url) => updateField("thumbnailURL", url)}
+                            idealSize="1200×900 (4:3)"
+                            aspectRatio="4/3"
+                            hint="Contest cards display the thumbnail in a 220px left column at roughly 4:3. A taller/centred composition crops cleanest."
                         />
-                    </label>
+                    </div>
                     {!isTeacherMode && (
                     <label className="space-y-2">
                         <span className="text-sm font-bold text-slate-700">Status</span>
