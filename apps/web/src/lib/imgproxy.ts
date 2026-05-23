@@ -48,7 +48,7 @@ function toBase64Url(input: string): string {
         return btoa(input).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
     }
     // Node / SSR
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
     const { Buffer } = require("buffer") as typeof import("buffer");
     return Buffer.from(input).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
@@ -57,7 +57,7 @@ function sign(path: string): string {
     if (!KEY_HEX || !SALT_HEX) return "insecure";
     try {
         // SSR-only: require crypto without breaking the client bundle.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
         const { createHmac, Buffer } = require("crypto") as typeof import("crypto") & { Buffer: typeof globalThis.Buffer };
         const key = Buffer.from(KEY_HEX, "hex");
         const salt = Buffer.from(SALT_HEX, "hex");
