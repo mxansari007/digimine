@@ -11,6 +11,7 @@ export type Row = {
     id: string;
     slug: string;
     kind: "dsa" | "sql";
+    problemNumber: number | null;
     title: string;
     difficulty: "easy" | "medium" | "hard";
     primaryPattern: string;
@@ -112,6 +113,9 @@ export default function ProblemsBrowser({
                                 {visible.map((p) => (
                                     <tr key={p.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-3">
+                                            {p.problemNumber != null && (
+                                                <span className="mr-1 font-mono text-xs text-slate-400">#{p.problemNumber}</span>
+                                            )}
                                             <Link href={`/practice/problems/${p.slug}`} className="font-medium text-slate-900 hover:text-primary-700">
                                                 {p.title}
                                             </Link>

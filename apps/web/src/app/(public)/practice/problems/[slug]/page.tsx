@@ -20,6 +20,7 @@ type Problem = {
     id: string;
     slug: string;
     kind: "dsa" | "sql";
+    problemNumber: number | null;
     title: string;
     statementHtml: string;
     difficulty: string;
@@ -454,7 +455,12 @@ export default function SolveProblemPage() {
                         </Link>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h1 className="font-display text-lg font-bold leading-tight text-slate-900">{problem.title}</h1>
+                                <h1 className="font-display text-lg font-bold leading-tight text-slate-900">
+                                    {problem.problemNumber != null && (
+                                        <span className="mr-1 font-mono text-base text-slate-400">#{problem.problemNumber}</span>
+                                    )}
+                                    {problem.title}
+                                </h1>
                                 {solved && (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                         ✓ Solved

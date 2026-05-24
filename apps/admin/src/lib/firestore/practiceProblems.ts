@@ -52,6 +52,8 @@ function mapProblem(id: string, d: any): PracticeProblem {
         id,
         slug: d.slug || "",
         kind: d.kind || "dsa",
+        problemNumber:
+            typeof d.problemNumber === "number" ? d.problemNumber : null,
         title: d.title || "",
         statementHtml: d.statementHtml || "",
         difficulty: d.difficulty || "easy",
@@ -116,6 +118,8 @@ function buildPayload(input: CreatePracticeProblemInput, slug: string, adminUid:
     const payload: any = {
         slug,
         kind: input.kind,
+        problemNumber:
+            typeof input.problemNumber === "number" ? input.problemNumber : null,
         title: input.title.trim(),
         statementHtml: input.statementHtml || "",
         difficulty: input.difficulty,
@@ -168,6 +172,46 @@ export async function updateProblem(id: string, input: CreatePracticeProblemInpu
 
 export async function deleteProblem(id: string): Promise<void> {
     await deleteDoc(doc(COL(), id));
+}
+
+/**
+ * Delete many problems in one go (bulk-action toolbar). Doesn't use a batch
+ * write because Firestore caps at 500 ops/batch and we may exceed; serial
+ * `deleteDoc` is fine for admin-tier traffic.
+ */
+export async function bulkDeleteProblems(ids: string[]): Promise<{ ok: number; failed: { id: string; error: string }[] }> {
+    let ok = 0;
+    const failed: { id: string; error: string }[] = [];
+    for (const id of ids) {
+        try {
+            await deleteDoc(doc(COL(), id));
+            ok += 1;
+        } catch (e) {
+            failed.push({ id, error: e instanceof Error ? e.message : "delete failed" });
+        }
+    }
+    return { ok, failed };
+}
+
+/**
+ * Swap `problemNumber` between two problems — used by the up/down reorder
+ * arrows in the admin list. Either side may have a null number; in that case
+ * we assign a fresh number on the side that needs one.
+ */
+export async function swapProblemNumbers(idA: string, idB: string): Promise<void> {
+    const [a, b] = await Promise.all([getProblem(idA), getProblem(idB)]);
+    if (!a || !b) throw new Error("Problem not found");
+    const numA = a.problemNumber;
+    const numB = b.problemNumber;
+    // If both are null nothing to do; if one is null, we don't have a
+    // canonical order to swap to — caller should set them explicitly first.
+    if (numA == null || numB == null) {
+        throw new Error("Both problems must have a number to swap.");
+    }
+    await Promise.all([
+        setDoc(doc(COL(), idA), { problemNumber: numB, updatedAt: serverTimestamp() }, { merge: true }),
+        setDoc(doc(COL(), idB), { problemNumber: numA, updatedAt: serverTimestamp() }, { merge: true }),
+    ]);
 }
 
 /** Bulk create — used by the JSON importer. Returns per-item results. */

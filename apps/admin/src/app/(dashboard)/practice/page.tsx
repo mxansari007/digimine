@@ -4,8 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { patternMeta, type PracticeProblem } from "@digimine/types";
-import { deleteProblem, listProblems } from "@/lib/firestore/practiceProblems";
+import {
+    bulkDeleteProblems,
+    deleteProblem,
+    listProblems,
+    swapProblemNumbers,
+} from "@/lib/firestore/practiceProblems";
 import { downloadProblemTemplate } from "@/lib/import/practiceProblems";
+import { BulkActionsBar } from "@/components/common/BulkActionsBar";
+import { handleSelectClick, useBulkSelection } from "@/hooks/useBulkSelection";
 
 function statusChip(s: string) {
     if (s === "published") return "chip-success";
@@ -18,6 +25,8 @@ export default function AdminPracticePage() {
     const [loading, setLoading] = useState(true);
     const [kind, setKind] = useState<"all" | "dsa" | "sql">("all");
     const [search, setSearch] = useState("");
+    const [swapping, setSwapping] = useState<string | null>(null);
+    const sel = useBulkSelection<string>();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -32,68 +41,260 @@ export default function AdminPracticePage() {
         load();
     }, [load]);
 
+    /**
+     * Display order: problems with a `problemNumber` first (ascending), then
+     * everything without a number (sorted by createdAt desc, server-side).
+     * This is the order the bulk-select "range" interpretation uses.
+     */
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter((p) => p.title.toLowerCase().includes(q) || p.tags.some((t) => t.toLowerCase().includes(q)));
+        const matched = !q
+            ? items
+            : items.filter(
+                  (p) =>
+                      p.title.toLowerCase().includes(q) ||
+                      p.tags.some((t) => t.toLowerCase().includes(q))
+              );
+        return [...matched].sort((a, b) => {
+            const an = a.problemNumber ?? Infinity;
+            const bn = b.problemNumber ?? Infinity;
+            if (an !== bn) return an - bn;
+            // Both null (or equal) → fall back to title for deterministic order.
+            return a.title.localeCompare(b.title);
+        });
     }, [items, search]);
+
+    const visibleIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+
+    const swap = async (i: number, dir: -1 | 1) => {
+        const a = filtered[i];
+        const b = filtered[i + dir];
+        if (!a || !b) return;
+        if (a.problemNumber == null || b.problemNumber == null) {
+            alert(
+                "Both problems need a #Number before they can be swapped. Edit each to assign one."
+            );
+            return;
+        }
+        setSwapping(a.id);
+        try {
+            await swapProblemNumbers(a.id, b.id);
+            await load();
+        } catch (e) {
+            alert(e instanceof Error ? e.message : "Swap failed");
+        } finally {
+            setSwapping(null);
+        }
+    };
+
+    const bulkDelete = async () => {
+        const ids = sel.ids;
+        if (ids.length === 0) return;
+        const res = await bulkDeleteProblems(ids);
+        sel.clear();
+        await load();
+        if (res.failed.length > 0) {
+            alert(
+                `Deleted ${res.ok}. Failed ${res.failed.length} (see console).`
+            );
+            console.error("Bulk delete failures:", res.failed);
+        }
+    };
+
+    const allVisibleSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => sel.isSelected(id));
 
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Practice problems</h1>
-                    <p className="mt-1 text-sm text-slate-500">DSA &amp; SQL problems shown to everyone on the public Practice hub.</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                        DSA &amp; SQL problems shown on the public Practice hub.{" "}
+                        <span className="text-slate-400">
+                            Tip: Cmd/Ctrl+click a row to toggle, Shift+click to range-select.
+                        </span>
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" onClick={() => downloadProblemTemplate()} title="Download practice-problems-template.json">
+                    <Button
+                        variant="ghost"
+                        onClick={() => downloadProblemTemplate()}
+                        title="Download practice-problems-template.json"
+                    >
                         ⬇ Template
                     </Button>
-                    <Link href="/practice/import"><Button variant="outline">Bulk import (JSON)</Button></Link>
-                    <Link href="/practice/create"><Button variant="primary">+ New problem</Button></Link>
+                    <Link href="/practice/import">
+                        <Button variant="outline">Bulk import (JSON)</Button>
+                    </Link>
+                    <Link href="/practice/create">
+                        <Button variant="primary">+ New problem</Button>
+                    </Link>
                 </div>
             </div>
 
-            <Card className="p-4 flex flex-wrap items-center gap-3">
-                <input className="field flex-1 min-w-[220px]" placeholder="Search title or tag…" value={search} onChange={(e) => setSearch(e.target.value)} />
-                <select className="field max-w-[140px]" value={kind} onChange={(e) => setKind(e.target.value as any)}>
+            <Card className="flex flex-wrap items-center gap-3 p-4">
+                <input
+                    className="field flex-1 min-w-[220px]"
+                    placeholder="Search title or tag…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+                <select
+                    className="field max-w-[140px]"
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value as typeof kind)}
+                >
                     <option value="all">All types</option>
                     <option value="dsa">DSA</option>
                     <option value="sql">SQL</option>
                 </select>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={(e) =>
+                            e.target.checked ? sel.selectAll(visibleIds) : sel.clear()
+                        }
+                    />
+                    Select all visible ({filtered.length})
+                </label>
             </Card>
+
+            <BulkActionsBar
+                count={sel.count}
+                onClear={sel.clear}
+                onDelete={bulkDelete}
+                label="problem"
+            />
 
             {loading ? (
                 <Card className="p-12 text-center text-sm text-slate-500">Loading…</Card>
             ) : filtered.length === 0 ? (
                 <Card className="p-12 text-center">
-                    <p className="text-slate-500 mb-3">No problems yet.</p>
+                    <p className="mb-3 text-slate-500">No problems yet.</p>
                     <div className="inline-flex gap-2">
-                        <Link href="/practice/create"><Button variant="primary">Create one</Button></Link>
-                        <Link href="/practice/import"><Button variant="outline">Bulk import</Button></Link>
+                        <Link href="/practice/create">
+                            <Button variant="primary">Create one</Button>
+                        </Link>
+                        <Link href="/practice/import">
+                            <Button variant="outline">Bulk import</Button>
+                        </Link>
                     </div>
                 </Card>
             ) : (
                 <div className="space-y-2">
-                    {filtered.map((p) => (
-                        <Card key={p.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="chip-neutral text-[10px]">{p.kind}</span>
-                                    <span className={`${statusChip(p.status)} text-[10px]`}>{p.status}</span>
-                                    {p.access !== "free" && <span className="chip-info text-[10px]">{p.access}</span>}
-                                    {p.isFeatured && <span className="chip-info text-[10px]">Featured</span>}
-                                    <span className="text-xs text-slate-400">{patternMeta(p.primaryPattern as any)?.label} · {p.difficulty}</span>
+                    {filtered.map((p, i) => {
+                        const selected = sel.isSelected(p.id);
+                        return (
+                            <Card
+                                key={p.id}
+                                onClick={(e) =>
+                                    handleSelectClick(e, p.id, visibleIds, sel)
+                                }
+                                className={`flex flex-wrap items-center justify-between gap-3 p-4 transition-colors ${
+                                    selected
+                                        ? "!border-primary-300 !bg-primary-50/40"
+                                        : ""
+                                }`}
+                            >
+                                {/* Checkbox + reorder column */}
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={() => sel.toggle(p.id)}
+                                        aria-label={`Select ${p.title}`}
+                                    />
+                                    <div className="flex flex-col">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                swap(i, -1);
+                                            }}
+                                            disabled={i === 0 || swapping === p.id}
+                                            aria-label="Move up (swap #Number with previous)"
+                                            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"
+                                        >
+                                            ↑
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                swap(i, 1);
+                                            }}
+                                            disabled={
+                                                i === filtered.length - 1 || swapping === p.id
+                                            }
+                                            aria-label="Move down (swap #Number with next)"
+                                            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"
+                                        >
+                                            ↓
+                                        </button>
+                                    </div>
                                 </div>
-                                <h3 className="mt-1 font-semibold text-slate-900 truncate">{p.title}</h3>
-                                <p className="text-[11px] font-mono text-slate-400">/practice/problems/{p.slug} · {p.testCases.length} tests · {p.totalSolved} solved</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Link href={`/practice/${p.id}/edit`}><Button variant="outline" size="sm">Edit</Button></Link>
-                                <Button variant="ghost" size="sm" className="!text-rose-600" onClick={async () => { if (confirm(`Delete "${p.title}"?`)) { await deleteProblem(p.id); load(); } }}>Delete</Button>
-                            </div>
-                        </Card>
-                    ))}
+
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="chip-neutral text-[10px]">{p.kind}</span>
+                                        <span className={`${statusChip(p.status)} text-[10px]`}>
+                                            {p.status}
+                                        </span>
+                                        {p.access !== "free" && (
+                                            <span className="chip-info text-[10px]">{p.access}</span>
+                                        )}
+                                        {p.isFeatured && (
+                                            <span className="chip-info text-[10px]">Featured</span>
+                                        )}
+                                        <span className="text-xs text-slate-400">
+                                            {patternMeta(p.primaryPattern as never)?.label} ·{" "}
+                                            {p.difficulty}
+                                        </span>
+                                    </div>
+                                    <h3 className="mt-1 truncate font-semibold text-slate-900">
+                                        {p.problemNumber != null && (
+                                            <span className="mr-1 font-mono text-xs text-slate-400">
+                                                #{p.problemNumber}
+                                            </span>
+                                        )}
+                                        {p.title}
+                                    </h3>
+                                    <p className="font-mono text-[11px] text-slate-400">
+                                        /practice/problems/{p.slug} · {p.testCases.length} tests ·{" "}
+                                        {p.totalSolved} solved
+                                    </p>
+                                </div>
+
+                                <div
+                                    className="flex items-center gap-2"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Link href={`/practice/${p.id}/edit`}>
+                                        <Button variant="outline" size="sm">
+                                            Edit
+                                        </Button>
+                                    </Link>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="!text-rose-600"
+                                        onClick={async () => {
+                                            if (confirm(`Delete "${p.title}"?`)) {
+                                                await deleteProblem(p.id);
+                                                sel.clear();
+                                                load();
+                                            }
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
         </div>

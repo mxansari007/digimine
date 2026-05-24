@@ -44,6 +44,11 @@ export function PracticeProblemForm({
     const [kind, setKind] = useState<"dsa" | "sql">(problem?.kind || "dsa");
     const [title, setTitle] = useState(problem?.title || "");
     const [slug, setSlug] = useState(problem?.slug || "");
+    // Held as a string so the input never goes blank-but-zero while typing.
+    // Convert back to number-or-null on submit.
+    const [problemNumberInput, setProblemNumberInput] = useState<string>(
+        problem?.problemNumber != null ? String(problem.problemNumber) : ""
+    );
     const [difficulty, setDifficulty] = useState(problem?.difficulty || "easy");
     const [primaryPattern, setPrimaryPattern] = useState(problem?.primaryPattern || "arrays-hashing");
     const [tagsInput, setTagsInput] = useState((problem?.tags || []).join(", "));
@@ -99,10 +104,15 @@ export function PracticeProblemForm({
         const tags = tagsInput.split(",").map((s) => s.trim()).filter(Boolean);
         const patternChoices = patternChoicesInput.split(",").map((s) => s.trim()).filter(Boolean) as any[];
 
+        const parsedNum = problemNumberInput.trim();
+        const problemNumber: number | null =
+            parsedNum === "" ? null : Number.isFinite(Number(parsedNum)) ? Number(parsedNum) : null;
+
         const input: CreatePracticeProblemInput = {
             kind,
             title: title.trim(),
             slug: slug.trim() || undefined,
+            problemNumber,
             difficulty: difficulty as any,
             primaryPattern: primaryPattern as any,
             tags,
@@ -172,9 +182,21 @@ export function PracticeProblemForm({
                             SQL
                         </button>
                     </div>
-                    <Field label="Title">
-                        <input className="field text-lg font-semibold" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Two Sum" />
-                    </Field>
+                    <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
+                        <Field label="# Number" hint="LeetCode-style ID">
+                            <input
+                                className="field text-lg font-semibold"
+                                type="number"
+                                min="1"
+                                value={problemNumberInput}
+                                onChange={(e) => setProblemNumberInput(e.target.value)}
+                                placeholder="42"
+                            />
+                        </Field>
+                        <Field label="Title">
+                            <input className="field text-lg font-semibold" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Two Sum" />
+                        </Field>
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Field label="Slug" hint="Blank = auto from title"><input className="field font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} /></Field>
                         <Field label="Difficulty">

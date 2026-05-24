@@ -154,6 +154,14 @@ export interface PracticeProblem {
     id: string;
     slug: string;
     kind: PracticeKind;
+    /**
+     * Optional unique problem number for human reference (e.g. "#42 Two Sum"),
+     * the same UX you see on LeetCode/HackerRank. Globally unique across all
+     * published problems — admin convention enforces uniqueness. Null when
+     * the admin hasn't assigned one yet (legacy problems before this field
+     * existed default to null and render without the badge).
+     */
+    problemNumber: number | null;
     title: string;
     /** Rich HTML statement (RichTextEditor output). */
     statementHtml: string;
@@ -202,6 +210,7 @@ export interface PracticeProblemSummary {
     id: string;
     slug: string;
     kind: PracticeKind;
+    problemNumber: number | null;
     title: string;
     difficulty: PracticeDifficulty;
     primaryPattern: PracticePattern;
@@ -532,6 +541,8 @@ export interface PracticeRescueRequest {
 export interface CreatePracticeProblemInput {
     slug?: string;
     kind: PracticeKind;
+    /** Optional unique problem number (1..N) — same UX as LeetCode's "#42 Two Sum". */
+    problemNumber?: number | null;
     title: string;
     statementHtml: string;
     difficulty: PracticeDifficulty;
