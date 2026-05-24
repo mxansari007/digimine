@@ -113,13 +113,30 @@ export default function ProblemsBrowser({
                                 {visible.map((p) => (
                                     <tr key={p.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-3">
-                                            {p.problemNumber != null && (
-                                                <span className="mr-1 font-mono text-xs text-slate-400">#{p.problemNumber}</span>
+                                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                                {p.problemNumber != null && (
+                                                    <span className="font-mono text-xs text-slate-400">#{p.problemNumber}</span>
+                                                )}
+                                                <Link href={`/practice/problems/${p.slug}`} className="font-medium text-slate-900 hover:text-primary-700">
+                                                    {p.title}
+                                                </Link>
+                                                <span className="text-[10px] uppercase tracking-wider text-slate-400">{p.kind}</span>
+                                            </div>
+                                            {p.tags.length > 0 && (
+                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                    {p.tags.slice(0, 4).map((t) => (
+                                                        <span
+                                                            key={t}
+                                                            className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600"
+                                                        >
+                                                            {t}
+                                                        </span>
+                                                    ))}
+                                                    {p.tags.length > 4 && (
+                                                        <span className="text-[10px] text-slate-400">+{p.tags.length - 4}</span>
+                                                    )}
+                                                </div>
                                             )}
-                                            <Link href={`/practice/problems/${p.slug}`} className="font-medium text-slate-900 hover:text-primary-700">
-                                                {p.title}
-                                            </Link>
-                                            <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400">{p.kind}</span>
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">{patternMeta(p.primaryPattern as any)?.label || p.primaryPattern}</td>
                                         <td className="px-4 py-3">
