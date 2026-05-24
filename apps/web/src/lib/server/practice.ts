@@ -107,6 +107,7 @@ export function serializeProblemPublic(id: string, raw: any) {
               }
             : null,
         editorialHtml: raw.editorialHtml ?? null,
+        editorialAccess: raw.editorialAccess === "premium" ? "premium" : "free",
         hints: Array.isArray(raw.hints) ? raw.hints : [],
         access: raw.access || "free",
         totalSolved: raw.totalSolved ?? 0,

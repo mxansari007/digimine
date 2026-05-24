@@ -66,22 +66,37 @@ async function getUserSubscription(userId: string): Promise<UserSubscription | n
 /**
  * Resolve a user's effective entitlements. Anonymous users (userId null)
  * get the free plan under enforcement, or all-access in launch mode.
+ *
+ * The user's subscription is fetched *even in launch mode* so the strict
+ * `isPaid` flag is accurate — that flag (and only that flag) is what
+ * admin-flagged premium content like `access: "premium"` problems is
+ * gated on, so it must work regardless of the kill switch.
  */
 export async function getEntitlements(userId: string | null): Promise<ResolvedEntitlements> {
     const config = await getGlobalConfig();
 
-    // Launch mode short-circuits — no reads needed.
-    if (!config.enforced) {
-        return resolveEntitlements(config, null, null);
+    // Always look up the user's subscription so `isPaid` is meaningful
+    // even when the kill switch is off.
+    let sub: UserSubscription | null = null;
+    let paidPlan: AppSubscriptionPlan | null = null;
+    if (userId) {
+        sub = await getUserSubscription(userId);
+        if (sub && isPlanActive(sub) && sub.planCode && sub.planCode !== "free") {
+            paidPlan = await getPlanByCode(sub.planCode);
+        }
     }
 
-    let sub: UserSubscription | null = null;
-    if (userId) sub = await getUserSubscription(userId);
+    // In launch mode no further plan resolution is needed — `features` /
+    // `quotas` come from the all-access defaults, but we still pass the sub
+    // + paid plan so `isPaid` reflects reality.
+    if (!config.enforced) {
+        return resolveEntitlements(config, null, sub, paidPlan);
+    }
 
     const active = sub && isPlanActive(sub);
     const planCode = active ? sub!.planCode : config.freePlanCode;
     const plan = await getPlanByCode(planCode);
-    return resolveEntitlements(config, plan, active ? sub : null);
+    return resolveEntitlements(config, plan, active ? sub : null, paidPlan);
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -69,6 +69,7 @@ export function parseProblemsJson(text: string): ProblemsParseResult {
                 statementHtml: p.statementHtml || p.statement || "",
                 constraintsHtml: p.constraintsHtml ?? null,
                 editorialHtml: p.editorialHtml ?? null,
+                editorialAccess: p.editorialAccess === "premium" ? "premium" : "free",
                 hints: Array.isArray(p.hints)
                     ? p.hints.map((h: any, idx: number) => (typeof h === "string" ? { id: `h${idx}`, order: idx, text: h } : { id: h.id || `h${idx}`, order: h.order ?? idx, text: h.text || "" }))
                     : [],
@@ -112,11 +113,22 @@ export const PROBLEM_JSON_TEMPLATE = JSON.stringify(
                 ],
                 hints: ["Use a hashmap of value → index.", "One pass is enough."],
                 editorialHtml: "<p>Store each number's complement in a hashmap…</p>",
-                status: "published",
+                // ── Access gating ─────────────────────────────────────────
+                // `access`           — "free" | "login" | "premium"
+                //                      "premium" locks the whole problem (statement
+                //                      teaser visible, editor + Run/Submit gated).
+                // `editorialAccess`  — "free" | "premium"
+                //                      Lock JUST the editorial walkthrough behind
+                //                      Premium even on a free problem.
                 access: "free",
+                editorialAccess: "free",
+                status: "published",
                 isFeatured: false,
             },
             {
+                // Premium SQL example — demonstrates a fully Premium-locked
+                // problem AND a Premium-locked editorial. Free users see the
+                // statement + lock card; subscribers see everything.
                 kind: "sql",
                 title: "Top Customers",
                 slug: "top-customers",
@@ -133,8 +145,10 @@ export const PROBLEM_JSON_TEMPLATE = JSON.stringify(
                     expectedColumns: ["name"],
                     expectedRows: [["A"]],
                 },
+                editorialHtml: "<p>GROUP BY the customer table joined with orders, then HAVING COUNT &gt; 2.</p>",
+                access: "premium",
+                editorialAccess: "premium",
                 status: "published",
-                access: "free",
             },
         ],
     },

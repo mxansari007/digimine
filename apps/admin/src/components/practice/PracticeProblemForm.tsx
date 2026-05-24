@@ -55,6 +55,7 @@ export function PracticeProblemForm({
     const [statementHtml, setStatementHtml] = useState(problem?.statementHtml || "");
     const [constraintsHtml, setConstraintsHtml] = useState(problem?.constraintsHtml || "");
     const [editorialHtml, setEditorialHtml] = useState(problem?.editorialHtml || "");
+    const [editorialAccess, setEditorialAccess] = useState(problem?.editorialAccess || "free");
     const [status, setStatus] = useState(problem?.status || "draft");
     const [access, setAccess] = useState(problem?.access || "free");
     const [isFeatured, setIsFeatured] = useState(Boolean(problem?.isFeatured));
@@ -120,6 +121,7 @@ export function PracticeProblemForm({
             statementHtml,
             constraintsHtml: constraintsHtml.trim() || null,
             editorialHtml: editorialHtml.trim() || null,
+            editorialAccess: editorialAccess as any,
             status: status as any,
             access: access as any,
             isFeatured,
@@ -131,13 +133,21 @@ export function PracticeProblemForm({
             input.starters = languages.map((l) => ({ language: l, code: starters[l] || "" }));
             input.testCases = testCases
                 .filter((t) => t.input !== undefined && t.expectedOutput !== undefined)
-                .map((t) => ({
-                    id: t.id,
-                    input: t.input,
-                    expectedOutput: t.expectedOutput,
-                    isHidden: t.isHidden,
-                    explanation: t.explanation || undefined,
-                }));
+                .map((t) => {
+                    // Firestore rejects `undefined` even inside nested objects,
+                    // so omit `explanation` when blank instead of setting it
+                    // to `undefined`.
+                    const tc: any = {
+                        id: t.id,
+                        input: t.input,
+                        expectedOutput: t.expectedOutput,
+                        isHidden: t.isHidden,
+                    };
+                    if (t.explanation && t.explanation.trim()) {
+                        tc.explanation = t.explanation.trim();
+                    }
+                    return tc;
+                });
             input.sql = null;
         } else {
             let expectedRows: any[] = [];
@@ -320,8 +330,21 @@ export function PracticeProblemForm({
                     ))}
                 </Card>
 
-                <Card className="p-6 space-y-2">
-                    <p className="text-sm font-semibold text-slate-700">Editorial (optional)</p>
+                <Card className="p-6 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-700">Editorial (optional)</p>
+                        <label className="flex items-center gap-2 text-xs text-slate-600">
+                            Visibility
+                            <select
+                                className="field !py-1 !text-xs"
+                                value={editorialAccess}
+                                onChange={(e) => setEditorialAccess(e.target.value as "free" | "premium")}
+                            >
+                                <option value="free">Free for everyone</option>
+                                <option value="premium">Premium only</option>
+                            </select>
+                        </label>
+                    </div>
                     <RichTextEditor value={editorialHtml} onChange={setEditorialHtml} minHeight={160} mediaUploadPath="practice/editorial" placeholder="Approach, complexity, walkthrough." />
                 </Card>
             </div>

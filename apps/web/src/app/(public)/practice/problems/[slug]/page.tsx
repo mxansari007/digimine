@@ -7,8 +7,10 @@ import { useParams, useRouter } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
 import { patternMeta, type CodeLanguage } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/contexts/EntitlementsContext";
 import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { Paywall } from "@/components/common/Paywall";
 import PracticeCommunity from "@/components/practice/PracticeCommunity";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
@@ -32,7 +34,10 @@ type Problem = {
     constraintsHtml: string | null;
     sql: { schemaSql: string; orderMatters: boolean } | null;
     editorialHtml: string | null;
+    editorialAccess: "free" | "premium";
     hints: Hint[];
+    tags: string[];
+    access: "free" | "login" | "premium";
 };
 
 type Progress = {
@@ -132,6 +137,7 @@ export default function SolveProblemPage() {
     const router = useRouter();
     const slug = params.slug as string;
     const { firebaseUser, isAuthenticated, loading: authLoading } = useAuthContext();
+    const { isPremium, ready: entitlementsReady } = useEntitlements();
     // Role-less signed-in users get bounced to /role-select first. Anonymous
     // users are unaffected here (existing "Sign in" CTAs handle that branch).
     useAttemptGate();
@@ -185,7 +191,7 @@ export default function SolveProblemPage() {
     const [revealedHints, setRevealedHints] = useState(0);
 
     // Left-panel tabs
-    const [tab, setTab] = useState<"desc" | "hints" | "editorial" | "solutions" | "discussion">("desc");
+    const [tab, setTab] = useState<"desc" | "hints" | "editorial" | "companies" | "solutions" | "discussion">("desc");
     // Right-panel console
     const [resetTick, setResetTick] = useState(0);
 
@@ -441,6 +447,18 @@ export default function SolveProblemPage() {
     const hiddenCount = result?.results.filter((r) => r.isHidden).length ?? 0;
     const passRatio = result && result.totalCount ? result.passedCount / result.totalCount : 0;
 
+    // Page-level paywall for premium-locked problems. We still render the
+    // header so the URL is recognisable and SEO crawlers (which also bypass
+    // the entitlement fetch) see the title, then swap the workspace for an
+    // upgrade card. Wait for entitlements to resolve so we don't flash the
+    // paywall to legitimate premium users on the first paint. Uses the
+    // strict `isPremium` check (sourced from `isPaid`) so admin-flagged
+    // premium content stays gated even when enforcement is still off.
+    const problemLocked =
+        problem.access === "premium" && entitlementsReady && !isPremium;
+    const editorialLocked =
+        problem.editorialAccess === "premium" && entitlementsReady && !isPremium;
+
     return (
         <main className="min-h-screen bg-slate-100">
             {/* Workspace top bar */}
@@ -464,6 +482,11 @@ export default function SolveProblemPage() {
                                 {solved && (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                         ✓ Solved
+                                    </span>
+                                )}
+                                {problem.access === "premium" && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
+                                        ★ Premium
                                     </span>
                                 )}
                             </div>
@@ -494,7 +517,8 @@ export default function SolveProblemPage() {
                         {([
                             ["desc", "Description"],
                             ["hints", problem.hints.length ? `Hints (${problem.hints.length})` : "Hints"],
-                            ["editorial", "Editorial"],
+                            ["editorial", editorialLocked ? "★ Editorial" : "Editorial"],
+                            ["companies", problem.tags.length ? `Companies (${problem.tags.length})` : "Companies"],
                             ["solutions", "Solutions"],
                             ["discussion", "Discuss"],
                         ] as const).map(([key, label]) => (
@@ -523,7 +547,51 @@ export default function SolveProblemPage() {
 
                         {tab === "desc" && (
                             <>
-                                <FormattedContent html={problem.statementHtml} className="prose-sm" />
+                                {/* Statement — for premium-locked problems we wrap it in a
+                                    relative container so the fade overlay can hang off its
+                                    bottom edge, then immediately render the lock card. */}
+                                {problemLocked ? (
+                                    <div className="relative">
+                                        <FormattedContent html={problem.statementHtml} className="prose-sm" />
+                                        {/* Soft fade out from the statement's bottom into the
+                                            lock card below. Pointer-events disabled so the
+                                            statement text above stays selectable. */}
+                                        <div
+                                            aria-hidden="true"
+                                            className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-white/80 to-white"
+                                        />
+                                    </div>
+                                ) : (
+                                    <FormattedContent html={problem.statementHtml} className="prose-sm" />
+                                )}
+
+                                {/* Lock card right after the statement. */}
+                                {problemLocked && (
+                                    <div className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 shadow-md">
+                                        <div className="p-6 text-center">
+                                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-amber-700">
+                                                    <rect x="5" y="11" width="14" height="9" rx="2" />
+                                                    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="mt-3 font-display text-lg font-bold text-slate-900">
+                                                Subscribe to unlock this problem
+                                            </h3>
+                                            <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">
+                                                Unlock the constraints, examples, hints, full editorial walkthrough, and code execution with priority judging.
+                                            </p>
+                                            <Link href={`/membership?redirect=/practice/problems/${slug}`}>
+                                                <Button variant="primary" size="lg" className="mt-4">
+                                                    View Premium plans →
+                                                </Button>
+                                            </Link>
+                                            <p className="mt-3 text-[11px] text-slate-500">
+                                                One subscription unlocks every premium problem, mock test, quiz, course &amp; editorial.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {problem.constraintsHtml && (
                                     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
@@ -540,7 +608,9 @@ export default function SolveProblemPage() {
                                     </div>
                                 )}
 
-                                {/* Examples */}
+                                {/* Examples — the server caps these at 2 for premium-locked
+                                    problems so the user gets a real read of the spec before
+                                    the paywall kicks in. */}
                                 {problem.samples.length > 0 && (
                                     <div className="space-y-3">
                                         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Examples</p>
@@ -565,7 +635,8 @@ export default function SolveProblemPage() {
                                     </div>
                                 )}
 
-                                {/* Pattern Lens — USP */}
+                                {/* Pattern Lens — USP. Hidden when locked. */}
+                                {!problemLocked && (
                                 <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
                                     <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-900">
                                         <span>🔍</span> Pattern Lens
@@ -599,12 +670,18 @@ export default function SolveProblemPage() {
                                         </div>
                                     )}
                                 </div>
+                                )}
                             </>
                         )}
 
                         {tab === "hints" && (
                             <div className="space-y-2">
-                                {problem.hints.length === 0 ? (
+                                {problemLocked ? (
+                                    <Paywall
+                                        title="Hints are Premium"
+                                        reason="Subscribe to unlock the staged hints for this problem — plus the editorial walkthrough and code execution."
+                                    />
+                                ) : problem.hints.length === 0 ? (
                                     <p className="text-sm text-slate-500">No hints for this problem — try the Pattern Lens or a mentor rescue.</p>
                                 ) : (
                                     <>
@@ -629,6 +706,17 @@ export default function SolveProblemPage() {
                             <div>
                                 {!problem.editorialHtml ? (
                                     <p className="text-sm text-slate-500">No editorial published yet.</p>
+                                ) : editorialLocked ? (
+                                    <Paywall
+                                        title="Editorial is Premium"
+                                        reason="The full solution walkthrough — approach, complexity, edge cases — is part of Premium. Hints above are free, give them a try first."
+                                        perks={[
+                                            "Detailed approach + complexity analysis for every problem",
+                                            "Reference solutions in Python, JavaScript, C++ and Java",
+                                            "Unlock all premium problems, mock tests, quizzes & courses",
+                                            "Priority code execution — your submissions skip the queue",
+                                        ]}
+                                    />
                                 ) : !showEditorial ? (
                                     <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
                                         <p className="text-sm text-slate-500">Try the Pattern Lens first — then reveal the full solution walkthrough.</p>
@@ -638,6 +726,33 @@ export default function SolveProblemPage() {
                                     </div>
                                 ) : (
                                     <FormattedContent html={problem.editorialHtml} className="prose-sm" />
+                                )}
+                            </div>
+                        )}
+
+                        {tab === "companies" && (
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                    Asked at
+                                </p>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                    Companies known to ask this question in interviews. Crowd-sourced from candidates &amp; mentors.
+                                </p>
+                                {problem.tags.length === 0 ? (
+                                    <p className="mt-4 text-sm text-slate-500">
+                                        No company tags yet for this problem.
+                                    </p>
+                                ) : (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {problem.tags.map((t) => (
+                                            <span
+                                                key={t}
+                                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium capitalize text-slate-700 shadow-sm"
+                                            >
+                                                {t}
+                                            </span>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -753,24 +868,57 @@ export default function SolveProblemPage() {
                                 >
                                     {maximized ? "⤡ Minimize" : "⤢ Maximize"}
                                 </button>
-                                <Button variant="outline" size="sm" onClick={() => submit("run")} isLoading={running} className="!border-white/20 !bg-white/5 !text-slate-100 hover:!bg-white/10">
-                                    Run
-                                </Button>
-                                <Button variant="primary" size="sm" onClick={() => submit("submit")} isLoading={running}>
-                                    Submit
-                                </Button>
+                                {problemLocked ? (
+                                    <Link href={`/membership?redirect=/practice/problems/${slug}`}>
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            title="Subscribe to unlock Run & Submit"
+                                            className="!bg-amber-500 hover:!bg-amber-600"
+                                        >
+                                            🔒 Subscribe to run
+                                        </Button>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <Button variant="outline" size="sm" onClick={() => submit("run")} isLoading={running} className="!border-white/20 !bg-white/5 !text-slate-100 hover:!bg-white/10">
+                                            Run
+                                        </Button>
+                                        <Button variant="primary" size="sm" onClick={() => submit("submit")} isLoading={running}>
+                                            Submit
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         </div>
-                        <div className="min-h-0 flex-1">
+                        <div className="relative min-h-0 flex-1">
                             <MonacoEditor
-                                key={`${language}-${resetTick}`}
+                                key={`${language}-${resetTick}-${problemLocked ? "locked" : "open"}`}
                                 height="100%"
                                 language={MONACO_LANG[language] || "plaintext"}
                                 theme="vs-dark"
-                                value={code}
-                                onChange={onCodeChange}
-                                options={{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 } }}
+                                value={
+                                    problemLocked
+                                        ? "// 🔒 This is a Premium problem.\n//\n// Subscribe to unlock the starter code,\n// run your solution, and submit for judging.\n//\n// → /membership\n"
+                                        : code
+                                }
+                                onChange={problemLocked ? undefined : onCodeChange}
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 13,
+                                    scrollBeyondLastLine: false,
+                                    automaticLayout: true,
+                                    padding: { top: 12 },
+                                    readOnly: problemLocked,
+                                    domReadOnly: problemLocked,
+                                }}
                             />
+                            {/* Subtle locked overlay so it's obvious the editor is read-only. */}
+                            {problemLocked && (
+                                <div className="pointer-events-none absolute bottom-3 right-4 inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white shadow-md">
+                                    🔒 Locked
+                                </div>
+                            )}
                         </div>
                     </div>
 

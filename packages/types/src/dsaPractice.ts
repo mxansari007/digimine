@@ -189,6 +189,10 @@ export interface PracticeProblem {
 
     // Editorial
     editorialHtml: string | null;
+    /** Independent gate for the editorial tab. Lets a free problem still
+     *  charge for the written walkthrough, or keep editorials open on a
+     *  premium problem as a teaser. Defaults to "free" if unset. */
+    editorialAccess: "free" | "premium";
     hints: PracticeHint[];
     /** Optional canonical solution per language. */
     solutions: CodeStarter[];
@@ -558,6 +562,7 @@ export interface CreatePracticeProblemInput {
     memoryLimitMb?: number;
     sql?: SqlDataset | null;
     editorialHtml?: string | null;
+    editorialAccess?: PracticeProblem["editorialAccess"];
     hints?: PracticeHint[];
     solutions?: CodeStarter[];
     status?: PracticeStatus;

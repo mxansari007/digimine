@@ -220,6 +220,17 @@ export interface ResolvedEntitlements {
     quotas: Record<EntitlementQuota, number>;
     status: UserSubscriptionStatus;
     expiresAt: Date | null;
+    /**
+     * STRICT premium check: true iff the user has an active subscription on
+     * a non-free plan. Computed from the user's actual `UserSubscription`
+     * record and is INDEPENDENT of the launch-mode kill switch — so
+     * admin-flagged premium content stays gated even when enforcement is
+     * still off. Use this for `access: "premium"` style gates. Use
+     * `features[...]` for quota / kill-switch-aware gates.
+     */
+    isPaid: boolean;
+    /** Stable code of the user's actual paid plan, or null if free / none. */
+    paidPlanCode: string | null;
 }
 
 function allFeaturesOn(): Record<EntitlementFeature, boolean> {
@@ -244,9 +255,24 @@ function allQuotasUnlimited(): Record<EntitlementQuota, number> {
  */
 export function resolveEntitlements(
     config: Pick<SubscriptionGlobalConfig, "enforced">,
-    plan: Pick<AppSubscriptionPlan, "code" | "name" | "features" | "quotas"> | null,
-    sub?: Pick<UserSubscription, "status" | "expiresAt"> | null
+    plan: Pick<AppSubscriptionPlan, "code" | "name" | "features" | "quotas" | "isFree"> | null,
+    sub?: Pick<UserSubscription, "status" | "planCode" | "expiresAt"> | null,
+    /** The user's actual paid plan, if any (separate from the effective
+     *  `plan` arg which can be a free fallback). Pass null/undefined when
+     *  the user has no paid plan or it's expired. */
+    paidPlan?: Pick<AppSubscriptionPlan, "code" | "isFree"> | null
 ): ResolvedEntitlements {
+    // Strict premium check — always honours the user's actual subscription,
+    // never bypassed by launch mode. A user is "paid" iff they have an
+    // active sub on a non-free plan.
+    const isPaid = Boolean(
+        sub &&
+            (sub.status === "active" || sub.status === "trialing") &&
+            paidPlan &&
+            !paidPlan.isFree
+    );
+    const paidPlanCode = isPaid ? paidPlan?.code ?? null : null;
+
     if (!config.enforced) {
         return {
             planCode: "all-access",
@@ -254,8 +280,10 @@ export function resolveEntitlements(
             enforced: false,
             features: allFeaturesOn(),
             quotas: allQuotasUnlimited(),
-            status: "active",
-            expiresAt: null,
+            status: sub?.status || "active",
+            expiresAt: sub?.expiresAt ?? null,
+            isPaid,
+            paidPlanCode,
         };
     }
 
@@ -277,6 +305,8 @@ export function resolveEntitlements(
         quotas,
         status: sub?.status || "none",
         expiresAt: sub?.expiresAt ?? null,
+        isPaid,
+        paidPlanCode,
     };
 }
 

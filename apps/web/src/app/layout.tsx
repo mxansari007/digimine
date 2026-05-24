@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { FacebookPixel } from "@/components/common";
 import {
     DEFAULT_OG_IMAGE,
@@ -124,7 +125,9 @@ export default function RootLayout({
             <body className="font-sans antialiased">
                 <FacebookPixel />
                 <AuthProvider>
-                    {children}
+                    <EntitlementsProvider>
+                        {children}
+                    </EntitlementsProvider>
                 </AuthProvider>
             </body>
         </html>

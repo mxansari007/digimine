@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { loadProblemById, loadProblemBySlug, recordSubmission } from "@/lib/server/practice";
 import { judgeDsa, judgeSql } from "@/lib/server/practiceJudge";
-import { checkQuota } from "@/lib/server/entitlements";
+import { checkQuota, getEntitlements } from "@/lib/server/entitlements";
+import { acquireJudgeSlot } from "@/lib/server/judgeQueue";
 import { rateLimit } from "@/lib/server/ratelimit";
 import { requireAssignedRole } from "@/lib/server/roleGate";
 
@@ -49,6 +50,24 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Problem not found" }, { status: 404 });
         }
 
+        // Premium-problem gate: blocks both Run and Submit for free users on
+        // a premium-locked problem. The GET route already redacts starters &
+        // statements, but a hand-rolled request could still POST anything —
+        // catch that here. Uses the STRICT `isPaid` check so launch mode
+        // doesn't bypass the gate.
+        const ent = await getEntitlements(userId);
+        const isPremiumUser = ent.isPaid;
+        if ((problem as any).access === "premium" && !isPremiumUser) {
+            return NextResponse.json(
+                {
+                    error: "This problem is part of Premium. Upgrade to run or submit.",
+                    code: "premium_required",
+                    upgradeUrl: "/membership",
+                },
+                { status: 402 }
+            );
+        }
+
         // Freemium gate: only graded "submit"s consume the daily quota.
         // In launch mode (enforcement off) the quota is unlimited, so this is
         // a no-op until you flip the switch in the admin subscription manager.
@@ -67,11 +86,37 @@ export async function POST(req: Request) {
             }
         }
 
+        // Two-lane admission: premium users get reserved slots on the judge,
+        // so a surge of free traffic can't starve them. Fails open if Redis
+        // is unreachable (admission control off, app still works).
+        const slot = await acquireJudgeSlot({ premium: isPremiumUser });
+        if (!slot.ok) {
+            const headers: HeadersInit = slot.retryAfterSec
+                ? { "Retry-After": String(slot.retryAfterSec) }
+                : {};
+            return NextResponse.json(
+                {
+                    error:
+                        slot.reason === "free_lane_full"
+                            ? "Our judge is busy with paid submissions right now. Please retry in a few seconds — or upgrade to Premium for priority execution."
+                            : "Judge is at capacity. Please retry in a moment.",
+                    code: slot.reason,
+                    upgradeUrl: slot.reason === "free_lane_full" ? "/membership" : undefined,
+                },
+                { status: 429, headers }
+            );
+        }
+
         // Judge.
-        const judge =
-            problem.kind === "sql"
-                ? await judgeSql(problem, code)
-                : await judgeDsa(problem, language, code, mode);
+        let judge;
+        try {
+            judge =
+                problem.kind === "sql"
+                    ? await judgeSql(problem, code)
+                    : await judgeDsa(problem, language, code, mode);
+        } finally {
+            await slot.release();
+        }
 
         // Persist + update progress/mastery.
         const record = await recordSubmission({
