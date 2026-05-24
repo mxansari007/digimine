@@ -98,7 +98,18 @@ export const adminNav: AppSidebarNavItem[] = [
     { name: "Question Bank", href: "/question-bank", icon: QuestionBankIcon },
     { name: "Contests", href: "/contests", icon: ContestIcon },
     { name: "Quizzes", href: "/quizzes", icon: QuizIcon },
-    { name: "Practice (DSA/SQL)", href: "/practice", icon: QuestionBankIcon },
+    // Practice — collapsible group containing problems, topics and sheets.
+    // The group auto-expands when the user is on any /practice/* page; the
+    // chevron toggles it manually otherwise.
+    {
+        name: "Practice",
+        icon: QuestionBankIcon,
+        children: [
+            { name: "Problems", href: "/practice", icon: QuestionBankIcon, exact: true },
+            { name: "Topics", href: "/practice/topics", icon: QuestionBankIcon },
+            { name: "Sheets", href: "/practice/sheets", icon: QuestionBankIcon },
+        ],
+    },
     { name: "Users", href: "/users", icon: UsersIcon },
     { name: "Teacher Submissions", href: "/teacher-submissions", icon: ReviewIcon },
     { name: "Teachers", href: "/teachers", icon: TeacherIcon },

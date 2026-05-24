@@ -315,7 +315,16 @@ export function FormattedContent({
                 className={`formatted-content formatted-content-${size} ${className}`.trim()}
                 dangerouslySetInnerHTML={{ __html: content }}
             />
-            <style>{formattedContentCss}</style>
+            {/* Static CSS — React in dev mode flags text-content mismatch on
+                <style> children during hydration even when server and client
+                emit byte-identical strings (it's the documented React 18
+                quirk for inline styles). suppressHydrationWarning is the
+                supported escape hatch and is safe because the CSS literally
+                cannot differ between renders — it's a constant. */}
+            <style
+                suppressHydrationWarning
+                dangerouslySetInnerHTML={{ __html: formattedContentCss }}
+            />
         </>
     );
 }

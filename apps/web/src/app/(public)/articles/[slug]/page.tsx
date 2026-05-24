@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { FieldValue } from "firebase-admin/firestore";
 import { Card, FormattedContent } from "@digimine/ui";
 import {
     ARTICLE_CATEGORIES,
@@ -10,15 +11,45 @@ import {
     type ArticleSeo,
     type ArticleStructuredDataType,
 } from "@digimine/types";
-import { adminDb } from "@/lib/firebase/admin";
 import { getCachedArticleBySlug, type CachedArticle } from "@/lib/server/articleCache";
+import Avatar from "@/components/common/Avatar";
 import ArticleToc from "./_components/ArticleToc";
-import ArticleDiscussion from "./_components/ArticleDiscussion";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+/**
+ * ISR — re-generates the HTML at most once every 5 minutes per slug. Vercel
+ * serves cached HTML from the edge in the meantime, so TTFB on cached hits
+ * is double-digit ms instead of the half-second a force-dynamic page took.
+ *
+ * Was: `dynamic = "force-dynamic"` + a Firestore write on every render to
+ * increment `viewCount`. That write made the page un-cacheable AND added
+ * Firestore latency to every paint, both of which torpedo the Lighthouse
+ * Performance score. View tracking should live in a separate beacon (e.g.
+ * Vercel Analytics already counts page views; or wire a fire-and-forget
+ * client `fetch` to `/api/articles/[slug]/view` if you want first-party
+ * counts) so the public page can stay static.
+ */
+export const revalidate = 300;
 
 type Props = { params: { slug: string } };
+
+/**
+ * ArticleDiscussion pulls in Firebase Auth + Firestore client SDK + the
+ * realtime onSnapshot listener — easily 80–100KB of JS. Deferring it via
+ * `next/dynamic({ ssr: false })` keeps it out of the initial bundle and
+ * the discussion section hydrates lazily after first paint. The Loading
+ * fallback is sized so layout doesn't shift when it lands.
+ */
+const ArticleDiscussion = dynamic(() => import("./_components/ArticleDiscussion"), {
+    ssr: false,
+    loading: () => (
+        <section className="mt-16 border-t border-slate-200 pt-10" aria-label="Discussion">
+            <div className="mb-6 h-6 w-32 rounded bg-slate-100" />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="h-20" />
+            </div>
+        </section>
+    ),
+});
 
 function siteOrigin(): string {
     return (
@@ -107,10 +138,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
-function buildJsonLd(article: Article & { id: string }, url: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildJsonLd(article: Article & { id: string }, url: string): Record<string, any> {
     const type: ArticleStructuredDataType = article.seo.structuredDataType || "Article";
     const image = article.seo.ogImageUrl || article.coverImageUrl;
-    const base: any = {
+    return {
         "@context": "https://schema.org",
         "@type": type,
         headline: article.title,
@@ -124,8 +156,11 @@ function buildJsonLd(article: Article & { id: string }, url: string) {
             name: article.author.name,
             ...(article.author.linkedin || article.author.twitter
                 ? {
-                      sameAs: [article.author.linkedin, article.author.twitter && `https://twitter.com/${article.author.twitter.replace(/^@/, "")}`]
-                          .filter(Boolean),
+                      sameAs: [
+                          article.author.linkedin,
+                          article.author.twitter &&
+                              `https://twitter.com/${article.author.twitter.replace(/^@/, "")}`,
+                      ].filter(Boolean),
                   }
                 : {}),
         },
@@ -135,12 +170,12 @@ function buildJsonLd(article: Article & { id: string }, url: string) {
             logo: { "@type": "ImageObject", url: `${siteOrigin()}/logo.png` },
         },
         keywords: article.seo.keywords?.join(", "),
-        articleSection: ARTICLE_CATEGORIES.find((c) => c.id === article.category)?.label || article.category,
+        articleSection:
+            ARTICLE_CATEGORIES.find((c) => c.id === article.category)?.label || article.category,
         wordCount: article.reading.wordCount,
         timeRequired: `PT${Math.max(1, article.reading.readingMinutes)}M`,
         ...(image ? { image } : {}),
     };
-    return base;
 }
 
 export default async function ArticleDetailPage({ params }: Props) {
@@ -151,13 +186,6 @@ export default async function ArticleDetailPage({ params }: Props) {
     const origin = siteOrigin();
     const url = article.seo.canonicalUrl || `${origin}/articles/${article.slug}`;
     const jsonLd = buildJsonLd(article, url);
-
-    // Fire-and-forget view counter increment (won't block render).
-    adminDb
-        .collection("articles")
-        .doc(article.id)
-        .update({ viewCount: FieldValue.increment(1) })
-        .catch(() => {});
 
     const categoryLabel =
         ARTICLE_CATEGORIES.find((c) => c.id === article.category)?.label || article.category;
@@ -173,119 +201,151 @@ export default async function ArticleDetailPage({ params }: Props) {
             <div className="container-page py-10 sm:py-14">
                 <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
                     <article className="min-w-0 max-w-3xl">
-                <div className="mb-6 text-xs text-slate-500">
-                    <Link href="/articles" className="hover:underline">
-                        ← All articles
-                    </Link>
-                </div>
-
-                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider">
-                    <span className="rounded-full bg-primary-100 px-2.5 py-1 font-semibold text-primary-700">
-                        {categoryLabel}
-                    </span>
-                    {article.subject && <span className="text-slate-500">{article.subject}</span>}
-                </div>
-
-                <h1 className="font-display text-3xl font-bold text-slate-900 sm:text-4xl">{article.title}</h1>
-                {article.subtitle && (
-                    <p className="mt-3 text-lg text-slate-600">{article.subtitle}</p>
-                )}
-
-                <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                    {article.author.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={article.author.avatarUrl}
-                            alt={article.author.name}
-                            className="h-9 w-9 rounded-full object-cover"
-                        />
-                    ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
-                            {article.author.name[0]?.toUpperCase() || "D"}
-                        </div>
-                    )}
-                    <div>
-                        <p className="font-medium text-slate-700">{article.author.name}</p>
-                        <p className="text-xs">
-                            {article.publishedAt
-                                ? new Date(article.publishedAt).toLocaleDateString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                  })
-                                : ""}{" "}
-                            · {article.reading.readingMinutes} min read
-                        </p>
-                    </div>
-                </div>
-
-                {article.coverImageUrl && (
-                    <figure className="mt-8">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={article.coverImageUrl}
-                            alt={article.title}
-                            className="w-full rounded-2xl object-cover"
-                        />
-                        {article.coverCaption && (
-                            <figcaption className="mt-2 text-center text-xs text-slate-500">
-                                {article.coverCaption}
-                            </figcaption>
-                        )}
-                    </figure>
-                )}
-
-                <div id="article-body" className="prose prose-slate mt-10 max-w-none">
-                    <FormattedContent html={article.body} />
-                </div>
-
-                {article.tags.length > 0 && (
-                    <div className="mt-12 flex flex-wrap gap-2 border-t border-slate-200 pt-6">
-                        {article.tags.map((t) => (
-                            <Link
-                                key={t}
-                                href={`/articles?tag=${encodeURIComponent(t)}`}
-                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
-                            >
-                                #{t}
+                        <div className="mb-6 text-xs text-slate-500">
+                            <Link href="/articles" className="hover:underline">
+                                ← All articles
                             </Link>
-                        ))}
-                    </div>
-                )}
+                        </div>
 
-                {(article.author.bio || article.author.twitter || article.author.linkedin) && (
-                    <Card className="mt-10 p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">About the author</p>
-                        <p className="mt-2 font-semibold text-slate-900">{article.author.name}</p>
-                        {article.author.bio && (
-                            <p className="mt-1 text-sm text-slate-600">{article.author.bio}</p>
-                        )}
-                        <div className="mt-3 flex gap-3 text-xs">
-                            {article.author.twitter && (
-                                <a
-                                    className="text-primary-700 hover:underline"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    href={`https://twitter.com/${article.author.twitter.replace(/^@/, "")}`}
-                                >
-                                    Twitter
-                                </a>
-                            )}
-                            {article.author.linkedin && (
-                                <a
-                                    className="text-primary-700 hover:underline"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    href={article.author.linkedin}
-                                >
-                                    LinkedIn
-                                </a>
+                        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider">
+                            <span className="rounded-full bg-primary-100 px-2.5 py-1 font-semibold text-primary-700">
+                                {categoryLabel}
+                            </span>
+                            {article.subject && (
+                                <span className="text-slate-500">{article.subject}</span>
                             )}
                         </div>
-                    </Card>
-                )}
 
-                <ArticleDiscussion articleId={article.id} />
+                        <h1 className="font-display text-3xl font-bold text-slate-900 sm:text-4xl">
+                            {article.title}
+                        </h1>
+                        {article.subtitle && (
+                            <p className="mt-3 text-lg text-slate-600">{article.subtitle}</p>
+                        )}
+
+                        <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                            {/* Avatar handles arbitrary external URLs (Google,
+                                GitHub, Twitter) with an initials fallback on
+                                error — safer than Next/Image here because
+                                author photos come from many hosts that aren't
+                                in next.config's remotePatterns. */}
+                            <Avatar
+                                src={article.author.avatarUrl}
+                                name={article.author.name}
+                                size={36}
+                            />
+                            <div>
+                                <p className="font-medium text-slate-700">{article.author.name}</p>
+                                <p className="text-xs">
+                                    {article.publishedAt
+                                        ? new Date(article.publishedAt).toLocaleDateString("en-IN", {
+                                              day: "numeric",
+                                              month: "short",
+                                              year: "numeric",
+                                          })
+                                        : ""}{" "}
+                                    · {article.reading.readingMinutes} min read
+                                </p>
+                            </div>
+                        </div>
+
+                        {article.coverImageUrl && (
+                            <figure className="mt-8">
+                                {/* Aspect-locked container prevents CLS. `priority` preloads
+                                    the LCP image and `sizes` lets the browser pick the right
+                                    srcset candidate at first paint.
+
+                                    SVG covers fall back to a plain <img> because Next/Image's
+                                    raster optimization (AVIF/WebP/srcset) doesn't help vector
+                                    formats AND Next refuses to serve SVG by default
+                                    (`dangerouslyAllowSVG: false`) for security. Same width,
+                                    same priority hint via fetchpriority. */}
+                                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-slate-100">
+                                    {/\.svg(\?|$)/i.test(article.coverImageUrl) ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={article.coverImageUrl}
+                                            alt={article.title}
+                                            fetchPriority="high"
+                                            className="absolute inset-0 h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <Image
+                                            src={article.coverImageUrl}
+                                            alt={article.title}
+                                            fill
+                                            priority
+                                            sizes="(max-width: 768px) 100vw, 768px"
+                                            className="object-cover"
+                                        />
+                                    )}
+                                </div>
+                                {article.coverCaption && (
+                                    <figcaption className="mt-2 text-center text-xs text-slate-500">
+                                        {article.coverCaption}
+                                    </figcaption>
+                                )}
+                            </figure>
+                        )}
+
+                        <div id="article-body" className="prose prose-slate mt-10 max-w-none">
+                            <FormattedContent html={article.body} />
+                        </div>
+
+                        {article.tags.length > 0 && (
+                            <div className="mt-12 flex flex-wrap gap-2 border-t border-slate-200 pt-6">
+                                {article.tags.map((t) => (
+                                    <Link
+                                        key={t}
+                                        href={`/articles?tag=${encodeURIComponent(t)}`}
+                                        className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                                    >
+                                        #{t}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+
+                        {(article.author.bio || article.author.twitter || article.author.linkedin) && (
+                            <Card className="mt-10 p-5">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    About the author
+                                </p>
+                                <p className="mt-2 font-semibold text-slate-900">
+                                    {article.author.name}
+                                </p>
+                                {article.author.bio && (
+                                    <p className="mt-1 text-sm text-slate-600">
+                                        {article.author.bio}
+                                    </p>
+                                )}
+                                <div className="mt-3 flex gap-3 text-xs">
+                                    {article.author.twitter && (
+                                        <a
+                                            className="text-primary-700 hover:underline"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            href={`https://twitter.com/${article.author.twitter.replace(/^@/, "")}`}
+                                        >
+                                            Twitter
+                                        </a>
+                                    )}
+                                    {article.author.linkedin && (
+                                        <a
+                                            className="text-primary-700 hover:underline"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            href={article.author.linkedin}
+                                        >
+                                            LinkedIn
+                                        </a>
+                                    )}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Lazy-loaded — hydrates after first paint, doesn't bloat the initial bundle. */}
+                        <ArticleDiscussion articleId={article.id} />
                     </article>
 
                     {/* Right-rail TOC — sticky on desktop, hidden on mobile.

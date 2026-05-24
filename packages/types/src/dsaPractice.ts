@@ -222,20 +222,174 @@ export interface PracticeSheetItem {
     order: number;
 }
 
+/**
+ * A section within a sheet — a sub-journey within the broader sheet's
+ * journey. Optionally references a `PracticeTopic` so the section header
+ * can link to the topic's umbrella page (and inherit metadata from it).
+ *
+ *  - `problemSlugs` is the ordered list of problems in this section. Slugs
+ *    (not IDs) for portability — a sheet survives a doc rename, the
+ *    renderer drops slugs whose problems were unpublished without breaking.
+ *  - `topicSlug` is optional. When set, the section header links to
+ *    `/practice/topics/{topicSlug}` so users can dive deeper.
+ *  - `title` always wins — even when a topic is referenced, the sheet
+ *    author can override the heading to fit the sheet's narrative
+ *    (e.g. "Day 1 — Warm up" rather than the topic's "Two pointers").
+ */
+export interface PracticeSheetSection {
+    topicSlug: string | null;
+    title: string;
+    summary: string | null;
+    problemSlugs: string[];
+}
+
+export type PracticeSheetDifficulty = "beginner" | "intermediate" | "advanced";
+
+export interface PracticeSheetSeo {
+    metaTitle: string | null;
+    metaDescription: string | null;
+    ogImageUrl: string | null;
+    noIndex: boolean;
+}
+
+export const DEFAULT_PRACTICE_SHEET_SEO: PracticeSheetSeo = {
+    metaTitle: null,
+    metaDescription: null,
+    ogImageUrl: null,
+    noIndex: false,
+};
+
 export interface PracticeSheet {
     id: string;
     slug: string;
     kind: PracticeKind | "mixed";
     title: string;
+    /** Short tagline shown under the title in lists + sheet hero. */
+    subtitle: string | null;
     description: string;
     coverImageUrl: string | null;
+    /**
+     * LEGACY: flat ordered problem list with a free-text `section` string.
+     * Kept for backwards compatibility with sheets created before the
+     * sections-with-topics model. Renderers prefer `sections[]` if present
+     * and fall back to grouping `items[]` by `section` when not.
+     */
     items: PracticeSheetItem[];
+    /** NEW: rich sections — each with optional topic reference + ordered problems. */
+    sections: PracticeSheetSection[];
+    difficulty: PracticeSheetDifficulty | null;
+    /** Rough total time investment in hours (rendered as "≈X hrs"). */
+    estimatedHours: number | null;
     tags: string[];
     isOfficial: boolean;
+    isFeatured: boolean;
     status: PracticeStatus;
+    seo: PracticeSheetSeo;
     createdBy: string;
     createdAt: Date;
     updatedAt: Date;
+}
+
+export interface CreatePracticeSheetInput {
+    slug?: string;
+    title: string;
+    kind: PracticeKind | "mixed";
+    subtitle?: string | null;
+    description?: string;
+    coverImageUrl?: string | null;
+    sections?: PracticeSheetSection[];
+    difficulty?: PracticeSheetDifficulty | null;
+    estimatedHours?: number | null;
+    tags?: string[];
+    isOfficial?: boolean;
+    isFeatured?: boolean;
+    status?: PracticeStatus;
+    seo?: Partial<PracticeSheetSeo>;
+    createdBy?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Topics — canonical "umbrella" pages per pattern (e.g. /practice/topics/two-pointers)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * A canonical, backlinkable page that teaches one pattern (two-pointers,
+ * sliding-window, joins, etc.) and lists every published problem that uses
+ * it. Distinct from a sheet — a sheet is a *journey* (ordered, multi-topic);
+ * a topic is the *reference page* for one pattern.
+ *
+ *  - Public route: `/practice/topics/{slug}`
+ *  - Auto-pulls all published problems where `primaryPattern === topic.pattern`,
+ *    plus any explicitly pinned problems via `pinnedProblemIds`.
+ *  - Doc ID is the slug (matches the articles / courses pattern), so detail
+ *    pages do O(1) reads via `doc(slug)` with no index lookup.
+ */
+export interface PracticeTopicSeo {
+    metaTitle: string | null;
+    metaDescription: string | null;
+    ogImageUrl: string | null;
+    /** When true, emit <meta name="robots" content="noindex">. */
+    noIndex: boolean;
+}
+
+export interface PracticeTopic {
+    id: string;
+    slug: string;
+    kind: PracticeKind;
+    /** One of the pattern IDs from ALL_PATTERNS — the link to the problem catalog. */
+    pattern: PracticePattern;
+    title: string;
+    subtitle: string | null;
+    /** Short blurb shown in lists + at top of the topic page. */
+    summary: string;
+    /** Rich HTML — "what is this pattern, when do you use it". */
+    introHtml: string;
+    /** Rich HTML — mental model, when-to-use, traps, related patterns. */
+    mentalModelHtml: string;
+    coverImageUrl: string | null;
+    /** Quiz slug (links to existing `quizzes` collection) for a warm-up. */
+    warmupQuizSlug: string | null;
+    /** Slugs of topics a learner should know first. */
+    prerequisiteTopicSlugs: string[];
+    /** Slugs of related topics shown at the bottom ("what to learn next"). */
+    relatedTopicSlugs: string[];
+    /** Optionally pin specific problems (slug list). Otherwise auto-fill by `pattern`. */
+    pinnedProblemSlugs: string[];
+    tags: string[];
+    isFeatured: boolean;
+    status: PracticeStatus;
+    seo: PracticeTopicSeo;
+    createdBy: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export const DEFAULT_PRACTICE_TOPIC_SEO: PracticeTopicSeo = {
+    metaTitle: null,
+    metaDescription: null,
+    ogImageUrl: null,
+    noIndex: false,
+};
+
+export interface CreatePracticeTopicInput {
+    slug?: string;
+    title: string;
+    kind: PracticeKind;
+    pattern: PracticePattern;
+    subtitle?: string | null;
+    summary?: string;
+    introHtml?: string;
+    mentalModelHtml?: string;
+    coverImageUrl?: string | null;
+    warmupQuizSlug?: string | null;
+    prerequisiteTopicSlugs?: string[];
+    relatedTopicSlugs?: string[];
+    pinnedProblemSlugs?: string[];
+    tags?: string[];
+    isFeatured?: boolean;
+    status?: PracticeStatus;
+    seo?: Partial<PracticeTopicSeo>;
+    createdBy?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────

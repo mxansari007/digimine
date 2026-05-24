@@ -52,10 +52,22 @@ export type AppSidebarRole = "student" | "teacher" | "admin" | "institute";
 
 export interface AppSidebarNavItem {
   name: string;
-  href: string;
+  /**
+   * Target href. Optional when the item is a group parent (just has children
+   * and no destination of its own).
+   */
+  href?: string;
   icon: ComponentType<{ className?: string }>;
   /** When true, only highlight this item on exact path match (not subpaths). */
   exact?: boolean;
+  /**
+   * Sub-items rendered indented under the parent. When present, clicking the
+   * parent toggles expand/collapse rather than navigating. The parent button
+   * shows the "active" tint when ANY child is active.
+   */
+  children?: AppSidebarNavItem[];
+  /** Group starts collapsed by default. When unset, expanded. */
+  defaultCollapsed?: boolean;
 }
 
 interface AppSidebarUser {
@@ -130,6 +142,134 @@ function DefaultLink({
   );
 }
 
+/**
+ * True if `item` or any of its `children` (recursive) matches the current
+ * pathname — used to auto-expand a group when the user is on one of its
+ * sub-pages, and to tint the parent button.
+ */
+function itemOrChildActive(item: AppSidebarNavItem, pathname: string): boolean {
+  if (item.href && isNavItemActive(pathname, item.href, item.exact)) return true;
+  for (const c of item.children || []) {
+    if (itemOrChildActive(c, pathname)) return true;
+  }
+  return false;
+}
+
+/** Leaf nav row — a real <Link> to one page. */
+function NavLeaf({
+  item,
+  pathname,
+  LinkComponent,
+  onClose,
+  indented = false,
+}: {
+  item: AppSidebarNavItem;
+  pathname: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  LinkComponent: ComponentType<any>;
+  onClose?: () => void;
+  indented?: boolean;
+}) {
+  const Icon = item.icon;
+  const isActive = item.href
+    ? isNavItemActive(pathname, item.href, item.exact)
+    : false;
+  return (
+    <LinkComponent
+      href={item.href || "#"}
+      onClick={onClose}
+      className={
+        (isActive
+          ? "relative flex items-center gap-3 rounded-xl border border-primary-200/80 bg-primary-50/80 text-sm font-semibold text-primary-800 shadow-sm shadow-primary-950/5"
+          : "relative flex items-center gap-3 rounded-xl border border-transparent text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 hover:text-primary-900") +
+        (indented ? " pl-10 pr-4 py-2" : " px-4 py-2.5")
+      }
+    >
+      {indented ? (
+        <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50" />
+      ) : (
+        <Icon className="w-5 h-5" />
+      )}
+      <span>{item.name}</span>
+      {isActive ? (
+        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500 shadow-[0_0_10px_rgba(82,109,104,0.18)]" />
+      ) : null}
+    </LinkComponent>
+  );
+}
+
+/** Group nav row — a toggleable parent that reveals indented children. */
+function NavGroup({
+  item,
+  pathname,
+  LinkComponent,
+  onClose,
+}: {
+  item: AppSidebarNavItem;
+  pathname: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  LinkComponent: ComponentType<any>;
+  onClose?: () => void;
+}) {
+  // Auto-expand when the user is somewhere inside the group. After the
+  // initial mount, the user controls expansion via the chevron.
+  const childActive = (item.children || []).some((c) =>
+    itemOrChildActive(c, pathname)
+  );
+  const [open, setOpen] = useState(
+    childActive || !item.defaultCollapsed
+  );
+  const Icon = item.icon;
+  const parentActive = childActive;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={
+          parentActive
+            ? "relative flex w-full items-center gap-3 rounded-xl border border-primary-200/80 bg-primary-50/40 px-4 py-2.5 text-sm font-semibold text-primary-800"
+            : "relative flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 hover:text-primary-900"
+        }
+      >
+        <Icon className="w-5 h-5" />
+        <span className="flex-1 text-left">{item.name}</span>
+        <svg
+          aria-hidden
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className={
+            "h-4 w-4 opacity-60 transition-transform " +
+            (open ? "rotate-180" : "")
+          }
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+      {open ? (
+        <div className="mt-1 space-y-0.5 border-l border-slate-200/80 ml-5 pl-0">
+          {(item.children || []).map((child) => (
+            <NavLeaf
+              key={child.href || child.name}
+              item={child}
+              pathname={pathname}
+              LinkComponent={LinkComponent}
+              onClose={onClose}
+              indented
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AppSidebar({
   role,
   pathname,
@@ -193,28 +333,25 @@ export function AppSidebar({
         </div>
 
         <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
-          {nav.map((item) => {
-            const isActive = isNavItemActive(pathname, item.href, item.exact);
-            const Icon = item.icon;
-            return (
-              <LinkComponent
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={
-                  isActive
-                    ? "relative flex items-center gap-3 rounded-xl border border-primary-200/80 bg-primary-50/80 px-4 py-2.5 text-sm font-semibold text-primary-800 shadow-sm shadow-primary-950/5"
-                    : "relative flex items-center gap-3 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 hover:text-primary-900"
-                }
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.name}</span>
-                {isActive ? (
-                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500 shadow-[0_0_10px_rgba(82,109,104,0.18)]" />
-                ) : null}
-              </LinkComponent>
-            );
-          })}
+          {nav.map((item) =>
+            item.children && item.children.length > 0 ? (
+              <NavGroup
+                key={item.name}
+                item={item}
+                pathname={pathname}
+                LinkComponent={LinkComponent}
+                onClose={onClose}
+              />
+            ) : (
+              <NavLeaf
+                key={item.href || item.name}
+                item={item}
+                pathname={pathname}
+                LinkComponent={LinkComponent}
+                onClose={onClose}
+              />
+            )
+          )}
         </nav>
 
         <div className="border-t border-slate-200/80 bg-slate-50/60 p-4">

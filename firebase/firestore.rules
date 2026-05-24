@@ -1053,6 +1053,12 @@ service cloud.firestore {
       allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
       allow create, update, delete: if isAdmin();
     }
+    // Practice topics — canonical "umbrella" pages per pattern (e.g.
+    // /practice/topics/two-pointers). Same gate as sheets.
+    match /practiceTopics/{topicId} {
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
 
     // Submissions, progress, mastery — strictly owner-scoped. Judging +
     // scheduling happen server-side (admin SDK), so client writes are
