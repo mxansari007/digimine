@@ -13,6 +13,18 @@
  */
 import type { Metadata } from "next";
 
+// Re-export the dynamic OG image helpers so consumers can do
+// `import { ogImageUrl } from "@/lib/seo"`.
+export {
+    ogImageUrl,
+    articleOgImage,
+    practiceOgImage,
+    testOgImage,
+    type OgImageParams,
+    type OgImageStat,
+    type OgAccent,
+} from "./og";
+
 export const SITE_NAME = "PlacementRanker";
 export const SITE_TAGLINE = "Tests, quizzes, courses & marketplace for learners and educators";
 export const SITE_TWITTER = "@placementranker";
