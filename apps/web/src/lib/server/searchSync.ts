@@ -99,15 +99,31 @@ async function buildAll(): Promise<{ docs: SearchDoc[]; counts: ReindexCounts }>
         const x = d.data() || {};
         if (!isPublic(x)) continue;
         const slug = str(x.slug, d.id);
+        const num = typeof x.problemNumber === "number" ? x.problemNumber : null;
+        const titleText = str(x.title);
+        // Prepend "#N" to the search title so the number is BOTH visible in
+        // results and searchable by typing the digits ("1" → matches "#1").
+        // Meilisearch's default tokenizer treats # as a separator, so "#1"
+        // becomes the token "1" — typing either form finds the problem.
+        const title = num != null ? `#${num} ${titleText}` : titleText;
+        // Also push the raw number + "#N" form as tags. This gives an
+        // explicit boost when the user queries by number alone, and is
+        // future-proof if we move number search to a filter later.
+        const tags = [
+            ...arr<string>(x.tags),
+            str(x.primaryPattern),
+            num != null ? String(num) : "",
+            num != null ? `#${num}` : "",
+        ].filter(Boolean);
         docs.push({
             id: `problem__${slug}`,
             type: "problem",
-            title: str(x.title),
+            title,
             description: `${str(x.kind, "DSA").toUpperCase()} · ${str(x.difficulty, "easy")}`,
             content: str(x.statementHtml).replace(/<[^>]+>/g, " ").slice(0, 3000),
             slug,
             url: `/practice/problems/${slug}`,
-            tags: [...arr<string>(x.tags), str(x.primaryPattern)].filter(Boolean),
+            tags,
             category: str(x.primaryPattern),
             publishedAtMs: toMillis(x.createdAt),
             isFree: true,
