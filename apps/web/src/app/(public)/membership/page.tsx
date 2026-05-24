@@ -325,7 +325,7 @@ export default function MembershipPage() {
                             </span>
                         </h1>
                         <p className="mx-auto mt-5 max-w-2xl text-base text-slate-300 sm:text-lg">
-                            Premium DSA & SQL problems, mock test series, expert quizzes, and full courses — built specifically for Indian placement prep, by people who've cracked it.
+                            Premium DSA &amp; SQL problems, mock test series, expert quizzes, and full courses — built specifically for Indian placement prep, by people who&apos;ve cracked it.
                         </p>
 
                         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -548,7 +548,7 @@ export default function MembershipPage() {
                                     </div>
                                     {currentPlan === freePlan.code ? (
                                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                            You're on Free
+                                            You&apos;re on Free
                                         </span>
                                     ) : (
                                         <Button variant="ghost" size="sm" onClick={() => subscribe(freePlan)}>
@@ -676,7 +676,7 @@ export default function MembershipPage() {
                             Frequently asked questions
                         </h2>
                         <p className="mt-3 text-base text-slate-600">
-                            Can't find what you're looking for?{" "}
+                            Can&apos;t find what you&apos;re looking for?{" "}
                             <Link href="/contact" className="font-medium text-primary-700 hover:underline">
                                 Send us a note →
                             </Link>
