@@ -136,7 +136,13 @@ function DashboardSkeleton() {
     );
 }
 
-type ProblemRow = { id: string; slug: string; kind: string; title: string; difficulty: string; primaryPattern: string };
+type ProblemRow = { id: string; slug: string; kind: string; title: string; difficulty: string; primaryPattern: string; problemNumber: number | null };
+
+// Page size for the dashboard's left "Problems" panel. Small enough that the
+// panel doesn't dominate the page; large enough that the user gets a real
+// sense of the catalog without scrolling. Server-side paginated so we
+// never ship more than this in one request.
+const HUB_PAGE_SIZE = 15;
 
 export default function PracticeHubPage() {
     const { firebaseUser, isAuthenticated, loading } = useAuthContext();
@@ -144,6 +150,9 @@ export default function PracticeHubPage() {
     const [busy, setBusy] = useState(true);
     const [problems, setProblems] = useState<ProblemRow[]>([]);
     const [problemsLoading, setProblemsLoading] = useState(true);
+    const [problemPage, setProblemPage] = useState(1);
+    const [problemTotalPages, setProblemTotalPages] = useState(1);
+    const [problemTotal, setProblemTotal] = useState(0);
 
     useEffect(() => {
         if (loading) return;
@@ -158,14 +167,20 @@ export default function PracticeHubPage() {
             .finally(() => setBusy(false));
     }, [firebaseUser, loading]);
 
-    // Problem list (public) — shown in focus on the dashboard.
+    // Paginated problem list — server returns problemNumber-sorted slices so
+    // the dashboard never holds 1000+ rows in memory.
     useEffect(() => {
-        fetch("/api/practice/problems")
+        setProblemsLoading(true);
+        fetch(`/api/practice/problems?page=${problemPage}&pageSize=${HUB_PAGE_SIZE}`)
             .then((r) => r.json())
-            .then((d) => setProblems(Array.isArray(d.items) ? d.items.slice(0, 30) : []))
+            .then((d) => {
+                setProblems(Array.isArray(d.items) ? d.items : []);
+                setProblemTotalPages(d.totalPages || 1);
+                setProblemTotal(d.total || 0);
+            })
             .catch(() => setProblems([]))
             .finally(() => setProblemsLoading(false));
-    }, []);
+    }, [problemPage]);
 
     return (
         <main className="bg-slate-50 min-h-screen">
@@ -247,7 +262,7 @@ export default function PracticeHubPage() {
 
                         {/* ── Problems (fixed left column) + everything else (right) ── */}
                         <div className="grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
-                          {/* LEFT — Problems list, fixed-height scroll, sticky on desktop */}
+                          {/* LEFT — Problems list, paginated server-side, sticky on desktop */}
                           <Card className="p-5 lg:sticky lg:top-4">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-semibold text-slate-900">Problems</h2>
@@ -255,25 +270,52 @@ export default function PracticeHubPage() {
                                         View all →
                                     </Link>
                                 </div>
-                                <div className="mt-3 max-h-[34rem] divide-y divide-slate-100 overflow-y-auto">
+                                <div className="mt-3 divide-y divide-slate-100">
                                     {problemsLoading ? (
                                         <div className="py-1"><SkRows n={8} /></div>
                                     ) : problems.length === 0 ? (
                                         <p className="py-6 text-center text-sm text-slate-400">No problems yet.</p>
                                     ) : (
-                                        problems.map((p, i) => (
+                                        problems.map((p) => (
                                             <Link
                                                 key={p.id}
                                                 href={`/practice/problems/${p.slug}`}
                                                 className="flex items-center gap-2.5 py-2.5 hover:bg-slate-50"
                                             >
-                                                <span className="w-5 text-right text-xs text-slate-400">{i + 1}</span>
+                                                <span className="w-7 text-right font-mono text-[11px] text-slate-400">
+                                                    {p.problemNumber != null ? `#${p.problemNumber}` : "—"}
+                                                </span>
                                                 <span className="flex-1 truncate text-sm font-medium text-slate-800">{p.title}</span>
                                                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${diffChip(p.difficulty)}`}>{p.difficulty}</span>
                                             </Link>
                                         ))
                                     )}
                                 </div>
+                                {/* Pagination footer — visible only when there's more than one page. */}
+                                {problemTotalPages > 1 && (
+                                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setProblemPage((p) => Math.max(1, p - 1))}
+                                            disabled={problemPage <= 1 || problemsLoading}
+                                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            ← Prev
+                                        </button>
+                                        <span className="text-[11px] text-slate-500">
+                                            Page <span className="font-semibold text-slate-700">{problemPage}</span> of {problemTotalPages}
+                                            <span className="ml-1 text-slate-400">· {problemTotal} total</span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProblemPage((p) => Math.min(problemTotalPages, p + 1))}
+                                            disabled={problemPage >= problemTotalPages || problemsLoading}
+                                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Next →
+                                        </button>
+                                    </div>
+                                )}
                             </Card>
 
                           {/* RIGHT — analytics + feeds restructured around Problems */}

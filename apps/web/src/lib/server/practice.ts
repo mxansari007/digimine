@@ -343,18 +343,20 @@ export async function recordSubmission(args: RecordArgs) {
  * Used by the server-rendered /practice/problems catalog page so the full list
  * is in the initial HTML (indexable), not fetched client-side.
  */
-export async function listPublishedProblemSummaries(max = 300) {
+export async function listPublishedProblemSummaries(max = 2000) {
     const snap = await adminDb
         .collection(PROBLEMS)
         .where("status", "==", "published")
         .limit(max)
         .get();
     const items = snap.docs.map((d) => serializeProblemSummary(d.id, d.data() || {}));
-    const diffRank: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+    // Catalog sort: numbered problems ascending (LeetCode-style), then any
+    // unnumbered ones alphabetically. Featured is shown as a badge in the
+    // UI but does NOT jumble the list — predictability beats novelty here.
     items.sort((a, b) => {
-        if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
-        const dr = (diffRank[a.difficulty] ?? 1) - (diffRank[b.difficulty] ?? 1);
-        if (dr !== 0) return dr;
+        const an = typeof a.problemNumber === "number" ? a.problemNumber : Number.POSITIVE_INFINITY;
+        const bn = typeof b.problemNumber === "number" ? b.problemNumber : Number.POSITIVE_INFINITY;
+        if (an !== bn) return an - bn;
         return a.title.localeCompare(b.title);
     });
     return items;

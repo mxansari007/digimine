@@ -53,6 +53,32 @@
             ]
         },
         {
+            "collectionGroup": "practiceProblems",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "problemNumber", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "practiceProblems",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "kind", "order": "ASCENDING" },
+                { "fieldPath": "problemNumber", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "practiceProblems",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "primaryPattern", "order": "ASCENDING" },
+                { "fieldPath": "problemNumber", "order": "ASCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "practiceProgress",
             "queryScope": "COLLECTION",
             "fields": [

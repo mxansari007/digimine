@@ -26,12 +26,18 @@ export default function AdminPracticePage() {
     const [kind, setKind] = useState<"all" | "dsa" | "sql">("all");
     const [search, setSearch] = useState("");
     const [swapping, setSwapping] = useState<string | null>(null);
+    // ── Pagination state ───────────────────────────────────────────────
+    // The list is fetched in full from Firestore (capped at 2000 so we cover
+    // the planned 1000-problem catalog with headroom), then paginated and
+    // searched client-side. Searching while paginated jumps back to page 1.
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
     const sel = useBulkSelection<string>();
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            setItems(await listProblems({ kind, limit: 500 }));
+            setItems(await listProblems({ kind, limit: 2000 }));
         } finally {
             setLoading(false);
         }
@@ -64,7 +70,25 @@ export default function AdminPracticePage() {
         });
     }, [items, search]);
 
-    const visibleIds = useMemo(() => filtered.map((p) => p.id), [filtered]);
+    // Pagination is applied AFTER filter + sort so search results paginate
+    // sensibly. `visibleIds` covers only the current page — that's what the
+    // bulk-select range interpretation should respect (shift-clicking should
+    // select within the visible page, not across pages).
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const pageStart = (safePage - 1) * pageSize;
+    const pageItems = useMemo(
+        () => filtered.slice(pageStart, pageStart + pageSize),
+        [filtered, pageStart, pageSize]
+    );
+    const visibleIds = useMemo(() => pageItems.map((p) => p.id), [pageItems]);
+
+    // Jump to page 1 whenever the filter/search/page-size changes so the
+    // user isn't stuck on an empty page 9 after typing a query that
+    // narrows results to one page.
+    useEffect(() => {
+        setPage(1);
+    }, [search, kind, pageSize]);
 
     const swap = async (i: number, dir: -1 | 1) => {
         const a = filtered[i];
@@ -149,6 +173,17 @@ export default function AdminPracticePage() {
                     <option value="dsa">DSA</option>
                     <option value="sql">SQL</option>
                 </select>
+                <select
+                    className="field max-w-[110px]"
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    title="Items per page"
+                >
+                    <option value={25}>25 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                    <option value={200}>200 / page</option>
+                </select>
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                     <input
                         type="checkbox"
@@ -157,7 +192,7 @@ export default function AdminPracticePage() {
                             e.target.checked ? sel.selectAll(visibleIds) : sel.clear()
                         }
                     />
-                    Select all visible ({filtered.length})
+                    Select page ({pageItems.length}) · {filtered.length} total
                 </label>
             </Card>
 
@@ -184,8 +219,11 @@ export default function AdminPracticePage() {
                 </Card>
             ) : (
                 <div className="space-y-2">
-                    {filtered.map((p, i) => {
+                    {pageItems.map((p, pageIdx) => {
                         const selected = sel.isSelected(p.id);
+                        // Absolute index in `filtered` — needed so the up/down
+                        // arrows can swap across page boundaries correctly.
+                        const i = pageStart + pageIdx;
                         return (
                             <Card
                                 key={p.id}
@@ -295,6 +333,54 @@ export default function AdminPracticePage() {
                             </Card>
                         );
                     })}
+
+                    {/* Pagination footer */}
+                    {totalPages > 1 && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                            <span className="text-xs text-slate-500">
+                                Showing <span className="font-semibold text-slate-700">{pageStart + 1}</span>–
+                                <span className="font-semibold text-slate-700">{pageStart + pageItems.length}</span> of{" "}
+                                <span className="font-semibold text-slate-700">{filtered.length}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage(1)}
+                                    disabled={safePage <= 1}
+                                >
+                                    « First
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={safePage <= 1}
+                                >
+                                    ← Prev
+                                </Button>
+                                <span className="px-2 text-sm font-medium text-slate-700">
+                                    Page {safePage} of {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={safePage >= totalPages}
+                                >
+                                    Next →
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage(totalPages)}
+                                    disabled={safePage >= totalPages}
+                                >
+                                    Last »
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
