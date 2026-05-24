@@ -121,6 +121,142 @@ export function patternMeta(id: PracticePattern): PatternMeta | undefined {
     return ALL_PATTERNS.find((p) => p.id === id);
 }
 
+/**
+ * Common spellings people type / link to that we want to map back to the
+ * canonical pattern id. Lowercased, hyphen-normalised on both sides.
+ *
+ * Articles, social posts, and external backlinks tend to write things like
+ * "?pattern=two-pointer" or "?pattern=dp" — and unless we normalise them
+ * here, the filter silently shows zero results. Treat this as the same
+ * surface as a 301: canonical id wins, but the user's link still works.
+ */
+const PATTERN_ALIASES: Record<string, PracticePattern> = {
+    // arrays-hashing
+    "array-hashing": "arrays-hashing",
+    "arrays-and-hashing": "arrays-hashing",
+    "hashing": "arrays-hashing",
+    "hash-map": "arrays-hashing",
+    "hashmap": "arrays-hashing",
+    "array": "arrays-hashing",
+    "arrays": "arrays-hashing",
+    // two-pointers
+    "two-pointer": "two-pointers",
+    "twopointer": "two-pointers",
+    "twopointers": "two-pointers",
+    // sliding-window
+    "slidingwindow": "sliding-window",
+    "window": "sliding-window",
+    // stack
+    "stacks": "stack",
+    // binary-search
+    "binarysearch": "binary-search",
+    "binary": "binary-search",
+    // linked-list
+    "linkedlist": "linked-list",
+    "list": "linked-list",
+    "linked-lists": "linked-list",
+    // trees
+    "tree": "trees",
+    "binary-tree": "trees",
+    "bst": "trees",
+    // dp
+    "dp": "dp-1d",
+    "dynamic-programming": "dp-1d",
+    "dp-1": "dp-1d",
+    "1d-dp": "dp-1d",
+    "dp-2": "dp-2d",
+    "2d-dp": "dp-2d",
+    // graphs
+    "graph": "graphs",
+    "bfs": "graphs",
+    "dfs": "graphs",
+    // backtracking
+    "backtrack": "backtracking",
+    "back-tracking": "backtracking",
+    // heap
+    "heap": "heap-priority-queue",
+    "priority-queue": "heap-priority-queue",
+    "pq": "heap-priority-queue",
+    // tries
+    "trie": "tries",
+    "prefix-tree": "tries",
+    // intervals
+    "interval": "intervals",
+    // bit-manipulation
+    "bit": "bit-manipulation",
+    "bits": "bit-manipulation",
+    "bitwise": "bit-manipulation",
+    // math-geometry
+    "math": "math-geometry",
+    "maths": "math-geometry",
+    "geometry": "math-geometry",
+    // monotonic-stack
+    "monotonic": "monotonic-stack",
+    // prefix-sum
+    "prefix": "prefix-sum",
+    "prefixsum": "prefix-sum",
+    // matrix
+    "matrices": "matrix",
+    "grid": "matrix",
+    // recursion
+    "recursive": "recursion",
+    // divide-conquer
+    "divide-and-conquer": "divide-conquer",
+    "dnc": "divide-conquer",
+    // union-find
+    "union": "union-find",
+    "disjoint-set": "union-find",
+    "dsu": "union-find",
+    // advanced-graphs
+    "advanced-graph": "advanced-graphs",
+    "dijkstra": "advanced-graphs",
+    "mst": "advanced-graphs",
+    // sql aliases
+    "sql": "sql-select-filter",
+    "join": "sql-joins",
+    "joins": "sql-joins",
+    "aggregation": "sql-aggregation",
+    "group-by": "sql-group-having",
+    "groupby": "sql-group-having",
+    "having": "sql-group-having",
+    "subquery": "sql-subqueries",
+    "subqueries": "sql-subqueries",
+    "window-functions": "sql-window-functions",
+    "window-function": "sql-window-functions",
+    "cte": "sql-cte",
+    "ctes": "sql-cte",
+    "with": "sql-cte",
+    "union-sql": "sql-set-ops",
+    "set-ops": "sql-set-ops",
+};
+
+/**
+ * Normalise an arbitrary URL/query pattern string to a canonical pattern
+ * id. Accepts:
+ *   - exact pattern ids (`two-pointers`)
+ *   - common misspellings / aliases (`two-pointer`, `dp`, `bfs` …)
+ *   - slug-form labels (`two pointers`, `Two_Pointers`, `Two-Pointers`)
+ *   - case-insensitive input
+ *
+ * Returns the canonical id, or `null` if no match. Use this everywhere
+ * an external link could feed a pattern slug into the app.
+ */
+export function normalizePatternSlug(input: string | undefined | null): PracticePattern | null {
+    if (!input) return null;
+    const key = String(input).trim().toLowerCase().replace(/[\s_]+/g, "-");
+    if (!key) return null;
+    // Exact match against canonical id.
+    if (ALL_PATTERNS.some((p) => p.id === key)) return key as PracticePattern;
+    // Alias match.
+    if (PATTERN_ALIASES[key]) return PATTERN_ALIASES[key];
+    // Last resort: slugified label (e.g. "Two Pointers" → "two-pointers").
+    const byLabel = ALL_PATTERNS.find(
+        (p) => p.label.toLowerCase().replace(/[\s_/]+/g, "-").replace(/[^a-z0-9-]/g, "") === key
+    );
+    if (byLabel) return byLabel.id;
+    return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Problems
 // ─────────────────────────────────────────────────────────────────────
