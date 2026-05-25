@@ -9,6 +9,31 @@
             ]
         },
         {
+            "collectionGroup": "otp_attempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "uid", "order": "ASCENDING" },
+                { "fieldPath": "phone", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "otp_attempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "uid", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "otp_attempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "ipHash", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "ASCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "articles",
             "queryScope": "COLLECTION",
             "fields": [
@@ -136,6 +161,14 @@
                 { "fieldPath": "studentId", "order": "ASCENDING" },
                 { "fieldPath": "teacherId", "order": "ASCENDING" },
                 { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "students",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "studentId", "order": "ASCENDING" },
+                { "fieldPath": "teacherId", "order": "ASCENDING" }
             ]
         },
 
