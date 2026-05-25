@@ -1,157 +1,54 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useId } from "react";
+/**
+ * Step 1 of teacher onboarding — verify the teacher's phone number with a
+ * Firebase OTP, then ping `/api/teacher/onboard` (step="phone") so the
+ * server can run uniqueness checks against the `teachers` collection.
+ *
+ * The OTP mechanics live in `usePhoneOtp` — see that hook for why we no
+ * longer cache the RecaptchaVerifier or hide the host with `display: none`.
+ */
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
 import { Card, Button } from "@digimine/ui";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { usePhoneOtp } from "@/lib/auth/usePhoneOtp";
 
 export default function PhoneOnboardingPage() {
     const router = useRouter();
     const { firebaseUser, isAuthenticated, loading: authLoading } = useAuthContext();
-    const [phone, setPhone] = useState("");
-    const [otp, setOtp] = useState("");
-    const [step, setStep] = useState<"phone" | "otp">("phone");
-    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-    const [error, setError] = useState("");
-    const [sending, setSending] = useState(false);
-    const [verifying, setVerifying] = useState(false);
-    const [countdown, setCountdown] = useState(0);
 
-    // Dev mode: bypass Firebase phone auth on localhost for easier testing
-    const isDevMode = typeof window !== "undefined" && window.location.hostname === "localhost";
-
-    // Unique container ID so React Strict Mode / Fast Refresh never collides
-    const containerId = useRef(`recaptcha-${useId()}-${Date.now()}`);
-    const verifierRef = useRef<RecaptchaVerifier | null>(null);
-
-    // 30-second cooldown timer to prevent OTP abuse
-    useEffect(() => {
-        if (countdown <= 0) return;
-        const timer = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [countdown]);
+    const otp = usePhoneOtp();
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/login");
     }, [authLoading, isAuthenticated, router]);
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            try {
-                verifierRef.current?.clear();
-            } catch {
-                // ignore
-            }
-        };
-    }, []);
+    const onVerify = async () => {
+        const result = await otp.verifyOtp();
+        if (!result) return; // error already set on the hook
 
-    const getOrCreateVerifier = useCallback((): RecaptchaVerifier => {
-        const container = document.getElementById(containerId.current);
-        if (!container) {
-            throw new Error("reCAPTCHA container not found");
-        }
-
-        // If we already have a verifier, reuse it (Firebase handles expiry internally)
-        if (verifierRef.current) {
-            return verifierRef.current;
-        }
-
-        const verifier = new RecaptchaVerifier(auth, containerId.current, {
-            size: "invisible",
-            callback: () => {
-                // reCAPTCHA solved
-            },
-            "expired-callback": () => {
-                setError("reCAPTCHA expired. Please try again.");
-            },
+        // Uniqueness check + server-side phone-on-user write live in the
+        // teacher onboard endpoint.
+        const res = await teacherFetch(firebaseUser, "/api/teacher/onboard", {
+            method: "POST",
+            body: JSON.stringify({ step: "phone", phone: otp.phone, uid: firebaseUser?.uid }),
         });
-
-        verifierRef.current = verifier;
-        return verifier;
-    }, []);
-
-    const sendOtp = useCallback(async () => {
-        setError("");
-        if (!phone || phone.length < 8) {
-            setError("Enter a valid phone number.");
+        if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            otp.setOtp(""); // let them retry the same OTP with a different number
+            // Surface server-side rejection (e.g. phone already in use).
+            // The hook's `error` is reserved for OTP-level failures; for
+            // server errors we route through a window alert until we have
+            // a shared toast.
+            window.alert(d?.error || "We couldn't save that phone number. Please try again.");
             return;
         }
-
-        setSending(true);
-        try {
-            if (isDevMode) {
-                // Dev bypass: simulate OTP send on localhost
-                console.log("[DEV MODE] Bypassing Firebase phone auth. Any 6-digit OTP will work.");
-                const mockConfirm = async (code: string) => {
-                    console.log(`[DEV MODE] Mock OTP confirmed with code: ${code}`);
-                };
-                setConfirmationResult({ confirm: mockConfirm } as unknown as ConfirmationResult);
-                setStep("otp");
-                setCountdown(30);
-                setSending(false);
-                return;
-            }
-
-            const verifier = getOrCreateVerifier();
-            const result = await signInWithPhoneNumber(auth, phone, verifier);
-            setConfirmationResult(result);
-            setStep("otp");
-            setCountdown(30);
-        } catch (err: any) {
-            let msg = err.message || "Failed to send OTP.";
-            if (err.code === "auth/invalid-app-credential") {
-                msg = "Unable to send OTP right now. Please try again later or contact support.";
-                console.error("Firebase auth/invalid-app-credential:", err);
-            } else if (err.code === "auth/invalid-phone-number") {
-                msg = "Invalid phone number format. Use +91 followed by 10 digits.";
-            } else if (err.code === "auth/quota-exceeded") {
-                msg = "SMS quota exceeded. Try again later.";
-            } else if (err.code === "auth/captcha-check-failed") {
-                msg = "reCAPTCHA verification failed. Please refresh and try again.";
-            }
-            setError(msg);
-        }
-        setSending(false);
-    }, [phone, isDevMode, getOrCreateVerifier]);
-
-    const verifyOtp = useCallback(async () => {
-        if (!confirmationResult || otp.length < 6) {
-            setError("Enter the 6-digit OTP.");
-            return;
-        }
-        setVerifying(true);
-        setError("");
-        try {
-            await confirmationResult.confirm(otp);
-            const res = await teacherFetch(firebaseUser, "/api/teacher/onboard", {
-                method: "POST",
-                body: JSON.stringify({ step: "phone", phone, uid: firebaseUser?.uid }),
-            });
-            if (!res.ok) {
-                const d = await res.json();
-                setError(d.error);
-                return;
-            }
-            router.push(`/teacher/onboarding/payment?phone=${encodeURIComponent(phone)}`);
-        } catch (err: any) {
-            setError(err.message || "Invalid OTP.");
-        }
-        setVerifying(false);
-    }, [confirmationResult, otp, phone, firebaseUser, router]);
+        router.push(`/teacher/onboarding/payment?phone=${encodeURIComponent(otp.phone)}`);
+    };
 
     if (authLoading || !isAuthenticated) {
         return (
@@ -173,73 +70,90 @@ export default function PhoneOnboardingPage() {
                     <div className="phone-input-unified relative flex items-stretch rounded-xl border border-gray-300 bg-white shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
                         <PhoneInput
                             defaultCountry="in"
-                            value={phone}
-                            onChange={(phone) => setPhone(phone)}
-                            disabled={step === "otp"}
+                            value={otp.phone}
+                            onChange={(p) => otp.setPhone(p)}
+                            disabled={otp.step === "otp"}
                             className="!w-full"
                         />
                     </div>
 
-                    {isDevMode && (
+                    {otp.isDevMode && (
                         <div className="text-xs text-center text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                            🛠️ Dev Mode: OTP verification is mocked on localhost. Any 6-digit code will work.
+                            🛠️ Dev Mode: OTP verification is mocked. Any 6-digit code will work.
                         </div>
                     )}
 
-                    {step === "phone" && (
-                        <>
-                            <Button variant="primary" className="w-full" onClick={sendOtp} isLoading={sending} disabled={countdown > 0}>
-                                {countdown > 0 ? `Resend in ${countdown}s` : "Send OTP"}
-                            </Button>
-                            {/* Unique invisible reCAPTCHA container per component mount */}
-                            <div id={containerId.current} style={{ display: "none" }} />
-                        </>
+                    {otp.step === "phone" && (
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            onClick={otp.sendOtp}
+                            isLoading={otp.sending}
+                            disabled={otp.countdown > 0}
+                        >
+                            {otp.countdown > 0 ? `Resend in ${otp.countdown}s` : "Send OTP"}
+                        </Button>
                     )}
 
-                    {step === "otp" && (
+                    {otp.step === "otp" && (
                         <div className="space-y-4">
                             <input
                                 type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
                                 maxLength={6}
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                                value={otp.otp}
+                                onChange={(e) => otp.setOtp(e.target.value.replace(/\D/g, ""))}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl text-2xl text-center tracking-widest focus:ring-2 focus:ring-primary-500"
                                 placeholder="000000"
                             />
                             <Button
                                 variant="primary"
                                 className="w-full"
-                                onClick={verifyOtp}
-                                isLoading={verifying}
-                                disabled={otp.length !== 6}
+                                onClick={onVerify}
+                                isLoading={otp.verifying}
+                                disabled={otp.otp.length !== 6}
                             >
                                 Verify OTP
                             </Button>
+
+                            {/* Resend OTP — 30s server-enforced cooldown. The
+                                button stays disabled until `countdown` ticks
+                                to 0; abuse is bounded server-side via
+                                /api/onboarding/otp-send. */}
                             <button
-                                onClick={() => {
-                                    setStep("phone");
-                                    setConfirmationResult(null);
-                                    setOtp("");
-                                    setError("");
-                                    // Clear and recreate verifier on number change
-                                    try {
-                                        verifierRef.current?.clear();
-                                    } catch {
-                                        // ignore
-                                    }
-                                    verifierRef.current = null;
-                                }}
+                                type="button"
+                                onClick={otp.sendOtp}
+                                disabled={otp.countdown > 0 || otp.sending}
+                                className="w-full text-sm text-primary-600 hover:text-primary-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            >
+                                {otp.sending
+                                    ? "Sending..."
+                                    : otp.countdown > 0
+                                    ? `Resend OTP in ${otp.countdown}s`
+                                    : "Resend OTP"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={otp.changeNumber}
                                 className="w-full text-gray-500 text-sm hover:text-gray-700"
                             >
                                 ← Change number
                             </button>
                         </div>
                     )}
+
+                    {/* The invisible reCAPTCHA host MUST stay mounted in the
+                        layout flow. Do not wrap in a conditional or set
+                        display:none — Firebase needs a real DOM node to
+                        mount its iframe into. */}
+                    <div {...otp.recaptchaHostProps} />
                 </div>
 
-                {error && (
+                {otp.error && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm whitespace-pre-wrap">
-                        {error}
+                        {otp.error}
                     </div>
                 )}
 
