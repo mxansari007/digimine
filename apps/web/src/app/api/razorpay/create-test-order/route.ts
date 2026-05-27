@@ -56,10 +56,14 @@ export async function POST(req: Request) {
         // Create Razorpay Order
         const amountInPaise = Math.round(amount * 100);
 
+        // Razorpay limits `receipt` to 40 characters. Long Firestore IDs blow that
+        // budget, so we truncate the testId and pack the timestamp in base36.
+        const shortId = String(testId).slice(-12);
+        const shortTs = Date.now().toString(36);
         const options = {
             amount: amountInPaise,
             currency: "INR",
-            receipt: `test_${testId}_${Date.now()}`,
+            receipt: `t_${shortId}_${shortTs}`,
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
