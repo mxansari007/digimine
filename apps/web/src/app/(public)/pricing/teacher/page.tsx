@@ -14,7 +14,7 @@
  *   - signed-in non-teacher → still routes to /teacher/subscribe so the
  *                             teacher-doc gate there can do its job
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";

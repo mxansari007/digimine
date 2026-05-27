@@ -13,7 +13,12 @@
     "emulators": "cd firebase && firebase emulators:start --only auth,firestore,storage",
     "emulators:export": "cd firebase && firebase emulators:export ./.emulator-data --force",
     "emulators:import": "cd firebase && firebase emulators:start --only auth,firestore,storage --import=./.emulator-data --export-on-exit",
-    "seed:emulators": "tsx scripts/seed-emulators.ts"
+    "seed:emulators": "tsx scripts/seed-emulators.ts",
+    "deploy:rules": "cd firebase && firebase deploy --only firestore:rules,storage --project default",
+    "deploy:indexes": "cd firebase && firebase deploy --only firestore:indexes --project default",
+    "deploy:firestore": "cd firebase && firebase deploy --only firestore --project default",
+    "deploy:storage": "cd firebase && firebase deploy --only storage --project default",
+    "deploy:firebase": "cd firebase && firebase deploy --only firestore,storage --project default"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
