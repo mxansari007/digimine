@@ -69,9 +69,24 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("Error creating Razorpay order:", error);
+        // Razorpay SDK errors are { statusCode, error: { code, description, field, reason } } —
+        // not { message } — so we have to unwrap one level to get a usable reason.
+        const rzp = error?.error;
+        const reason =
+            rzp?.description ||
+            rzp?.reason ||
+            error?.message ||
+            "Failed to create order";
+        console.error("Error creating Razorpay order:", {
+            statusCode: error?.statusCode,
+            code: rzp?.code,
+            description: rzp?.description,
+            field: rzp?.field,
+            reason: rzp?.reason,
+            message: error?.message,
+        });
         return NextResponse.json(
-            { error: error.message || "Failed to create order" },
+            { error: reason, code: rzp?.code, field: rzp?.field },
             { status: 500 }
         );
     }

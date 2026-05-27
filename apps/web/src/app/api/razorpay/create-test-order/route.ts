@@ -87,9 +87,25 @@ export async function POST(req: Request) {
             currency: razorpayOrder.currency,
         });
     } catch (error: any) {
-        console.error("Error creating Razorpay test order:", error);
+        // Razorpay SDK errors are shaped as { statusCode, error: { code, description, field, reason } }
+        // — not { message }. Plain JS errors use { message }. Extract whichever exists so the client
+        // (and our server logs) get a useful reason instead of a generic "Failed to create order".
+        const rzp = error?.error;
+        const reason =
+            rzp?.description ||
+            rzp?.reason ||
+            error?.message ||
+            "Failed to create order";
+        console.error("Error creating Razorpay test order:", {
+            statusCode: error?.statusCode,
+            code: rzp?.code,
+            description: rzp?.description,
+            field: rzp?.field,
+            reason: rzp?.reason,
+            message: error?.message,
+        });
         return NextResponse.json(
-            { error: error.message || "Failed to create order" },
+            { error: reason, code: rzp?.code, field: rzp?.field },
             { status: 500 }
         );
     }
