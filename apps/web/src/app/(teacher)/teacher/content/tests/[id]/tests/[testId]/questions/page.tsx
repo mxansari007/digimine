@@ -8,6 +8,11 @@ import { getTeacherTestSeries, getTestById, getTeacherTestQuestions as getQuesti
 import { RichTextEditor } from "@digimine/shared";
 import { QuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import {
+    AiQuestionGenerator,
+    type GeneratedQuestionDraft,
+} from "@/components/teacher/AiQuestionGenerator";
 import { incrementTeacherQuestionBankUsage, questionBankToTestQuestionInput } from "@/lib/firestore/questionBank";
 import { parseQuestionsMarkdown, downloadQuestionTemplate, type ParseError, type ParsedSection } from "@/lib/import/markdownQuestions";
 import { CheckIcon, EditIcon, TrashIcon } from "@/components/icons/AppIcons";
@@ -52,6 +57,7 @@ interface QuestionFormData {
 export default function TeacherTestQuestionsPage() {
     const params = useParams();
     const { firebaseUser } = useAuthContext();
+    const teaching = useTeachingFeatures();
     const seriesId = params.id as string;
     const testId = params.testId as string;
 
@@ -153,6 +159,41 @@ export default function TeacherTestQuestionsPage() {
     const handleAddQuestion = () => {
         setEditingQuestion(getInitialFormData());
         setShowForm(true);
+    };
+
+    const handleAiSave = async (q: GeneratedQuestionDraft) => {
+        // Tests support all three types — MCQ, text input, and code.
+        // Code drafts come back without test cases / starters; the
+        // teacher edits those in the regular question form afterwards.
+        const difficulty: DifficultyLevel =
+            q.difficulty === "easy" ? "easy" : q.difficulty === "hard" ? "hard" : "medium";
+        const base: any = {
+            seriesId,
+            testId,
+            type: q.type,
+            questionText: q.questionText,
+            explanation: q.explanation || undefined,
+            marks: q.marks,
+            difficulty,
+            order: questions.length,
+            sectionId: defaultSectionId || undefined,
+            passageGroup: "",
+            passage: "",
+        };
+        if (q.type === "mcq") {
+            base.options = q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }));
+        } else if (q.type === "text_input") {
+            base.correctAnswer = q.correctAnswer ?? "";
+        } else if (q.type === "code") {
+            base.supportedLanguages = ["python"];
+            base.starters = [{ language: "python", code: "# Write your code here\n" }];
+            base.testCases = [];
+            base.codeScoringMode = "all_or_nothing";
+            base.timeLimit = 2;
+            base.memoryLimit = 128;
+        }
+        await createQuestion(base);
+        await loadData();
     };
 
     const handleAddFromQuestionBank = async (bankQuestions: QuestionBankQuestion[]) => {
@@ -509,6 +550,16 @@ export default function TeacherTestQuestionsPage() {
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <AiQuestionGenerator
+                        firebaseUser={firebaseUser}
+                        aiEnabled={teaching.aiEnabled}
+                        hasFeature={teaching.has("ai_question_generation")}
+                        maxCount={teaching.aiPublic.maxQuestionsPerRequest}
+                        dailyQuota={teaching.aiQuota}
+                        upgradeHref={teaching.upgradeHref}
+                        onSave={handleAiSave}
+                        onGenerated={teaching.refresh}
+                    />
                     <Button
                         variant="outline"
                         onClick={() => downloadQuestionTemplate()}

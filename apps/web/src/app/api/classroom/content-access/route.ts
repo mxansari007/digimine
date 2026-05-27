@@ -10,15 +10,20 @@ export async function GET(req: Request) {
         const queryUserId = searchParams.get("userId");
         const teacherId = searchParams.get("teacherId");
         const classId = searchParams.get("classId");
+        // Bearer token required — pre-fix, an absent token would fall back
+        // to the `?userId=` query, letting any caller probe arbitrary users'
+        // enrollment status.
         const tokenUserId = await getBearerUserId(req).catch(() => null);
-        const userId = tokenUserId || queryUserId;
-
-        if (!userId || (!teacherId && !classId)) {
-            return NextResponse.json({ hasAccess: false });
+        if (!tokenUserId) {
+            return NextResponse.json({ hasAccess: false }, { status: 401 });
         }
-        if (tokenUserId && queryUserId && tokenUserId !== queryUserId) {
+        if (queryUserId && queryUserId !== tokenUserId) {
             return NextResponse.json({ hasAccess: false }, { status: 403 });
         }
+        if (!teacherId && !classId) {
+            return NextResponse.json({ hasAccess: false });
+        }
+        const userId = tokenUserId;
 
         // Class-level check (preferred when caller knows the classId).
         if (classId) {

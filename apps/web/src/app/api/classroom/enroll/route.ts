@@ -3,15 +3,30 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { checkPlanLimits } from "@/lib/middleware/checkPlanLimits";
 import { getClassById, getClassByInviteCode } from "@/lib/server/classes";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
+        // Bearer token required. Pre-fix, an unauthenticated caller could
+        // POST `{ inviteCode, studentId: "<any-uid>" }` and enroll any
+        // student in any open class — spam-amplifiable, pollutes rosters.
+        const tokenUserId = await getBearerUserId(req).catch(() => null);
+        if (!tokenUserId) {
+            return NextResponse.json({ error: "Sign in to join a class." }, { status: 401 });
+        }
+
         const body = await req.json();
-        const { inviteCode, classId: classIdInput, studentId, studentEmail, studentName, rollNumber } =
+        const { inviteCode, classId: classIdInput, studentId: bodyStudentId, studentEmail, studentName, rollNumber } =
             body;
         let { teacherId } = body;
+        // The token's uid is authoritative — body studentId is ignored if
+        // it doesn't match (defends against client tampering).
+        if (bodyStudentId && bodyStudentId !== tokenUserId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const studentId = tokenUserId;
 
         // Resolve target class via id or invite code.
         let classDoc: any = null;
@@ -21,9 +36,15 @@ export async function POST(req: Request) {
             classDoc = await getClassByInviteCode(String(inviteCode).trim());
         }
 
-        // Legacy invite codes (per-teacher) still resolve to the teacher's
-        // single default class — fall through and find any class owned by
-        // them. After migration this branch is rare.
+        // Legacy invite codes (per-teacher) — pre-class-refactor, teachers
+        // had a single inviteCode on their own doc and any student with it
+        // could join. Tightened guard:
+        //   - Only resolve if the teacher has EXACTLY ONE non-archived
+        //     class. With multiple classes the legacy code is ambiguous
+        //     (which class to join?) and indistinguishable from a stale
+        //     bookmark for a since-rotated class code, so we reject it
+        //     and tell the student to ask for a fresh class-level code.
+        //   - Skip archived classes outright.
         if (!classDoc && inviteCode && !teacherId) {
             const teachersSnap = await adminDb
                 .collection("teachers")
@@ -35,11 +56,24 @@ export async function POST(req: Request) {
                 const ownedClasses = await adminDb
                     .collection("classes")
                     .where("teacherId", "==", teacherId)
-                    .limit(1)
                     .get();
-                if (!ownedClasses.empty) {
-                    classDoc = { id: ownedClasses.docs[0].id, ...ownedClasses.docs[0].data() };
+                const liveClasses = ownedClasses.docs
+                    .map((d) => ({ id: d.id, ...(d.data() || {}) }))
+                    .filter((c: any) => !c.isArchived);
+                if (liveClasses.length === 1) {
+                    classDoc = liveClasses[0];
+                } else if (liveClasses.length > 1) {
+                    return NextResponse.json(
+                        {
+                            error:
+                                "This invite link is outdated. Ask your teacher for the new class invite code.",
+                            code: "legacy_invite_ambiguous",
+                        },
+                        { status: 410 }
+                    );
                 }
+                // length === 0: no live classes; fall through to the
+                // generic "Invalid invite code" 404 below.
             }
         }
 
@@ -73,39 +107,41 @@ export async function POST(req: Request) {
 
         const userRef = adminDb.collection("users").doc(studentId);
 
+        // Batch the enrollment doc + user-side denormalised arrays in a
+        // single commit. Firestore rules read `users/{uid}.enrolledTeacherIds`
+        // when gating teacher-private content reads, so if the enrollment
+        // doc landed but the array hadn't been updated yet (separate
+        // writes), the student would briefly see a "no access" page right
+        // after joining. Single batch closes that window.
+        const batch = adminDb.batch();
+        const classRef = adminDb.collection("classes").doc(classId);
+
         if (existingSnap.exists) {
             const data = existingSnap.data() || {};
             const wasActive = data.status === "active";
             if (!wasActive) {
-                await enrollmentRef.update({
-                    status: "active",
-                    updatedAt: now,
-                });
-                await adminDb.collection("classes").doc(classId).set(
-                    {
-                        activeStudentsCount: FieldValue.increment(1),
-                        updatedAt: now,
-                    },
+                batch.update(enrollmentRef, { status: "active", updatedAt: now });
+                batch.set(
+                    classRef,
+                    { activeStudentsCount: FieldValue.increment(1), updatedAt: now },
                     { merge: true }
                 );
             }
-            await userRef
-                .set(
-                    {
-                        enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
-                        classMemberships: FieldValue.arrayUnion({
-                            classId,
-                            teacherId,
-                            status: "active",
-                            joinedAt: now,
-                        }),
-                        updatedAt: now,
-                    },
-                    { merge: true }
-                )
-                .catch(() => {
-                    /* user doc may not exist yet */
-                });
+            batch.set(
+                userRef,
+                {
+                    enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
+                    classMemberships: FieldValue.arrayUnion({
+                        classId,
+                        teacherId,
+                        status: "active",
+                        joinedAt: now,
+                    }),
+                    updatedAt: now,
+                },
+                { merge: true }
+            );
+            await batch.commit();
             return NextResponse.json({
                 success: true,
                 classId,
@@ -114,7 +150,7 @@ export async function POST(req: Request) {
             });
         }
 
-        await enrollmentRef.set({
+        batch.set(enrollmentRef, {
             classId,
             teacherId,
             studentId,
@@ -127,7 +163,8 @@ export async function POST(req: Request) {
             lastActiveAt: null,
         });
 
-        await adminDb.collection("classes").doc(classId).set(
+        batch.set(
+            classRef,
             {
                 studentsCount: FieldValue.increment(1),
                 activeStudentsCount: FieldValue.increment(1),
@@ -136,7 +173,26 @@ export async function POST(req: Request) {
             { merge: true }
         );
 
-        // Bump teacher usage (best-effort).
+        batch.set(
+            userRef,
+            {
+                enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
+                classMemberships: FieldValue.arrayUnion({
+                    classId,
+                    teacherId,
+                    status: "active",
+                    joinedAt: now,
+                }),
+                updatedAt: now,
+            },
+            { merge: true }
+        );
+
+        await batch.commit();
+
+        // Teacher usage counter is best-effort and outside the batch on
+        // purpose — it doesn't gate read access, so we don't want to fail
+        // the enrollment if the teacher doc is missing.
         await adminDb
             .collection("teachers")
             .doc(teacherId)
@@ -146,24 +202,6 @@ export async function POST(req: Request) {
             })
             .catch(() => {
                 /* counters are not load-bearing */
-            });
-
-        await userRef
-            .set(
-                {
-                    enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
-                    classMemberships: FieldValue.arrayUnion({
-                        classId,
-                        teacherId,
-                        status: "active",
-                        joinedAt: now,
-                    }),
-                    updatedAt: now,
-                },
-                { merge: true }
-            )
-            .catch(() => {
-                /* user doc may not exist yet */
             });
 
         return NextResponse.json({ success: true, classId, teacherId });

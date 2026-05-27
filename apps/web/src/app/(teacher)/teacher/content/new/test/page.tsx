@@ -18,14 +18,18 @@ export default function CreateTeacherTestPage() {
         if (!firebaseUser?.uid) {
             throw new Error("You must be signed in as a teacher to create a test series.");
         }
-        await createTeacherTest(firebaseUser.uid, {
+        // Capture the new doc id so we can continue the authoring flow
+        // straight into "add tests inside this series" instead of dumping
+        // the teacher back on /teacher/content where they'd have to drill
+        // back in by hand.
+        const seriesId = await createTeacherTest(firebaseUser.uid, {
             ...payload,
             totalTests: 0,
             totalQuestions: 0,
             createdBy: firebaseUser.uid,
         } as any);
         onSuccess();
-        router.push("/teacher/content");
+        router.push(`/teacher/content/tests/${seriesId}/tests`);
         router.refresh();
     };
 

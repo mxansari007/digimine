@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { executeDirect } from "@/lib/code-executor/direct";
 import { adminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -139,7 +140,7 @@ async function executeWithJudge0(
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { language, code, stdin, teacherId } = body;
+        const { language, code, stdin } = body;
 
         if (!language || !code) {
             return NextResponse.json(
@@ -148,11 +149,18 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Determine queue based on teacher plan
+        // Determine queue based on the AUTHENTICATED user's plan. Previously
+        // this trusted `body.teacherId`, which let any caller claim to be on
+        // the Institution tier and jump the dedicated queue. We now resolve
+        // the queue from the Bearer token's uid; anonymous callers get the
+        // shared queue.
         let queue: "shared" | "dedicated" = "shared";
-        if (teacherId) {
-            const teacherRef = adminDb.collection("teachers").doc(teacherId);
-            const teacherSnap = await teacherRef.get();
+        const callerUserId = await getBearerUserId(req).catch(() => null);
+        if (callerUserId) {
+            const teacherSnap = await adminDb
+                .collection("teachers")
+                .doc(callerUserId)
+                .get();
             if (teacherSnap.exists) {
                 const planId = teacherSnap.data()?.subscription?.planId;
                 if (planId === "institution") {
@@ -178,7 +186,7 @@ export async function POST(req: NextRequest) {
                     // Queue is full, create a job document and return 202
                     const jobRef = adminDb.collection("jobs").doc();
                     await jobRef.set({
-                        teacherId: teacherId || null,
+                        teacherId: callerUserId || null,
                         queue: "shared",
                         status: "queued",
                         language,
@@ -212,7 +220,7 @@ export async function POST(req: NextRequest) {
                 // For dedicated queue, create a job doc and let the trigger handle it
                 const jobRef = adminDb.collection("jobs").doc();
                 await jobRef.set({
-                    teacherId: teacherId || null,
+                    teacherId: callerUserId || null,
                     queue: "dedicated",
                     status: "queued",
                     language,
@@ -270,9 +278,11 @@ export async function POST(req: NextRequest) {
             queue,
         });
     } catch (error: any) {
+        // Log the upstream details for ops, but never echo them to the
+        // client — they can carry provider stack traces / internal IDs.
         console.error("Code execution error:", error);
         return NextResponse.json(
-            { error: "Code execution failed", details: error.message },
+            { error: "Code execution failed. Please try again." },
             { status: 500 }
         );
     }

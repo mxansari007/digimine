@@ -35,9 +35,17 @@ export async function GET(req: Request, { params }: { params: { quizId: string }
 
         const { searchParams } = new URL(req.url);
         const contestId = searchParams.get("contestId");
-        const contestContext = contestId ? await getContestAttemptContext(contestId, quiz.id) : undefined;
+        const classIdParam = searchParams.get("classId");
+        const contestContext = contestId
+            ? await getContestAttemptContext(contestId, quiz.id, {
+                  userId,
+                  classId: classIdParam,
+              })
+            : undefined;
 
-        const access = contestContext ? { allowed: true, status: 200, courses: [] } : await assertQuizAccess(userId, quiz);
+        const access = contestContext
+            ? { allowed: true, status: 200, courses: [] }
+            : await assertQuizAccess(userId, quiz, { classId: classIdParam });
         if (!access.allowed) {
             return NextResponse.json({ error: access.error, courses: coursePayload(access.courses) }, { status: access.status });
         }
@@ -78,14 +86,23 @@ export async function POST(req: Request, { params }: { params: { quizId: string 
 
         const body = await req.json().catch(() => ({}));
         const contestId = typeof body.contestId === "string" && body.contestId ? body.contestId : null;
-        const contestContext = contestId ? await getContestAttemptContext(contestId, quiz.id) : undefined;
+        // Pass through the class the student arrived from. The attempt-start
+        // gate uses this to find them in `classes/{classId}/students` rather
+        // than the legacy `teacher_enrollments` collection that only existed
+        // before the class-centric refactor.
+        const classId = typeof body.classId === "string" && body.classId ? body.classId : null;
+        const contestContext = contestId
+            ? await getContestAttemptContext(contestId, quiz.id, { userId, classId })
+            : undefined;
 
-        const access = contestContext ? { allowed: true, status: 200, courses: [] } : await assertQuizAccess(userId, quiz);
+        const access = contestContext
+            ? { allowed: true, status: 200, courses: [] }
+            : await assertQuizAccess(userId, quiz, { classId });
         if (!access.allowed) {
             return NextResponse.json({ error: access.error, courses: coursePayload(access.courses) }, { status: access.status });
         }
 
-        const attempt = await createQuizAttempt(userId, quiz, contestContext);
+        const attempt = await createQuizAttempt(userId, quiz, contestContext, { classId });
         const questions = await getRawQuestions(quiz.id);
         return NextResponse.json(buildAttemptResponse(attempt, questions));
     } catch (error) {

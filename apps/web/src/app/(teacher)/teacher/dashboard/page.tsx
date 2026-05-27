@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@digimine/ui";
+import { FileText, ClipboardList, Trophy, BookOpen, Users } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 import { getTeacher } from "@/lib/firestore/teachers";
 import {
   getTeacherQuizzes,
@@ -12,8 +16,6 @@ import {
   getTeacherContests,
 } from "@/lib/firestore/teacherContent";
 import { getTeacherEnrollments } from "@/lib/firestore/teacherEnrollments";
-import { PlanUsageBar } from "@/components/teacher/PlanUsageBar";
-import type { SubscriptionPlan } from "@digimine/types";
 
 function toDate(value: any): Date | null {
   if (!value) return null;
@@ -24,59 +26,9 @@ function toDate(value: any): Date | null {
   return null;
 }
 
-const planLimits: Record<string, SubscriptionPlan> = {
-  starter: {
-    id: "starter",
-    name: "Starter",
-    priceINR: 499,
-    priceUSD: 6,
-    limits: {
-      maxStudents: 50,
-      maxTests: 5,
-      maxQuizzes: 10,
-      maxContests: 2,
-      maxCourses: 2,
-      maxQuestions: 200,
-      pistonConcurrency: 2,
-    },
-    features: ["email_support"],
-  },
-  pro: {
-    id: "pro",
-    name: "Pro",
-    priceINR: 1499,
-    priceUSD: 18,
-    limits: {
-      maxStudents: 300,
-      maxTests: 20,
-      maxQuizzes: 50,
-      maxContests: 10,
-      maxCourses: 10,
-      maxQuestions: 2000,
-      pistonConcurrency: 5,
-    },
-    features: ["priority_email_support"],
-  },
-  institution: {
-    id: "institution",
-    name: "Institution",
-    priceINR: 4999,
-    priceUSD: 60,
-    limits: {
-      maxStudents: -1,
-      maxTests: -1,
-      maxQuizzes: -1,
-      maxContests: -1,
-      maxCourses: -1,
-      maxQuestions: 10000,
-      pistonConcurrency: 8,
-    },
-    features: ["chat_call_support"],
-  },
-};
-
 export default function TeacherDashboardPage() {
   const { firebaseUser } = useAuthContext();
+  const teaching = useTeachingFeatures();
   const [teacher, setTeacher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -141,16 +93,76 @@ export default function TeacherDashboardPage() {
 
   const isTrial = teacher.subscription?.status === "trial";
   const isExpired = teacher.subscription?.status === "expired";
-  const plan = planLimits[teacher.subscription?.planId] || planLimits.starter;
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <HelpTutorial {...TUTORIALS.teacher_dashboard} />
+        </div>
         <p className="mt-1 text-gray-500">
           Welcome back, {teacher.profile?.name || "Teacher"}.
         </p>
       </div>
+
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Current plan
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {teaching.planName || (teacher.subscription?.planCode || teacher.subscription?.planId) || "Free"}
+              {teacher.subscription?.cadence && (
+                <span className="ml-2 text-xs font-medium text-slate-500">
+                  · {teacher.subscription.cadence}
+                </span>
+              )}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(["question_bank_template_download", "question_bank_markdown_import", "ai_question_generation"] as const).map((k) => {
+                const labels: Record<string, string> = {
+                  question_bank_template_download: "Template download",
+                  question_bank_markdown_import: "Markdown import",
+                  ai_question_generation: "AI questions",
+                };
+                const on = teaching.has(k);
+                return (
+                  <span
+                    key={k}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                  >
+                    {on ? "✓" : "✗"} {labels[k]}
+                  </span>
+                );
+              })}
+            </div>
+            {teacher.subscription?.expiresAt && (
+              <p className="mt-2 text-xs text-slate-500">
+                Renews on {(() => {
+                  const d = toDate(teacher.subscription.expiresAt);
+                  return d ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+                })()}.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/teacher/usage"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              View usage
+            </Link>
+            <Link
+              href="/teacher/subscribe"
+              className="rounded-xl border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+            >
+              {teaching.planName && !teaching.planName.toLowerCase().includes("free") ? "Manage plan" : "Upgrade"}
+            </Link>
+          </div>
+        </div>
+      </Card>
 
       {isTrial && (
         <div className="rounded-2xl border border-primary-200/80 bg-primary-50/80 p-5 flex items-start justify-between flex-wrap gap-4">
@@ -203,7 +215,7 @@ export default function TeacherDashboardPage() {
         ))}
       </div>
 
-      <div>
+      <div data-tour="quick-actions">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Quick Actions
         </h2>
@@ -211,29 +223,35 @@ export default function TeacherDashboardPage() {
           {[
             {
               href: "/teacher/content/new/quiz",
-              icon: "📝",
+              Icon: FileText,
               label: "Create Quiz",
             },
             {
               href: "/teacher/content/new/test",
-              icon: "📋",
+              Icon: ClipboardList,
               label: "Create Test",
             },
             {
               href: "/teacher/content/new/contest",
-              icon: "🏆",
+              Icon: Trophy,
               label: "Create Contest",
             },
             {
               href: "/teacher/content/new/course",
-              icon: "📚",
+              Icon: BookOpen,
               label: "Create Course",
             },
-            { href: "/teacher/students", icon: "👥", label: "Invite Students" },
+            {
+              href: "/teacher/students",
+              Icon: Users,
+              label: "Invite Students",
+            },
           ].map((a) => (
             <Link key={a.href} href={a.href}>
               <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer h-full">
-                <div className="text-2xl mb-2">{a.icon}</div>
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                  <a.Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+                </div>
                 <div className="text-sm font-medium text-gray-700">
                   {a.label}
                 </div>
@@ -243,38 +261,6 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
 
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {plan.name} Plan Usage
-        </h2>
-        <div className="space-y-4">
-          <PlanUsageBar
-            label="Students"
-            current={stats.students}
-            max={plan.limits.maxStudents}
-          />
-          <PlanUsageBar
-            label="Test Series"
-            current={stats.tests}
-            max={plan.limits.maxTests}
-          />
-          <PlanUsageBar
-            label="Quizzes"
-            current={stats.quizzes}
-            max={plan.limits.maxQuizzes}
-          />
-          <PlanUsageBar
-            label="Contests"
-            current={stats.contests}
-            max={plan.limits.maxContests}
-          />
-          <PlanUsageBar
-            label="Courses"
-            current={stats.courses}
-            max={plan.limits.maxCourses}
-          />
-        </div>
-      </Card>
     </div>
   );
 }

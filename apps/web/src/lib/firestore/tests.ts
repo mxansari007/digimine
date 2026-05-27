@@ -1426,12 +1426,17 @@ export async function submitTestAttempt(
     (section) => {
       const score = Math.round(section.score * 100) / 100;
       const maxScore = Math.round(section.maxScore * 100) / 100;
+      // Strip cutoffMarks when undefined. The client SDK is more
+      // forgiving than the Admin SDK but spreading an undefined into a
+      // Firestore set/update still surfaces as "invalid Firestore value"
+      // depending on the call shape — keep both writers consistent.
+      const { cutoffMarks, ...rest } = section;
       return {
-        ...section,
+        ...rest,
         score,
         maxScore,
-        passed:
-          section.cutoffMarks === undefined || score >= section.cutoffMarks,
+        ...(typeof cutoffMarks === "number" ? { cutoffMarks } : {}),
+        passed: cutoffMarks === undefined || score >= cutoffMarks,
       };
     }
   );

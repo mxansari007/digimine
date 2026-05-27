@@ -127,7 +127,15 @@ export default function TestResultPage() {
     const searchParams = useSearchParams();
     const attemptId = params.id as string;
     const classroomTeacherId = searchParams.get("teacherId");
-    const { firebaseUser } = useAuthContext();
+    const { firebaseUser, user } = useAuthContext();
+    // Teacher / institute-admin previewing a student's attempt. The page
+    // doubles as the student's own result UI, but the "What's next?" panel
+    // and the retake / back-to-series CTAs at the bottom are meaningless
+    // for the previewer — hide them in preview mode.
+    const isTeacherPreview =
+        Boolean(classroomTeacherId) &&
+        Boolean(user?.role) &&
+        user?.role !== "customer";
 
     const [attempt, setAttempt] = useState<TestAttempt | null>(null);
     const [test, setTest] = useState<Test | null>(null);
@@ -604,23 +612,33 @@ export default function TestResultPage() {
     return (
         <div className="min-h-screen bg-slate-50 py-6 sm:py-10">
             <div className="max-w-5xl mx-auto px-4 space-y-6">
-                {/* Breadcrumb / Back */}
-                <div className="flex items-center justify-between">
-                    <Link
-                        href={
-                            classroomTeacherId
-                                ? `/classroom/${classroomTeacherId}/tests`
-                                : isContestResult ? "/dashboard/contests" : "/dashboard/tests"
-                        }
-                        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        {classroomTeacherId ? "Classroom Tests" : isContestResult ? "My Contests" : "My Tests"}
-                    </Link>
-                    {submittedAt && (
+                {/* Breadcrumb / Back. The dashboard layout already
+                    provides "← Back to teacher dashboard" + "Preview result"
+                    chip for previewing teachers — duplicating a "Classroom
+                    Tests" link here just adds noise. Hide in preview mode. */}
+                {!isTeacherPreview && (
+                    <div className="flex items-center justify-between">
+                        <Link
+                            href={
+                                classroomTeacherId
+                                    ? `/classroom/${classroomTeacherId}/tests`
+                                    : isContestResult ? "/dashboard/contests" : "/dashboard/tests"
+                            }
+                            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            {classroomTeacherId ? "Classroom Tests" : isContestResult ? "My Contests" : "My Tests"}
+                        </Link>
+                        {submittedAt && (
+                            <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
+                        )}
+                    </div>
+                )}
+                {isTeacherPreview && submittedAt && (
+                    <div className="flex items-center justify-end">
                         <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {isPreviewAttempt && (
                     <Card intent="info" className="p-4 text-sm">
@@ -711,7 +729,7 @@ export default function TestResultPage() {
 
                 {/* Performance + Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="md:col-span-2 p-6 sm:p-7">
+                    <Card className={`${isTeacherPreview ? "md:col-span-3" : "md:col-span-2"} p-6 sm:p-7`}>
                         <h3 className="text-base font-bold text-slate-900 mb-5">Performance Breakdown</h3>
                         <div className="space-y-5">
                             <div>
@@ -793,37 +811,39 @@ export default function TestResultPage() {
                         </div>
                     </Card>
 
-                    <Card className="p-6 sm:p-7 flex flex-col gap-3">
-                        <h3 className="text-base font-bold text-slate-900">What’s next?</h3>
-                        <p className="text-sm text-slate-500">
-                            {isContestResult
-                                ? (contestLeaderboardFinal
-                                    ? "The contest leaderboard is final. Review your answers below and compare your rank."
-                                    : "Your submission is recorded. The leaderboard will keep updating until the contest closes.")
-                                : isPassed
-                                ? 'Great work! Keep practicing to maintain your edge.'
-                                : 'Review the questions below and try again to improve your score.'}
-                        </p>
-                        <div className="mt-auto flex flex-col gap-2.5 pt-2">
-                            {test.allowRetake && !isContestResult && (
-                                <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
-                                    <Button className="w-full">
-                                        Retake Test
+                    {!isTeacherPreview && (
+                        <Card className="p-6 sm:p-7 flex flex-col gap-3">
+                            <h3 className="text-base font-bold text-slate-900">What’s next?</h3>
+                            <p className="text-sm text-slate-500">
+                                {isContestResult
+                                    ? (contestLeaderboardFinal
+                                        ? "The contest leaderboard is final. Review your answers below and compare your rank."
+                                        : "Your submission is recorded. The leaderboard will keep updating until the contest closes.")
+                                    : isPassed
+                                    ? 'Great work! Keep practicing to maintain your edge.'
+                                    : 'Review the questions below and try again to improve your score.'}
+                            </p>
+                            <div className="mt-auto flex flex-col gap-2.5 pt-2">
+                                {test.allowRetake && !isContestResult && (
+                                    <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
+                                        <Button className="w-full">
+                                            Retake Test
+                                        </Button>
+                                    </Link>
+                                )}
+                                <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
+                                    <Button variant="outline" className="w-full">
+                                        {isContestResult ? "Back to Contests" : "Back to Series"}
                                     </Button>
                                 </Link>
-                            )}
-                            <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
-                                <Button variant="outline" className="w-full">
-                                    {isContestResult ? "Back to Contests" : "Back to Series"}
-                                </Button>
-                            </Link>
-                            <Link href={isContestResult ? "/dashboard/contests" : "/dashboard/tests"}>
-                                <Button variant="ghost" className="w-full text-slate-600">
-                                    {isContestResult ? "My Contests" : "My Tests"}
-                                </Button>
-                            </Link>
-                        </div>
-                    </Card>
+                                <Link href={isContestResult ? "/dashboard/contests" : "/dashboard/tests"}>
+                                    <Button variant="ghost" className="w-full text-slate-600">
+                                        {isContestResult ? "My Contests" : "My Tests"}
+                                    </Button>
+                                </Link>
+                            </div>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Score Distribution / Ranking */}
@@ -1241,18 +1261,20 @@ export default function TestResultPage() {
                     })}
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-center gap-4 pb-8">
-                    <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            {isContestResult ? "Back to Contests" : "Back to Series"}
-                        </Button>
-                    </Link>
-                    {test.allowRetake && !isContestResult && (
-                        <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
-                            <Button className="w-full sm:w-auto">Retake Test</Button>
+                {!isTeacherPreview && (
+                    <div className="flex flex-col sm:flex-row justify-center gap-4 pb-8">
+                        <Link href={isContestResult ? "/dashboard/contests" : `/tests/${series?.slug}`}>
+                            <Button variant="outline" className="w-full sm:w-auto">
+                                {isContestResult ? "Back to Contests" : "Back to Series"}
+                            </Button>
                         </Link>
-                    )}
-                </div>
+                        {test.allowRetake && !isContestResult && (
+                            <Link href={`/tests/${series?.slug}/attempt?testId=${test.id}`}>
+                                <Button className="w-full sm:w-auto">Retake Test</Button>
+                            </Link>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

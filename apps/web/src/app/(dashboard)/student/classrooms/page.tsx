@@ -33,8 +33,10 @@ export default function StudentClassroomsPage() {
         if (!firebaseUser) return;
         setLoading(true);
         try {
+            const token = await firebaseUser.getIdToken();
             const res = await fetch(
-                `/api/classroom/my-enrollments?studentId=${encodeURIComponent(firebaseUser.uid)}`
+                `/api/classroom/my-enrollments?studentId=${encodeURIComponent(firebaseUser.uid)}`,
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             const data = await res.json();
             setClasses(Array.isArray(data.classes) ? data.classes : []);
@@ -55,9 +57,13 @@ export default function StudentClassroomsPage() {
         setJoining(true);
         setJoinError("");
         try {
+            const token = await firebaseUser.getIdToken();
             const res = await fetch("/api/classroom/enroll", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     inviteCode: inviteCode.trim(),
                     studentId: firebaseUser.uid,
@@ -83,9 +89,13 @@ export default function StudentClassroomsPage() {
         if (!firebaseUser) return;
         if (!confirm(`Leave "${row.className}"?`)) return;
         try {
+            const token = await firebaseUser.getIdToken();
             await fetch("/api/classroom/leave", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     classId: row.classId.startsWith("legacy:") ? null : row.classId,
                     teacherId: row.teacherId,

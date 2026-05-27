@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { FileText, ClipboardList, BookOpen, Trophy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { db } from "@/lib/firebase/client";
+
+// Content-type → icon. Used in the fallback thumbnail tile when an item
+// doesn't have a thumbnail URL of its own.
+const CONTENT_TYPE_ICON: Record<string, LucideIcon> = {
+    quiz: FileText,
+    test: ClipboardList,
+    course: BookOpen,
+    contest: Trophy,
+};
 
 interface PublicContentItem {
     id: string;
@@ -107,9 +118,16 @@ export default function MarketplacePage() {
                                     {(item.thumbnailURL || item.thumbnailUrl) ? (
                                         <img src={item.thumbnailURL || item.thumbnailUrl || ""} alt={item.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-4xl">
-                                            {item.contentType === "quiz" ? "📝" : item.contentType === "test" ? "📋" : item.contentType === "course" ? "📚" : "🏆"}
-                                        </span>
+                                        (() => {
+                                            const Icon = CONTENT_TYPE_ICON[item.contentType] || Trophy;
+                                            return (
+                                                <Icon
+                                                    className="h-10 w-10 text-slate-500"
+                                                    strokeWidth={1.5}
+                                                    aria-hidden
+                                                />
+                                            );
+                                        })()
                                     )}
                                 </div>
                                 <div className="p-5">

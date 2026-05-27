@@ -2,6 +2,7 @@ import { render } from "@react-email/render";
 import { OrderSuccessEmail } from "@/components/emails/OrderSuccessEmail";
 import { OrderOtpEmail } from "@/components/emails/OrderOtpEmail";
 import { PasswordResetEmail } from "@/components/emails/PasswordResetEmail";
+import { EmailVerificationEmail } from "@/components/emails/EmailVerificationEmail";
 import { adminDb } from "@/lib/firebase/admin";
 // Brevo Configuration
 const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
@@ -104,6 +105,21 @@ export async function sendOtpEmail(email: string, otp: string, orderId: string) 
         console.error("Failed to send OTP email:", error);
         // Don't throw if in dev/resend-issues, but here we expect it to work or fail hard
         // throw error; 
+    }
+}
+
+export async function sendVerificationBrevo(email: string, verifyLink: string) {
+    try {
+        const emailHtml = await render(
+            EmailVerificationEmail({
+                verifyLink,
+            })
+        );
+
+        await sendViaBrevo(email, "Verify your PlacementRanker email", emailHtml);
+    } catch (error) {
+        console.error("Failed to send verification email via Brevo:", error);
+        throw error;
     }
 }
 

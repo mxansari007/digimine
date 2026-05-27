@@ -1,7 +1,22 @@
 /**
  * Seed script for subscription plans.
- * Run: npx ts-node scripts/seed-subscription-plans.ts
- * Or: node --loader ts-node/esm scripts/seed-subscription-plans.ts
+ *
+ *   Run: npx ts-node scripts/seed-subscription-plans.ts
+ *   Or:  node --loader ts-node/esm scripts/seed-subscription-plans.ts
+ *
+ * This seeds the LEGACY `subscription_plans` (snake_case) collection. This
+ * collection is the source of truth for:
+ *   - apps/web/src/lib/middleware/checkPlanLimits.ts (server-side caps)
+ *   - apps/web/src/app/(teacher)/teacher/usage/page.tsx (teacher usage UI)
+ *
+ * **Bootstrap-only.** Once seeded, admins manage these rows from the admin
+ * app at `/plan-limits` — and those edits will overwrite seed values. Do
+ * NOT re-run this seed against an environment where admins have already
+ * tuned the limits without coordinating, or you'll wipe their changes.
+ *
+ * The newer camelCase `subscriptionPlans` collection used by the pricing
+ * pages + entitlements code is seeded separately in
+ * scripts/seed-teacher-plans.ts.
  */
 
 import { initializeApp, cert, getApps } from "firebase-admin/app";
@@ -27,12 +42,53 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
+// Bootstrap rows for `subscription_plans`. The schema matches what the
+// admin app at `/plan-limits` reads and writes (see
+// apps/admin/src/lib/firestore/planLimits.ts):
+//
+//   - id, name, description
+//   - priceINR / priceUSD (monthly), annualPrice* (optional), compareAtINR
+//   - trialDays, sortOrder
+//   - limits.{maxStudents, maxTests, maxQuizzes, maxContests, maxCourses,
+//             maxQuestions, pistonConcurrency}    // -1 = unlimited
+//   - features[]
+//
+// Free is a real plan (id="free") so teachers without a paid plan resolve
+// to a doc instead of falling through to the hardcoded 50-student default
+// in checkPlanLimits.
 const plans = [
+    {
+        id: "free",
+        name: "Free",
+        priceINR: 0,
+        priceUSD: 0,
+        annualPriceINR: 0,
+        annualPriceUSD: 0,
+        compareAtINR: null,
+        trialDays: 0,
+        sortOrder: 0,
+        limits: {
+            maxStudents: 30,
+            maxTests: 1,
+            maxQuizzes: 3,
+            maxContests: 0,
+            maxCourses: 1,
+            maxQuestions: 50,
+            pistonConcurrency: 1,
+        },
+        features: ["community_support"],
+        description: "Try the platform with a small class.",
+    },
     {
         id: "starter",
         name: "Starter",
         priceINR: 499,
         priceUSD: 6,
+        annualPriceINR: 4990,
+        annualPriceUSD: 59,
+        compareAtINR: 599,
+        trialDays: 7,
+        sortOrder: 10,
         limits: {
             maxStudents: 50,
             maxTests: 5,
@@ -50,6 +106,11 @@ const plans = [
         name: "Pro",
         priceINR: 1499,
         priceUSD: 18,
+        annualPriceINR: 14990,
+        annualPriceUSD: 179,
+        compareAtINR: 1799,
+        trialDays: 14,
+        sortOrder: 20,
         limits: {
             maxStudents: 300,
             maxTests: 20,
@@ -63,10 +124,37 @@ const plans = [
         description: "For growing educators with more students and content.",
     },
     {
+        id: "growth",
+        name: "Growth",
+        priceINR: 2999,
+        priceUSD: 36,
+        annualPriceINR: 29990,
+        annualPriceUSD: 359,
+        compareAtINR: 3499,
+        trialDays: 14,
+        sortOrder: 30,
+        limits: {
+            maxStudents: 800,
+            maxTests: 50,
+            maxQuizzes: 150,
+            maxContests: 25,
+            maxCourses: 25,
+            maxQuestions: 5000,
+            pistonConcurrency: 6,
+        },
+        features: ["priority_email_support", "chat_support"],
+        description: "For coaching centres scaling past a few hundred students.",
+    },
+    {
         id: "institution",
         name: "Institution",
         priceINR: 4999,
         priceUSD: 60,
+        annualPriceINR: 49990,
+        annualPriceUSD: 599,
+        compareAtINR: 5999,
+        trialDays: 30,
+        sortOrder: 40,
         limits: {
             maxStudents: -1,
             maxTests: -1,

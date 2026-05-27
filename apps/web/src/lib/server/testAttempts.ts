@@ -406,12 +406,17 @@ export async function submitTestAttemptServer(
     const roundedSectionResults = Array.from(sectionBuckets.values()).map((section) => {
         const score = Math.round(section.score * 100) / 100;
         const maxScore = Math.round(section.maxScore * 100) / 100;
+        // Strip cutoffMarks when the section doesn't define one — Firestore
+        // rejects `undefined` field values, which previously surfaced as
+        // "Cannot use undefined as a Firestore value (found in field
+        // sectionResults.0.cutoffMarks)" on submit.
+        const { cutoffMarks, ...rest } = section;
         return {
-            ...section,
+            ...rest,
             score,
             maxScore,
-            passed:
-                section.cutoffMarks === undefined || score >= section.cutoffMarks,
+            ...(typeof cutoffMarks === "number" ? { cutoffMarks } : {}),
+            passed: cutoffMarks === undefined || score >= cutoffMarks,
         };
     });
     const sectionCutoffsPassed = roundedSectionResults.every((s) => s.passed !== false);

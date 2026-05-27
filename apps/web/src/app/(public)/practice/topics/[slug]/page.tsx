@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Card, FormattedContent } from "@digimine/ui";
+import { Star } from "lucide-react";
 import { patternMeta, type PracticePattern } from "@digimine/types";
 import {
     getCachedTopicBySlug,
@@ -224,9 +225,9 @@ export default async function PracticeTopicPage({ params }: Props) {
                                                     {p.isPinned && (
                                                         <span
                                                             title="Editor's pick"
-                                                            className="mr-2 inline-block rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700"
+                                                            className="mr-2 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-amber-700"
                                                         >
-                                                            ★
+                                                            <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
                                                         </span>
                                                     )}
                                                     <Link

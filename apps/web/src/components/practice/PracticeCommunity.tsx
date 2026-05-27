@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "firebase/auth";
 import { Button, FormattedContent } from "@digimine/ui";
+import { HardDrive, MessageCircle } from "lucide-react";
 import { RichTextEditor } from "@digimine/shared";
 import { communityExcerpt, type CommunitySort } from "@digimine/types";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -243,8 +244,13 @@ function SolutionCard({ s, expanded, onToggle, onVote, canVote }: {
                     <h3 className="text-base font-semibold text-slate-900 hover:text-primary-700">{s.title}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">{s.language || "code"}</span>
-                        {s.timeComplexity && <span>⏱ {s.timeComplexity}</span>}
-                        {s.spaceComplexity && <span>💾 {s.spaceComplexity}</span>}
+                        {s.timeComplexity && <span>Time {s.timeComplexity}</span>}
+                        {s.spaceComplexity && (
+                            <span className="inline-flex items-center gap-1">
+                                <HardDrive className="h-3 w-3" strokeWidth={2} aria-hidden />
+                                {s.spaceComplexity}
+                            </span>
+                        )}
                         <span>· {timeAgo(s.createdAt)}</span>
                     </div>
                 </button>
@@ -317,8 +323,9 @@ function DiscussionCard({ d, expanded, onToggle, onVote, firebaseUser, isAuthent
             </div>
             <div className="mt-2 flex items-center justify-between">
                 <Avatar a={d.author} />
-                <button onClick={onToggle} className="text-xs font-medium text-slate-500 hover:text-primary-700">
-                    💬 {d.replyCount} {d.replyCount === 1 ? "reply" : "replies"} · {timeAgo(d.createdAt)}
+                <button onClick={onToggle} className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-primary-700">
+                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {d.replyCount} {d.replyCount === 1 ? "reply" : "replies"} · {timeAgo(d.createdAt)}
                 </button>
             </div>
 

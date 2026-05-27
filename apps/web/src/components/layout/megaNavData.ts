@@ -239,7 +239,7 @@ export const megaNav: MegaItem[] = [
         ],
     },
     {
-        label: "Mock Tests",
+        label: "Tests",
         href: "/tests",
         accent: "indigo",
         hero: {

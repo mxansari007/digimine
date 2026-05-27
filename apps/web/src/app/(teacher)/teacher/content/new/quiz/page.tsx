@@ -21,8 +21,10 @@ export default function CreateTeacherQuizPage() {
         if (!firebaseUser?.uid) {
             throw new Error("You must be signed in as a teacher to create a quiz.");
         }
-        await createTeacherQuiz(firebaseUser.uid, payload);
-        router.push("/teacher/content");
+        // Continue the authoring flow into the questions editor for this
+        // quiz instead of dumping the teacher back on /teacher/content.
+        const quizId = await createTeacherQuiz(firebaseUser.uid, payload);
+        router.push(`/teacher/content/quizzes/${quizId}/questions`);
         router.refresh();
     };
 

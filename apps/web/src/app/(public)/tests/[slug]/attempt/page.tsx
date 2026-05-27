@@ -172,6 +172,18 @@ export default function TestAttemptPage() {
     const attemptIdFromUrl = searchParams.get("attemptId");
     const contestId = searchParams.get("contestId");
     const classroomTeacherId = searchParams.get("teacherId");
+    // Class the student arrived from. Needed by /api/tests/start-attempt to
+    // verify enrollment via `classes/{classId}/students` — the legacy
+    // teacher-direct enrollment path only works for pre-class-refactor data.
+    const classroomClassId = searchParams.get("classId");
+    // Either query param means the student is opening this through a
+    // classroom. Every "classroom branch" below must trigger on either,
+    // otherwise the new class-centric flow falls through to the public
+    // catalogue path and 404s.
+    const isClassroomContext = Boolean(classroomTeacherId || classroomClassId);
+    const classroomParam =
+        (classroomTeacherId ? `&teacherId=${encodeURIComponent(classroomTeacherId)}` : "") +
+        (classroomClassId ? `&classId=${encodeURIComponent(classroomClassId)}` : "");
 
     const [_series, setSeries] = useState<TestSeries | null>(null);
     const [contest, setContest] = useState<Contest | null>(null);
@@ -275,7 +287,7 @@ export default function TestAttemptPage() {
 
         if (!user || !testId) {
             if (!user) {
-                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ''}`;
+                const returnUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}${attemptIdFromUrl ? `&attemptId=${attemptIdFromUrl}` : ''}${classroomParam}`;
                 router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
             } else {
                 setLoadError("No test was selected. Please choose a test from the series page.");
@@ -284,7 +296,7 @@ export default function TestAttemptPage() {
             return;
         }
 
-        const initKey = `${user.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${attemptIdFromUrl || ""}`;
+        const initKey = `${user.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${classroomClassId || ""}|${attemptIdFromUrl || ""}`;
         if (initOnceRef.current === initKey) return;
         initOnceRef.current = initKey;
 
@@ -309,14 +321,21 @@ export default function TestAttemptPage() {
                 let seriesData: TestSeries | null = null;
                 let classroomToken: string | null = null;
 
-                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
-                if (classroomTeacherId) {
+                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API.
+                // Either teacherId OR classId in the URL means we're in a
+                // classroom context — both must be accepted.
+                if (isClassroomContext) {
                     if (!firebaseUser) {
-                        router.push(`/login?redirect=${encodeURIComponent(`/tests/${slug}/attempt?testId=${testId}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ""}`)}`);
+                        router.push(`/login?redirect=${encodeURIComponent(`/tests/${slug}/attempt?testId=${testId}${classroomParam}`)}`);
                         return;
                     }
                     classroomToken = await firebaseUser.getIdToken();
-                    const res = await fetch(`/api/content/data?type=test&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                    const seriesQs = new URLSearchParams();
+                    seriesQs.set("type", "test");
+                    seriesQs.set("slug", slug);
+                    if (classroomTeacherId) seriesQs.set("teacherId", classroomTeacherId);
+                    if (classroomClassId) seriesQs.set("classId", classroomClassId);
+                    const res = await fetch(`/api/content/data?${seriesQs.toString()}`, {
                         headers: { Authorization: `Bearer ${classroomToken}` },
                     });
                     const serverData = await res.json();
@@ -334,7 +353,7 @@ export default function TestAttemptPage() {
                     return;
                 }
 
-                if (classroomTeacherId) {
+                if (isClassroomContext) {
                     // Classroom students get access without purchase
                     // No purchase check needed — proceed to load test data
                 } else {
@@ -368,8 +387,14 @@ export default function TestAttemptPage() {
                 let testData: Test | null = null;
                 let questionsData: Question[] = [];
 
-                if (classroomTeacherId) {
-                    const testRes = await fetch(`/api/content/data?type=test&parentId=${encodeURIComponent(seriesData.id)}&childId=${encodeURIComponent(testId!)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                if (isClassroomContext) {
+                    const childQs = new URLSearchParams();
+                    childQs.set("type", "test");
+                    childQs.set("parentId", seriesData.id);
+                    childQs.set("childId", testId!);
+                    if (classroomTeacherId) childQs.set("teacherId", classroomTeacherId);
+                    if (classroomClassId) childQs.set("classId", classroomClassId);
+                    const testRes = await fetch(`/api/content/data?${childQs.toString()}`, {
                         headers: classroomToken ? { Authorization: `Bearer ${classroomToken}` } : {},
                     });
                     const testServerData = await testRes.json();
@@ -442,18 +467,31 @@ export default function TestAttemptPage() {
                     // attempt creation idempotent (two parallel requests return the
                     // same in-progress attempt) and removes the client-Firestore
                     // race that previously produced duplicate attempts.
+                    // Send the user's Firebase ID token so the server can verify
+                    // the caller against the body-supplied userId — closes the
+                    // pre-existing gap where the route trusted whatever userId
+                    // the client put in the body.
+                    const idToken = await firebaseUser?.getIdToken();
                     const res = await fetch("/api/tests/start-attempt", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+                        },
                         body: JSON.stringify({
                             userId: user!.id,
                             seriesId: seriesData.id,
                             testId: testId!,
                             contestContext: contestAttemptContext,
                             userAgent: window.navigator.userAgent,
+                            // Pass the class context through so the server-side
+                            // gate can verify class enrollment (not just legacy
+                            // teacher_enrollments).
+                            ...(classroomClassId ? { classId: classroomClassId } : {}),
+                            ...(classroomTeacherId ? { teacherId: classroomTeacherId } : {}),
                             // For classroom tests the questions doc isn't readable
                             // by the server unless we hand them over.
-                            ...(classroomTeacherId ? { questions: questionsData } : {}),
+                            ...(isClassroomContext ? { questions: questionsData } : {}),
                         }),
                     });
                     const data = await res.json();
@@ -478,8 +516,10 @@ export default function TestAttemptPage() {
                         );
                     } else if (existing.status === 'completed' || existing.status === 'timed_out') {
                         // Attempt already finished - redirect to results
-                        const classroomSuffix = classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
-                        const showResults = classroomTeacherId || contestAttemptContext || testData.instantResults;
+                        const classroomSuffix = isClassroomContext
+                            ? `?${classroomParam.replace(/^&/, "")}`
+                            : "";
+                        const showResults = isClassroomContext || contestAttemptContext || testData.instantResults;
                         router.push(showResults ? `/dashboard/tests/results/${existing.id}${classroomSuffix}` : `/tests/${seriesData.slug}?submitted=1`);
                         return;
                     } else if (existing.status === 'in_progress') {
@@ -511,14 +551,14 @@ export default function TestAttemptPage() {
                 // re-triggering this effect via `useSearchParams`, which would
                 // otherwise reload the test data and flash the instructions screen.
                 if (!attemptIdFromUrl) {
-                    const newUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}&attemptId=${newAttempt.id}${classroomTeacherId ? `&teacherId=${classroomTeacherId}` : ''}`;
+                    const newUrl = `/tests/${slug}/attempt?testId=${testId}${contestId ? `&contestId=${contestId}` : ''}&attemptId=${newAttempt.id}${classroomParam}`;
                     if (typeof window !== "undefined") {
                         window.history.replaceState(null, "", newUrl);
                     }
                     // Keep the init guard in sync with the now-present attemptId so a
                     // legitimate hook re-render (e.g. firebaseUser refresh) doesn't
                     // think this is a brand-new session.
-                    initOnceRef.current = `${user!.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${newAttempt.id}`;
+                    initOnceRef.current = `${user!.id}|${slug}|${testId}|${contestId || ""}|${classroomTeacherId || ""}|${classroomClassId || ""}|${newAttempt.id}`;
                 }
 
                 // Load existing answers
@@ -639,7 +679,7 @@ export default function TestAttemptPage() {
         }
 
         initTest();
-    }, [user, firebaseUser, slug, testId, contestId, attemptIdFromUrl, classroomTeacherId, authLoading, router]);
+    }, [user, firebaseUser, slug, testId, contestId, attemptIdFromUrl, classroomTeacherId, classroomClassId, authLoading, router]);
 
     // Timer Logic
     useEffect(() => {
@@ -1011,7 +1051,7 @@ export default function TestAttemptPage() {
         attemptId: string,
         data: { answers: any[]; remainingTime: number; currentQuestionIndex: number }
     ) => {
-        if (classroomTeacherId) {
+        if (isClassroomContext) {
             if (!firebaseUser) throw new Error("Not authenticated.");
             const token = await firebaseUser.getIdToken();
             const res = await fetch(`/api/tests/save-attempt`, {
@@ -1032,7 +1072,7 @@ export default function TestAttemptPage() {
         attemptId: string,
         data: { answers: any[]; remainingTime: number; finalStatus: "completed" | "timed_out" }
     ): Promise<TestAttempt> => {
-        if (classroomTeacherId) {
+        if (isClassroomContext) {
             if (!firebaseUser) throw new Error("Not authenticated.");
             const token = await firebaseUser.getIdToken();
             const res = await fetch(`/api/tests/submit-attempt`, {
@@ -1048,7 +1088,7 @@ export default function TestAttemptPage() {
     };
 
     const fetchAttempt = async (attemptId: string): Promise<TestAttempt | null> => {
-        if (classroomTeacherId) {
+        if (isClassroomContext) {
             const res = await fetch(`/api/tests/attempt?attemptId=${encodeURIComponent(attemptId)}`);
             if (!res.ok) return null;
             const payload = await res.json().catch(() => ({}));
@@ -1253,8 +1293,10 @@ export default function TestAttemptPage() {
 
             clearLocalProgress(targetAttempt.id);
 
-            const classroomSuffix = classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
-            if (classroomTeacherId) {
+            const classroomSuffix = isClassroomContext
+                ? `?${classroomParam.replace(/^&/, "")}`
+                : "";
+            if (isClassroomContext) {
                 // Classroom students always see their result page (instant results
                 // are implicit — teachers don't moderate them).
                 router.push(`/dashboard/tests/results/${targetAttempt.id}${classroomSuffix}`);
@@ -1306,7 +1348,7 @@ export default function TestAttemptPage() {
                     results.push({
                         input: tc.input,
                         expectedOutput: tc.expectedOutput,
-                        actualOutput: data.error ? `${data.error}: ${data.details || ""}` : "Code execution service unavailable",
+                        actualOutput: data.error || "Code execution service unavailable",
                         passed: false,
                         isHidden: tc.isHidden,
                     });

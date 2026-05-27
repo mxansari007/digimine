@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, DataTable, PaginationControls, getPaginatedItems, stripFormattedContent, type DataTableColumn } from "@digimine/ui";
 import { RichTextEditor } from "@digimine/shared";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import {
+    AiQuestionGenerator,
+    LockedFeatureButton,
+    type GeneratedQuestionDraft,
+} from "@/components/teacher/AiQuestionGenerator";
 import {
     createTeacherQuestionBankQuestion,
     deleteTeacherQuestionBankQuestion,
@@ -136,6 +144,52 @@ function statusBadge(status: TestStatus) {
 export default function TeacherQuestionBankPage() {
     const { firebaseUser } = useAuthContext();
     const teacherId = firebaseUser?.uid || "";
+    const teaching = useTeachingFeatures();
+
+    /**
+     * AI-draft → CreateQuestionBankQuestionInput adapter. Caller is the
+     * AiQuestionGenerator modal. We construct sensible defaults for the
+     * fields the AI draft doesn't carry (title from questionText,
+     * topic/category from the modal's form context).
+     */
+    const handleAiSave = async (
+        q: GeneratedQuestionDraft,
+        ctx: { topic: string; subject: string; difficulty: string; type: string }
+    ) => {
+        if (!teacherId) throw new Error("Sign in to save");
+        const truncatedTitle =
+            q.questionText.length > 80
+                ? q.questionText.slice(0, 77) + "…"
+                : q.questionText;
+        // Map the AI's "moderate" to the existing field's "medium".
+        const difficulty: DifficultyLevel =
+            q.difficulty === "easy" ? "easy" : q.difficulty === "hard" ? "hard" : "medium";
+        const payload: CreateQuestionBankQuestionInput = {
+            title: truncatedTitle,
+            type: q.type,
+            questionText: q.questionText,
+            options:
+                q.type === "mcq"
+                    ? q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+                    : undefined,
+            correctAnswer:
+                q.type === "text_input"
+                    ? q.correctAnswer ?? ""
+                    : undefined,
+            explanation: q.explanation,
+            marks: q.marks,
+            negativeMarks: 0,
+            difficulty,
+            topic: ctx.topic || "AI generated",
+            category: ctx.subject || ctx.topic || "AI generated",
+            subcategory: undefined,
+            tags: ["ai-generated"],
+            status: "draft",
+        } as CreateQuestionBankQuestionInput;
+        await createTeacherQuestionBankQuestion(teacherId, payload);
+        // Refresh the page's question list so the new entry appears.
+        await loadQuestions();
+    };
     const [questions, setQuestions] = useState<QuestionBankQuestion[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -549,29 +603,55 @@ export default function TeacherQuestionBankPage() {
         <div className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-950">Question Bank</h1>
+                    <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-slate-950">Question Bank</h1>
+                        <HelpTutorial {...TUTORIALS.teacher_question_bank} />
+                    </div>
                     <p className="mt-1 text-slate-500">Store reusable questions for future tests, quizzes, and contests.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
+                    <AiQuestionGenerator
+                        firebaseUser={firebaseUser}
+                        aiEnabled={teaching.aiEnabled}
+                        hasFeature={teaching.has("ai_question_generation")}
+                        maxCount={teaching.aiPublic.maxQuestionsPerRequest}
+                        dailyQuota={teaching.aiQuota}
+                        upgradeHref={teaching.upgradeHref}
+                        onSave={handleAiSave}
+                        onGenerated={teaching.refresh}
+                    />
+                    <LockedFeatureButton
+                        locked={!teaching.has("question_bank_template_download")}
+                        upgradeHref={teaching.upgradeHref}
+                        tooltipWhenLocked="Question template download is included on paid plans."
                         onClick={() => downloadQuestionTemplate("question-bank-template.md")}
+                        className="inline-flex items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700"
                     >
                         Download Template
-                    </Button>
-                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700 hover:shadow-[0_12px_26px_rgba(15,23,42,0.08)]">
-                        <input
-                            type="file"
-                            accept=".md,.markdown,text/markdown,text/plain"
-                            className="hidden"
-                            onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) handleImportFile(file);
-                                event.target.value = "";
-                            }}
-                        />
-                        Upload Markdown
-                    </label>
+                    </LockedFeatureButton>
+                    {teaching.has("question_bank_markdown_import") ? (
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700 hover:shadow-[0_12px_26px_rgba(15,23,42,0.08)]">
+                            <input
+                                type="file"
+                                accept=".md,.markdown,text/markdown,text/plain"
+                                className="hidden"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) handleImportFile(file);
+                                    event.target.value = "";
+                                }}
+                            />
+                            Upload Markdown
+                        </label>
+                    ) : (
+                        <LockedFeatureButton
+                            locked
+                            upgradeHref={teaching.upgradeHref}
+                            tooltipWhenLocked="Markdown import is included on paid plans."
+                        >
+                            Upload Markdown
+                        </LockedFeatureButton>
+                    )}
                     <Button onClick={handleAddQuestion}>Create Question</Button>
                 </div>
             </div>

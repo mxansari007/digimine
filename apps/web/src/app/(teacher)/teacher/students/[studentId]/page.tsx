@@ -8,6 +8,8 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { ActivityHeatmap } from "@/components/teacher/ActivityHeatmap";
 import { TrendLine } from "@/components/teacher/TrendLine";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 type RiskBand = "low" | "medium" | "high";
 
@@ -167,7 +169,10 @@ export default function TeacherStudentDetailPage() {
                     <Link href="/teacher/students" className="text-sm text-primary-700 hover:text-primary-800">
                         ← Back to students
                     </Link>
-                    <h1 className="mt-1 text-2xl font-bold text-gray-900">{student.studentName}</h1>
+                    <div className="mt-1 flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">{student.studentName}</h1>
+                        <HelpTutorial {...TUTORIALS.teacher_student_detail} />
+                    </div>
                     <p className="text-sm text-gray-500">{student.studentEmail || "No email"}</p>
                 </div>
                 <div className="flex items-center gap-2">

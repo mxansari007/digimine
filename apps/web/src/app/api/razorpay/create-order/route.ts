@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
 import type { Order, OrderItem } from "@digimine/types";
 import Razorpay from "razorpay";
 import { Timestamp } from "firebase-admin/firestore";
@@ -11,6 +12,12 @@ const razorpay = new Razorpay({
 
 export async function POST(req: Request) {
     try {
+        // Optional bearer — guest checkout still works, but a signed-in
+        // buyer gets their `userId` stamped on the order so /dashboard
+        // can find it (and so `verify-payment` can append the products
+        // to their `purchasedProducts` list).
+        const buyerUserId = await getBearerUserId(req).catch(() => null);
+
         const body = await req.json();
         const { items, subtotal, customerEmail, customerPhone } = body;
 
@@ -38,7 +45,7 @@ export async function POST(req: Request) {
         
         const orderDoc: Order = {
             id: orderRef.id,
-            userId: null,
+            userId: buyerUserId,
             items: items as OrderItem[],
             subtotal: subtotal,
             discount: 0,

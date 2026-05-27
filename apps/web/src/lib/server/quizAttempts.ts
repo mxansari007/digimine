@@ -55,6 +55,10 @@ type QuizRecord = {
     accessType?: "free" | "course_only";
     linkedCourseIds?: string[];
     teacherId?: string;
+    /** Institute-authored content stamps this; teacherId is empty in that case. */
+    instituteId?: string;
+    /** Class-centric assignment — IDs of classes this quiz is published into. */
+    classIds?: string[];
     visibility?: string;
     timeLimitMinutes?: number;
     passingPercentage?: number;
@@ -208,7 +212,77 @@ export async function getQuiz(quizId: string): Promise<QuizRecord | null> {
     return { id: snapshot.id, ...(snapshot.data() || {}) } as QuizRecord;
 }
 
-export async function getContestAttemptContext(contestId: string, quizId: string): Promise<ContestAttemptContext> {
+/**
+ * Validate that `userId` is allowed to attempt the contest at `contestId`
+ * given any classroom scoping on the contest doc. Throws with a
+ * user-readable message when not. No-op for public contests.
+ *
+ * Shared between the quiz contest path (here) and the test contest path
+ * (api/tests/start-attempt) so the rules stay in lockstep.
+ */
+export async function assertContestClassroomAccess(
+    contest: Record<string, unknown>,
+    userId: string,
+    classId: string | null | undefined
+): Promise<void> {
+    const teacherId: string = typeof contest.teacherId === "string" ? contest.teacherId : "";
+    const instituteId: string =
+        typeof contest.instituteId === "string" ? contest.instituteId : "";
+    const classIds: string[] = Array.isArray(contest.classIds)
+        ? (contest.classIds as string[])
+        : [];
+    const visibility: string =
+        typeof contest.visibility === "string" ? contest.visibility : "";
+    const isClassroomScoped =
+        (visibility === "private" || visibility === "") && (teacherId || instituteId);
+    if (!isClassroomScoped) return;
+
+    const targetClassId = classId || "";
+    const candidates =
+        targetClassId && (classIds.length === 0 || classIds.includes(targetClassId))
+            ? [targetClassId, ...classIds.filter((c) => c !== targetClassId)]
+            : classIds;
+
+    for (const cid of candidates) {
+        const memberSnap = await adminDb
+            .collection("classes")
+            .doc(cid)
+            .collection("students")
+            .doc(userId)
+            .get();
+        if (!memberSnap.exists) continue;
+        if (memberSnap.data()?.status !== "active") continue;
+        const classSnap = await adminDb.collection("classes").doc(cid).get();
+        if (!classSnap.exists) continue;
+        const cls = classSnap.data() || {};
+        const ownerOk = teacherId ? cls.teacherId === teacherId : true;
+        const instOk = instituteId ? cls.instituteId === instituteId : true;
+        if (ownerOk && instOk) return;
+    }
+
+    // Legacy fallback: pre-class-refactor enrollments live under
+    // teacher_enrollments. Match assertQuizAccess's third path so we
+    // don't shut out classrooms still on the old model.
+    if (teacherId) {
+        const legacySnap = await adminDb
+            .collection("teacher_enrollments")
+            .doc(teacherId)
+            .collection("students")
+            .doc(userId)
+            .get();
+        if (legacySnap.exists && legacySnap.data()?.status === "active") return;
+    }
+
+    throw new Error(
+        "This contest is private to a classroom. Join the class to participate."
+    );
+}
+
+export async function getContestAttemptContext(
+    contestId: string,
+    quizId: string,
+    options?: { userId?: string; classId?: string | null }
+): Promise<ContestAttemptContext> {
     const snapshot = await adminDb.collection("contests").doc(contestId).get();
     if (!snapshot.exists) throw new Error("Contest not found.");
     const contest = snapshot.data() || {};
@@ -223,6 +297,10 @@ export async function getContestAttemptContext(contestId: string, quizId: string
     const now = Date.now();
     if (now < startTime.getTime()) throw new Error("This contest has not started yet.");
     if (now >= endTime.getTime()) throw new Error("This contest has already ended.");
+
+    if (options?.userId) {
+        await assertContestClassroomAccess(contest, options.userId, options.classId ?? null);
+    }
 
     return {
         contestId,
@@ -259,9 +337,49 @@ export async function getLinkedCourses(quiz: QuizRecord): Promise<CourseRecord[]
     return Array.from(courseMap.values()).filter((course) => course.status === "published");
 }
 
-export async function assertQuizAccess(userId: string, quiz: QuizRecord) {
+export async function assertQuizAccess(
+    userId: string,
+    quiz: QuizRecord,
+    options?: { classId?: string | null }
+) {
     if (quiz.status !== "published") {
         return { allowed: false, status: 404, error: "Quiz not found", courses: [] as CourseRecord[] };
+    }
+
+    // Institute-authored classroom quizzes: teacherId is empty but
+    // instituteId is set. Same access model as teacher classroom quizzes —
+    // enrolled students of any assigned class can take it. Without this
+    // branch we'd fall through to the course/paywall path below and lock
+    // out legitimate students.
+    if (!quiz.teacherId && quiz.instituteId) {
+        const quizClassIds: string[] = Array.isArray(quiz.classIds) ? quiz.classIds : [];
+        const targetClassId = options?.classId || "";
+        const candidates = targetClassId && (quizClassIds.length === 0 || quizClassIds.includes(targetClassId))
+            ? [targetClassId, ...quizClassIds.filter((c) => c !== targetClassId)]
+            : quizClassIds;
+        for (const cid of candidates) {
+            const memberSnap = await adminDb
+                .collection("classes")
+                .doc(cid)
+                .collection("students")
+                .doc(userId)
+                .get();
+            if (memberSnap.exists && memberSnap.data()?.status === "active") {
+                // Lightly verify the class belongs to the same institute as
+                // the quiz so a student in an unrelated class can't game
+                // the check by passing a stray classId.
+                const classSnap = await adminDb.collection("classes").doc(cid).get();
+                if (classSnap.exists && classSnap.data()?.instituteId === quiz.instituteId) {
+                    return { allowed: true, status: 200, courses: [] as CourseRecord[] };
+                }
+            }
+        }
+        return {
+            allowed: false,
+            status: 403,
+            error: "You're not enrolled in any class that has this quiz assigned.",
+            courses: [] as CourseRecord[],
+        };
     }
 
     // Teacher classroom quizzes are private to enrolled students unless they
@@ -271,6 +389,53 @@ export async function assertQuizAccess(userId: string, quiz: QuizRecord) {
             return { allowed: true, status: 200, courses: [] as CourseRecord[] };
         }
 
+        // 1. Class-centric check (current model). When the caller passes the
+        //    classId the student arrived through (e.g. from /classroom/[classId])
+        //    AND the quiz is assigned to that class, look up the student in
+        //    `classes/{classId}/students` directly. This is the right path for
+        //    every quiz created in the new class-centric system, including
+        //    institute-owned classes (same subcollection shape).
+        const targetClassId = options?.classId || "";
+        const quizClassIds: string[] = Array.isArray(quiz.classIds) ? quiz.classIds : [];
+        if (targetClassId && (quizClassIds.length === 0 || quizClassIds.includes(targetClassId))) {
+            const memberSnap = await adminDb
+                .collection("classes")
+                .doc(targetClassId)
+                .collection("students")
+                .doc(userId)
+                .get();
+            if (memberSnap.exists && memberSnap.data()?.status === "active") {
+                // Optional: ensure the class actually belongs to the quiz's
+                // teacher — otherwise a student in any unrelated class could
+                // game the check by passing a random classId.
+                const classSnap = await adminDb.collection("classes").doc(targetClassId).get();
+                if (classSnap.exists && classSnap.data()?.teacherId === quiz.teacherId) {
+                    return { allowed: true, status: 200, courses: [] as CourseRecord[] };
+                }
+            }
+        }
+
+        // 2. Class-fan-out fallback. The student didn't pass a classId (e.g.
+        //    they landed on the public quiz URL without a class context), but
+        //    they may still be enrolled in some class of this teacher that has
+        //    this quiz assigned. Scan the teacher's classes once and check.
+        if (quizClassIds.length > 0) {
+            for (const cid of quizClassIds) {
+                const memberSnap = await adminDb
+                    .collection("classes")
+                    .doc(cid)
+                    .collection("students")
+                    .doc(userId)
+                    .get();
+                if (memberSnap.exists && memberSnap.data()?.status === "active") {
+                    return { allowed: true, status: 200, courses: [] as CourseRecord[] };
+                }
+            }
+        }
+
+        // 3. Legacy teacher_enrollments fallback. Pre-class-refactor installs
+        //    still have students attached directly to a teacher — honour those
+        //    until the migration finishes.
         const enrollmentSnap = await adminDb
             .collection("teacher_enrollments")
             .doc(quiz.teacherId)
@@ -541,7 +706,12 @@ export async function syncTimedOutAttempt(attempt: RawAttempt): Promise<RawAttem
     return finalizeAttempt(attempt.id, "timed_out");
 }
 
-export async function createQuizAttempt(userId: string, quiz: QuizRecord, contestContext?: ContestAttemptContext): Promise<RawAttempt> {
+export async function createQuizAttempt(
+    userId: string,
+    quiz: QuizRecord,
+    contestContext?: ContestAttemptContext,
+    options?: { classId?: string | null }
+): Promise<RawAttempt> {
     // Tag attempts from non-customer roles (teachers, institute admins,
     // platform admins) as preview attempts so they're excluded from
     // public leaderboards and class analytics downstream.
@@ -623,9 +793,17 @@ export async function createQuizAttempt(userId: string, quiz: QuizRecord, contes
             ? Timestamp.fromMillis(now.toMillis() + durationInSeconds * 1000)
             : undefined;
 
+        // Stamp the class the student arrived through (validated upstream
+        // in assertQuizAccess / getContestAttemptContext) so teacher
+        // dashboards can group attempts by classroom. Null when the quiz
+        // was opened outside a class context.
+        const classId =
+            typeof options?.classId === "string" && options.classId ? options.classId : null;
+
         const attemptData = {
             userId,
             quizId: quiz.id,
+            ...(classId ? { classId } : {}),
             ...(contestContext
                 ? {
                       contestId: contestContext.contestId,

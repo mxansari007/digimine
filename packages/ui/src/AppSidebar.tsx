@@ -8,7 +8,17 @@
  * the caller so it can live in `@digimine/ui` without taking a dependency on
  * Next.js or `firebase/auth` directly.
  *
- * Theme is a shared light professional look across all roles.
+ * Two desktop modes:
+ *   - **Expanded** (default, 256px): full labels, group sections, user
+ *     identity card in the footer.
+ *   - **Collapsed** (72px rail): icons only with native-tooltip labels.
+ *     Groups render as their parent icon — clicking a group icon expands
+ *     the sidebar first, then opens the group (so the user lands on a
+ *     visible child list rather than a phantom flyout).
+ *
+ * The `collapsed` + `onToggleCollapsed` state is owned by `DashboardShell`,
+ * which is also responsible for sliding the main content over to match
+ * the rail width.
  */
 
 import { useState, type ComponentType, type ReactNode } from "react";
@@ -97,9 +107,23 @@ export interface AppSidebarProps {
   onSignOut?: () => void | Promise<void>;
   /** Brand name shown in the header. Defaults to "PlacementRanker". */
   brand?: string;
+  /**
+   * Where the brand mark links to. The caller should usually point this
+   * at the role's home (e.g. `/dashboard` for students, `/teacher/dashboard`
+   * for teachers) so the logo behaves as a "back to my home" affordance.
+   * Defaults to `/`.
+   */
+  brandHref?: string;
   /** Mobile drawer state. */
   isOpen?: boolean;
   onClose?: () => void;
+  /**
+   * Desktop collapsed-rail state. Controlled by `DashboardShell`. When
+   * true, the sidebar shrinks to a 72px icon-only rail.
+   */
+  collapsed?: boolean;
+  /** Toggle the collapsed state. Used by the rail toggle button. */
+  onToggleCollapsed?: () => void;
 }
 
 const ROLE_LABEL: Record<AppSidebarRole, string> = {
@@ -162,6 +186,7 @@ function NavLeaf({
   LinkComponent,
   onClose,
   indented = false,
+  collapsed = false,
 }: {
   item: AppSidebarNavItem;
   pathname: string;
@@ -169,11 +194,39 @@ function NavLeaf({
   LinkComponent: ComponentType<any>;
   onClose?: () => void;
   indented?: boolean;
+  collapsed?: boolean;
 }) {
   const Icon = item.icon;
   const isActive = item.href
     ? isNavItemActive(pathname, item.href, item.exact)
     : false;
+
+  // Collapsed rail: render as an icon-only square with tooltip via `title`.
+  // Children of a group don't appear in this mode — the group parent is
+  // the only entry. Indented leafs simply hide.
+  if (collapsed) {
+    if (indented) return null;
+    return (
+      <LinkComponent
+        href={item.href || "#"}
+        onClick={onClose}
+        title={item.name}
+        aria-label={item.name}
+        className={
+          (isActive
+            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700 shadow-sm shadow-primary-900/5"
+            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 hover:text-primary-800") +
+          " mx-auto"
+        }
+      >
+        <Icon className="w-5 h-5" />
+        {isActive ? (
+          <span className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500" />
+        ) : null}
+      </LinkComponent>
+    );
+  }
+
   return (
     <LinkComponent
       href={item.href || "#"}
@@ -190,7 +243,7 @@ function NavLeaf({
       ) : (
         <Icon className="w-5 h-5" />
       )}
-      <span>{item.name}</span>
+      <span className="truncate">{item.name}</span>
       {isActive ? (
         <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500 shadow-[0_0_10px_rgba(82,109,104,0.18)]" />
       ) : null}
@@ -204,12 +257,16 @@ function NavGroup({
   pathname,
   LinkComponent,
   onClose,
+  collapsed = false,
+  onToggleCollapsed,
 }: {
   item: AppSidebarNavItem;
   pathname: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   LinkComponent: ComponentType<any>;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }) {
   // Auto-expand when the user is somewhere inside the group. After the
   // initial mount, the user controls expansion via the chevron.
@@ -221,6 +278,35 @@ function NavGroup({
   );
   const Icon = item.icon;
   const parentActive = childActive;
+
+  // Collapsed rail: render the group parent as an icon. Clicking it
+  // expands the sidebar first (so the user sees the children) and also
+  // opens the group locally. Falls back to plain icon when no toggle
+  // callback is provided.
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        title={item.name}
+        aria-label={item.name}
+        onClick={() => {
+          setOpen(true);
+          onToggleCollapsed?.();
+        }}
+        className={
+          (parentActive
+            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700 shadow-sm shadow-primary-900/5"
+            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 hover:text-primary-800") +
+          " mx-auto"
+        }
+      >
+        <Icon className="w-5 h-5" />
+        {parentActive ? (
+          <span className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500" />
+        ) : null}
+      </button>
+    );
+  }
 
   return (
     <div>
@@ -235,7 +321,7 @@ function NavGroup({
         }
       >
         <Icon className="w-5 h-5" />
-        <span className="flex-1 text-left">{item.name}</span>
+        <span className="flex-1 truncate text-left">{item.name}</span>
         <svg
           aria-hidden
           viewBox="0 0 20 20"
@@ -270,6 +356,43 @@ function NavGroup({
   );
 }
 
+/** Toggle button — half-overlaps the right edge of the sidebar. */
+function RailToggle({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      // Pin to the divider between the brand header and the nav so the
+      // button reads as the seam-handle of the sidebar (matches Linear /
+      // Vercel). Lower opacity at rest, brightens on hover.
+      className="absolute -right-3 top-[68px] z-20 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-all hover:scale-110 hover:border-primary-300 hover:text-primary-700 lg:flex"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden
+        className={
+          "h-3.5 w-3.5 transition-transform " + (collapsed ? "" : "rotate-180")
+        }
+      >
+        <path
+          fillRule="evenodd"
+          d="M7.3 5.3a1 1 0 011.4 0l4 4a1 1 0 010 1.4l-4 4a1 1 0 01-1.4-1.4L10.6 10 7.3 6.7a1 1 0 010-1.4z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
+  );
+}
+
 export function AppSidebar({
   role,
   pathname,
@@ -278,10 +401,17 @@ export function AppSidebar({
   LinkComponent = DefaultLink,
   onSignOut,
   brand = "PlacementRanker",
+  brandHref = "/",
   isOpen = false,
   onClose,
+  collapsed = false,
+  onToggleCollapsed,
 }: AppSidebarProps) {
   const initial = user?.displayName?.[0]?.toUpperCase() || ROLE_LABEL[role][0];
+  // Mobile drawer always renders the full expanded layout; collapsed
+  // only applies to the desktop rail. So we treat `collapsed` as false
+  // whenever the mobile drawer is open.
+  const isRailCollapsed = collapsed;
 
   return (
     <>
@@ -294,20 +424,64 @@ export function AppSidebar({
 
       <aside
         className={
-          "fixed bottom-0 left-0 top-0 z-40 flex h-full w-64 transform flex-col border-r border-slate-200/80 bg-white/90 shadow-sm shadow-slate-900/5 backdrop-blur-xl transition-transform duration-300 ease-out lg:translate-x-0 " +
+          "fixed bottom-0 left-0 top-0 z-40 flex h-full transform flex-col border-r border-slate-200/80 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur-xl transition-[width,transform] duration-200 ease-out lg:translate-x-0 " +
+          (isRailCollapsed ? "lg:w-[72px] " : "lg:w-64 ") +
+          // Mobile drawer is always the full width so labels are readable.
+          "w-64 " +
           (isOpen ? "translate-x-0" : "-translate-x-full")
         }
+        data-collapsed={isRailCollapsed ? "true" : "false"}
       >
-        <div className="relative flex items-center justify-between overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white/90 to-slate-50/80 p-5 lg:justify-center">
-          <div className="relative z-10 flex items-center gap-3">
-            {/* Brand mark — same gem used in headers / marketing. The `brand`
-                prop is kept for back-compat but only used as the accessible
-                label; the rendered word is now part of the Logo component. */}
-            <Logo iconSize={26} aria-label={brand} />
-            <span className="hidden rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold text-primary-700 sm:inline-block">
-              {ROLE_LABEL[role]}
-            </span>
-          </div>
+        {/* Toggle pill that hangs off the right edge */}
+        {onToggleCollapsed ? (
+          <RailToggle collapsed={isRailCollapsed} onClick={onToggleCollapsed} />
+        ) : null}
+
+        {/* Fixed-height header so the rail toggle button always lines up
+            with the divider line regardless of role-chip width. */}
+        <div
+          className={
+            "relative flex h-[68px] items-center overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white/95 to-slate-50/80 " +
+            (isRailCollapsed ? "justify-center px-3" : "justify-between px-4")
+          }
+        >
+          {/* Brand mark links back to the role's home. In expanded mode the
+              logo sits left-aligned with a small uppercase role caption
+              underneath the wordmark — same vertical rhythm as the nav
+              rows. The loud bordered chip pattern was too "label sticking
+              out next to a logo" and is replaced with this caption form. */}
+          <LinkComponent
+            href={brandHref}
+            onClick={onClose}
+            aria-label={brand}
+            title={brand}
+            className={
+              "relative z-10 flex items-center rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary-300 " +
+              (isRailCollapsed ? "" : "gap-2.5")
+            }
+          >
+            {isRailCollapsed ? (
+              // Icon-only in the rail. Everything else is dropped so the
+              // brand area reads as a neat 40×40 square within the 72px rail.
+              <Logo iconSize={26} showText={false} aria-label={brand} />
+            ) : (
+              <>
+                <Logo iconSize={24} showText={false} aria-label={brand} />
+                <span className="flex min-w-0 flex-col leading-none">
+                  <span
+                    className="font-display text-[15px] leading-none"
+                    style={{ letterSpacing: "-0.01em" }}
+                  >
+                    <span className="font-medium text-slate-500">Placement</span>
+                    <span className="font-extrabold text-slate-900">Ranker</span>
+                  </span>
+                  <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.22em] text-primary-600">
+                    {ROLE_LABEL[role]}
+                  </span>
+                </span>
+              </>
+            )}
+          </LinkComponent>
           {onClose ? (
             <button
               type="button"
@@ -332,7 +506,12 @@ export function AppSidebar({
           ) : null}
         </div>
 
-        <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
+        <nav
+          className={
+            "flex-1 overflow-y-auto " +
+            (isRailCollapsed ? "space-y-1 p-2" : "space-y-1.5 p-4")
+          }
+        >
           {nav.map((item) =>
             item.children && item.children.length > 0 ? (
               <NavGroup
@@ -341,6 +520,8 @@ export function AppSidebar({
                 pathname={pathname}
                 LinkComponent={LinkComponent}
                 onClose={onClose}
+                collapsed={isRailCollapsed}
+                onToggleCollapsed={onToggleCollapsed}
               />
             ) : (
               <NavLeaf
@@ -349,33 +530,76 @@ export function AppSidebar({
                 pathname={pathname}
                 LinkComponent={LinkComponent}
                 onClose={onClose}
+                collapsed={isRailCollapsed}
               />
             )
           )}
         </nav>
 
-        <div className="border-t border-slate-200/80 bg-slate-50/60 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 shadow-sm shadow-slate-900/5">
-            <div className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80">
-              <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
+        <div
+          className={
+            "border-t border-slate-200/80 bg-slate-50/60 " +
+            (isRailCollapsed ? "p-2" : "p-4")
+          }
+        >
+          {isRailCollapsed ? (
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80"
+                title={user?.displayName || user?.email || ROLE_LABEL[role]}
+              >
+                <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
+              </div>
+              {onSignOut ? (
+                <button
+                  type="button"
+                  onClick={() => void onSignOut()}
+                  aria-label="Sign out"
+                  title="Sign out"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    aria-hidden
+                  >
+                    <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" />
+                    <path d="M10 17l-5-5 5-5" />
+                    <path d="M5 12h12" />
+                  </svg>
+                </button>
+              ) : null}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900">
-                {user?.displayName ||
-                  `${ROLE_LABEL[role][0]}${ROLE_LABEL[role].slice(1).toLowerCase()}`}
-              </p>
-              <p className="truncate text-xs text-slate-500">{user?.email}</p>
-            </div>
-          </div>
-          {onSignOut ? (
-            <button
-              type="button"
-              onClick={() => void onSignOut()}
-              className="flex w-full items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
-            >
-              Sign Out
-            </button>
-          ) : null}
+          ) : (
+            <>
+              <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 shadow-sm shadow-slate-900/5">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80">
+                  <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">
+                    {user?.displayName ||
+                      `${ROLE_LABEL[role][0]}${ROLE_LABEL[role].slice(1).toLowerCase()}`}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                </div>
+              </div>
+              {onSignOut ? (
+                <button
+                  type="button"
+                  onClick={() => void onSignOut()}
+                  className="flex w-full items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+                >
+                  Sign Out
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
       </aside>
     </>

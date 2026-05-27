@@ -24,7 +24,16 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { megaNav, type MegaItem } from "./megaNavData";
+import { megaNav as STATIC_MEGA_NAV, type MegaItem } from "./megaNavData";
+
+export interface MegaNavProps {
+    /**
+     * Optional override of the nav items — when omitted, falls back to the
+     * static `STATIC_MEGA_NAV`. Server components fetch the admin-edited
+     * version via `getMegaNavItems()` and pass it here.
+     */
+    items?: MegaItem[];
+}
 
 const ACCENT: Record<
     MegaItem["accent"],
@@ -68,7 +77,8 @@ const ACCENT: Record<
     },
 };
 
-export default function MegaNav() {
+export default function MegaNav({ items }: MegaNavProps = {}) {
+    const megaNav = items && items.length > 0 ? items : STATIC_MEGA_NAV;
     const [openIndex, setOpenIndex] = useState<number | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const openTimer = useRef<number | null>(null);
@@ -118,8 +128,10 @@ export default function MegaNav() {
 
     return (
         <div ref={rootRef} className="relative">
-            {/* Triggers row */}
-            <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
+            {/* Triggers row. Flat-by-default — items only earn a background +
+                accent color while their panel is open or on hover. Removes the
+                pill-on-pill visual stack that made the header feel dense. */}
+            <nav className="flex items-center gap-0.5">
                 {megaNav.map((item, i) => {
                     const isOpen = openIndex === i;
                     const accent = ACCENT[item.accent];
@@ -133,10 +145,10 @@ export default function MegaNav() {
                             <Link
                                 href={item.href}
                                 onClick={() => setOpenIndex(null)}
-                                className={`relative flex items-center gap-1 rounded-full px-3.5 py-2 text-sm font-semibold tracking-wide transition-colors ${
+                                className={`relative flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                                     isOpen
-                                        ? `${accent.text} bg-white shadow-sm`
-                                        : "text-slate-600 hover:bg-white hover:text-primary-700"
+                                        ? `${accent.text} bg-slate-50`
+                                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                                 }`}
                                 aria-expanded={isOpen}
                                 aria-haspopup="true"
@@ -146,7 +158,7 @@ export default function MegaNav() {
                                     aria-hidden
                                     viewBox="0 0 20 20"
                                     fill="currentColor"
-                                    className={`h-3 w-3 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                    className={`h-2.5 w-2.5 opacity-40 transition-transform ${isOpen ? "rotate-180 opacity-70" : ""}`}
                                 >
                                     <path
                                         fillRule="evenodd"

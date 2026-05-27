@@ -45,8 +45,12 @@ export async function POST(req: Request) {
             );
         }
 
-        const body = (await req.json().catch(() => ({}))) as { phone?: unknown };
+        const body = (await req.json().catch(() => ({}))) as {
+            phone?: unknown;
+            flow?: unknown;
+        };
         const rawPhone = typeof body.phone === "string" ? body.phone.trim() : "";
+        const flow = typeof body.flow === "string" ? body.flow : "";
         if (!rawPhone) {
             return NextResponse.json(
                 { error: "Phone number required." },
@@ -66,17 +70,16 @@ export async function POST(req: Request) {
             );
         }
 
-        await adminDb
-            .collection("users")
-            .doc(uid)
-            .set(
-                {
-                    phoneNumber,
-                    phoneVerifiedAt: new Date(),
-                    updatedAt: new Date(),
-                },
-                { merge: true }
-            );
+        // Only the institute flow advances onboardingStep here. The teacher
+        // flow handles that in /api/teacher/onboard step="phone".
+        const payload: Record<string, unknown> = {
+            phoneNumber,
+            phoneVerifiedAt: new Date(),
+            updatedAt: new Date(),
+        };
+        if (flow === "institute") payload.onboardingStep = "institute:setup";
+
+        await adminDb.collection("users").doc(uid).set(payload, { merge: true });
 
         return NextResponse.json({ ok: true, phoneNumber });
     } catch (err) {

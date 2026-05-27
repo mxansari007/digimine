@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const userId = searchParams.get("userId");
-
-        if (!userId) {
-            return NextResponse.json({ error: "userId required" }, { status: 400 });
+        // Require a bearer token. The legacy `?userId=` param is still
+        // accepted but MUST match the token's uid — pre-fix, any caller
+        // could read any user's orders + purchasedProducts by guessing a
+        // uid (no auth at all).
+        const tokenUserId = await getBearerUserId(req).catch(() => null);
+        if (!tokenUserId) {
+            return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
+        const { searchParams } = new URL(req.url);
+        const queryUserId = searchParams.get("userId");
+        if (queryUserId && queryUserId !== tokenUserId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const userId = tokenUserId;
 
         const result: Record<string, any> = {};
 
@@ -173,11 +182,17 @@ export async function GET(req: Request) {
                 const attData = active.data;
                 const seriesId = attData.seriesId;
                 let series = null;
+                let isTeacherSeries = false;
                 if (seriesId) {
                     const sSnap = await adminDb.collection("tests").doc(seriesId).get();
                     if (sSnap.exists) {
                         const sData = sSnap.data();
                         if (sData) {
+                            // Teacher-classroom test series don't belong on
+                            // the public Resume-Test banner — they resume via
+                            // the classroom flow, not the public /tests/...
+                            // URL. Suppress the banner for those entirely.
+                            isTeacherSeries = Boolean(sData.teacherId);
                             series = {
                                 id: sSnap.id,
                                 slug: sData.slug || sSnap.id,
@@ -187,15 +202,17 @@ export async function GET(req: Request) {
                         }
                     }
                 }
-                result.activeAttempt = {
-                    attempt: {
-                        id: active.id,
-                        ...attData,
-                        startedAt: attData.startedAt?.toDate?.()?.toISOString?.() || null,
-                        endTime: attData.endTime?.toDate?.()?.toISOString?.() || null,
-                    },
-                    series,
-                };
+                result.activeAttempt = isTeacherSeries
+                    ? null
+                    : {
+                          attempt: {
+                              id: active.id,
+                              ...attData,
+                              startedAt: attData.startedAt?.toDate?.()?.toISOString?.() || null,
+                              endTime: attData.endTime?.toDate?.()?.toISOString?.() || null,
+                          },
+                          series,
+                      };
             } else {
                 result.activeAttempt = null;
             }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@digimine/ui";
+import { AlertTriangle } from "lucide-react";
 import type { User } from "firebase/auth";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 
@@ -192,8 +193,9 @@ export function QuestionQualityPanel({
                             )}
 
                             {q.skipRate > 25 && (
-                                <p className="text-[11px] text-amber-700">
-                                    ⚠ High skip rate ({q.skipRate}%) — students may be running out of time or finding this confusing.
+                                <p className="flex items-start gap-1 text-[11px] text-amber-700">
+                                    <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0" strokeWidth={2.5} aria-hidden />
+                                    <span>High skip rate ({q.skipRate}%) — students may be running out of time or finding this confusing.</span>
                                 </p>
                             )}
                         </div>

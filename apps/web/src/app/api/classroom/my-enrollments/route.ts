@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { toIsoDate } from "@/lib/server/classroomAccess";
+import { getBearerUserId, toIsoDate } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +21,19 @@ type ClassroomRow = {
 
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const studentId = searchParams.get("studentId");
-        if (!studentId) {
-            return NextResponse.json({ error: "studentId is required" }, { status: 400 });
+        // Bearer token required. The legacy `?studentId=` param is still
+        // accepted but MUST match the token's uid — pre-fix, anyone could
+        // list any student's classroom enrollments by passing their uid.
+        const tokenUserId = await getBearerUserId(req).catch(() => null);
+        if (!tokenUserId) {
+            return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
+        const { searchParams } = new URL(req.url);
+        const queryStudentId = searchParams.get("studentId");
+        if (queryStudentId && queryStudentId !== tokenUserId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const studentId = tokenUserId;
 
         // Single collection-group query covers both the new (`classes/.../students`)
         // and legacy (`teacher_enrollments/.../students`) paths since they share

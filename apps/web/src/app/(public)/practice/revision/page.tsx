@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card, SkeletonList } from "@digimine/ui";
+import { CheckCircle2 } from "lucide-react";
 import { patternMeta } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -56,7 +57,10 @@ export default function RevisionPage() {
                     <Card className="p-4"><SkeletonList rows={6} /></Card>
                 ) : items.length === 0 ? (
                     <Card className="p-12 text-center">
-                        <p className="text-slate-600">🎉 Nothing due right now.</p>
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                            <CheckCircle2 className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+                        </div>
+                        <p className="font-medium text-slate-700">Nothing due right now.</p>
                         <p className="mt-1 text-sm text-slate-500">Solve more problems — they&apos;ll come back here on the forgetting curve.</p>
                         <Link href="/practice/problems" className="mt-4 inline-block">
                             <Button variant="primary">Solve problems</Button>

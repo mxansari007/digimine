@@ -20,9 +20,12 @@ export default function CreateTeacherCoursePage() {
         if (!firebaseUser?.uid) {
             throw new Error("You must be signed in as a teacher to create a course.");
         }
-        await createTeacherCourse(firebaseUser.uid, payload as any);
+        // Land on the course edit page so the teacher can keep refining
+        // chapters / linked quizzes / linked tests instead of being dumped
+        // back on /teacher/content.
+        const courseId = await createTeacherCourse(firebaseUser.uid, payload as any);
         onSuccess();
-        router.push("/teacher/content");
+        router.push(`/teacher/content/courses/${courseId}/edit`);
         router.refresh();
     };
 

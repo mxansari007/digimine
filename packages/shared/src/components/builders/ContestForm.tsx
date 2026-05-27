@@ -43,11 +43,37 @@ export interface ContestFormProps {
     /** Optional: callback when bank questions are added (to track usage). */
     onBankQuestionsUsed?: (questionIds: string[]) => Promise<void>;
     /**
+     * Optional render-prop for an AI question generator (or any extra
+     * action) that should appear in the custom-questions builder
+     * toolbar. The argument is a callback that appends a draft to the
+     * builder list. Callers wire their own AiQuestionGenerator and
+     * pass its onSave through this argument.
+     *
+     * Kept as a render-prop (vs. an imported component) because the AI
+     * generator lives in the app, not in shared/, so we can't import
+     * it here without an awkward dependency.
+     */
+    aiToolbarSlot?: (appendCustomQuestion: (draft: ContestCustomQuestionDraft) => void) => React.ReactNode;
+    /**
      * Display mode. `teacher` hides the status selector because teacher
      * content is private until admin approval.
      */
     mode?: "admin" | "teacher";
 }
+
+/** Exported draft shape so callers' aiToolbarSlot can build one. */
+export type ContestCustomQuestionDraft = {
+    type: "mcq" | "text_input";
+    questionText: string;
+    options: { text: string; isCorrect: boolean }[];
+    correctAnswer: string;
+    explanation: string;
+    marks: number;
+    negativeMarks: number;
+    difficulty: DifficultyLevel;
+    passageGroup: string;
+    passage: string;
+};
 
 interface ContestFormState {
     title: string;
@@ -163,7 +189,7 @@ function toCustomQuestionInput(question: CustomQuestionDraft, index: number): Cr
     };
 }
 
-export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTestSeries, loadTestsInSeries, loadQuizzes, QuestionBankPicker, parseMarkdown, markdownTemplate, onBankQuestionsUsed, mode = "admin" }: ContestFormProps) {
+export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTestSeries, loadTestsInSeries, loadQuizzes, QuestionBankPicker, parseMarkdown, markdownTemplate, onBankQuestionsUsed, aiToolbarSlot, mode = "admin" }: ContestFormProps) {
     const isTeacherMode = mode === "teacher";
     const router = useRouter();
     const [seriesList, setSeriesList] = useState<TestSeries[]>([]);
@@ -635,6 +661,9 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
                                             <Button type="button" size="sm" variant="outline" onClick={() => setBankPickerOpen(true)}>
                                                 Add from Bank
                                             </Button>
+                                            {aiToolbarSlot?.((draft) =>
+                                                setCustomQuestions((current) => [...current, draft])
+                                            )}
                                         </div>
 
                                         {customQuestions.length > 0 ? (

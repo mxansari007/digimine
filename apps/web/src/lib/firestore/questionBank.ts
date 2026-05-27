@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   orderBy,
   query,
   setDoc,
@@ -290,15 +291,24 @@ export async function incrementTeacherQuestionBankUsage(
   teacherId: string,
   questionIds: string[]
 ): Promise<void> {
+  // Use FieldValue.increment so concurrent submissions referencing the
+  // same question don't trample each other's writes. The previous
+  // read-modify-write loop lost increments under contention.
   await Promise.all(
-    questionIds.map(async (id) => {
-      const question = await getTeacherQuestionBankQuestion(teacherId, id);
-      if (!question) return;
-      await updateDoc(doc(teacherQuestionBankCollection(teacherId), id), {
-        usageCount: (question.usageCount || 0) + 1,
+    questionIds.map((id) =>
+      updateDoc(doc(teacherQuestionBankCollection(teacherId), id), {
+        usageCount: increment(1),
         updatedAt: Timestamp.now(),
-      });
-    })
+      }).catch((err) => {
+        // Missing question → just skip (the caller passed a stale id);
+        // anything else is logged so it isn't silently swallowed.
+        if ((err as { code?: string })?.code === "not-found") return;
+        console.error(
+          "[questionBank] usage increment failed",
+          { teacherId, questionId: id, error: (err as Error).message }
+        );
+      })
+    )
   );
 }
 

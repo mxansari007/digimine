@@ -14,6 +14,8 @@ import {
 } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 type BillingContact = {
     name: string;
@@ -247,7 +249,10 @@ export default function InstituteBillingPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Billing & subscription</h1>
+                <div className="flex items-center gap-1.5">
+                    <h1 className="text-2xl font-bold text-gray-900">Billing & subscription</h1>
+                    <HelpTutorial {...TUTORIALS.institute_billing} />
+                </div>
                 <p className="mt-1 text-gray-500">
                     Your current plan, usage, invoice history, and billing contact. Plan changes are reviewed by our team
                     so we can prorate seats and issue a proper GST invoice.

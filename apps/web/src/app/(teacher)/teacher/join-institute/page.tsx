@@ -7,6 +7,8 @@ import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { getTeacher } from "@/lib/firestore/teachers";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 export default function JoinInstitutePage() {
     const router = useRouter();
@@ -47,7 +49,10 @@ export default function JoinInstitutePage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Join an institute</h1>
+                <div className="flex items-center gap-1.5">
+                    <h1 className="text-2xl font-bold text-gray-900">Join an institute</h1>
+                    <HelpTutorial {...TUTORIALS.teacher_join_institute} />
+                </div>
                 <p className="mt-1 text-gray-500">
                     Have an invite code from your institute? Redeem it here.
                 </p>

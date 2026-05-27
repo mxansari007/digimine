@@ -170,6 +170,15 @@ export function usePhoneOtp(): UsePhoneOtpResult {
             );
         }
 
+        // Critical for resend: `RecaptchaVerifier.clear()` zeroes Firebase's
+        // internal state but does NOT remove the iframe Firebase mounted
+        // inside the host element. If we hand the same host to a new
+        // `RecaptchaVerifier`, Firebase sees the leftover iframe and throws:
+        //   "reCAPTCHA has already been rendered in this element"
+        // Wiping `innerHTML` here guarantees the new verifier gets a virgin
+        // host on every send/resend cycle.
+        container.innerHTML = "";
+
         const verifier = new RecaptchaVerifier(auth, containerIdRef.current, {
             size: "invisible",
             callback: () => {

@@ -7,6 +7,8 @@ import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { ActivityHeatmap } from "@/components/teacher/ActivityHeatmap";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 type RiskBand = "low" | "medium" | "high";
 
@@ -102,10 +104,20 @@ export default function ClassAnalyticsPage() {
     }, [load]);
 
     if (loading) return <div className="py-20 text-center text-gray-500">Loading analytics...</div>;
-    if (error || !data) {
+    if (error) {
         return (
             <Card className="p-8 text-center text-red-700">
-                {error || "No data"}
+                Couldn&apos;t load analytics: {error}
+                <Link href={`/teacher/classes/${classId}`} className="ml-2 text-primary-700 underline">
+                    Back to class
+                </Link>
+            </Card>
+        );
+    }
+    if (!data) {
+        return (
+            <Card className="p-8 text-center text-slate-600">
+                No student activity yet — once students start completing attempts, insights will appear here.
                 <Link href={`/teacher/classes/${classId}`} className="ml-2 text-primary-700 underline">
                     Back to class
                 </Link>
@@ -125,7 +137,10 @@ export default function ClassAnalyticsPage() {
                     >
                         ← Back to class
                     </Link>
-                    <h1 className="mt-1 text-2xl font-bold text-gray-900">Class analytics</h1>
+                    <div className="mt-1 flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">Class analytics</h1>
+                        <HelpTutorial {...TUTORIALS.teacher_class_analytics} />
+                    </div>
                     <p className="text-sm text-gray-500">Every student, every attempt — synthesised.</p>
                 </div>
                 <div className="flex items-center gap-2">

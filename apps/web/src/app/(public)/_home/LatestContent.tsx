@@ -52,6 +52,14 @@ export default function LatestContent({
 
     if (articles.length === 0 && liveOrUpcoming.length === 0) return null;
 
+    // Layout adapts to what's actually populated:
+    //  - Both rails present → split 1.4fr / 1fr (articles wider).
+    //  - Articles only      → full-width 4-column grid, no awkward dead space.
+    //  - Contests only      → full-width 3-column grid.
+    const hasContests = liveOrUpcoming.length > 0;
+    const hasArticles = articles.length > 0;
+    const articleCount = Math.min(articles.length, hasContests ? 4 : 4);
+
     return (
         <section className="border-b border-slate-200 bg-slate-50">
             <div className="container-page py-16 sm:py-20">
@@ -61,60 +69,99 @@ export default function LatestContent({
                             What&apos;s new
                         </p>
                         <h2 className="font-display mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
-                            Fresh reads &amp; live events.
+                            {hasContests
+                                ? "Fresh reads & live events."
+                                : "Fresh reads from the team."}
                         </h2>
                         <p className="mt-3 text-sm text-slate-600 sm:text-base">
                             Pulled live from the platform. Click anything to dive in.
                         </p>
                     </div>
+                    {hasArticles && !hasContests && (
+                        <Link
+                            href="/articles"
+                            className="inline-flex w-fit items-center gap-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50"
+                        >
+                            Browse all articles
+                            <span aria-hidden>→</span>
+                        </Link>
+                    )}
                 </div>
 
-                <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+                <div
+                    className={
+                        "mt-10 grid gap-8 " +
+                        (hasArticles && hasContests
+                            ? "lg:grid-cols-[1.4fr_1fr]"
+                            : "")
+                    }
+                >
                     {/* Articles */}
-                    {articles.length > 0 && (
+                    {hasArticles && (
                         <div className="landing-motion" data-motion>
-                            <div className="mb-4 flex items-baseline justify-between">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-                                    Latest articles
-                                </h3>
-                                <Link
-                                    href="/articles"
-                                    className="text-xs font-semibold text-primary-700 hover:text-primary-800"
-                                >
-                                    Browse all →
-                                </Link>
-                            </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                {articles.slice(0, 4).map((a) => (
+                            {hasContests && (
+                                <div className="mb-4 flex items-baseline justify-between">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+                                        Latest articles
+                                    </h3>
+                                    <Link
+                                        href="/articles"
+                                        className="text-xs font-semibold text-primary-700 hover:text-primary-800"
+                                    >
+                                        Browse all →
+                                    </Link>
+                                </div>
+                            )}
+                            <div
+                                className={
+                                    "grid gap-5 " +
+                                    (hasContests
+                                        ? "sm:grid-cols-2"
+                                        : // Full-width: scale up to 4 columns on
+                                          // large screens so the section fills
+                                          // the page instead of leaving dead air.
+                                          "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")
+                                }
+                            >
+                                {articles.slice(0, articleCount).map((a) => (
                                     <Link
                                         key={a.id}
                                         href={`/articles/${a.slug}`}
-                                        className="group block"
+                                        className="group block h-full"
                                     >
-                                        <Card className="landing-lift-card home-shine h-full overflow-hidden">
+                                        <Card className="landing-lift-card home-shine flex h-full flex-col overflow-hidden">
                                             {a.coverImageUrl ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img
                                                     src={a.coverImageUrl}
                                                     alt={a.title}
-                                                    className="aspect-[16/9] w-full object-cover"
+                                                    className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                                                 />
                                             ) : (
                                                 <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary-100 to-amber-100" />
                                             )}
-                                            <div className="p-4">
+                                            <div className="flex flex-1 flex-col p-4">
                                                 <p className="text-[10px] font-bold uppercase tracking-widest text-primary-700">
                                                     {a.category} · {a.readingMinutes} min
                                                 </p>
-                                                <h4 className="mt-1 font-semibold leading-snug text-slate-900 group-hover:text-primary-700">
+                                                <h4 className="mt-1.5 line-clamp-2 font-semibold leading-snug text-slate-900 group-hover:text-primary-700">
                                                     {a.title}
                                                 </h4>
                                                 <p className="mt-2 line-clamp-2 text-sm text-slate-500">
                                                     {a.excerpt}
                                                 </p>
-                                                <p className="mt-3 text-xs text-slate-400">
-                                                    {timeAgo(a.publishedAtMs)}
-                                                </p>
+                                                {/* Pin footer to bottom so all cards
+                                                    in a row are the same height
+                                                    regardless of excerpt length. */}
+                                                <div className="mt-auto flex items-center justify-between pt-3 text-xs text-slate-400">
+                                                    <span>{timeAgo(a.publishedAtMs)}</span>
+                                                    <span
+                                                        aria-hidden
+                                                        className="font-semibold text-primary-600 transition-transform group-hover:translate-x-0.5"
+                                                    >
+                                                        Read →
+                                                    </span>
+                                                </div>
                                             </div>
                                         </Card>
                                     </Link>
@@ -124,7 +171,7 @@ export default function LatestContent({
                     )}
 
                     {/* Contests */}
-                    {liveOrUpcoming.length > 0 && (
+                    {hasContests && (
                         <div className="landing-motion" data-motion>
                             <div className="mb-4 flex items-baseline justify-between">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
@@ -137,7 +184,16 @@ export default function LatestContent({
                                     All contests →
                                 </Link>
                             </div>
-                            <div className="space-y-3">
+                            <div
+                                className={
+                                    hasArticles
+                                        ? "space-y-3"
+                                        : // No articles → contests get the full
+                                          // width as a 3-up grid so we don't end
+                                          // up with a narrow column on a wide page.
+                                          "grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+                                }
+                            >
                                 {liveOrUpcoming.map((c) => {
                                     const isLive = c.startTimeMs <= now && c.endTimeMs >= now;
                                     return (

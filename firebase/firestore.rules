@@ -428,8 +428,12 @@ service cloud.firestore {
 
     // Orders collection
     match /orders/{orderId} {
-      // Guest Checkout: Public Create
-      allow create: if true;
+      // Client-side create is no longer needed — all order creation
+      // happens server-side through /api/razorpay/create-order and
+      // /api/orders/create-free, which use the Admin SDK and bypass
+      // rules. Closing public create plugs an unauthenticated-spam
+      // vector while keeping checkout flows intact.
+      allow create: if false;
       // Public Read (needed for success page immediate access)
       allow read: if true;
 
@@ -989,7 +993,10 @@ service cloud.firestore {
     // Subscription orders
     match /subscriptionOrders/{orderId} {
       allow read: if isAuthenticated() && (resource.data.customerEmail == authEmail() || isAdmin());
-      allow create: if true;
+      // All writes go through /api/teacher/subscribe + /api/subscription/*
+      // using the Admin SDK; client-side create was never used legitimately
+      // and just left an unauthenticated-spam vector open.
+      allow create: if false;
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }

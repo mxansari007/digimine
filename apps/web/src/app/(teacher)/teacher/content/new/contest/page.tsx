@@ -3,9 +3,14 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@digimine/ui";
-import { ContestForm } from "@digimine/shared";
+import { ContestForm, type ContestCustomQuestionDraft } from "@digimine/shared";
 import { storage } from "@/lib/firebase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import {
+  AiQuestionGenerator,
+  type GeneratedQuestionDraft,
+} from "@/components/teacher/AiQuestionGenerator";
 import {
   createTeacherContest,
   getTeacherQuizzes,
@@ -29,6 +34,7 @@ import type {
 export default function CreateTeacherContestPage() {
   const router = useRouter();
   const { firebaseUser } = useAuthContext();
+  const teaching = useTeachingFeatures();
 
   const handleSubmit = async (
     payload: Record<string, unknown>,
@@ -109,6 +115,44 @@ export default function CreateTeacherContestPage() {
         parseMarkdown={parseMarkdown}
         markdownTemplate={QUIZ_QUESTION_TEMPLATE_MD}
         onBankQuestionsUsed={onBankQuestionsUsed}
+        aiToolbarSlot={(append) => (
+          <AiQuestionGenerator
+            firebaseUser={firebaseUser}
+            aiEnabled={teaching.aiEnabled}
+            hasFeature={teaching.has("ai_question_generation")}
+            maxCount={teaching.aiPublic.maxQuestionsPerRequest}
+            dailyQuota={teaching.aiQuota}
+            upgradeHref={teaching.upgradeHref}
+            allowedTypes={["mcq", "text_input"]}
+            onSave={async (q: GeneratedQuestionDraft) => {
+              const draft: ContestCustomQuestionDraft = {
+                type: q.type === "code" ? "text_input" : q.type,
+                questionText: q.questionText,
+                options:
+                  q.type === "mcq"
+                    ? q.options.map((o) => ({
+                        text: o.text,
+                        isCorrect: o.isCorrect,
+                      }))
+                    : [],
+                correctAnswer: q.correctAnswer ?? "",
+                explanation: q.explanation,
+                marks: q.marks,
+                negativeMarks: 0,
+                difficulty:
+                  q.difficulty === "easy"
+                    ? "easy"
+                    : q.difficulty === "hard"
+                      ? "hard"
+                      : "medium",
+                passageGroup: "",
+                passage: "",
+              };
+              append(draft);
+            }}
+            onGenerated={teaching.refresh}
+          />
+        )}
         mode="teacher"
       />
     </div>

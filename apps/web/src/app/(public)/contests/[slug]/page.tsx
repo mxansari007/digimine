@@ -73,6 +73,14 @@ export default function ContestDetailPage() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const classroomTeacherId = searchParams.get("teacherId");
+    const classroomClassId = searchParams.get("classId");
+    // Either query param means the student is opening this through a
+    // classroom. Without checking `classId`, new-style classroom URLs
+    // fell through to the public catalogue path and redirected to /contests.
+    const isClassroomContext = Boolean(classroomTeacherId || classroomClassId);
+    const classroomParam =
+        (classroomTeacherId ? `&teacherId=${encodeURIComponent(classroomTeacherId)}` : "") +
+        (classroomClassId ? `&classId=${encodeURIComponent(classroomClassId)}` : "");
     const { user, firebaseUser, loading: authLoading } = useAuthContext();
     const userId = user?.id || firebaseUser?.uid;
     // Force signed-in-but-role-less users through /role-select first.
@@ -92,27 +100,34 @@ export default function ContestDetailPage() {
     const loadOnceRef = useRef<string | null>(null);
 
     useEffect(() => {
-        const loadKey = `${slug}|${classroomTeacherId || ""}|${userId || ""}|${authLoading ? "loading" : "ready"}`;
+        const loadKey = `${slug}|${classroomTeacherId || ""}|${classroomClassId || ""}|${userId || ""}|${authLoading ? "loading" : "ready"}`;
         if (loadOnceRef.current === loadKey) return;
         loadOnceRef.current = loadKey;
 
         async function loadContest() {
-            if (classroomTeacherId && authLoading) return;
+            if (isClassroomContext && authLoading) return;
 
             try {
                 setLoading(true);
                 let classroomToken: string | null = null;
                 let contestData: Contest | null = null;
 
-                if (classroomTeacherId) {
+                if (isClassroomContext) {
                     if (!firebaseUser) {
-                        router.push(`/login?redirect=${encodeURIComponent(`/contests/${slug}?teacherId=${classroomTeacherId}`)}`);
+                        router.push(
+                            `/login?redirect=${encodeURIComponent(`/contests/${slug}?${classroomParam.replace(/^&/, "")}`)}`
+                        );
                         return;
                     }
 
                     classroomToken = await firebaseUser.getIdToken();
+                    const qs = new URLSearchParams();
+                    qs.set("type", "contest");
+                    qs.set("slug", slug);
+                    if (classroomTeacherId) qs.set("teacherId", classroomTeacherId);
+                    if (classroomClassId) qs.set("classId", classroomClassId);
                     const data = await fetchClassroomJson<{ content?: Contest }>(
-                        `/api/content/data?type=contest&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                        `/api/content/data?${qs.toString()}`,
                         classroomToken
                     );
                     contestData = hydrateDateFields(data.content);
@@ -141,14 +156,25 @@ export default function ContestDetailPage() {
                     let seriesData: TestSeries | null = null;
                     let testData: Test | null = null;
 
-                    if (classroomTeacherId && classroomToken) {
+                    if (isClassroomContext && classroomToken) {
+                        const seriesQs = new URLSearchParams();
+                        seriesQs.set("type", "test");
+                        seriesQs.set("slug", contestData.seriesId);
+                        if (classroomTeacherId) seriesQs.set("teacherId", classroomTeacherId);
+                        if (classroomClassId) seriesQs.set("classId", classroomClassId);
+                        const testQs = new URLSearchParams();
+                        testQs.set("type", "test");
+                        testQs.set("parentId", contestData.seriesId);
+                        testQs.set("childId", contestData.testId);
+                        if (classroomTeacherId) testQs.set("teacherId", classroomTeacherId);
+                        if (classroomClassId) testQs.set("classId", classroomClassId);
                         const [seriesRes, testRes] = await Promise.all([
                             fetchClassroomJson<{ content?: TestSeries }>(
-                                `/api/content/data?type=test&slug=${encodeURIComponent(contestData.seriesId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                                `/api/content/data?${seriesQs.toString()}`,
                                 classroomToken
                             ),
                             fetchClassroomJson<{ test?: Test }>(
-                                `/api/content/data?type=test&parentId=${encodeURIComponent(contestData.seriesId)}&childId=${encodeURIComponent(contestData.testId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                                `/api/content/data?${testQs.toString()}`,
                                 classroomToken
                             ),
                         ]);
@@ -169,7 +195,7 @@ export default function ContestDetailPage() {
                     setTest(testData);
                     if (userId) {
                         const userAttempts = await getUserTestAttempts(userId, contestData.seriesId, contestData.testId);
-                        if (classroomTeacherId) {
+                        if (isClassroomContext) {
                             setHasAccess(true);
                         } else {
                             const access = await hasUserPurchasedTest(userId, contestData.seriesId);
@@ -190,9 +216,13 @@ export default function ContestDetailPage() {
                         return;
                     }
                     let quizData: Quiz | null = null;
-                    if (classroomTeacherId && classroomToken) {
+                    if (isClassroomContext && classroomToken) {
+                        const quizQs = new URLSearchParams();
+                        quizQs.set("slug", contestData.quizId);
+                        if (classroomTeacherId) quizQs.set("teacherId", classroomTeacherId);
+                        if (classroomClassId) quizQs.set("classId", classroomClassId);
                         const quizRes = await fetchClassroomJson<{ quiz?: Quiz }>(
-                            `/api/quizzes/data?slug=${encodeURIComponent(contestData.quizId)}&teacherId=${encodeURIComponent(classroomTeacherId)}`,
+                            `/api/quizzes/data?${quizQs.toString()}`,
                             classroomToken
                         );
                         quizData = hydrateDateFields(quizRes.quiz);
@@ -204,7 +234,7 @@ export default function ContestDetailPage() {
                         return;
                     }
                     setQuiz(quizData);
-                    let quizHasAccess = Boolean(classroomTeacherId) || quizData.accessType === "free" || contestData.sourceType === "custom";
+                    let quizHasAccess = isClassroomContext || quizData.accessType === "free" || contestData.sourceType === "custom";
                     if (userId && !quizHasAccess && (quizData as any).teacherId) {
                         try {
                             const accessRes = await fetch(`/api/classroom/content-access?userId=${userId}&teacherId=${(quizData as any).teacherId}`);
@@ -225,7 +255,7 @@ export default function ContestDetailPage() {
             }
         }
         loadContest();
-    }, [authLoading, classroomTeacherId, firebaseUser, router, slug, userId]);
+    }, [authLoading, classroomTeacherId, classroomClassId, isClassroomContext, classroomParam, firebaseUser, router, slug, userId]);
 
     const latestAttempt = useMemo(
         () => attempts.find((attempt) => attempt.status !== "abandoned") || null,
@@ -258,7 +288,7 @@ export default function ContestDetailPage() {
     const activeAttempt = isTestContest ? latestAttempt : latestQuizAttempt;
     const isFreeSeries = Boolean(series?.accessType === "free");
     const canStart = Boolean(userId && hasAccess && isLive && !activeAttempt);
-    const currentContestPath = `/contests/${contest.slug || contest.id}${classroomTeacherId ? `?teacherId=${encodeURIComponent(classroomTeacherId)}` : ""}`;
+    const currentContestPath = `/contests/${contest.slug || contest.id}${isClassroomContext ? `?${classroomParam.replace(/^&/, "")}` : ""}`;
     const startHref = (() => {
         if (isTestContest && series && contest.testId) {
             const query = new URLSearchParams({

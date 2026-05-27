@@ -12,7 +12,7 @@
  *
  * Callers pass either a `User` (from AuthContext) or a raw role string.
  */
-import type { User, UserRole } from "@digimine/types";
+import type { OnboardingStep, User, UserRole } from "@digimine/types";
 
 export const ROLE_SELECT_PATH = "/role-select";
 
@@ -24,6 +24,35 @@ export function roleHomePath(role: UserRole | null | undefined): string {
     return "/dashboard";
 }
 
-export function userHomePath(user: Pick<User, "role"> | null | undefined): string {
+/**
+ * Returns the URL where a user with `onboardingStep` mid-flow should
+ * resume. Returns `null` when the step is missing, unknown, or
+ * `"complete"` — callers should fall back to `roleHomePath` /
+ * `ROLE_SELECT_PATH` in that case.
+ */
+export function resumeOnboardingPath(
+    step: OnboardingStep | null | undefined
+): string | null {
+    switch (step) {
+        case "teacher:phone":
+            return "/teacher/onboarding/phone";
+        case "teacher:payment":
+            return "/teacher/onboarding/payment";
+        case "teacher:profile":
+            return "/teacher/onboarding/profile";
+        case "institute:phone":
+            return "/institute/onboarding/phone";
+        case "institute:setup":
+            return "/institute/onboarding";
+        default:
+            return null;
+    }
+}
+
+export function userHomePath(
+    user: Pick<User, "role" | "onboardingStep"> | null | undefined
+): string {
+    const resume = resumeOnboardingPath(user?.onboardingStep);
+    if (resume) return resume;
     return roleHomePath(user?.role ?? null);
 }

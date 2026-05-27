@@ -56,9 +56,13 @@ export default function JoinPage() {
             if (classDoc?.id) body.classId = classDoc.id;
             else body.inviteCode = inviteCode;
 
+            const token = await firebaseUser!.getIdToken();
             const res = await fetch("/api/classroom/enroll", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify(body),
             });
             const result = await res.json();

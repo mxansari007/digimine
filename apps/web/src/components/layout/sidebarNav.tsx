@@ -80,6 +80,12 @@ const PracticeIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const UsageIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V5m0 14H5a2 2 0 01-2-2v-2a2 2 0 012-2h4m0 6h4m-4 0V11m4 8V9m0 10h4a2 2 0 002-2V7a2 2 0 00-2-2h-4m0 14V5" />
+    </svg>
+);
+
 export const studentNav: AppSidebarNavItem[] = [
     { name: "My Library", href: "/dashboard", icon: LibraryIcon, exact: true },
     { name: "Practice (DSA/SQL)", href: "/practice", icon: PracticeIcon },
@@ -97,13 +103,15 @@ export const teacherNav: AppSidebarNavItem[] = [
     { name: "My Content", href: "/teacher/content", icon: LibraryIcon },
     { name: "Question Bank", href: "/teacher/questions", icon: QuestionBankIcon },
     { name: "All Students", href: "/teacher/students", icon: StudentsIcon },
+    { name: "Usage", href: "/teacher/usage", icon: UsageIcon },
     { name: "Earnings", href: "/teacher/earnings", icon: EarningsIcon },
 ];
 
 export const instituteNav: AppSidebarNavItem[] = [
     { name: "Dashboard", href: "/institute/dashboard", icon: HomeIcon, exact: true },
     { name: "Teachers", href: "/institute/teachers", icon: StudentsIcon },
-    { name: "Classes", href: "/institute/classes", icon: StudentsIcon },
+    { name: "Students", href: "/institute/students", icon: StudentsIcon },
+    { name: "Classes", href: "/institute/classes", icon: ClassroomIcon },
     { name: "Question Bank", href: "/institute/question-bank", icon: QuestionBankIcon },
     { name: "Content", href: "/institute/content", icon: LibraryIcon },
     { name: "Billing", href: "/institute/billing", icon: EarningsIcon },

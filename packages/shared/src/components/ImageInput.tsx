@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { FirebaseStorage } from "firebase/storage";
+import { Ruler, Link2, Upload, X } from "lucide-react";
 import { FileUpload } from "./FileUpload";
 
 /**
@@ -81,7 +82,7 @@ export function ImageInput({
                             className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-700 ring-1 ring-primary-100"
                             title="Upload at this resolution / aspect to avoid cropping"
                         >
-                            <span aria-hidden="true">📐</span>
+                            <Ruler className="h-3 w-3" strokeWidth={2.5} aria-hidden />
                             {idealSize}
                         </span>
                     )}
@@ -99,13 +100,13 @@ export function ImageInput({
                     aria-selected={mode === "upload"}
                     aria-controls={`${tabId}-panel`}
                     onClick={() => setMode("upload")}
-                    className={`rounded-md px-3 py-1.5 transition ${
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition ${
                         mode === "upload"
                             ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
                             : "text-slate-500 hover:text-slate-900"
                     }`}
                 >
-                    ⬆ Upload
+                    <Upload className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Upload
                 </button>
                 <button
                     type="button"
@@ -113,22 +114,22 @@ export function ImageInput({
                     aria-selected={mode === "url"}
                     aria-controls={`${tabId}-panel`}
                     onClick={() => setMode("url")}
-                    className={`rounded-md px-3 py-1.5 transition ${
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition ${
                         mode === "url"
                             ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
                             : "text-slate-500 hover:text-slate-900"
                     }`}
                 >
-                    🔗 URL
+                    <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> URL
                 </button>
                 {value && (
                     <button
                         type="button"
                         onClick={() => onChange("")}
                         title="Clear current image"
-                        className="ml-2 rounded-md px-2 py-1.5 text-slate-400 transition hover:text-rose-600"
+                        className="ml-2 inline-flex items-center rounded-md px-2 py-1.5 text-slate-400 transition hover:text-rose-600"
                     >
-                        ✕
+                        <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                     </button>
                 )}
             </div>

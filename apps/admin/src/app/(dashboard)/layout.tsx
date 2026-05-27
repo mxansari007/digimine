@@ -25,7 +25,7 @@ export default function DashboardLayout({
 
     return (
         <DashboardShell
-            sidebar={({ isOpen, onClose }) => (
+            sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
                 <AppSidebar
                     role="admin"
                     pathname={pathname}
@@ -33,8 +33,11 @@ export default function DashboardLayout({
                     user={user}
                     LinkComponent={Link}
                     onSignOut={handleSignOut}
+                    brandHref="/"
                     isOpen={isOpen}
                     onClose={onClose}
+                    collapsed={collapsed}
+                    onToggleCollapsed={onToggleCollapsed}
                 />
             )}
         >

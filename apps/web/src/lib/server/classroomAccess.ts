@@ -90,11 +90,80 @@ export async function assertTeacherContentAccess(
     if (!isPublishedContent(data)) return { allowed: false, status: 404, error: "Content not found." };
 
     const teacherId = data.teacherId || "";
+    const instituteId = (data.instituteId as string | undefined) || "";
     if (expectedTeacherId && teacherId !== expectedTeacherId) {
         return { allowed: false, status: 404, error: "Content not found." };
     }
 
-    if (!teacherId || isPublicApprovedTeacherContent(data)) {
+    // Owner shortcut. The teacher who authored the content (and any
+    // institute admin who owns the institute it lives under) MUST be able
+    // to fetch it — they preview student attempts via the same endpoint
+    // that students use. Previously this fell through to the
+    // student-enrollment gate, which is why "Preview result" returned
+    // "Result Not Found" for teachers.
+    const ownerUserId = await getBearerUserId(req).catch(() => null);
+    if (ownerUserId) {
+        if (teacherId && ownerUserId === teacherId) {
+            return { allowed: true, userId: ownerUserId };
+        }
+        if (instituteId) {
+            const adminSnap = await adminDb
+                .collection("institutes")
+                .doc(instituteId)
+                .collection("admins")
+                .doc(ownerUserId)
+                .get();
+            if (adminSnap.exists) {
+                return { allowed: true, userId: ownerUserId };
+            }
+        }
+    }
+
+    // Publicly-approved teacher content is open. Note: previously this also
+    // returned `allowed: true` for any content with empty teacherId, which
+    // accidentally exposed institute-authored content (teacherId="", but
+    // gated by class membership). The institute case is now handled below.
+    if (teacherId && isPublicApprovedTeacherContent(data)) {
+        return { allowed: true, userId: null };
+    }
+
+    // Institute-authored content: teacherId is empty + instituteId is set.
+    // Same gating as teacher content — enrolled students of any assigned
+    // class can access it.
+    if (!teacherId && instituteId) {
+        const targetClassId = options?.classId || "";
+        const contentClassIds: string[] = Array.isArray(data.classIds) ? data.classIds : [];
+        const userId = await getBearerUserId(req).catch(() => null);
+        if (!userId) {
+            return { allowed: false, status: 401, error: "Sign in to access this content." };
+        }
+        const candidates = targetClassId && (contentClassIds.length === 0 || contentClassIds.includes(targetClassId))
+            ? [targetClassId, ...contentClassIds.filter((c) => c !== targetClassId)]
+            : contentClassIds;
+        for (const cid of candidates) {
+            const memberSnap = await adminDb
+                .collection("classes")
+                .doc(cid)
+                .collection("students")
+                .doc(userId)
+                .get();
+            if (!memberSnap.exists || memberSnap.data()?.status !== "active") continue;
+            const classSnap = await adminDb.collection("classes").doc(cid).get();
+            if (classSnap.exists && classSnap.data()?.instituteId === instituteId) {
+                return { allowed: true, userId };
+            }
+        }
+        return {
+            allowed: false,
+            status: 403,
+            error: "You are not enrolled in any class that has this content.",
+        };
+    }
+
+    // Neither teacher nor institute authorship → treat as orphan and allow.
+    // (Mostly applies to fully public catalogue content that never had an
+    // author stamped — same behaviour as before the bug-fix.)
+    if (!teacherId) {
         return { allowed: true, userId: null };
     }
 

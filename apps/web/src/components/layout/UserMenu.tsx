@@ -25,12 +25,23 @@ export interface UserMenuProps {
     user: Pick<User, "displayName" | "email" | "photoURL" | "role"> | null;
     onSignOut: () => void;
     dashboardLabel?: string;
+    /**
+     * True only when the caller has an active subscription on a paid
+     * (non-free) plan. The parent (Header) reads this from
+     * `useEntitlements().isPremium` and passes it down. We accept it
+     * as a prop rather than reading entitlements directly so UserMenu
+     * doesn't depend on EntitlementsProvider being mounted — that
+     * keeps it usable in shells (e.g. admin layout) that don't wrap
+     * with the entitlements context.
+     */
+    isPremium?: boolean;
 }
 
 export default function UserMenu({
     user,
     onSignOut,
     dashboardLabel = "My dashboard",
+    isPremium = false,
 }: UserMenuProps) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -57,34 +68,43 @@ export default function UserMenu({
 
     return (
         <div ref={rootRef} className="relative">
+            {/* Avatar-first trigger. Drops the chevron and the trailing name
+                pill on small screens so the header stays compact — the
+                avatar alone already reads as "open my account menu". The
+                first name only re-appears on lg+ where there's room. */}
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className="group flex items-center gap-2 rounded-full border border-slate-200 bg-white pl-1 pr-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-primary-200 hover:bg-primary-50/40 hover:text-primary-700"
+                aria-label="Open account menu"
+                className="group flex items-center gap-2 rounded-full p-0.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 lg:border lg:border-slate-200 lg:bg-white lg:pl-1 lg:pr-3 lg:py-1 lg:shadow-sm lg:hover:border-primary-200 lg:hover:bg-primary-50/40 lg:hover:text-primary-700"
             >
-                <Avatar
-                    src={user?.photoURL}
-                    name={user?.displayName}
-                    email={user?.email}
-                    size={28}
-                />
-                <span className="hidden max-w-[140px] truncate sm:inline">
-                    {user?.displayName?.split(" ")[0] || "Account"}
-                </span>
-                <svg
-                    aria-hidden
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
-                >
-                    <path
-                        fillRule="evenodd"
-                        d="M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z"
-                        clipRule="evenodd"
+                <span className="relative inline-flex">
+                    <Avatar
+                        src={user?.photoURL}
+                        name={user?.displayName}
+                        email={user?.email}
+                        size={28}
                     />
-                </svg>
+                    {isPremium && (
+                        <span
+                            aria-label="Pro member"
+                            title="Pro member"
+                            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[8px] font-bold text-amber-900 ring-2 ring-white"
+                        >
+                            ★
+                        </span>
+                    )}
+                </span>
+                <span className="hidden max-w-[140px] items-center gap-1.5 truncate lg:inline-flex">
+                    {user?.displayName?.split(" ")[0] || "Account"}
+                    {isPremium && (
+                        <span className="rounded-md bg-gradient-to-r from-amber-400 to-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
+                            Pro
+                        </span>
+                    )}
+                </span>
             </button>
 
             {open && (
@@ -101,8 +121,13 @@ export default function UserMenu({
                             ring
                         />
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                                {displayName}
+                            <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-900">
+                                <span className="truncate">{displayName}</span>
+                                {isPremium && (
+                                    <span className="flex-shrink-0 rounded-md bg-gradient-to-r from-amber-400 to-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950">
+                                        Pro
+                                    </span>
+                                )}
                             </p>
                             <p className="truncate text-xs text-slate-500">{subline}</p>
                         </div>

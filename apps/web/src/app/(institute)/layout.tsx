@@ -8,6 +8,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { instituteNav } from "@/components/layout/sidebarNav";
+import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 
 /**
  * Institute admin layout. Mirrors the teacher layout shape but resolves the
@@ -19,6 +20,14 @@ export default function InstituteLayout({
 }: {
     children: React.ReactNode;
 }) {
+    return (
+        <EmailVerificationGate>
+            <InstituteLayoutInner>{children}</InstituteLayoutInner>
+        </EmailVerificationGate>
+    );
+}
+
+function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
     const { user, firebaseUser, isAuthenticated, loading } = useAuthContext();
     const router = useRouter();
     const pathname = usePathname() ?? "";
@@ -95,7 +104,7 @@ export default function InstituteLayout({
     return (
         <DashboardShell
             role="institute"
-            sidebar={({ isOpen, onClose }) => (
+            sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
                 <AppSidebar
                     role="institute"
                     pathname={pathname}
@@ -103,8 +112,11 @@ export default function InstituteLayout({
                     user={user}
                     LinkComponent={Link}
                     onSignOut={handleSignOut}
+                    brandHref="/institute/dashboard"
                     isOpen={isOpen}
                     onClose={onClose}
+                    collapsed={collapsed}
+                    onToggleCollapsed={onToggleCollapsed}
                 />
             )}
         >

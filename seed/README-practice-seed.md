@@ -1,14 +1,20 @@
 # Practice seed data
 
-Two import packs (same `{ problems: [...] }` schema, same endpoint):
+Three import packs (same `{ problems: [...] }` schema, same endpoint):
 
 - **`practice-problems.json`** — 6 starter problems (below).
 - **`practice-problems-pack-2.json`** — 11 more across additional patterns:
   arrays-hashing, sliding-window, two-pointers, prefix-sum, bit-manipulation,
   heap, greedy, graphs (8 DSA) + SQL joins / aggregation / group-having (3 SQL).
-  Import it the same way; slugs auto-dedupe so the two packs don't collide.
-  **SQL note:** aggregate problems ask the solver to ALIAS columns (`AS total`)
-  so the result columns match `expectedColumns`.
+- **`practice-problems-pack-3.json`** — 14 more covering the patterns the
+  first two packs miss: linked-list, trees, dp-1d, dp-2d, backtracking,
+  intervals, monotonic-stack, math, plus one hard (Trapping Rain Water).
+  SQL side adds self-join, subquery, and window-function problems.
+
+Import the packs the same way; slugs auto-dedupe so the three packs don't
+collide. **SQL note:** aggregate / window problems ask the solver to ALIAS
+columns (`AS total`, `AS running`, `AS second_salary`) so the result columns
+match `expectedColumns`.
 
 `practice-problems.json` seeds 6 problems exercising the whole Practice flow:
 

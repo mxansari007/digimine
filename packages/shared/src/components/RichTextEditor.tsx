@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { FirebaseStorage } from "firebase/storage";
+import { Link2, Image as ImageIcon, Play, ArrowLeft, ArrowRight, ArrowLeftRight } from "lucide-react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -213,15 +214,19 @@ function Toolbar({
                 <TButton title="Code block" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>{"{ }"}</TButton>
             )}
             <Divider />
-            <TButton title="Link" active={editor.isActive("link")} onClick={onAddLink}>🔗</TButton>
+            <TButton title="Link" active={editor.isActive("link")} onClick={onAddLink}>
+                <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            </TButton>
             {enableMedia && (
                 <>
                     <TButton title={uploading ? "Uploading…" : "Insert image"} onClick={onPickImage} disabled={uploading}>
-                        {uploading ? "…" : "🖼"}
+                        {uploading ? "…" : <ImageIcon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />}
                     </TButton>
                     {!compact && (
                         <>
-                            <TButton title="Embed YouTube" onClick={onAddYoutube}>▶</TButton>
+                            <TButton title="Embed YouTube" onClick={onAddYoutube}>
+                                <Play className="h-3.5 w-3.5 fill-current" strokeWidth={0} aria-hidden />
+                            </TButton>
                             <TButton title="Insert table" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>⊞</TButton>
                         </>
                     )}
@@ -231,9 +236,15 @@ function Toolbar({
             {imgSelected ? (
                 <>
                     <span className="ml-1 mr-1 text-[10px] font-bold uppercase text-slate-500">Image</span>
-                    <TButton title="Wrap left" active={editor.getAttributes("image").align === "left"} onClick={() => setAlign("left")}>⬅ Wrap</TButton>
-                    <TButton title="Center" active={editor.getAttributes("image").align === "center"} onClick={() => setAlign("center")}>↔ Center</TButton>
-                    <TButton title="Wrap right" active={editor.getAttributes("image").align === "right"} onClick={() => setAlign("right")}>Wrap ➡</TButton>
+                    <TButton title="Wrap left" active={editor.getAttributes("image").align === "left"} onClick={() => setAlign("left")}>
+                        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Wrap
+                    </TButton>
+                    <TButton title="Center" active={editor.getAttributes("image").align === "center"} onClick={() => setAlign("center")}>
+                        <ArrowLeftRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Center
+                    </TButton>
+                    <TButton title="Wrap right" active={editor.getAttributes("image").align === "right"} onClick={() => setAlign("right")}>
+                        Wrap <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    </TButton>
                     <TButton title="Inline (no wrap)" onClick={() => setAlign(null)}>Inline</TButton>
                     <Divider />
                     <TButton title="Small (33%)" onClick={() => setImgWidth("33%")}>S</TButton>
@@ -243,9 +254,15 @@ function Toolbar({
                 </>
             ) : (
                 <>
-                    <TButton title="Align left" active={editor.isActive({ textAlign: "left" })} onClick={() => setAlign("left")}>⬅</TButton>
-                    <TButton title="Align center" active={editor.isActive({ textAlign: "center" })} onClick={() => setAlign("center")}>↔</TButton>
-                    <TButton title="Align right" active={editor.isActive({ textAlign: "right" })} onClick={() => setAlign("right")}>➡</TButton>
+                    <TButton title="Align left" active={editor.isActive({ textAlign: "left" })} onClick={() => setAlign("left")}>
+                        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    </TButton>
+                    <TButton title="Align center" active={editor.isActive({ textAlign: "center" })} onClick={() => setAlign("center")}>
+                        <ArrowLeftRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    </TButton>
+                    <TButton title="Align right" active={editor.isActive({ textAlign: "right" })} onClick={() => setAlign("right")}>
+                        <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    </TButton>
                 </>
             )}
             <span className="ml-auto inline-flex items-center gap-1">

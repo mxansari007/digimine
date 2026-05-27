@@ -1,28 +1,9 @@
 "use client";
 
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
-
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
-
-function initializeFirebaseClient(): FirebaseApp {
-    if (getApps().length > 0) {
-        return getApp();
-    }
-    return initializeApp(firebaseConfig);
-}
-
-export const app = initializeFirebaseClient();
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
-export const storage: FirebaseStorage = getStorage(app);
+// Re-export the shared Firebase client from @digimine/config so the admin
+// app uses the same singleton (and the same emulator wiring) as the web
+// app. Previously this file initialised its own Firebase app without
+// emulator hooks, which meant admin sign-in always hit the real Firebase
+// project — seed users created in the emulator were invisible, and login
+// failed with "Invalid email or password" against localhost.
+export { app, auth, db, storage } from "@digimine/config";

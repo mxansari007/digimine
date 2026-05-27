@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { Flame } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import Heatmap, { HeatmapLegend } from "@/components/practice/Heatmap";
@@ -340,7 +341,12 @@ export default function PracticeHubPage() {
                             {/* Streak flame */}
                             <Card className="flex flex-col items-center justify-center p-6 text-center">
                                 <div className="relative flex h-20 w-20 items-center justify-center">
-                                    <span className="practice-flame text-5xl" aria-hidden>🔥</span>
+                                    <Flame
+                                        className="practice-flame h-14 w-14 text-amber-500"
+                                        strokeWidth={1.75}
+                                        fill="currentColor"
+                                        aria-hidden
+                                    />
                                 </div>
                                 <p className="mt-2 text-4xl font-bold text-amber-600">{data?.stats.streak ?? 0}</p>
                                 <p className="text-xs font-medium uppercase tracking-wider text-slate-500">day streak</p>

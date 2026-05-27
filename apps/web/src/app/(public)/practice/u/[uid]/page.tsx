@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Card, Skeleton, SkeletonList } from "@digimine/ui";
+import { Flame } from "lucide-react";
 import Heatmap, { HeatmapLegend } from "@/components/practice/Heatmap";
 
 type Stats = {
@@ -100,8 +101,15 @@ export default function PublicProfilePage() {
                     <div>
                         <h1 className="font-display text-3xl font-bold text-white">{profile.name}</h1>
                         {profile.bio && <p className="mt-1 max-w-xl text-sm text-slate-300">{profile.bio}</p>}
-                        <p className="mt-1 text-xs text-slate-400">
-                            {joined ? `Joined ${joined} · ` : ""}🔥 {s.currentStreak}-day streak (best {s.longestStreak})
+                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                            {joined && <>Joined {joined} · </>}
+                            <Flame
+                                className="h-3.5 w-3.5 text-amber-500"
+                                strokeWidth={1.75}
+                                fill="currentColor"
+                                aria-hidden
+                            />
+                            {s.currentStreak}-day streak (best {s.longestStreak})
                         </p>
                     </div>
                 </div>

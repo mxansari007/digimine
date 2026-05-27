@@ -161,18 +161,29 @@ export default function MyContestsPage() {
 
                 const contestTestAttempts = rawTestAttempts.filter((attempt) => Boolean(attempt.contestId));
                 const contestQuizAttempts = rawQuizAttempts.filter((attempt) => Boolean(attempt.contestId));
-                setTestAttempts(contestTestAttempts);
-                setQuizAttempts(contestQuizAttempts);
 
                 const contestIds = Array.from(new Set([
                     ...contestTestAttempts.map((attempt) => attempt.contestId),
                     ...contestQuizAttempts.map((attempt) => attempt.contestId),
                 ].filter(Boolean))) as string[];
 
+                // Track which contestIds belong to a teacher (and should be
+                // hidden from this public-contests page) versus which are
+                // simply unavailable (kept with a faded "Contest unavailable"
+                // chip — same behaviour as before).
+                const teacherContestIds = new Set<string>();
                 const contestEntries = await Promise.all(
                     contestIds.map(async (contestId) => {
                         try {
-                            return [contestId, await getContestById(contestId)] as const;
+                            const contest = await getContestById(contestId);
+                            if (
+                                contest &&
+                                (contest as Contest & { teacherId?: string | null }).teacherId
+                            ) {
+                                teacherContestIds.add(contestId);
+                                return [contestId, null] as const;
+                            }
+                            return [contestId, contest] as const;
                         } catch (error) {
                             console.warn("Skipping inaccessible contest:", contestId, error);
                             return [contestId, null] as const;
@@ -180,6 +191,16 @@ export default function MyContestsPage() {
                     })
                 );
                 setContests(Object.fromEntries(contestEntries));
+                // Hide attempts whose contest is a teacher-classroom contest.
+                // Attempts pointing at genuinely-inaccessible (but non-teacher)
+                // contests are kept and render with the existing "unavailable"
+                // affordance.
+                setTestAttempts(
+                    contestTestAttempts.filter((a) => !teacherContestIds.has(a.contestId!))
+                );
+                setQuizAttempts(
+                    contestQuizAttempts.filter((a) => !teacherContestIds.has(a.contestId!))
+                );
             } finally {
                 setLoading(false);
             }

@@ -18,6 +18,12 @@ function serializeRow(doc: FirebaseFirestore.DocumentSnapshot) {
         invitedBy: data.invitedBy || "",
         joinedAt: toIsoDate(data.joinedAt),
         removedAt: toIsoDate(data.removedAt),
+        // Expose the claim token on invited rows so the institute admin can
+        // copy the /claim/{token} URL from the roster. Real-teacher rows
+        // (status=active) carry no token. Null when missing so the client
+        // can render conditionally without `data.claimToken === undefined`
+        // confusion.
+        claimToken: typeof data.claimToken === "string" && data.claimToken ? data.claimToken : null,
     };
 }
 

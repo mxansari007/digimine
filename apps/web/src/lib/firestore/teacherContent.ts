@@ -405,7 +405,14 @@ export async function deleteTeacherContent(
     const ref = doc(db, collectionName, contentId);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error("Content not found");
-    assertTeacherOwner(snap.data(), teacherId);
+    const existing = snap.data();
+    assertTeacherOwner(existing, teacherId);
+    // Match the update path: refuse to destroy content while it's under
+    // admin review. Hard-deleting mid-review would destroy the audit
+    // trail the reviewer is looking at.
+    if (existing.reviewStatus === "pending_review") {
+        throw new Error("Withdraw from review before deleting this content.");
+    }
     await deleteDoc(ref);
 }
 

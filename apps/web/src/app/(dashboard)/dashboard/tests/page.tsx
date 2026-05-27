@@ -41,9 +41,8 @@ export default function MyTestSeriesPage() {
                         return [];
                     })
                 ]);
-                
+
                 const regularAttempts = attemptData.filter((attempt) => !attempt.contestId);
-                setAttempts(regularAttempts);
 
                 // Fetch series details from profile grants, purchase docs, and attempts.
                 // A stale attempt can point at an inaccessible series; skip that one only.
@@ -52,7 +51,7 @@ export default function MyTestSeriesPage() {
                     ...purchaseData.map(p => p.seriesId),
                     ...regularAttempts.map(a => a.seriesId)
                 ].filter(Boolean)));
-                
+
                 const seriesPromises = uniqueSeriesIds.map(async (id) => {
                     try {
                         return await getTestSeries(id);
@@ -62,7 +61,15 @@ export default function MyTestSeriesPage() {
                     }
                 });
                 const seriesData = await Promise.all(seriesPromises);
-                setSeriesList(seriesData.filter(s => s !== null) as TestSeries[]);
+                // Teacher-classroom test series (those with teacherId set) are
+                // hidden here — they live under /student/classrooms instead.
+                const publicSeries = (seriesData.filter(Boolean) as TestSeries[]).filter(
+                    (s) => !(s as TestSeries & { teacherId?: string | null }).teacherId
+                );
+                const publicSeriesIds = new Set(publicSeries.map((s) => s.id));
+                setSeriesList(publicSeries);
+                // Drop attempts pointing at any series we just filtered out.
+                setAttempts(regularAttempts.filter((a) => publicSeriesIds.has(a.seriesId)));
             } catch (error) {
                 console.error("Error loading test series:", error);
             } finally {

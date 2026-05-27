@@ -283,7 +283,7 @@ export function ReviewSection({ productId, isPurchaser }: ReviewSectionProps) {
                                 <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">Select Rating</span>
                                 {renderInteractiveStars()}
                                 <span className="text-lg font-bold text-primary-600">
-                                    {rating === 5 ? "Perfect! ⭐⭐⭐⭐⭐" : rating === 4 ? "Great! ⭐⭐⭐⭐" : rating === 3 ? "Good ⭐⭐⭐" : rating === 2 ? "Could be better ⭐⭐" : "Poor ⭐"}
+                                    {rating === 5 ? "Perfect!" : rating === 4 ? "Great!" : rating === 3 ? "Good" : rating === 2 ? "Could be better" : "Poor"}
                                 </span>
                             </div>
 

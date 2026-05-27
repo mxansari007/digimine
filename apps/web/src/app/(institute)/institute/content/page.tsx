@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 type ContentRow = {
     id: string;
@@ -90,7 +92,10 @@ export default function InstituteContentPage() {
         <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Centralized content</h1>
+                    <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">Centralized content</h1>
+                        <HelpTutorial {...TUTORIALS.institute_content} />
+                    </div>
                     <p className="mt-1 text-gray-500">
                         Quizzes, tests, contests, and courses you publish institute-wide. Target multiple classes at
                         once and let each assigned teacher facilitate.

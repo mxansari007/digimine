@@ -37,12 +37,16 @@ export default function InstituteCreateCoursePage() {
     ) => {
         if (!firebaseUser?.uid) throw new Error("Sign in");
         if (!instituteId) throw new Error("Institute not loaded");
-        await createTeacherCourse(firebaseUser.uid, payload as any, {
+        // Route into the course editor so the institute admin can keep
+        // adding chapters / linked resources. /teacher/content/courses
+        // is shared between teacher + institute portals (see institute
+        // content list which already links here).
+        const courseId = await createTeacherCourse(firebaseUser.uid, payload as any, {
             instituteId,
             classIds,
         });
         onSuccess();
-        router.push("/institute/content");
+        router.push(`/teacher/content/courses/${courseId}/edit`);
         router.refresh();
     };
 

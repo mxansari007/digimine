@@ -35,11 +35,14 @@ export default function InstituteCreateQuizPage() {
         async (payload: Parameters<typeof createTeacherQuiz>[1]) => {
             if (!firebaseUser?.uid) throw new Error("Sign in");
             if (!instituteId) throw new Error("Institute not loaded");
-            await createTeacherQuiz(firebaseUser.uid, payload, {
+            // Continue into the quiz questions editor. The teacher
+            // subtree handles institute admins fine — the (teacher)
+            // layout guard accepts isTeacher || isInstituteAdmin.
+            const quizId = await createTeacherQuiz(firebaseUser.uid, payload, {
                 instituteId,
                 classIds,
             });
-            router.push("/institute/content");
+            router.push(`/teacher/content/quizzes/${quizId}/questions`);
             router.refresh();
         },
         [firebaseUser, instituteId, classIds, router]

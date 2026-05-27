@@ -231,8 +231,21 @@ export async function GET(req: Request) {
                 return { ...entry, rank };
             });
 
-        const userSummaries = await loadUserSummaries(rankedEntries.map((entry) => entry.userId));
-        const decoratedEntries = rankedEntries.map((entry) => {
+        // Privacy gate for live contests. When `isFinal === false` (contest
+        // still running), we previously returned every participant's score
+        // + identity, letting students see the live leaderboard mid-contest
+        // — fair-play violation. Now we strip the response to the caller's
+        // OWN row only and surface `leaderboardAvailableAt` so the UI can
+        // render a "leaderboard unlocks at X" placeholder. Admins still see
+        // the live data (canRead path above).
+        const isLiveContest = Boolean(contestId) && !contestIsFinal;
+        const isAdmin = await isAdminUser(authUserId);
+        const visibleRanked = isLiveContest && !isAdmin
+            ? rankedEntries.filter((entry) => entry.isCurrentUser)
+            : rankedEntries;
+
+        const userSummaries = await loadUserSummaries(visibleRanked.map((entry) => entry.userId));
+        const decoratedEntries = visibleRanked.map((entry) => {
             const summary = userSummaries.get(entry.userId);
             return {
                 ...entry,
@@ -241,24 +254,28 @@ export async function GET(req: Request) {
             };
         });
 
-        const currentRankedEntry = decoratedEntries.find((entry) => entry.isCurrentUser);
-        const totalParticipants = decoratedEntries.length;
+        // Stats are computed against the FULL set even when entries are
+        // hidden — the caller is still entitled to know how many people
+        // participated, the average and the top score (without identities).
+        const currentRankedEntry = rankedEntries.find((entry) => entry.isCurrentUser);
+        const totalParticipants = rankedEntries.length;
         const belowCurrent = currentRankedEntry
-            ? decoratedEntries.filter((entry) => entry.totalScore < currentRankedEntry.totalScore).length
+            ? rankedEntries.filter((entry) => entry.totalScore < currentRankedEntry.totalScore).length
             : 0;
         const percentile = totalParticipants > 1
             ? Math.round((belowCurrent / (totalParticipants - 1)) * 100)
             : 100;
         const averageScore = totalParticipants > 0
-            ? Math.round((decoratedEntries.reduce((sum, entry) => sum + entry.totalScore, 0) / totalParticipants) * 100) / 100
+            ? Math.round((rankedEntries.reduce((sum, entry) => sum + entry.totalScore, 0) / totalParticipants) * 100) / 100
             : 0;
+        const topScore = rankedEntries[0]?.totalScore || 0;
 
         return NextResponse.json({
             entries: decoratedEntries.map(publicEntry),
             totalParticipants,
             userRank: currentRankedEntry?.rank || null,
             percentile,
-            topScore: decoratedEntries[0]?.totalScore || 0,
+            topScore,
             averageScore,
             scope: contestId ? "contest" : "test",
             contestId: contestId || null,

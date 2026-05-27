@@ -7,17 +7,20 @@
  *
  * OTP mechanics live in `usePhoneOtp`. The verified phone is persisted
  * via the shared `/api/onboarding/phone` route (server-side, mirrors the
- * teacher flow) rather than a client-side `updateDoc` — see that route's
- * doc-block for the rationale.
+ * teacher flow) rather than a client-side `updateDoc`.
  */
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { Card, Button } from "@digimine/ui";
+import { Wrench } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { usePhoneOtp } from "@/lib/auth/usePhoneOtp";
+import { OnboardingShell, Stepper, StepHeader } from "@/components/onboarding";
+
+const STEPS = ["Phone", "Institute"];
 
 export default function InstitutePhoneOnboardingPage() {
     const router = useRouter();
@@ -25,8 +28,6 @@ export default function InstitutePhoneOnboardingPage() {
 
     const otp = usePhoneOtp();
 
-    // If the user already has a verified phone (e.g. existing teacher
-    // turning into an institute admin), skip the gate.
     useEffect(() => {
         if (!authLoading && user?.phoneNumber) {
             router.replace("/institute/onboarding");
@@ -39,8 +40,7 @@ export default function InstitutePhoneOnboardingPage() {
         }
     }, [authLoading, isAuthenticated, router]);
 
-    // Pre-fill from the user profile if we already have one (e.g. they
-    // started a flow earlier). Only runs once when user info loads.
+    // Pre-fill the phone field from the user profile if we already have one.
     useEffect(() => {
         if (user?.phoneNumber && !otp.phone) {
             otp.setPhone(user.phoneNumber);
@@ -54,7 +54,7 @@ export default function InstitutePhoneOnboardingPage() {
 
         const res = await teacherFetch(firebaseUser, "/api/onboarding/phone", {
             method: "POST",
-            body: JSON.stringify({ phone: otp.phone }),
+            body: JSON.stringify({ phone: otp.phone, flow: "institute" }),
         });
         if (!res.ok) {
             const d = await res.json().catch(() => ({}));
@@ -66,27 +66,46 @@ export default function InstitutePhoneOnboardingPage() {
 
     if (authLoading || !isAuthenticated) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50">
-                <div className="text-gray-500">Loading...</div>
-            </div>
+            <OnboardingShell maxWidth="md">
+                <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+                    Loading…
+                </div>
+            </OnboardingShell>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-6">
-                    <p className="chip-primary inline-flex">Step 1 of 2</p>
-                    <h1 className="font-display mt-3 text-2xl font-bold text-slate-900">
-                        Verify your phone
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        We&apos;ll text you a one-time code. This step prevents bulk signup abuse.
-                    </p>
-                </div>
+        <OnboardingShell maxWidth="md">
+            <div className="mb-8">
+                <Stepper steps={STEPS} current={0} />
+            </div>
 
-                <Card className="p-6">
-                    <div className="phone-input-unified relative flex items-stretch rounded-xl border border-gray-300 bg-white shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
+            <div className="mb-6">
+                <StepHeader
+                    title="Verify your phone"
+                    subtitle="One-time OTP to prevent bulk signup abuse. Used only for account security."
+                    icon={
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-6 w-6"
+                            aria-hidden
+                        >
+                            <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+                            <path d="M12 18h.01" />
+                        </svg>
+                    }
+                />
+            </div>
+
+            <Card className="overflow-hidden p-6 sm:p-8">
+                <div className="space-y-4">
+                    <div className="phone-input-unified relative flex items-stretch rounded-xl border border-slate-300 bg-white shadow-sm transition-all focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100">
                         <PhoneInput
                             defaultCountry="in"
                             value={otp.phone}
@@ -97,37 +116,44 @@ export default function InstitutePhoneOnboardingPage() {
                     </div>
 
                     {otp.isDevMode && (
-                        <div className="mt-3 text-xs text-center text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                            🛠 Dev mode: OTP is mocked. Any 6-digit code works.
+                        <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-700">
+                            <Wrench className="h-3.5 w-3.5" aria-hidden />
+                            Dev mode — OTP is mocked. Any 6-digit code works.
                         </div>
                     )}
 
                     {otp.step === "phone" && (
-                        <div className="mt-4">
-                            <Button
-                                variant="primary"
-                                className="w-full"
-                                onClick={otp.sendOtp}
-                                isLoading={otp.sending}
-                                disabled={otp.countdown > 0}
-                            >
-                                {otp.countdown > 0 ? `Resend in ${otp.countdown}s` : "Send OTP"}
-                            </Button>
-                        </div>
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            onClick={otp.sendOtp}
+                            isLoading={otp.sending}
+                            disabled={otp.countdown > 0}
+                        >
+                            {otp.countdown > 0 ? `Resend in ${otp.countdown}s` : "Send OTP"}
+                        </Button>
                     )}
 
                     {otp.step === "otp" && (
-                        <div className="mt-4 space-y-4">
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
-                                maxLength={6}
-                                value={otp.otp}
-                                onChange={(e) => otp.setOtp(e.target.value.replace(/\D/g, ""))}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-2xl text-center tracking-widest focus:ring-2 focus:ring-primary-500"
-                                placeholder="000000"
-                            />
+                        <div className="space-y-4">
+                            <div>
+                                <p className="mb-2 text-center text-xs text-slate-500">
+                                    Enter the 6-digit code we just sent to{" "}
+                                    <span className="font-medium text-slate-700">{otp.phone}</span>
+                                </p>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
+                                    maxLength={6}
+                                    value={otp.otp}
+                                    onChange={(e) => otp.setOtp(e.target.value.replace(/\D/g, ""))}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-2xl tracking-widest text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+                                    placeholder="000000"
+                                    autoFocus
+                                />
+                            </div>
+
                             <Button
                                 variant="primary"
                                 className="w-full"
@@ -138,51 +164,40 @@ export default function InstitutePhoneOnboardingPage() {
                                 Verify &amp; continue
                             </Button>
 
-                            {/* Resend OTP — 30s server-enforced cooldown. The
-                                button stays disabled until `countdown` ticks
-                                to 0; abuse is bounded server-side via
-                                /api/onboarding/otp-send. */}
-                            <button
-                                type="button"
-                                onClick={otp.sendOtp}
-                                disabled={otp.countdown > 0 || otp.sending}
-                                className="w-full text-sm text-primary-600 hover:text-primary-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-                            >
-                                {otp.sending
-                                    ? "Sending..."
-                                    : otp.countdown > 0
-                                    ? `Resend OTP in ${otp.countdown}s`
-                                    : "Resend OTP"}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={otp.changeNumber}
-                                className="w-full text-gray-500 text-sm hover:text-gray-700"
-                            >
-                                ← Change number
-                            </button>
+                            <div className="flex flex-col items-center gap-2 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={otp.sendOtp}
+                                    disabled={otp.countdown > 0 || otp.sending}
+                                    className="text-sm text-primary-600 transition-colors hover:text-primary-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                                >
+                                    {otp.sending
+                                        ? "Sending…"
+                                        : otp.countdown > 0
+                                          ? `Resend OTP in ${otp.countdown}s`
+                                          : "Resend OTP"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={otp.changeNumber}
+                                    className="text-sm text-slate-500 transition-colors hover:text-slate-700"
+                                >
+                                    ← Use a different number
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    {/* The invisible reCAPTCHA host MUST stay mounted in the
-                        layout flow. Do not wrap in a conditional or set
-                        display:none — Firebase needs a real DOM node to
-                        mount its iframe into. */}
+                    {/* Invisible reCAPTCHA host. MUST stay mounted. */}
                     <div {...otp.recaptchaHostProps} />
-
-                    {otp.error && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm whitespace-pre-wrap">
-                            {otp.error}
-                        </div>
-                    )}
-                </Card>
-
-                <div className="mt-6 flex justify-center gap-2">
-                    <div className="h-1.5 w-12 bg-primary-500 rounded-full" />
-                    <div className="h-1.5 w-12 bg-gray-300 rounded-full" />
                 </div>
-            </div>
-        </div>
+
+                {otp.error && (
+                    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                        {otp.error}
+                    </div>
+                )}
+            </Card>
+        </OnboardingShell>
     );
 }

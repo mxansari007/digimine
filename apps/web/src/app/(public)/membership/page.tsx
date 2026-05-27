@@ -22,6 +22,21 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import {
+    Check,
+    X as XIcon,
+    Lock,
+    Sparkles,
+    PartyPopper,
+    Code2,
+    FileText,
+    BookOpen,
+    ShieldCheck,
+    MapPin,
+    RotateCcw,
+    Star,
+    type LucideIcon,
+} from "lucide-react";
+import {
     ENTITLEMENT_FEATURES,
     formatINR,
     type EntitlementFeature,
@@ -57,12 +72,12 @@ const HERO_BULLETS = [
 
 const FEATURE_GROUPS: {
     title: string;
-    icon: string;
+    Icon: LucideIcon;
     features: Array<{ key: EntitlementFeature; label: string; blurb: string }>;
 }[] = [
     {
         title: "Practice",
-        icon: "💻",
+        Icon: Code2,
         features: [
             { key: "practice_premium", label: "Premium DSA & SQL problems", blurb: "All locked problems, all languages, all hints." },
             { key: "revision_radar", label: "Revision Radar", blurb: "Spaced-repetition queue so you never forget what you solved." },
@@ -71,7 +86,7 @@ const FEATURE_GROUPS: {
     },
     {
         title: "Tests & Quizzes",
-        icon: "📝",
+        Icon: FileText,
         features: [
             { key: "mock_tests", label: "Premium mock tests", blurb: "Full-length test series modelled on real placement papers." },
             { key: "quizzes_premium", label: "Premium quizzes", blurb: "Topic-wise quizzes with detailed explanations." },
@@ -80,7 +95,7 @@ const FEATURE_GROUPS: {
     },
     {
         title: "Learn",
-        icon: "📚",
+        Icon: BookOpen,
         features: [
             { key: "courses_premium", label: "Premium courses", blurb: "Multi-week tracks with structured chapters and exercises." },
             { key: "downloads", label: "Downloadable resources", blurb: "PDF cheat-sheets, problem lists, study planners." },
@@ -89,7 +104,7 @@ const FEATURE_GROUPS: {
     },
     {
         title: "Experience",
-        icon: "✨",
+        Icon: Sparkles,
         features: [
             { key: "ad_free", label: "Ad-free", blurb: "Clean, distraction-free interface across the platform." },
         ],
@@ -315,7 +330,8 @@ export default function MembershipPage() {
                 <div className="container-page relative py-16 sm:py-24">
                     <div className="mx-auto max-w-3xl text-center">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300 backdrop-blur">
-                            <span>★</span> PlacementRanker Premium
+                            <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
+                            PlacementRanker Premium
                         </span>
                         <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-white sm:text-5xl">
                             One subscription.
@@ -340,8 +356,9 @@ export default function MembershipPage() {
                         </div>
 
                         {!enforced && (
-                            <div className="mx-auto mt-6 inline-block rounded-full bg-emerald-500/15 px-4 py-1.5 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
-                                🎉 Everything is free during launch — no payment required
+                            <div className="mx-auto mt-6 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-4 py-1.5 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
+                                <PartyPopper className="h-4 w-4" strokeWidth={2} aria-hidden />
+                                Everything is free during launch — no payment required
                             </div>
                         )}
                         {banner && (
@@ -359,7 +376,7 @@ export default function MembershipPage() {
                                 className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 backdrop-blur"
                             >
                                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
-                                    ✓
+                                    <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
                                 </span>
                                 <span>{b}</span>
                             </li>
@@ -372,10 +389,22 @@ export default function MembershipPage() {
             <section className="border-y border-slate-200 bg-slate-50">
                 <div className="container-page py-5">
                     <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-slate-600">
-                        <li className="flex items-center gap-2"><span>🛡️</span> 7-day money-back guarantee</li>
-                        <li className="flex items-center gap-2"><span>🔒</span> Secure payments via Razorpay</li>
-                        <li className="flex items-center gap-2"><span>🇮🇳</span> Built for Indian placements</li>
-                        <li className="flex items-center gap-2"><span>↺</span> Cancel anytime — no questions</li>
+                        <li className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-emerald-600" strokeWidth={2} aria-hidden />
+                            7-day money-back guarantee
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-slate-500" strokeWidth={2} aria-hidden />
+                            Secure payments via Razorpay
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-slate-500" strokeWidth={2} aria-hidden />
+                            Built for Indian placements
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <RotateCcw className="h-4 w-4 text-slate-500" strokeWidth={2} aria-hidden />
+                            Cancel anytime — no questions
+                        </li>
                     </ul>
                 </div>
             </section>
@@ -405,8 +434,13 @@ export default function MembershipPage() {
                     />
                     <span className="text-xs text-slate-500">Apply at checkout</span>
                     {promoMsg && (
-                        <span className={`w-full text-center text-sm font-medium ${promoMsg.ok ? "text-emerald-700" : "text-rose-700"}`}>
-                            {promoMsg.ok ? "✓ " : "✕ "}{promoMsg.text}
+                        <span className={`flex w-full items-center justify-center gap-1 text-center text-sm font-medium ${promoMsg.ok ? "text-emerald-700" : "text-rose-700"}`}>
+                            {promoMsg.ok ? (
+                                <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                            ) : (
+                                <XIcon className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                            )}
+                            {promoMsg.text}
                         </span>
                     )}
                 </div>
@@ -439,7 +473,8 @@ export default function MembershipPage() {
                                         {/* Top badges */}
                                         {plan.recommended && (
                                             <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
-                                                ★ Most popular
+                                                <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
+                                                Most popular
                                             </span>
                                         )}
                                         {plan.badge && !plan.recommended && (
@@ -498,7 +533,7 @@ export default function MembershipPage() {
                                                 : ENTITLEMENT_FEATURES.filter((f) => plan.features[f.key]).map((f) => f.label)
                                             ).map((h) => (
                                                 <li key={h} className="flex gap-2">
-                                                    <span className="mt-0.5 text-primary-600">✓</span>
+                                                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" strokeWidth={3} aria-hidden />
                                                     <span>{h}</span>
                                                 </li>
                                             ))}
@@ -581,7 +616,12 @@ export default function MembershipPage() {
                                     <tr>
                                         <th className="px-5 py-3 text-left">Feature</th>
                                         <th className="px-5 py-3 text-center">Free</th>
-                                        <th className="px-5 py-3 text-center text-primary-700">Premium ★</th>
+                                        <th className="px-5 py-3 text-center text-primary-700">
+                                            <span className="inline-flex items-center justify-center gap-1">
+                                                Premium
+                                                <Star className="h-3.5 w-3.5 fill-current" strokeWidth={0} aria-hidden />
+                                            </span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -598,7 +638,7 @@ export default function MembershipPage() {
                                                     <td className="px-5 py-3 text-center">
                                                         {onPremium ? (
                                                             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                                                                ✓
+                                                                <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                                                             </span>
                                                         ) : (
                                                             <span className="text-slate-300">—</span>
@@ -649,8 +689,8 @@ export default function MembershipPage() {
                 <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {FEATURE_GROUPS.map((g) => (
                         <Card key={g.title} className="flex flex-col p-6">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 text-2xl">
-                                {g.icon}
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 text-primary-600">
+                                <g.Icon className="h-6 w-6" strokeWidth={2} aria-hidden />
                             </div>
                             <h3 className="mt-4 font-display text-lg font-bold text-slate-900">
                                 {g.title}
@@ -658,7 +698,7 @@ export default function MembershipPage() {
                             <ul className="mt-3 flex-1 space-y-2 text-sm text-slate-600">
                                 {g.features.map((f) => (
                                     <li key={f.key} className="flex gap-2">
-                                        <span className="mt-0.5 text-primary-600">✓</span>
+                                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" strokeWidth={3} aria-hidden />
                                         <span>{f.label}</span>
                                     </li>
                                 ))}

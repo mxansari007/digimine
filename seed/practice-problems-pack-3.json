@@ -1,0 +1,522 @@
+{
+  "_readme": "Third practice import pack — 14 problems covering patterns the first two packs miss (linked-list, trees, dp-1d/dp-2d, backtracking, intervals, monotonic-stack, math, two-pointers/hard) and harder SQL (self-join, subqueries, window functions). POST to /api/admin/practice/problems with an admin bearer token (see seed/README-practice-seed.md). DSA = stdin->stdout judged via Piston; SQL = in-app sql.js judged against expectedColumns/expectedRows. SQL problems ask the solver to ALIAS columns so result names match expectedColumns.",
+  "problems": [
+    {
+      "kind": "dsa",
+      "title": "Reverse Linked List",
+      "slug": "reverse-linked-list",
+      "difficulty": "easy",
+      "primaryPattern": "linked-list",
+      "secondaryPatterns": ["two-pointers"],
+      "patternChoices": ["linked-list", "two-pointers", "recursion", "stack"],
+      "tags": ["neetcode-150", "linked-list"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>You are given a singly linked list of <code>n</code> integer values. Print the values of the reversed list, space-separated.</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Line 2: <code>n</code> space-separated integers — the list from head to tail.</p><p><strong>Output</strong><br/>The reversed list, space-separated on a single line.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>-10^9 ≤ value ≤ 10^9</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0])\nvals = list(map(int, d[1:1+n]))\n# TODO: print the reversed list, space-separated\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/);\nconst n = parseInt(d[0]);\nconst vals = d.slice(1, 1 + n).map(Number);\n// TODO: print the reversed list, space-separated\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;vector<long long>a(n);for(auto&x:a)cin>>x;/* TODO: print reversed */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();long[] a=new long[n];for(int i=0;i<n;i++)a[i]=s.nextLong();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "5\n1 2 3 4 5", "expectedOutput": "5 4 3 2 1", "isHidden": false },
+        { "id": "t2", "input": "1\n7", "expectedOutput": "7", "isHidden": false },
+        { "id": "t3", "input": "2\n10 20", "expectedOutput": "20 10", "isHidden": true },
+        { "id": "t4", "input": "4\n-3 -2 -1 0", "expectedOutput": "0 -1 -2 -3", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Iterate once, tracking a `prev` pointer; flip each `next` to point to `prev`." },
+        { "id": "h2", "order": 1, "text": "Or just reverse the array of values — the linked-list framing is a tutorial." }
+      ],
+      "editorialHtml": "<p>Either iterate pointers (classic linked-list reversal, O(n) / O(1)) or reverse the array of values. Both are O(n).</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0]);vals=list(map(int,d[1:1+n]))\nprint(' '.join(map(str, reversed(vals))))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Tree Height (Parent Array)",
+      "slug": "tree-height-parent-array",
+      "difficulty": "easy",
+      "primaryPattern": "trees",
+      "secondaryPatterns": ["dp-1d"],
+      "patternChoices": ["trees", "graphs", "dp-1d", "recursion"],
+      "tags": ["trees", "warmup"],
+      "access": "login",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>A rooted tree on <code>n</code> nodes (numbered <code>0..n-1</code>) is given as a parent array. Node <code>0</code> is the root. For each non-root node <code>i</code>, <code>parent[i]</code> is given (with the guarantee <code>parent[i] &lt; i</code>). Print the <strong>height</strong> of the tree — the number of nodes on the longest root-to-leaf path (a single-node tree has height 1, an empty tree has height 0).</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Line 2 (only when n &gt; 1): <code>n-1</code> integers — <code>parent[1], parent[2], …, parent[n-1]</code>.</p>",
+      "constraintsHtml": "<ul><li>0 ≤ n ≤ 10^5</li><li>0 ≤ parent[i] &lt; i</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0])\nparents = list(map(int, d[1:n]))   # length n-1\n# TODO: print the height (0 if n == 0)\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/);\nconst n = parseInt(d[0]);\nconst parents = d.slice(1, n).map(Number);  // length n-1\n// TODO: print the height (0 if n === 0)\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;vector<int>p(max(0,n-1));for(auto&x:p)cin>>x;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();int[] p=new int[Math.max(0,n-1)];for(int i=0;i<p.length;i++)p[i]=s.nextInt();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "1", "expectedOutput": "1", "isHidden": false, "explanation": "Single root node, height 1." },
+        { "id": "t2", "input": "3\n0 0", "expectedOutput": "2", "isHidden": false, "explanation": "Root has two children." },
+        { "id": "t3", "input": "0", "expectedOutput": "0", "isHidden": true },
+        { "id": "t4", "input": "6\n0 1 1 3 3", "expectedOutput": "4", "isHidden": true, "explanation": "0 → 1 → 3 → 4 (or 5) is the longest chain." }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Because parent[i] < i, you can compute depth[i] = depth[parent[i]] + 1 in a single forward pass." }
+      ],
+      "editorialHtml": "<p>depth[0] = 1; for i in 1..n-1, depth[i] = depth[parent[i]] + 1. Answer is max(depth) (or 0 if n == 0). O(n).</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0])\nif n==0:\n    print(0)\nelse:\n    depth=[0]*n; depth[0]=1\n    for i in range(1,n):\n        depth[i]=depth[int(d[i])]+1\n    print(max(depth))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Climbing Stairs",
+      "slug": "climbing-stairs",
+      "difficulty": "easy",
+      "primaryPattern": "dp-1d",
+      "secondaryPatterns": ["math-geometry"],
+      "patternChoices": ["dp-1d", "math-geometry", "recursion", "greedy"],
+      "tags": ["neetcode-150", "fibonacci"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>You are climbing a staircase. It takes <code>n</code> steps to reach the top. Each time you can climb either <strong>1</strong> or <strong>2</strong> stairs. Print the number of distinct ways to reach the top.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 45</li><li>The answer fits in a 64-bit integer.</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "n = int(input())\n# TODO: print the number of ways\n" },
+        { "language": "javascript", "code": "const n = parseInt(require('fs').readFileSync(0,'utf8').trim());\n// TODO: print the number of ways\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){long long n;cin>>n;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);long n=s.nextLong();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "2", "expectedOutput": "2", "isHidden": false, "explanation": "1+1 or 2." },
+        { "id": "t2", "input": "3", "expectedOutput": "3", "isHidden": false, "explanation": "1+1+1, 1+2, 2+1." },
+        { "id": "t3", "input": "5", "expectedOutput": "8", "isHidden": true },
+        { "id": "t4", "input": "10", "expectedOutput": "89", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "f(n) = f(n-1) + f(n-2). It's the Fibonacci sequence." }
+      ],
+      "editorialHtml": "<p>Roll two variables: <code>a, b = 1, 1</code>; repeat <code>a, b = b, a + b</code> n times; print <code>a</code>. O(n) time, O(1) space.</p>",
+      "solutions": [
+        { "language": "python", "code": "n=int(input())\na,b=1,1\nfor _ in range(n): a,b=b,a+b\nprint(a)\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Reverse Integer",
+      "slug": "reverse-integer",
+      "difficulty": "easy",
+      "primaryPattern": "math-geometry",
+      "secondaryPatterns": [],
+      "patternChoices": ["math-geometry", "bit-manipulation", "arrays-hashing", "two-pointers"],
+      "tags": ["math", "overflow"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 4000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given a signed 32-bit integer <code>x</code>, print the integer obtained by reversing its decimal digits (preserving the sign). If the reversed value falls outside the signed 32-bit range <code>[-2^31, 2^31 - 1]</code>, print <code>0</code>.</p>",
+      "constraintsHtml": "<ul><li>-2^31 ≤ x ≤ 2^31 - 1</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "x = int(input())\n# TODO: print the reversed integer, or 0 on 32-bit overflow\n" },
+        { "language": "javascript", "code": "const x = parseInt(require('fs').readFileSync(0,'utf8').trim());\n// TODO: print the reversed integer, or 0 on 32-bit overflow\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){long long x;cin>>x;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);long x=s.nextLong();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "123", "expectedOutput": "321", "isHidden": false },
+        { "id": "t2", "input": "-123", "expectedOutput": "-321", "isHidden": false },
+        { "id": "t3", "input": "120", "expectedOutput": "21", "isHidden": true, "explanation": "Trailing zeros disappear." },
+        { "id": "t4", "input": "1534236469", "expectedOutput": "0", "isHidden": true, "explanation": "Reversed value overflows 32-bit signed range." }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Strip the sign, reverse the digits as a string or by repeated %10/÷10, then re-apply the sign." },
+        { "id": "h2", "order": 1, "text": "Check against 2^31 - 1 (= 2147483647) and -2^31 (= -2147483648) before printing." }
+      ],
+      "editorialHtml": "<p>Reverse via repeated %10/÷10 (or string reverse), reapply the sign, and bounds-check against the 32-bit signed range.</p>",
+      "solutions": [
+        { "language": "python", "code": "x=int(input())\nsign=-1 if x<0 else 1\nr=int(str(abs(x))[::-1])*sign\nprint(r if -2**31<=r<=2**31-1 else 0)\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Generate Parentheses",
+      "slug": "generate-parentheses",
+      "difficulty": "medium",
+      "primaryPattern": "backtracking",
+      "secondaryPatterns": ["recursion"],
+      "patternChoices": ["backtracking", "recursion", "dp-1d", "stack"],
+      "tags": ["neetcode-150", "backtracking"],
+      "access": "premium",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given <code>n</code>, print every well-formed string of <code>n</code> pairs of parentheses — one combination per line, in <strong>lexicographic order</strong> (the order produced by adding <code>'('</code> before <code>')'</code> at each step).</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 8</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "n = int(input())\n# TODO: print every well-formed string of n pairs, one per line, in lexicographic order\n" },
+        { "language": "javascript", "code": "const n = parseInt(require('fs').readFileSync(0,'utf8').trim());\n// TODO: print every well-formed string of n pairs, one per line, in lexicographic order\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "1", "expectedOutput": "()", "isHidden": false },
+        { "id": "t2", "input": "2", "expectedOutput": "(())\n()()", "isHidden": false },
+        { "id": "t3", "input": "3", "expectedOutput": "((()))\n(()())\n(())()\n()(())\n()()()", "isHidden": true },
+        { "id": "t4", "input": "4", "expectedOutput": "(((())))\n((()()))\n((())())\n((()))()\n(()(()))\n(()()())\n(()())()\n(())(())\n(())()()\n()((()))\n()(()())\n()(())()\n()()(())\n()()()()", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Backtrack with counters: you can add '(' while open < n, and ')' while close < open." },
+        { "id": "h2", "order": 1, "text": "Trying '(' before ')' at each step naturally produces lexicographic order." }
+      ],
+      "editorialHtml": "<p>Recursive backtracking with (open, close) counters. Always try '(' before ')'. Total combinations = Catalan number C(n).</p>",
+      "solutions": [
+        { "language": "python", "code": "n=int(input())\nout=[]\ndef bt(s, o, c):\n    if len(s)==2*n: out.append(s); return\n    if o<n: bt(s+'(', o+1, c)\n    if c<o: bt(s+')', o, c+1)\nbt('',0,0)\nprint('\\n'.join(out))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Merge Intervals",
+      "slug": "merge-intervals",
+      "difficulty": "medium",
+      "primaryPattern": "intervals",
+      "secondaryPatterns": ["greedy"],
+      "patternChoices": ["intervals", "greedy", "sorting", "two-pointers"],
+      "tags": ["neetcode-150", "intervals"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>You are given <code>n</code> closed intervals <code>[a, b]</code>. Merge every set of overlapping (or touching) intervals and print the resulting intervals, one per line, in ascending order of start. Two intervals <code>[a, b]</code> and <code>[c, d]</code> overlap if <code>a ≤ d</code> AND <code>c ≤ b</code>.</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Next <code>n</code> lines: two integers <code>a b</code>.</p><p><strong>Output</strong><br/>Each merged interval on its own line: <code>a b</code>.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>0 ≤ a ≤ b ≤ 10^9</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0])\nintervals = [(int(d[1+2*i]), int(d[2+2*i])) for i in range(n)]\n# TODO: print merged intervals, one per line\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n = d[0];\nconst intervals = [];\nfor (let i = 0; i < n; i++) intervals.push([d[1 + 2*i], d[2 + 2*i]]);\n// TODO: print merged intervals, one per line\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;vector<pair<long long,long long>>v(n);for(auto&p:v)cin>>p.first>>p.second;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();long[][] a=new long[n][2];for(int i=0;i<n;i++){a[i][0]=s.nextLong();a[i][1]=s.nextLong();}/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "4\n1 3\n2 6\n8 10\n15 18", "expectedOutput": "1 6\n8 10\n15 18", "isHidden": false, "explanation": "[1,3] and [2,6] overlap → [1,6]; the rest are disjoint." },
+        { "id": "t2", "input": "2\n1 4\n4 5", "expectedOutput": "1 5", "isHidden": false, "explanation": "Touching at 4 counts as overlap." },
+        { "id": "t3", "input": "1\n3 7", "expectedOutput": "3 7", "isHidden": true },
+        { "id": "t4", "input": "3\n5 8\n1 2\n6 9", "expectedOutput": "1 2\n5 9", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Sort intervals by start, then sweep — extend the current merged end when the next start ≤ current end." }
+      ],
+      "editorialHtml": "<p>Sort by start (O(n log n)), then sweep once with a running merged interval. Emit it whenever the next start exceeds the current end.</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0])\niv=sorted([(int(d[1+2*i]),int(d[2+2*i])) for i in range(n)])\nout=[]\nfor a,b in iv:\n    if out and a<=out[-1][1]: out[-1]=(out[-1][0], max(out[-1][1], b))\n    else: out.append((a,b))\nprint('\\n'.join(f'{a} {b}' for a,b in out))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Unique Paths",
+      "slug": "unique-paths",
+      "difficulty": "medium",
+      "primaryPattern": "dp-2d",
+      "secondaryPatterns": ["math-geometry"],
+      "patternChoices": ["dp-2d", "math-geometry", "matrix", "recursion"],
+      "tags": ["neetcode-150", "dp"],
+      "access": "premium",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>A robot is on an <code>m × n</code> grid, starting at the top-left cell <code>(0, 0)</code>. At each step it can move <strong>only right or down</strong>. Print the number of unique paths to the bottom-right cell <code>(m-1, n-1)</code>.</p><p><strong>Input</strong><br/>A single line with two integers <code>m</code> and <code>n</code>.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ m, n ≤ 100</li><li>The answer fits in a signed 64-bit integer.</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "m, n = map(int, input().split())\n# TODO: print the number of unique paths\n" },
+        { "language": "javascript", "code": "const [m, n] = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\n// TODO: print the number of unique paths\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int m,n;cin>>m>>n;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int m=s.nextInt(),n=s.nextInt();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "3 7", "expectedOutput": "28", "isHidden": false },
+        { "id": "t2", "input": "3 2", "expectedOutput": "3", "isHidden": false },
+        { "id": "t3", "input": "1 1", "expectedOutput": "1", "isHidden": true },
+        { "id": "t4", "input": "7 3", "expectedOutput": "28", "isHidden": true, "explanation": "Symmetric to 3 × 7." }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "dp[i][j] = dp[i-1][j] + dp[i][j-1], with dp[0][*] = dp[*][0] = 1." },
+        { "id": "h2", "order": 1, "text": "Or use the closed-form: C(m + n - 2, m - 1)." }
+      ],
+      "editorialHtml": "<p>2-D DP in O(m·n), or the combinatorial formula <code>C(m + n - 2, m - 1)</code> in O(min(m, n)).</p>",
+      "solutions": [
+        { "language": "python", "code": "m,n=map(int,input().split())\nrow=[1]*n\nfor _ in range(1,m):\n    for j in range(1,n):\n        row[j]+=row[j-1]\nprint(row[-1])\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Daily Temperatures",
+      "slug": "daily-temperatures",
+      "difficulty": "medium",
+      "primaryPattern": "monotonic-stack",
+      "secondaryPatterns": ["stack"],
+      "patternChoices": ["monotonic-stack", "stack", "two-pointers", "arrays-hashing"],
+      "tags": ["neetcode-150", "stack"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given <code>n</code> daily temperatures, for each day print the number of days you have to wait until a strictly warmer temperature appears. If there is no such future day, print <code>0</code> for that day. Output the <code>n</code> answers space-separated on a single line.</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Line 2: <code>n</code> integers.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>-100 ≤ temperature ≤ 100</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0])\ntemps = list(map(int, d[1:1+n]))\n# TODO: print n integers, space-separated\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n = d[0]; const temps = d.slice(1, 1 + n);\n// TODO: print n integers, space-separated\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;vector<int>t(n);for(auto&x:t)cin>>x;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();int[] t=new int[n];for(int i=0;i<n;i++)t[i]=s.nextInt();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "8\n73 74 75 71 69 72 76 73", "expectedOutput": "1 1 4 2 1 1 0 0", "isHidden": false },
+        { "id": "t2", "input": "3\n30 40 50", "expectedOutput": "1 1 0", "isHidden": false },
+        { "id": "t3", "input": "1\n30", "expectedOutput": "0", "isHidden": true },
+        { "id": "t4", "input": "4\n30 60 90 60", "expectedOutput": "1 1 0 0", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Sweep right-to-left, keeping a stack of indices whose answer hasn't been resolved." },
+        { "id": "h2", "order": 1, "text": "Pop everything ≤ current temperature; the next remaining index is the warmer day." }
+      ],
+      "editorialHtml": "<p>Monotonic stack of indices with strictly decreasing temperatures. Each index is pushed/popped at most once → O(n).</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0]); t=list(map(int,d[1:1+n]))\nans=[0]*n; st=[]\nfor i,v in enumerate(t):\n    while st and t[st[-1]]<v:\n        j=st.pop(); ans[j]=i-j\n    st.append(i)\nprint(' '.join(map(str,ans)))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Top K Frequent Elements",
+      "slug": "top-k-frequent-elements",
+      "difficulty": "medium",
+      "primaryPattern": "heap-priority-queue",
+      "secondaryPatterns": ["arrays-hashing"],
+      "patternChoices": ["heap-priority-queue", "arrays-hashing", "sorting", "bucket-sort"],
+      "tags": ["neetcode-150", "top-k"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Given <code>n</code> integers and a target <code>k</code>, print the <code>k</code> most frequent elements space-separated, sorted by frequency descending. <strong>Break ties by element value ascending</strong>, so the answer is deterministic.</p><p><strong>Input</strong><br/>Line 1: <code>n</code> and <code>k</code>.<br/>Line 2: <code>n</code> integers.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ k ≤ number of distinct elements ≤ n ≤ 10^5</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0]); k = int(d[1])\narr = list(map(int, d[2:2+n]))\n# TODO: print the top k frequent elements, space-separated\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n = d[0], k = d[1], arr = d.slice(2, 2 + n);\n// TODO: print the top k frequent elements, space-separated\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n,k;cin>>n>>k;vector<long long>a(n);for(auto&x:a)cin>>x;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt(),k=s.nextInt();long[] a=new long[n];for(int i=0;i<n;i++)a[i]=s.nextLong();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "6 2\n1 1 1 2 2 3", "expectedOutput": "1 2", "isHidden": false, "explanation": "1 → 3 times, 2 → 2 times." },
+        { "id": "t2", "input": "1 1\n1", "expectedOutput": "1", "isHidden": false },
+        { "id": "t3", "input": "5 2\n5 5 4 4 3", "expectedOutput": "4 5", "isHidden": true, "explanation": "Tie between 4 and 5; tie-break by value asc → 4 first." },
+        { "id": "t4", "input": "7 2\n3 3 4 4 5 5 5", "expectedOutput": "5 3", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Count frequencies, then sort items by (-freq, value) and take the first k." },
+        { "id": "h2", "order": 1, "text": "Or use a size-k min-heap keyed on (freq, -value) for O(n log k)." }
+      ],
+      "editorialHtml": "<p>Build a Counter, sort distinct items by (-frequency, value) and emit the first k keys. O(d log d) where d = distinct count.</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nfrom collections import Counter\nd=sys.stdin.read().split()\nn=int(d[0]); k=int(d[1]); a=list(map(int,d[2:2+n]))\nc=Counter(a)\nitems=sorted(c.items(), key=lambda kv:(-kv[1], kv[0]))\nprint(' '.join(str(it[0]) for it in items[:k]))\n" }
+      ]
+    },
+    {
+      "kind": "dsa",
+      "title": "Trapping Rain Water",
+      "slug": "trapping-rain-water",
+      "difficulty": "hard",
+      "primaryPattern": "two-pointers",
+      "secondaryPatterns": ["monotonic-stack", "dp-1d"],
+      "patternChoices": ["two-pointers", "monotonic-stack", "dp-1d", "prefix-sum"],
+      "tags": ["neetcode-150", "classic"],
+      "access": "premium",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>You are given <code>n</code> non-negative integers representing an elevation map where the width of each bar is <code>1</code>. Print the total amount of water that can be trapped after raining.</p><p><strong>Input</strong><br/>Line 1: <code>n</code>.<br/>Line 2: <code>n</code> non-negative integers — bar heights.</p>",
+      "constraintsHtml": "<ul><li>1 ≤ n ≤ 10^5</li><li>0 ≤ height ≤ 10^4</li></ul>",
+      "languages": ["python", "javascript", "cpp", "java"],
+      "starters": [
+        { "language": "python", "code": "import sys\nd = sys.stdin.read().split()\nn = int(d[0])\nh = list(map(int, d[1:1+n]))\n# TODO: print the total trapped water\n" },
+        { "language": "javascript", "code": "const d = require('fs').readFileSync(0,'utf8').trim().split(/\\s+/).map(Number);\nconst n = d[0]; const h = d.slice(1, 1 + n);\n// TODO: print the total trapped water\n" },
+        { "language": "cpp", "code": "#include <bits/stdc++.h>\nusing namespace std;\nint main(){int n;cin>>n;vector<long long>h(n);for(auto&x:h)cin>>x;/* TODO */return 0;}\n" },
+        { "language": "java", "code": "import java.util.*;\npublic class Main{public static void main(String[] g){Scanner s=new Scanner(System.in);int n=s.nextInt();long[] h=new long[n];for(int i=0;i<n;i++)h[i]=s.nextLong();/* TODO */}}\n" }
+      ],
+      "testCases": [
+        { "id": "t1", "input": "12\n0 1 0 2 1 0 1 3 2 1 2 1", "expectedOutput": "6", "isHidden": false },
+        { "id": "t2", "input": "6\n4 2 0 3 2 5", "expectedOutput": "9", "isHidden": false },
+        { "id": "t3", "input": "1\n5", "expectedOutput": "0", "isHidden": true },
+        { "id": "t4", "input": "5\n5 0 0 0 5", "expectedOutput": "15", "isHidden": true }
+      ],
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Each bar traps min(maxLeft, maxRight) - height units, summed across all bars." },
+        { "id": "h2", "order": 1, "text": "Compute it in one pass with two pointers: whichever side has the smaller max defines the trap on that side." }
+      ],
+      "editorialHtml": "<p>Two-pointer O(n) / O(1): walk from both ends, maintain left_max and right_max; advance the smaller side, adding the difference. Or precompute max arrays in O(n) / O(n).</p>",
+      "solutions": [
+        { "language": "python", "code": "import sys\nd=sys.stdin.read().split()\nn=int(d[0]); h=list(map(int,d[1:1+n]))\nl,r=0,n-1; lm=rm=0; ans=0\nwhile l<r:\n    if h[l]<h[r]:\n        lm=max(lm,h[l]); ans+=lm-h[l]; l+=1\n    else:\n        rm=max(rm,h[r]); ans+=rm-h[r]; r-=1\nprint(ans)\n" }
+      ]
+    },
+    {
+      "kind": "sql",
+      "title": "Employees Earning More Than Manager",
+      "slug": "employees-earning-more-than-manager",
+      "difficulty": "easy",
+      "primaryPattern": "sql-self-join",
+      "secondaryPatterns": ["sql-joins"],
+      "patternChoices": ["sql-self-join", "sql-joins", "sql-subqueries", "sql-select-filter"],
+      "tags": ["sql", "self-join"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Table <code>employees(id, name, salary, manager_id)</code>. Return the <code>name</code> of every employee whose salary is strictly greater than their manager's salary. Employees with no manager (<code>manager_id IS NULL</code>) are excluded. Order results by <code>name</code> ascending.</p>",
+      "constraintsHtml": null,
+      "languages": [],
+      "starters": [],
+      "testCases": [],
+      "sql": {
+        "schemaSql": "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, salary INTEGER, manager_id INTEGER);\nINSERT INTO employees (id, name, salary, manager_id) VALUES\n  (1, 'Joe',   70000, 3),\n  (2, 'Henry', 80000, 4),\n  (3, 'Sam',   60000, NULL),\n  (4, 'Max',   90000, NULL);",
+        "solutionSql": "SELECT e.name FROM employees e JOIN employees m ON e.manager_id = m.id WHERE e.salary > m.salary ORDER BY e.name;",
+        "orderMatters": true,
+        "expectedColumns": ["name"],
+        "expectedRows": [["Joe"]]
+      },
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Self-join employees to themselves on manager_id = id, then filter on salary > m.salary." }
+      ],
+      "editorialHtml": "<p><code>SELECT e.name FROM employees e JOIN employees m ON e.manager_id = m.id WHERE e.salary &gt; m.salary ORDER BY e.name;</code></p>",
+      "solutions": []
+    },
+    {
+      "kind": "sql",
+      "title": "Top Earner Per Department",
+      "slug": "top-earner-per-department",
+      "difficulty": "medium",
+      "primaryPattern": "sql-subqueries",
+      "secondaryPatterns": ["sql-group-having", "sql-aggregation"],
+      "patternChoices": ["sql-subqueries", "sql-group-having", "sql-joins", "sql-window"],
+      "tags": ["sql", "subquery"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Table <code>employees(id, name, department, salary)</code>. For each department, return the <code>department</code>, the <code>name</code> of its top earner, and that <code>salary</code>. If multiple employees tie for the top salary in a department, you may assume the test data has a unique top earner per department. Order rows by <code>department</code> ascending.</p>",
+      "constraintsHtml": null,
+      "languages": [],
+      "starters": [],
+      "testCases": [],
+      "sql": {
+        "schemaSql": "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, salary INTEGER);\nINSERT INTO employees (id, name, department, salary) VALUES\n  (1,'Alice','Eng',  90000),\n  (2,'Bob',  'Eng',  85000),\n  (3,'Carol','HR',   60000),\n  (4,'Dan',  'HR',   70000),\n  (5,'Eve',  'Sales',75000);",
+        "solutionSql": "SELECT department, name, salary FROM employees WHERE (department, salary) IN (SELECT department, MAX(salary) FROM employees GROUP BY department) ORDER BY department;",
+        "orderMatters": true,
+        "expectedColumns": ["department", "name", "salary"],
+        "expectedRows": [
+          ["Eng",   "Alice", 90000],
+          ["HR",    "Dan",   70000],
+          ["Sales", "Eve",   75000]
+        ]
+      },
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Find each department's max salary with GROUP BY, then match employees against that (department, salary) pair." },
+        { "id": "h2", "order": 1, "text": "Window function alternative: ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC)." }
+      ],
+      "editorialHtml": "<p>Two-step pattern: aggregate max per group → match back. <code>WHERE (department, salary) IN (SELECT department, MAX(salary) FROM employees GROUP BY department)</code> is the classic form.</p>",
+      "solutions": []
+    },
+    {
+      "kind": "sql",
+      "title": "Running Total",
+      "slug": "running-total",
+      "difficulty": "medium",
+      "primaryPattern": "sql-window",
+      "secondaryPatterns": ["sql-aggregation"],
+      "patternChoices": ["sql-window", "sql-subqueries", "sql-aggregation", "sql-joins"],
+      "tags": ["sql", "window-function"],
+      "access": "premium",
+      "status": "published",
+      "isFeatured": true,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Table <code>sales(id, day, amount)</code>. Return two columns — <code>day</code> and the cumulative total of <code>amount</code> through that day (aliased <code>running</code>) — ordered by <code>day</code> ascending. Use a window function.</p>",
+      "constraintsHtml": null,
+      "languages": [],
+      "starters": [],
+      "testCases": [],
+      "sql": {
+        "schemaSql": "CREATE TABLE sales (id INTEGER PRIMARY KEY, day INTEGER, amount INTEGER);\nINSERT INTO sales (id, day, amount) VALUES\n  (1, 1, 100),\n  (2, 2, 50),\n  (3, 3, 200),\n  (4, 4, 25);",
+        "solutionSql": "SELECT day, SUM(amount) OVER (ORDER BY day) AS running FROM sales ORDER BY day;",
+        "orderMatters": true,
+        "expectedColumns": ["day", "running"],
+        "expectedRows": [
+          [1, 100],
+          [2, 150],
+          [3, 350],
+          [4, 375]
+        ]
+      },
+      "hints": [
+        { "id": "h1", "order": 0, "text": "SUM(amount) OVER (ORDER BY day) computes the running total in a single scan." },
+        { "id": "h2", "order": 1, "text": "Don't forget to alias the window expression AS running so the column name matches." }
+      ],
+      "editorialHtml": "<p><code>SELECT day, SUM(amount) OVER (ORDER BY day) AS running FROM sales ORDER BY day;</code></p>",
+      "solutions": []
+    },
+    {
+      "kind": "sql",
+      "title": "Second Highest Salary",
+      "slug": "second-highest-salary",
+      "difficulty": "medium",
+      "primaryPattern": "sql-subqueries",
+      "secondaryPatterns": ["sql-aggregation"],
+      "patternChoices": ["sql-subqueries", "sql-window", "sql-aggregation", "sql-self-join"],
+      "tags": ["sql", "subquery"],
+      "access": "free",
+      "status": "published",
+      "isFeatured": false,
+      "timeLimitMs": 5000,
+      "memoryLimitMb": 256,
+      "statementHtml": "<p>Table <code>employees(id, name, salary)</code>. Return a single column named <code>second_salary</code> containing the <strong>second-highest distinct</strong> salary. If there is no such salary, return <code>NULL</code>.</p>",
+      "constraintsHtml": null,
+      "languages": [],
+      "starters": [],
+      "testCases": [],
+      "sql": {
+        "schemaSql": "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, salary INTEGER);\nINSERT INTO employees (id, name, salary) VALUES\n  (1, 'Alice', 100),\n  (2, 'Bob',   200),\n  (3, 'Carol', 300);",
+        "solutionSql": "SELECT MAX(salary) AS second_salary FROM employees WHERE salary < (SELECT MAX(salary) FROM employees);",
+        "orderMatters": false,
+        "expectedColumns": ["second_salary"],
+        "expectedRows": [[200]]
+      },
+      "hints": [
+        { "id": "h1", "order": 0, "text": "Take the MAX salary that is strictly less than the overall MAX." },
+        { "id": "h2", "order": 1, "text": "Wrapping in MAX() lets MAX() of an empty set return NULL when no second salary exists." }
+      ],
+      "editorialHtml": "<p><code>SELECT MAX(salary) AS second_salary FROM employees WHERE salary &lt; (SELECT MAX(salary) FROM employees);</code> — using MAX() ensures NULL when no second salary exists.</p>",
+      "solutions": []
+    }
+  ]
+}

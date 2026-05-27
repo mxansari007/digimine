@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
 import { formatCurrency } from "@digimine/utils";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { getProduct } from "@/lib/firestore";
 import type { Product, OrderItem } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
@@ -18,6 +19,7 @@ export default function CheckoutPage() {
     const searchParams = useSearchParams();
     const productId = searchParams.get("productId");
     const productType = searchParams.get("type");
+    const { firebaseUser } = useAuthContext();
 
     const [directProduct, setDirectProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(!!productId);
@@ -189,10 +191,21 @@ export default function CheckoutPage() {
         }
 
         try {
-            // Step 1: Create order via API
+            // Step 1: Create order via API. Pass the bearer token when the
+            // shopper is signed in so the order gets linked to their uid
+            // and `purchasedProducts` is updated after verify.
+            const authHeader: Record<string, string> = {};
+            if (firebaseUser) {
+                try {
+                    const token = await firebaseUser.getIdToken();
+                    authHeader.Authorization = `Bearer ${token}`;
+                } catch {
+                    /* fall back to guest */
+                }
+            }
             const createOrderResponse = await fetch("/api/razorpay/create-order", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeader },
                 body: JSON.stringify({
                     items: displayItems,
                     subtotal: displaySubtotal,

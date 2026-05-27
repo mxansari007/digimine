@@ -8,36 +8,49 @@ import { signIn, signInWithGoogle } from "@/lib/firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { User } from "@digimine/types";
-import { roleHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
+import { resumeOnboardingPath, roleHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
+import type { OnboardingStep } from "@digimine/types";
 
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const [email, setEmail] = useState("");
+    const [email, setEmail] = useState(searchParams.get("email") || "");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const resume = searchParams.get("resume") === "1";
 
     const getRedirectPath = async (uid: string): Promise<string> => {
         const intendedRedirect = searchParams.get("redirect");
         try {
             const userSnap = await getDoc(doc(db, "users", uid));
             if (userSnap.exists()) {
-                const role = userSnap.data().role ?? null;
+                const data = userSnap.data();
+                const role = data.role ?? null;
+                const onboardingStep = (data.onboardingStep ?? null) as
+                    | OnboardingStep
+                    | null;
+
+                // Mid-onboarding takes priority over both the committed role
+                // and any ?redirect= — a half-onboarded teacher/institute
+                // should never land on a dashboard before finishing the
+                // wizard. `onboardingStep === "complete"` falls through to
+                // the normal redirect.
+                const resume = resumeOnboardingPath(onboardingStep);
+                if (resume) return resume;
+
                 if (role) {
                     // Has a committed role — honor an explicit redirect if the
                     // caller asked for one, else send them to their home.
                     return intendedRedirect || roleHomePath(role);
                 }
-                // Orphan: signed in but no role yet (fresh Google sign-in, or
-                // a teacher/institute onboarding that was abandoned before the
-                // role was written). Don't drop them onto the destination URL
-                // role-less — funnel through role-select and thread the
-                // intended landing via `?next=` so we can return them there
-                // once a role is committed (or onboarding completes).
+                // Orphan: signed in, no role, no onboarding step (fresh
+                // Google sign-in, or a flow created before this field
+                // existed). Funnel through role-select and thread the
+                // intended landing via `?next=`.
                 const next = intendedRedirect || "/dashboard";
                 return `${ROLE_SELECT_PATH}?next=${encodeURIComponent(next)}`;
             }
@@ -111,6 +124,12 @@ export default function LoginPage() {
                 <h1 className="font-display text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
                 <p className="text-gray-600">Sign in to access your account</p>
             </div>
+
+            {resume && (
+                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Sign in to continue your onboarding.
+                </div>
+            )}
 
             <Button type="button" variant="outline" size="lg" className="w-full mb-6 flex items-center justify-center gap-2" onClick={handleGoogleSignIn} isLoading={googleLoading}>
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

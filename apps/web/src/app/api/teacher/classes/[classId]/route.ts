@@ -45,7 +45,11 @@ export async function PATCH(req: Request, { params }: { params: { classId: strin
             update.isArchived = body.isArchived;
         }
         if (body.regenerateInviteCode) {
+            // Overwriting `inviteCode` revokes the old one — getClassByInviteCode
+            // queries by field equality. We additionally stamp the rotation
+            // time so admins can audit when a class invite was last cycled.
             update.inviteCode = await allocateUniqueInviteCode();
+            update.inviteCodeRotatedAt = Timestamp.now();
         }
 
         await adminDb.collection("classes").doc(params.classId).update(update);

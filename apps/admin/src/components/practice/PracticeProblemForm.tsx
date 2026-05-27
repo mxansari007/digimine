@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button, Card } from "@digimine/ui";
+import { X } from "lucide-react";
 import {
     DSA_PATTERNS,
     SQL_PATTERNS,
@@ -325,7 +326,13 @@ export function PracticeProblemForm({
                         <div key={h.id} className="flex gap-2">
                             <span className="pt-2 text-xs text-slate-400">{i + 1}</span>
                             <input className="field" value={h.text} onChange={(e) => setHints((p) => p.map((x) => x.id === h.id ? { ...x, text: e.target.value } : x))} placeholder="Gentle nudge…" />
-                            <button className="text-xs text-rose-600" onClick={() => setHints((p) => p.filter((x) => x.id !== h.id))}>✕</button>
+                            <button
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
+                                onClick={() => setHints((p) => p.filter((x) => x.id !== h.id))}
+                                aria-label="Remove hint"
+                            >
+                                <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                            </button>
                         </div>
                     ))}
                 </Card>

@@ -50,6 +50,7 @@ export async function PATCH(req: Request, { params }: { params: { instituteId: s
         }
         if (body.regenerateInviteCode) {
             update.inviteCode = await allocateUniqueInviteCode();
+            update.inviteCodeRotatedAt = Timestamp.now();
         }
         // Teacher (re)assignment — must be an active roster member.
         if (body.teacherId !== undefined) {
@@ -87,6 +88,37 @@ export async function DELETE(req: Request, { params }: { params: { instituteId: 
         if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
         const found = await loadOwnedClass(params.instituteId, params.classId);
         if (!found) return NextResponse.json({ ok: true });
+
+        // Refuse if there are still active student enrollments. Without
+        // this, the class soft-archives but students' enrolledTeacherIds
+        // and classMemberships denorms keep pointing at a hidden class.
+        // The caller can pass ?force=true after explicitly removing
+        // students themselves; otherwise we surface a 409 the UI can act
+        // on. Banned/removed enrollments don't block.
+        const url = new URL(req.url);
+        const force = url.searchParams.get("force") === "true";
+        if (!force) {
+            const studentsSnap = await found.ref
+                .collection("students")
+                .where("status", "==", "active")
+                .limit(1)
+                .get();
+            if (!studentsSnap.empty) {
+                const countSnap = await found.ref
+                    .collection("students")
+                    .where("status", "==", "active")
+                    .count()
+                    .get();
+                const count = countSnap.data().count;
+                return NextResponse.json(
+                    {
+                        error: `Cannot archive: ${count} student${count === 1 ? " is" : "s are"} still enrolled. Remove ${count === 1 ? "them" : "all of them"} first, or re-call with ?force=true.`,
+                        activeStudents: count,
+                    },
+                    { status: 409 }
+                );
+            }
+        }
 
         // Soft-archive (consistent with existing /teacher/classes endpoint)
         await found.ref.update({ isArchived: true, updatedAt: Timestamp.now() });

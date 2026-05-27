@@ -34,6 +34,14 @@
             ]
         },
         {
+            "collectionGroup": "student_invites",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "email", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "articles",
             "queryScope": "COLLECTION",
             "fields": [
@@ -568,5 +576,26 @@
             ]
         }
     ],
-    "fieldOverrides": []
+    "fieldOverrides": [
+        {
+            "collectionGroup": "teachers",
+            "fieldPath": "claimToken",
+            "indexes": [
+                {
+                    "queryScope": "COLLECTION_GROUP",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "student_invites",
+            "fieldPath": "email",
+            "indexes": [
+                {
+                    "queryScope": "COLLECTION_GROUP",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ]
 }

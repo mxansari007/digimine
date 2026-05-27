@@ -5,6 +5,7 @@ import {
     getClassById,
     serializeClass,
 } from "@/lib/server/classes";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,15 @@ export async function GET(req: Request, { params }: { params: { classId: string 
         if (!classDoc) return NextResponse.json({ error: "Class not found" }, { status: 404 });
 
         const { searchParams } = new URL(req.url);
-        const studentId = searchParams.get("studentId");
+        // `?studentId=` is still accepted but MUST match the bearer token
+        // when present. Pre-fix, an unauthenticated caller could probe any
+        // student's enrollment status by passing their uid as the query.
+        const tokenUserId = await getBearerUserId(req).catch(() => null);
+        const queryStudentId = searchParams.get("studentId");
+        if (queryStudentId && tokenUserId && queryStudentId !== tokenUserId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const studentId = queryStudentId && queryStudentId === tokenUserId ? queryStudentId : null;
 
         // Public-ish read of the class shell — teacher info, name, invite code.
         // We don't return content lists here unless the caller is enrolled.
@@ -57,9 +66,12 @@ export async function GET(req: Request, { params }: { params: { classId: string 
             ];
             await Promise.all(
                 collections.map(async ([col, key]) => {
+                    // No teacherId filter — institute-authored content
+                    // has `teacherId: ""` and would otherwise be dropped
+                    // from the count. classIds membership is the only
+                    // constraint needed; class-enrollment auth is upstream.
                     const snap = await adminDb
                         .collection(col)
-                        .where("teacherId", "==", classDoc.teacherId)
                         .where("classIds", "array-contains", params.classId)
                         .get();
                     counts[key] = snap.docs.filter((d) => {

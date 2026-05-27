@@ -68,14 +68,19 @@ export default function MyQuizzesPage() {
             try {
                 const attemptData = await getUserQuizAttempts(user!.id);
                 const regularAttempts = attemptData.filter((attempt) => !attempt.contestId);
-                setAttempts(regularAttempts);
 
                 const uniqueQuizIds = Array.from(new Set(regularAttempts.map((attempt) => attempt.quizId).filter(Boolean)));
                 const quizEntries = await Promise.all(
                     uniqueQuizIds.map(async (quizId) => {
                         try {
                             const quiz = await getQuizById(quizId);
-                            return quiz ? [quizId, quiz] as const : null;
+                            if (!quiz) return null;
+                            // Teacher-classroom quizzes (anything with a teacherId)
+                            // surface under /student/classrooms — keep this page
+                            // limited to the PUBLIC catalog.
+                            const teacherId = (quiz as Quiz & { teacherId?: string | null }).teacherId;
+                            if (teacherId) return null;
+                            return [quizId, quiz] as const;
                         } catch (error) {
                             console.warn("Skipping inaccessible quiz:", quizId, error);
                             return null;
@@ -83,7 +88,14 @@ export default function MyQuizzesPage() {
                     })
                 );
 
-                setQuizzes(Object.fromEntries(quizEntries.filter(Boolean) as Array<readonly [string, Quiz]>));
+                const quizMap = Object.fromEntries(
+                    quizEntries.filter(Boolean) as Array<readonly [string, Quiz]>
+                );
+                setQuizzes(quizMap);
+                // Drop attempts whose underlying quiz didn't make it past the
+                // public-catalog filter — otherwise the table would render
+                // mystery "Quiz" rows the user can't open from here anyway.
+                setAttempts(regularAttempts.filter((a) => quizMap[a.quizId]));
             } catch (error) {
                 console.error("Failed to load quiz attempts:", error);
             } finally {

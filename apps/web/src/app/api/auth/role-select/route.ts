@@ -74,6 +74,7 @@ export async function POST(req: Request) {
 
         await userRef.update({
             role: "customer",
+            onboardingStep: "complete",
             updatedAt: Timestamp.now(),
         });
 

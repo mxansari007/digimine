@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
+import { Check, X, Lock, Hourglass, PartyPopper, Star } from "lucide-react";
 import { patternMeta, type CodeLanguage } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/contexts/EntitlementsContext";
@@ -481,12 +482,14 @@ export default function SolveProblemPage() {
                                 </h1>
                                 {solved && (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                                        ✓ Solved
+                                        <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+                                        Solved
                                     </span>
                                 )}
                                 {problem.access === "premium" && (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
-                                        ★ Premium
+                                        <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
+                                        Premium
                                     </span>
                                 )}
                             </div>
@@ -517,7 +520,7 @@ export default function SolveProblemPage() {
                         {([
                             ["desc", "Description"],
                             ["hints", problem.hints.length ? `Hints (${problem.hints.length})` : "Hints"],
-                            ["editorial", editorialLocked ? "★ Editorial" : "Editorial"],
+                            ["editorial", editorialLocked ? "Editorial (locked)" : "Editorial"],
                             ["companies", problem.tags.length ? `Companies (${problem.tags.length})` : "Companies"],
                             ["solutions", "Solutions"],
                             ["discussion", "Discuss"],
@@ -664,9 +667,16 @@ export default function SolveProblemPage() {
                                             </Button>
                                         </div>
                                     ) : (
-                                        <div className={`mt-3 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
-                                            {lensResult.correct ? "✓ Spot on — " : "✗ Not quite — it's "}
-                                            <strong>{patternMeta(lensResult.correctPattern as any)?.label}</strong>. This counts toward your pattern-recognition score on the Mastery Map.
+                                        <div className={`mt-3 flex items-start gap-2 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
+                                            {lensResult.correct ? (
+                                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden />
+                                            ) : (
+                                                <X className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden />
+                                            )}
+                                            <span>
+                                                {lensResult.correct ? "Spot on — " : "Not quite — it's "}
+                                                <strong>{patternMeta(lensResult.correctPattern as any)?.label}</strong>. This counts toward your pattern-recognition score on the Mastery Map.
+                                            </span>
                                         </div>
                                     )}
                                 </div>
@@ -876,7 +886,8 @@ export default function SolveProblemPage() {
                                             title="Subscribe to unlock Run & Submit"
                                             className="!bg-amber-500 hover:!bg-amber-600"
                                         >
-                                            🔒 Subscribe to run
+                                            <Lock className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                                            Subscribe to run
                                         </Button>
                                     </Link>
                                 ) : (
@@ -899,7 +910,7 @@ export default function SolveProblemPage() {
                                 theme="vs-dark"
                                 value={
                                     problemLocked
-                                        ? "// 🔒 This is a Premium problem.\n//\n// Subscribe to unlock the starter code,\n// run your solution, and submit for judging.\n//\n// → /membership\n"
+                                        ? "// [LOCKED] This is a Premium problem.\n//\n// Subscribe to unlock the starter code,\n// run your solution, and submit for judging.\n//\n// -> /membership\n"
                                         : code
                                 }
                                 onChange={problemLocked ? undefined : onCodeChange}
@@ -916,7 +927,8 @@ export default function SolveProblemPage() {
                             {/* Subtle locked overlay so it's obvious the editor is read-only. */}
                             {problemLocked && (
                                 <div className="pointer-events-none absolute bottom-3 right-4 inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white shadow-md">
-                                    🔒 Locked
+                                    <Lock className="h-3 w-3" aria-hidden />
+                                    Locked
                                 </div>
                             )}
                         </div>
@@ -964,7 +976,13 @@ export default function SolveProblemPage() {
                             ) : (
                                 <>
                                     <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold ${verdictTone(result.verdict)}`}>
-                                        <span>{result.accepted ? "✓" : result.verdict === "pending" ? "⏳" : "✕"}</span>
+                                        {result.accepted ? (
+                                            <Check className="h-4 w-4" strokeWidth={3} aria-hidden />
+                                        ) : result.verdict === "pending" ? (
+                                            <Hourglass className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                                        ) : (
+                                            <X className="h-4 w-4" strokeWidth={3} aria-hidden />
+                                        )}
                                         {verdictLabel(result.verdict)}
                                     </div>
                                     {result.accepted && result.grade != null && (
@@ -975,8 +993,13 @@ export default function SolveProblemPage() {
                                     <div className="mt-3 space-y-2">
                                         {visibleResults.map((r) => (
                                             <div key={r.index} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2.5 text-xs">
-                                                <p className={`font-semibold ${r.passed ? "text-emerald-700" : "text-rose-700"}`}>
-                                                    {r.passed ? "✓" : "✕"} Test {r.index + 1}: {r.passed ? "passed" : "failed"}
+                                                <p className={`flex items-center gap-1 font-semibold ${r.passed ? "text-emerald-700" : "text-rose-700"}`}>
+                                                    {r.passed ? (
+                                                        <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+                                                    ) : (
+                                                        <X className="h-3 w-3" strokeWidth={3} aria-hidden />
+                                                    )}
+                                                    Test {r.index + 1}: {r.passed ? "passed" : "failed"}
                                                 </p>
                                                 {!r.passed && (
                                                     <div className="mt-1.5 grid gap-1.5">
@@ -1059,7 +1082,10 @@ export default function SolveProblemPage() {
                                 </svg>
                             </span>
                         </div>
-                        <p className="mt-4 font-display text-2xl font-bold text-slate-900">Accepted! 🎉</p>
+                        <p className="mt-4 flex items-center justify-center gap-2 font-display text-2xl font-bold text-slate-900">
+                            Accepted!
+                            <PartyPopper className="h-6 w-6 text-amber-500" strokeWidth={2} aria-hidden />
+                        </p>
                         <p className="mt-1 text-sm text-slate-500">
                             {result?.passedCount}/{result?.totalCount} tests passed
                             {result?.grade != null ? " · scheduled for revision" : ""}

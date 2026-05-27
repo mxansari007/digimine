@@ -97,10 +97,15 @@ export async function POST(req: Request, { params }: { params: { classId: string
             totalAttempts: 0,
             lastActiveAt: null,
         };
-        await enrollmentRef.set(data, { merge: true });
-
-        // Bump aggregate counts on the class doc.
-        await classRef.set(
+        // Atomic batch: enrollment + class counters + user-side denorm
+        // (when the student has a real uid). Firestore rules gate
+        // teacher-private content reads on the user's enrolledTeacherIds
+        // array; splitting these writes opens a small "no access" window
+        // right after the teacher adds someone.
+        const batch = adminDb.batch();
+        batch.set(enrollmentRef, data, { merge: true });
+        batch.set(
+            classRef,
             {
                 studentsCount: FieldValue.increment(existing.exists ? 0 : 1),
                 activeStudentsCount: FieldValue.increment(1),
@@ -108,26 +113,23 @@ export async function POST(req: Request, { params }: { params: { classId: string
             },
             { merge: true }
         );
-
-        // Denormalize on the user doc when the student has actually signed up.
         if (!studentId.startsWith("pending:")) {
-            await adminDb
-                .collection("users")
-                .doc(studentId)
-                .set(
-                    {
-                        enrolledTeacherIds: FieldValue.arrayUnion(ownership.teacherId),
-                        classMemberships: FieldValue.arrayUnion({
-                            classId: params.classId,
-                            teacherId: ownership.teacherId,
-                            status: "active",
-                            joinedAt: now,
-                        }),
-                        updatedAt: now,
-                    },
-                    { merge: true }
-                );
+            batch.set(
+                adminDb.collection("users").doc(studentId),
+                {
+                    enrolledTeacherIds: FieldValue.arrayUnion(ownership.teacherId),
+                    classMemberships: FieldValue.arrayUnion({
+                        classId: params.classId,
+                        teacherId: ownership.teacherId,
+                        status: "active",
+                        joinedAt: now,
+                    }),
+                    updatedAt: now,
+                },
+                { merge: true }
+            );
         }
+        await batch.commit();
 
         return NextResponse.json({ student: serializeStudent(await enrollmentRef.get()) });
     } catch (error: any) {

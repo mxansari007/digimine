@@ -16,6 +16,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
+import { Lock, Check, Crown } from "lucide-react";
 
 interface Props {
     /** Headline e.g. "This problem is part of Premium". */
@@ -61,7 +62,7 @@ export function Paywall({
         return (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm">
-                    <span className="text-base">🔒</span>
+                    <Lock className="h-4 w-4 text-amber-600" strokeWidth={2} aria-hidden />
                     <span className="font-semibold text-amber-900">{title}</span>
                     <span className="text-amber-800/80">{reason}</span>
                 </div>
@@ -78,7 +79,8 @@ export function Paywall({
             <Card className="overflow-hidden p-0">
                 <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 px-6 py-8 text-center text-white sm:px-10 sm:py-12">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90 backdrop-blur">
-                        <span>★</span> Premium
+                        <Crown className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                        Premium
                     </span>
                     <h2 className="mt-4 font-display text-2xl font-bold sm:text-3xl">{title}</h2>
                     <p className="mx-auto mt-2 max-w-xl text-sm text-white/85 sm:text-base">{reason}</p>
@@ -90,7 +92,7 @@ export function Paywall({
                     <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                         {perks.map((p) => (
                             <li key={p} className="flex items-start gap-2 text-sm text-slate-700">
-                                <span className="mt-0.5 text-primary-600">✓</span>
+                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" strokeWidth={3} aria-hidden />
                                 <span>{p}</span>
                             </li>
                         ))}

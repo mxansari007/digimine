@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { FileText, ClipboardList, Trophy, BookOpen } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 type TeacherShape = {
@@ -105,9 +106,13 @@ export default function ClassroomPage() {
         if (!firebaseUser) return;
         setIsLeaving(true);
         try {
+            const token = await firebaseUser.getIdToken();
             const res = await fetch("/api/classroom/leave", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     classId: isLegacy ? null : classId,
                     teacherId: isLegacy ? legacyTeacherId : classroom?.teacherId,
@@ -148,10 +153,10 @@ export default function ClassroomPage() {
 
     const basePath = `/classroom/${classId}`;
     const navItems = [
-        { label: "Quizzes", href: `${basePath}/quizzes`, count: counts.quizzes, icon: "📝" },
-        { label: "Test Series", href: `${basePath}/tests`, count: counts.tests, icon: "📋" },
-        { label: "Contests", href: `${basePath}/contests`, count: counts.contests, icon: "🏆" },
-        { label: "Courses", href: `${basePath}/courses`, count: counts.courses, icon: "📚" },
+        { label: "Quizzes", href: `${basePath}/quizzes`, count: counts.quizzes, Icon: FileText },
+        { label: "Test Series", href: `${basePath}/tests`, count: counts.tests, Icon: ClipboardList },
+        { label: "Contests", href: `${basePath}/contests`, count: counts.contests, Icon: Trophy },
+        { label: "Courses", href: `${basePath}/courses`, count: counts.courses, Icon: BookOpen },
     ];
 
     return (
@@ -258,7 +263,9 @@ export default function ClassroomPage() {
                                 <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer h-full">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-3xl mb-2">{item.icon}</div>
+                                            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                                <item.Icon className="h-6 w-6" strokeWidth={2} aria-hidden />
+                                            </div>
                                             <h3 className="text-lg font-semibold text-gray-900">{item.label}</h3>
                                             <p className="text-gray-500 text-sm mt-1">{item.count} available</p>
                                         </div>

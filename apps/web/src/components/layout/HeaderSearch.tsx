@@ -88,16 +88,19 @@ export default function HeaderSearch() {
 
     return (
         <>
+            {/* Compact pure-icon trigger that expands with a label + kbd hint
+                only on very wide viewports. Saves substantial horizontal room
+                in the header next to the dropdowns. */}
             <button
                 type="button"
                 onClick={() => setOpen(true)}
                 aria-label="Search"
                 title="Search (/ or ⌘K)"
-                className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-500 transition-colors hover:border-primary-200 hover:bg-primary-50/40 hover:text-primary-700 sm:px-3"
+                className="group inline-flex items-center gap-2 rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 xl:border xl:border-slate-200 xl:bg-white xl:px-3"
             >
                 <SearchIcon className="h-4 w-4" />
-                <span className="hidden text-xs font-medium sm:inline">Search</span>
-                <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 group-hover:border-primary-200 group-hover:bg-white sm:inline-block">
+                <span className="hidden text-xs font-medium xl:inline">Search</span>
+                <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 group-hover:border-primary-200 group-hover:bg-white xl:inline-block">
                     /
                 </kbd>
             </button>

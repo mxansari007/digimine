@@ -86,6 +86,14 @@ const DiscussionIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const NavIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
+        <circle cx="18" cy="18" r="3" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+    </svg>
+);
+
+
 export const adminNav: AppSidebarNavItem[] = [
     { name: "Dashboard", href: "/", icon: HomeIcon },
     { name: "Products", href: "/products", icon: TagIcon },
@@ -114,5 +122,6 @@ export const adminNav: AppSidebarNavItem[] = [
     { name: "Teacher Submissions", href: "/teacher-submissions", icon: ReviewIcon },
     { name: "Teachers", href: "/teachers", icon: TeacherIcon },
     { name: "Payouts", href: "/payouts", icon: PayoutIcon },
+    { name: "Mega-nav", href: "/site-config/mega-nav", icon: NavIcon },
     { name: "Settings", href: "/settings", icon: CogIcon },
 ];

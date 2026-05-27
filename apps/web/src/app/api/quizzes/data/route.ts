@@ -45,8 +45,24 @@ export async function GET(req: Request) {
             if (!access.allowed) {
                 return NextResponse.json({ error: access.error }, { status: access.status });
             }
-        } else if (!isPublishedContent(data) || (data.teacherId && !isPublicApprovedTeacherContent(data))) {
-            return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+        } else {
+            // Public-catalogue access path. Reject anything that is not
+            // safely public:
+            //   - not published (draft / archived)
+            //   - teacher-authored content not promoted to the public catalogue
+            //   - institute-authored content (teacherId empty but instituteId
+            //     set) — these are classroom-private and MUST be reached via
+            //     the teacherId/classId branch above. Without this guard, an
+            //     anonymous request with just ?slug=… could fetch private
+            //     institute quizzes.
+            const isInstitutePrivate = !data.teacherId && Boolean(data.instituteId);
+            if (
+                !isPublishedContent(data) ||
+                (data.teacherId && !isPublicApprovedTeacherContent(data)) ||
+                isInstitutePrivate
+            ) {
+                return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+            }
         }
 
         const quiz = {

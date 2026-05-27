@@ -36,18 +36,61 @@ To check which mode your project uses: visit the Firebase Console Authentication
 
 If reCAPTCHA Enterprise is enabled but the site key isn't pasted into Firebase, every `signInWithPhoneNumber` call fails with `auth/invalid-app-credential` even though everything else is configured correctly.
 
-## 4. App Check (optional but bites if misconfigured)
+## 4. App Check (CRITICAL — has nuked production twice)
 
-If App Check is enabled in **enforce** mode for the Authentication API:
+App Check is initialised in [`src/lib/firebase/appCheck.ts`](../src/lib/firebase/appCheck.ts) using the **reCAPTCHA v3** provider, env-gated on `NEXT_PUBLIC_RECAPTCHA_V3_KEY`. When the env var is missing, init is a no-op — safe for local dev and when App Check enforcement is off.
 
-- The web app must initialise App Check with a valid attestation provider (reCAPTCHA v3 or Enterprise).
-- The web app must be registered in **Firebase Console → App Check → Apps**.
+**Failure mode:** If App Check is in *Enforce* mode for the Authentication or Firestore API but the client isn't producing valid App Check tokens, every Firebase call fails with `auth/firebase-app-check-token-is-invalid` (Auth) or a `PERMISSION_DENIED` (Firestore). This will break sign-in, sign-up, OTP, and every protected Firestore read in one shot.
 
-If App Check enforcement is on but the web app isn't initialised, every API call (including phone-auth) fails with a generic credentials error.
+### One-time setup procedure
 
-To check whether App Check is enforced for Auth: **Firebase Console → App Check → APIs → Identity Toolkit / Authentication**. If it's "Enforced", you need the setup above. Status "Monitor only" or "Disabled" means App Check isn't blocking calls.
+Do these in order. **Skipping or reordering steps will break production.**
 
-We don't currently initialise App Check in `src/lib/firebase/client.ts` — if you turn enforcement on, you must add it there at the same time.
+1. **GCP Console → Security → reCAPTCHA Enterprise → Create Key**
+   - Choose **"Score-based key (v3)"** (NOT challenge-based)
+   - Allowed domains: `placementranker.com`, `www.placementranker.com`, `localhost`
+   - Copy the resulting site key.
+
+2. **Firebase Console → App Check → Apps**
+   - Click your web app → choose **reCAPTCHA v3** → paste the site key → Save.
+
+3. **Add the env var locally and in Vercel:**
+   ```
+   NEXT_PUBLIC_RECAPTCHA_V3_KEY=<your-v3-site-key>
+   ```
+   Add to `.env.local` AND all three Vercel environments (Production, Preview, Development).
+
+4. **Deploy.** The client now starts producing App Check tokens on every Firebase call. While the API is still in Monitor mode (step 6), these tokens just get logged — nothing breaks if they're invalid.
+
+5. **Watch the Firebase Console for ~24 hours.**
+   Firebase Console → App Check → APIs → click your API row. Verify:
+   - **"Verified requests" approaches ~100%** (tokens are being generated correctly).
+   - **"Unverified: unknown origin requests" drops near 0%**.
+
+   If you see persistent "Unverified: outdated client requests" — those are real users on old cached JS. Wait for the Vercel cache to roll over.
+
+6. **Only NOW flip the API to "Enforce".**
+   Firebase Console → App Check → APIs → row menu → Enforce. Propagation takes up to 15 minutes.
+
+### Emergency rollback (if enforce was clicked too early)
+
+This has happened twice. The symptom: every signup / sign-in fails with `auth/firebase-app-check-token-is-invalid`. The fix:
+
+1. Firebase Console → App Check → APIs → the affected API row → **Unenforce**.
+2. Wait up to 15 minutes for propagation.
+3. Auth / Firestore start working again.
+
+You don't lose security by un-enforcing — App Check is one layer of many. The server-side rate limit (`/api/onboarding/otp-send` + `otp_attempts`), institute velocity caps, and phone uniqueness checks remain active and bound the abuse surface on their own.
+
+### Debug mode for previews / strict ad-blocker testing
+
+For Vercel preview deploys or local testing where reCAPTCHA can't run (e.g. behind aggressive ad-blockers), Firebase supports a debug token:
+
+1. Open the preview URL in the browser. Console will log a debug token UUID.
+2. Firebase Console → App Check → Apps → your web app → **Manage debug tokens** → register the UUID.
+3. (Optional) Pin the token per-environment by setting `NEXT_PUBLIC_APPCHECK_DEBUG_TOKEN=<uuid>` in that env. The init helper picks it up automatically.
+
+**Never set `NEXT_PUBLIC_APPCHECK_DEBUG_TOKEN` in production.**
 
 ## 5. Browser-side preconditions (rare but worth knowing)
 

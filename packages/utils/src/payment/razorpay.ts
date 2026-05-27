@@ -29,10 +29,16 @@ export class RazorpayProvider implements PaymentProvider {
     async createSubscriptionOrder(input: CreateSubscriptionOrderInput): Promise<SubscriptionOrder> {
         const amountInPaise = Math.round(input.amountINR * 100);
 
+        // Razorpay caps the receipt field at 40 chars. The planId is now a
+        // longer string (e.g. "teacher-starter-monthly" = 23 chars) and the
+        // previous format `sub_${planId}_${Date.now()}` overflows. Plan
+        // identity lives in `notes` anyway — keep the receipt opaque.
+        const receipt = `sub_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
         const options = {
             amount: amountInPaise,
             currency: "INR",
-            receipt: `sub_${input.planId}_${Date.now()}`,
+            receipt,
             notes: {
                 planId: input.planId,
                 planName: input.planName,
@@ -41,7 +47,23 @@ export class RazorpayProvider implements PaymentProvider {
             },
         };
 
-        const order = await this.razorpay.orders.create(options);
+        let order: any;
+        try {
+            order = await this.razorpay.orders.create(options);
+        } catch (e: any) {
+            // The razorpay node SDK throws objects shaped like
+            // { statusCode, error: { code, description, ... } } with no
+            // `.message`. Re-throw a real Error so callers can show the
+            // actual cause instead of a generic fallback.
+            const description =
+                e?.error?.description ||
+                e?.error?.reason ||
+                e?.message ||
+                "Razorpay order creation failed";
+            const err = new Error(`Razorpay: ${description}`);
+            (err as any).cause = e;
+            throw err;
+        }
 
         return {
             orderId: input.metadata.teacherId || order.id,

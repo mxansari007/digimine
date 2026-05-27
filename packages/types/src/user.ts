@@ -4,6 +4,19 @@
 export type UserRole = "customer" | "admin" | "super_admin" | "teacher" | "institute_admin";
 
 /**
+ * Stages of the teacher / institute onboarding wizards. Students skip
+ * straight to `"complete"` on signup. The string is namespaced by flow so
+ * we can resume the right page even before `role` is committed.
+ */
+export type OnboardingStep =
+    | "teacher:phone"
+    | "teacher:payment"
+    | "teacher:profile"
+    | "institute:phone"
+    | "institute:setup"
+    | "complete";
+
+/**
  * Purchase record for tracking product access and subscription expiry
  */
 export interface PurchaseRecord {
@@ -39,6 +52,13 @@ export interface User {
      * these users through `/auth/role-select` before they can use a dashboard.
      */
     role: UserRole | null;
+    /**
+     * Where the user is in their role-specific onboarding. `"complete"` (or
+     * absent) means they can use the app. Any other value means resume there
+     * — the login flow redirects partial-onboarding users back to the right
+     * step instead of dropping them on a dashboard with no role committed.
+     */
+    onboardingStep?: OnboardingStep;
     // Legacy: string[] for backward compatibility, new: PurchaseRecord[]
     purchasedProducts: string[] | PurchaseRecord[];
     // Test purchases for quick lookup

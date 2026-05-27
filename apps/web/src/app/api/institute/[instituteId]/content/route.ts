@@ -13,6 +13,13 @@ const TYPE_COLLECTION: Record<string, string> = {
     course: "courses",
 };
 
+const COLLECTION_KIND: Record<string, "quiz" | "test" | "contest" | "course"> = {
+    quizzes: "quiz",
+    tests: "test",
+    contests: "contest",
+    courses: "course",
+};
+
 /**
  * Aggregated list of every piece of content authored by the institute (i.e.
  * `instituteId == X`). Includes a tab filter via ?type=quiz|test|contest|course.
@@ -38,7 +45,7 @@ export async function GET(req: Request, { params }: { params: { instituteId: str
                     results.push({
                         id: d.id,
                         collection: col,
-                        kind: col === "tests" ? "test" : col.replace(/s$/, ""),
+                        kind: COLLECTION_KIND[col],
                         title: data.title || data.name || "Untitled",
                         slug: data.slug || d.id,
                         status: data.status || "draft",

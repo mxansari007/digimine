@@ -83,7 +83,11 @@ export default function TeacherCreateSubTestPage() {
     if (!title.trim()) return alert("Title is required");
     setSaving(true);
     try {
-      await createTeacherTestInSeries({
+      // createTeacherTestInSeries returns the new test id — route the
+      // teacher straight into the question editor for it instead of
+      // landing back on the series tests list (where they'd have to
+      // click into the test they just created to do the same thing).
+      const testId = await createTeacherTestInSeries({
         seriesId,
         title: title.trim(),
         description: description.trim(),
@@ -97,7 +101,7 @@ export default function TeacherCreateSubTestPage() {
         shuffleOptions,
         sections: sections.filter((s) => s.title.trim()),
       });
-      router.push(`/teacher/content/tests/${seriesId}/tests`);
+      router.push(`/teacher/content/tests/${seriesId}/tests/${testId}/questions`);
     } catch (err: any) {
       alert(err.message || "Failed to create test");
     }

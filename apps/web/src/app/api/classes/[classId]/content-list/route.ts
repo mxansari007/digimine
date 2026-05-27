@@ -28,9 +28,13 @@ export async function GET(req: Request, { params }: { params: { classId: string 
         }
 
         // Pull content that has this class in its `classIds` array.
+        // We DON'T filter by `teacherId` here because institute-authored
+        // content is stamped with `teacherId: ""` + `instituteId: <id>`,
+        // and that filter would silently drop those rows for enrolled
+        // students. The class-enrollment gate above already authorises;
+        // class membership is the only signal we need to constrain by.
         const snap = await adminDb
             .collection(type)
-            .where("teacherId", "==", classDoc.teacherId)
             .where("classIds", "array-contains", params.classId)
             .get();
 

@@ -30,7 +30,11 @@ export default function InstituteCreateTestPage() {
     const handleSubmit = async (payload: CreateTestSeriesInput, onSuccess: () => void) => {
         if (!firebaseUser?.uid) throw new Error("Sign in");
         if (!instituteId) throw new Error("Institute not loaded");
-        await createTeacherTest(
+        // Capture id so we can continue into "add tests inside this
+        // series". Institute admins manage these subpages on the teacher
+        // subtree — matches how /institute/content already links into
+        // /teacher/content/tests/{id}/tests for the same action.
+        const seriesId = await createTeacherTest(
             firebaseUser.uid,
             {
                 ...payload,
@@ -41,7 +45,7 @@ export default function InstituteCreateTestPage() {
             { instituteId, classIds }
         );
         onSuccess();
-        router.push("/institute/content");
+        router.push(`/teacher/content/tests/${seriesId}/tests`);
         router.refresh();
     };
 

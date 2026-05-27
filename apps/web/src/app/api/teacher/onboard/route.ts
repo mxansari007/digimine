@@ -47,6 +47,10 @@ export async function POST(req: Request) {
                 }
             }
 
+            await adminDb.collection("users").doc(uid).set(
+                { onboardingStep: "teacher:payment", updatedAt: new Date() },
+                { merge: true }
+            );
             return NextResponse.json({ success: true });
         }
 
@@ -74,6 +78,10 @@ export async function POST(req: Request) {
                 createdAt: new Date(),
             });
 
+            await adminDb.collection("users").doc(uid).set(
+                { onboardingStep: "teacher:profile", updatedAt: new Date() },
+                { merge: true }
+            );
             return NextResponse.json({ success: true, reduced });
         }
 
@@ -104,13 +112,21 @@ export async function POST(req: Request) {
                 inviteCode,
                 paymentFingerprint: null,
                 subscription: {
+                    // Legacy snake_case `subscription_plans` doc id (used by
+                    // checkPlanLimits middleware).
                     planId: "starter",
+                    // Camel-case `subscriptionPlans` doc code (used by the
+                    // teachingEntitlements resolver / pricing UI). Without
+                    // this, the pricing page can't match the teacher's
+                    // current plan and never shows the "Current plan" pill.
+                    planCode: "teacher-starter",
                     status: "trial",
                     startedAt: now,
                     expiresAt: Timestamp.fromDate(trialEnd),
                     gracePeriodEndsAt: null,
                     autoRenew: false,
                     planPrice: 50,
+                    cadence: "monthly",
                 },
                 stats: { totalStudents: 0, totalQuizzes: 0, totalTests: 0, totalContests: 0, totalCourses: 0 },
                 isVerified: false,
@@ -120,6 +136,7 @@ export async function POST(req: Request) {
 
             batch.set(adminDb.collection("users").doc(uid), {
                 role: "teacher",
+                onboardingStep: "complete",
                 updatedAt: now,
             }, { merge: true });
 

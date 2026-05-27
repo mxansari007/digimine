@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/contexts/EntitlementsContext";
 import { signOut } from "@/lib/firebase/auth";
 import { Logo } from "@/components/common/Logo";
 import { TeachersDropdown } from "@/components/teacher/TeachersDropdown";
@@ -13,9 +14,16 @@ import UserMenu from "@/components/layout/UserMenu";
 import Avatar from "@/components/common/Avatar";
 import MegaNav from "@/components/layout/MegaNav";
 import HeaderSearch from "@/components/layout/HeaderSearch";
+import type { MegaItem } from "@/components/layout/megaNavData";
 
-export function Header() {
+export interface HeaderProps {
+    /** Admin-edited mega-nav items, forwarded from the public layout. */
+    megaNavItems?: MegaItem[];
+}
+
+export function Header({ megaNavItems }: HeaderProps = {}) {
     const { isAuthenticated, user, loading } = useAuthContext();
+    const { isPremium } = useEntitlements();
     const pathname = usePathname();
     const router = useRouter();
     // Send each role to its own home — teacher → /teacher/dashboard,
@@ -80,24 +88,26 @@ export function Header() {
                             <Logo variant="dark" iconSize={24} />
                         </Link>
 
-                        {/* Desktop Navigation — mega dropdowns per top-level item. */}
+                        {/* Desktop Navigation — mega dropdowns per top-level item.
+                            Items are admin-editable; the public layout fetches
+                            them server-side and forwards via props. */}
                         <div className="hidden md:block">
-                            <MegaNav />
+                            <MegaNav items={megaNavItems} />
                         </div>
 
                         {/* Right side actions */}
-                        <div className="flex items-center gap-2 md:gap-4">
+                        <div className="flex items-center gap-1 md:gap-2">
                             {/* Search icon → opens centered modal. Backed by
                                 Meilisearch (see infra/meilisearch/README.md). */}
                             <HeaderSearch />
                             {/* Desktop Auth buttons */}
-                            <div className="hidden md:flex items-center gap-2">
+                            <div className="hidden md:flex items-center gap-1.5">
                                 {loading ? (
                                     <div className="h-9 w-28 animate-pulse rounded-full bg-slate-100" />
                                 ) : isAuthenticated ? (
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1.5">
                                         {showTeachersDropdown && <TeachersDropdown />}
-                                        <UserMenu user={user} onSignOut={handleSignOut} />
+                                        <UserMenu user={user} onSignOut={handleSignOut} isPremium={isPremium} />
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">

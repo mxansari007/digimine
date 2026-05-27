@@ -84,10 +84,119 @@ export type EntitlementFeatureMap = Partial<Record<EntitlementFeature, boolean>>
 export type EntitlementQuotaMap = Partial<Record<EntitlementQuota, number>>;
 
 // ─────────────────────────────────────────────────────────────────────
+// Teaching features — gated capabilities for teacher + institute plans.
+// Separate from EntitlementFeature (which is student-only) because
+// teachers and institutes need different concepts (question bank
+// authoring tools, AI generation, etc.).
+// ─────────────────────────────────────────────────────────────────────
+
+export type TeachingFeature =
+    | "question_bank_template_download"
+    | "question_bank_markdown_import"
+    | "ai_question_generation";
+
+export interface TeachingFeatureMeta {
+    key: TeachingFeature;
+    label: string;
+    blurb: string;
+}
+
+export const TEACHING_FEATURES: TeachingFeatureMeta[] = [
+    {
+        key: "question_bank_template_download",
+        label: "Question template download",
+        blurb:
+            "Download the markdown template for bulk-authoring questions offline.",
+    },
+    {
+        key: "question_bank_markdown_import",
+        label: "Question markdown import",
+        blurb:
+            "Bulk-import a batch of questions from a markdown file in one shot.",
+    },
+    {
+        key: "ai_question_generation",
+        label: "AI question generation",
+        blurb:
+            "Generate question drafts from a topic + difficulty prompt; review and save individually.",
+    },
+];
+
+export type TeachingFeatureMap = Partial<Record<TeachingFeature, boolean>>;
+
+// ─────────────────────────────────────────────────────────────────────
+// Teaching limits — numeric caps applied to teacher/institute plans.
+// Surfaced in the admin plan editor, enforced server-side by
+// checkPlanLimits, and rendered on the teacher Usage page. -1 means
+// unlimited. Missing/null defaults to unlimited so legacy plans without
+// the field keep working until an admin sets a cap.
+// ─────────────────────────────────────────────────────────────────────
+
+export type TeachingLimitKey =
+    | "maxClasses"
+    | "maxStudents"
+    | "maxTests"
+    | "maxQuizzes"
+    | "maxContests"
+    | "maxCourses"
+    | "maxQuestions"
+    | "pistonConcurrency";
+
+export interface TeachingLimits {
+    maxClasses: number;
+    maxStudents: number;
+    maxTests: number;
+    maxQuizzes: number;
+    maxContests: number;
+    maxCourses: number;
+    maxQuestions: number;
+    pistonConcurrency: number;
+}
+
+export interface TeachingLimitMeta {
+    key: TeachingLimitKey;
+    label: string;
+    blurb: string;
+}
+
+export const TEACHING_LIMITS: TeachingLimitMeta[] = [
+    { key: "maxClasses", label: "Classes", blurb: "Active classrooms a teacher can run." },
+    { key: "maxStudents", label: "Students", blurb: "Total enrolled students across all classes." },
+    { key: "maxTests", label: "Test series", blurb: "Test series the teacher can author." },
+    { key: "maxQuizzes", label: "Quizzes", blurb: "Quizzes the teacher can author." },
+    { key: "maxContests", label: "Contests", blurb: "Contests the teacher can run." },
+    { key: "maxCourses", label: "Courses", blurb: "Courses the teacher can author." },
+    { key: "maxQuestions", label: "Question-bank items", blurb: "Custom questions stored across banks." },
+    { key: "pistonConcurrency", label: "Code-runner concurrency", blurb: "Concurrent piston code submissions." },
+];
+
+/** Sentinel returned when a plan doesn't define limits — everything unlimited. */
+export const UNLIMITED_TEACHING_LIMITS: TeachingLimits = {
+    maxClasses: -1,
+    maxStudents: -1,
+    maxTests: -1,
+    maxQuizzes: -1,
+    maxContests: -1,
+    maxCourses: -1,
+    maxQuestions: -1,
+    pistonConcurrency: -1,
+};
+
+// ─────────────────────────────────────────────────────────────────────
 // Plans
 // ─────────────────────────────────────────────────────────────────────
 
 export type BillingInterval = "monthly" | "annual" | "lifetime";
+
+/**
+ * Which audience this plan is offered to. Used by the per-role pricing
+ * pages (/pricing/teacher, /pricing/institute) and by the admin editor
+ * to filter the plan list. The student-specific feature/quota toggles
+ * on the editor are only shown when `roleScope === "student"`; for the
+ * other scopes the plan is described purely by its `highlights` array
+ * (and `seatCap` for institute plans).
+ */
+export type PlanRoleScope = "student" | "teacher" | "institute";
 
 export interface AppSubscriptionPlan {
     id: string;
@@ -97,15 +206,65 @@ export interface AppSubscriptionPlan {
     tagline: string;
     /** Marketing bullet points. */
     highlights: string[];
-    /** 0 for the free plan. INR. */
+    /**
+     * Legacy field. Mirrors `monthlyPriceINR` for back-compat with the
+     * student membership flow + promo engine, which still read this.
+     * New code should prefer `monthlyPriceINR` / `annualPriceINR`.
+     */
     priceINR: number;
-    /** Strike-through "was" price for showing a discount. */
+    /** Price when billed monthly. 0 for the free plan. INR. */
+    monthlyPriceINR: number;
+    /**
+     * Price when billed annually. `null` means the plan doesn't offer an
+     * annual cadence — the UI hides the annual toggle for that card. INR.
+     */
+    annualPriceINR: number | null;
+    /** Strike-through "was" price for showing a discount on monthly. */
     compareAtINR: number | null;
+    /**
+     * Legacy field — describes the *default* cadence the plan was created
+     * with. Moot in the new model (both prices live side-by-side) but
+     * still serialised so older readers don't break.
+     */
     interval: BillingInterval;
+    /**
+     * Which audience the plan is for. Existing pre-roleScope plans default
+     * to "student" via the deserializer fallback so legacy data keeps
+     * working without a migration.
+     */
+    roleScope: PlanRoleScope;
+    /**
+     * Seat cap — only meaningful when `roleScope === "institute"`. null
+     * means unlimited (or N/A for non-institute plans).
+     */
+    seatCap: number | null;
     /** Capability flags this plan unlocks. */
     features: EntitlementFeatureMap;
     /** Numeric quotas (-1 = unlimited). */
     quotas: EntitlementQuotaMap;
+    /**
+     * Teaching capability flags unlocked by this plan. Only meaningful
+     * when `roleScope` is "teacher" or "institute" — for student plans
+     * this is an empty map and ignored by the UI / resolver.
+     */
+    teachingFeatures: TeachingFeatureMap;
+    /**
+     * Numeric caps applied to teacher/institute plans. -1 = unlimited.
+     * Missing on the plan doc → treated as unlimited at resolve time
+     * so legacy plans without the field don't suddenly start blocking.
+     * Only meaningful when `roleScope` is "teacher" or "institute".
+     */
+    teachingLimits?: TeachingLimits;
+    /**
+     * Daily cap on AI-generated questions, summed across requests. The
+     * counter resets at local midnight (IST). Semantics:
+     *   - `null`  → no limit (still gated by the
+     *               teachingFeatures.ai_question_generation flag).
+     *   - `0`     → AI requests are rejected even if the flag is on.
+     *   - `> 0`   → that many questions per day.
+     * Only meaningful when `roleScope` is "teacher" or "institute".
+     */
+    aiQuestionsPerDay: number | null;
     /** The single free tier everyone falls back to. Exactly one should be true. */
     isFree: boolean;
     isActive: boolean;
@@ -143,6 +302,59 @@ export const DEFAULT_SUBSCRIPTION_CONFIG: SubscriptionGlobalConfig = {
     updatedAt: new Date(0),
     updatedBy: null,
 };
+
+// ─────────────────────────────────────────────────────────────────────
+// AI provider config (admin-managed, stored at appConfig/aiProvider)
+// ─────────────────────────────────────────────────────────────────────
+
+export type AiProvider = "deepseek" | "openai" | "anthropic";
+
+export interface AiProviderConfig {
+    /**
+     * Master kill-switch for AI-powered features (e.g. question
+     * generation). When false, the UI shows "AI generation is
+     * currently unavailable" and the server endpoints return 503
+     * even for users on plans that include the feature.
+     */
+    enabled: boolean;
+    provider: AiProvider;
+    /**
+     * Secret API key. Stored in Firestore at appConfig/aiProvider.
+     * TODO(security): Firestore at-rest encryption protects the doc,
+     * but consider migrating to a secret manager (GCP Secret Manager
+     * / env var) before going to scale. For now the only way to
+     * retrieve it is server-side via adminDb (admin-only route).
+     */
+    apiKey: string;
+    /** Model identifier (e.g. "deepseek-chat", "gpt-4o-mini"). */
+    model: string;
+    /** Hard ceiling per generation request, to bound cost. */
+    maxQuestionsPerRequest: number;
+    updatedAt: Date;
+    updatedBy: string | null;
+}
+
+export const DEFAULT_AI_PROVIDER_CONFIG: AiProviderConfig = {
+    enabled: false,
+    provider: "deepseek",
+    apiKey: "",
+    model: "deepseek-chat",
+    maxQuestionsPerRequest: 10,
+    updatedAt: new Date(0),
+    updatedBy: null,
+};
+
+/**
+ * Public view of the AI provider config — safe to return to
+ * non-admin callers. Crucially OMITS apiKey so it never leaks
+ * through a `/me`-style endpoint.
+ */
+export interface AiProviderPublicView {
+    enabled: boolean;
+    provider: AiProvider;
+    model: string;
+    maxQuestionsPerRequest: number;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Promo codes

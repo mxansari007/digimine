@@ -7,8 +7,10 @@ import { Button, Card } from "@digimine/ui";
 import { signUp, signInWithGoogle } from "@/lib/firebase/auth";
 import { isValidEmail } from "@digimine/utils";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import type { User as FirebaseUser } from "firebase/auth";
 import { db } from "@/lib/firebase/client";
-import type { User } from "@digimine/types";
+import type { OnboardingStep, User } from "@digimine/types";
+import { resumeOnboardingPath } from "@/lib/auth/redirects";
 
 type RoleChoice = "student" | "teacher" | "institute";
 
@@ -16,6 +18,53 @@ function afterSignupPath(role: RoleChoice): string {
     if (role === "teacher") return "/teacher/onboarding/phone";
     if (role === "institute") return "/institute/onboarding";
     return "/dashboard";
+}
+
+function initialOnboardingStep(role: RoleChoice): OnboardingStep {
+    if (role === "teacher") return "teacher:phone";
+    if (role === "institute") return "institute:phone";
+    return "complete";
+}
+
+/**
+ * Best-effort post-signup work that should not block the navigation if
+ * it fails:
+ *   1. Fires off the Firebase verification email (skipped for accounts
+ *      that are already verified — e.g. Google sign-ins).
+ *   2. Calls the auto-attach endpoint so students whose email was
+ *      pre-registered by an institute admin land directly on their
+ *      institute's dashboard.
+ *
+ * Both calls are wrapped in try/catch so failure of one doesn't kill
+ * the other.
+ */
+async function runPostSignupHooks(
+    firebaseUser: FirebaseUser,
+    role: RoleChoice
+): Promise<void> {
+    if (!firebaseUser.emailVerified) {
+        try {
+            const token = await firebaseUser.getIdToken();
+            await fetch("/api/auth/send-verification-email", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        } catch (e) {
+            console.warn("[register] send-verification-email failed:", e);
+        }
+    }
+    // Auto-attach only matters for students; teachers + institute admins
+    // go through their own onboarding which sets institute affiliation.
+    if (role !== "student") return;
+    try {
+        const token = await firebaseUser.getIdToken();
+        await fetch("/api/auth/auto-attach-institute", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+        });
+    } catch (e) {
+        console.warn("[register] auto-attach-institute failed:", e);
+    }
 }
 
 export default function RegisterPage() {
@@ -32,6 +81,7 @@ export default function RegisterPage() {
     const [password, setPassword] = useState("");
     const [role, setRole] = useState<RoleChoice>(defaultRole);
     const [error, setError] = useState("");
+    const [existingAccountEmail, setExistingAccountEmail] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; email?: string; password?: string }>({});
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
@@ -39,6 +89,7 @@ export default function RegisterPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setExistingAccountEmail(null);
         setFieldErrors({});
 
         // Validation
@@ -78,6 +129,7 @@ export default function RegisterPage() {
                 // role-less abandoners don't end up with stale teacher/institute
                 // role bits.
                 role: role === "student" ? "customer" : null,
+                onboardingStep: initialOnboardingStep(role),
                 purchasedProducts: [],
                 purchasedTests: [],
                 createdAt: new Date(),
@@ -86,10 +138,24 @@ export default function RegisterPage() {
 
             await setDoc(doc(db, "users", credential.user.uid), newUser);
 
+            // Post-signup hooks. Both are best-effort — if either fails we
+            // still let the user continue, but we log so we can debug.
+            await runPostSignupHooks(credential.user, role).catch((e) =>
+                console.warn("[register] post-signup hooks failed:", e)
+            );
+
             router.push(afterSignupPath(role));
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : "Failed to create account";
-            setError(errorMessage);
+            const code = (err as { code?: string })?.code || "";
+            if (code === "auth/email-already-in-use") {
+                // Don't show a generic error — the existing-account banner
+                // below renders a Sign-In CTA that pre-fills the email and
+                // resumes onboarding via the login redirect logic.
+                setExistingAccountEmail(email);
+            } else {
+                const errorMessage = err instanceof Error ? err.message : "Failed to create account";
+                setError(errorMessage);
+            }
         } finally {
             setLoading(false);
         }
@@ -117,13 +183,56 @@ export default function RegisterPage() {
                     phoneNumber: null,
                     photoURL: credential.user.photoURL,
                     role: role === "student" ? "customer" : null,
+                    onboardingStep: initialOnboardingStep(role),
                     purchasedProducts: [],
                     purchasedTests: [],
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 };
                 await setDoc(userRef, newUser);
+            } else {
+                // Existing account "signing up" with Google. Don't trash the
+                // role they already have — just resume where they left off.
+                const data = userSnap.data();
+                const existingRole = (data?.role ?? null) as
+                    | "customer"
+                    | "teacher"
+                    | "institute_admin"
+                    | null;
+                const wantedRole =
+                    role === "student"
+                        ? "customer"
+                        : role === "teacher"
+                          ? "teacher"
+                          : "institute_admin";
+                const resume = resumeOnboardingPath(
+                    (data?.onboardingStep ?? null) as OnboardingStep | null
+                );
+
+                // Role mismatch: the user picked a role the existing account
+                // doesn't have. We can't silently re-role them (auth pivot
+                // affects content access, billing, attempts), so we surface
+                // the existing-account banner the same way we do for
+                // email-already-in-use. They'll see "you already have an
+                // account — sign in to continue" pointing at /login.
+                if (existingRole && existingRole !== wantedRole) {
+                    setExistingAccountEmail(credential.user.email || email || "");
+                    return;
+                }
+
+                // Mid-onboarding for the same role → resume.
+                if (resume) {
+                    router.push(resume);
+                    return;
+                }
             }
+
+            // Same post-signup hooks. Google sign-ins already have
+            // emailVerified=true so the verification email send is skipped
+            // (the helper checks before calling).
+            await runPostSignupHooks(credential.user, role).catch((e) =>
+                console.warn("[register] post-signup hooks failed:", e)
+            );
 
             router.push(afterSignupPath(role));
         } catch (err: unknown) {
@@ -142,6 +251,23 @@ export default function RegisterPage() {
                 </h1>
                 <p className="text-gray-600">Start your digital product journey</p>
             </div>
+
+            {existingAccountEmail && (
+                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-semibold text-amber-900">
+                        You already have an account.
+                    </p>
+                    <p className="mt-1 text-sm text-amber-800">
+                        Sign in to complete your onboarding — we&apos;ll pick up right where you left off.
+                    </p>
+                    <Link
+                        href={`/login?email=${encodeURIComponent(existingAccountEmail)}&resume=1`}
+                        className="mt-3 inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
+                    >
+                        Sign in to continue
+                    </Link>
+                </div>
+            )}
 
             {/* Google Sign Up - Primary Option */}
             <Button

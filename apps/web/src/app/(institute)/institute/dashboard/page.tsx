@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 type Institute = {
     id: string;
@@ -22,6 +25,7 @@ type Institute = {
 
 export default function InstituteDashboardPage() {
     const { firebaseUser } = useAuthContext();
+    const teaching = useTeachingFeatures();
     const [institute, setInstitute] = useState<Institute | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -50,11 +54,41 @@ export default function InstituteDashboardPage() {
         return <Card className="p-8 text-center text-rose-700">{error || "Institute not found"}</Card>;
     }
 
+    // Progressive next-step CTA: only renders before the institute has
+    // teachers/classes/students. Once everything is bootstrapped the card
+    // disappears entirely so it doesn't clutter mature dashboards.
+    const nextStep: { title: string; copy: string; cta: string; href: string } | null =
+        institute.stats.activeTeacherCount === 0
+            ? {
+                  title: "Add your first teacher",
+                  copy: "You can't create classes until you have at least one active teacher. Bulk-paste a list of teacher emails — anyone with an existing account is linked instantly, brand-new emails get a one-time invite.",
+                  cta: "Go to Teachers",
+                  href: "/institute/teachers",
+              }
+            : institute.stats.classCount === 0
+                ? {
+                      title: "Create your first class",
+                      copy: "Now that you have a teacher, create a class (e.g. \"610-A\"). Each class has its own invite code and can carry multiple subjects, each taught by a different teacher.",
+                      cta: "Go to Classes",
+                      href: "/institute/classes",
+                  }
+                : institute.stats.studentCount === 0
+                    ? {
+                          title: "Pre-register your students",
+                          copy: "Paste a list of student emails. Anyone with a student account gets attached instantly; brand-new emails auto-attach when they sign up. Then you can add them to specific classes.",
+                          cta: "Go to Students",
+                          href: "/institute/students",
+                      }
+                    : null;
+
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{institute.name}</h1>
+                    <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">{institute.name}</h1>
+                        <HelpTutorial {...TUTORIALS.institute_dashboard} />
+                    </div>
                     {institute.description && (
                         <p className="text-sm text-gray-500 mt-1">{institute.description}</p>
                     )}
@@ -65,6 +99,23 @@ export default function InstituteDashboardPage() {
                     </Link>
                 </div>
             </div>
+
+            {nextStep && (
+                <Card className="border-primary-200 bg-gradient-to-br from-primary-50/80 to-white p-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                        Next step
+                    </p>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900">
+                        {nextStep.title}
+                    </h3>
+                    <p className="mt-1 max-w-2xl text-sm text-slate-600">{nextStep.copy}</p>
+                    <div className="mt-3">
+                        <Link href={nextStep.href}>
+                            <Button variant="primary">{nextStep.cta} →</Button>
+                        </Link>
+                    </div>
+                </Card>
+            )}
 
             <Card className="p-6 accent-card">
                 <p className="stat-label">Teacher invite code</p>
@@ -102,13 +153,39 @@ export default function InstituteDashboardPage() {
                 </Card>
                 <Card className="p-5">
                     <p className="stat-label">Plan</p>
-                    <p className="mt-2 text-2xl font-bold text-gray-900 capitalize">
-                        {institute.subscription?.planId || "trial"}
+                    <p className="mt-2 text-2xl font-bold text-gray-900">
+                        {teaching.planName || institute.subscription?.planId || "Trial"}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
-                        {institute.subscription?.seats || 5} seats ·{" "}
-                        {institute.subscription?.status || "trial"}
+                        {institute.subscription?.seats != null
+                            ? `${institute.subscription.seats} seats`
+                            : "Unlimited seats"}{" "}
+                        · {institute.subscription?.status || "trial"}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                        {(["question_bank_template_download", "question_bank_markdown_import", "ai_question_generation"] as const).map((k) => {
+                            const labels: Record<string, string> = {
+                                question_bank_template_download: "Template",
+                                question_bank_markdown_import: "Import",
+                                ai_question_generation: "AI",
+                            };
+                            const on = teaching.has(k);
+                            return (
+                                <span
+                                    key={k}
+                                    className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                                >
+                                    {on ? "✓" : "✗"} {labels[k]}
+                                </span>
+                            );
+                        })}
+                    </div>
+                    <Link
+                        href="/institute/billing"
+                        className="mt-3 inline-block text-xs font-semibold text-primary-700 hover:text-primary-800"
+                    >
+                        Manage plan →
+                    </Link>
                 </Card>
             </div>
 

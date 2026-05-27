@@ -9,6 +9,7 @@ import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 import { studentNav } from "@/components/layout/sidebarNav";
+import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 
 /**
  * Results pages (test / quiz / contest) are user-scoped — anyone whose
@@ -30,6 +31,18 @@ function isUniversalResultsPath(pathname: string): boolean {
 }
 
 export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <EmailVerificationGate>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </EmailVerificationGate>
+  );
+}
+
+function DashboardLayoutInner({
   children,
 }: {
   children: React.ReactNode;
@@ -97,7 +110,7 @@ export default function DashboardLayout({
   return (
     <DashboardShell
       role="student"
-      sidebar={({ isOpen, onClose }) => (
+      sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
         <AppSidebar
           role="student"
           pathname={pathname}
@@ -105,8 +118,11 @@ export default function DashboardLayout({
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}
+          brandHref="/dashboard"
           isOpen={isOpen}
           onClose={onClose}
+          collapsed={collapsed}
+          onToggleCollapsed={onToggleCollapsed}
         />
       )}
     >

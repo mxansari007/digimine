@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { rateLimit } from "@/lib/server/ratelimit";
 import type { TestPurchase } from "@digimine/types";
 
 type DateLike = Date | Timestamp | string | { _seconds: number };
@@ -51,6 +52,21 @@ export async function POST(req: Request) {
         const authUserId = await getAuthenticatedUserId(req);
         if (!authUserId) {
             return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
+        // Rate limit free enrolments: 20 per user per 5 minutes. A real
+        // student only enrolls in a handful of series interactively; higher
+        // rates are ID enumeration or scripted noise. Fails-open if Redis
+        // is unavailable so legit traffic never gets blocked by infra.
+        const rl = await rateLimit("free-enroll", authUserId, {
+            limit: 20,
+            windowSeconds: 300,
+        });
+        if (!rl.success) {
+            return NextResponse.json(
+                { error: "Too many enrolment attempts. Please slow down and try again in a minute." },
+                { status: 429 }
+            );
         }
 
         const { seriesId, userId } = await req.json();

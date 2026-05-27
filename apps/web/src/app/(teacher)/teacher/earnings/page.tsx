@@ -5,6 +5,8 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { getTeacher } from "@/lib/firestore/teachers";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import type { Teacher } from "@digimine/types";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 export default function TeacherEarningsPage() {
   const { firebaseUser } = useAuthContext();
@@ -70,7 +72,10 @@ export default function TeacherEarningsPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-slate-950">Earnings</h1>
+      <div className="flex items-center gap-1.5">
+        <h1 className="text-2xl font-bold text-slate-950">Earnings</h1>
+        <HelpTutorial {...TUTORIALS.teacher_earnings} />
+      </div>
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-6 shadow-sm shadow-slate-900/5">
@@ -101,6 +106,17 @@ export default function TeacherEarningsPage() {
           >
             {requesting ? "Processing..." : "Request Payout"}
           </button>
+          <p className="mt-2 text-xs text-slate-500">
+            {teacher.usage.pendingPayout < 1000 ? (
+              <>
+                Minimum payout is{" "}
+                <span className="font-medium text-slate-700">₹1,000</span>.{" "}
+                ₹{(1000 - teacher.usage.pendingPayout).toLocaleString()} to go.
+              </>
+            ) : (
+              <>Payouts settle in 5–7 business days.</>
+            )}
+          </p>
         </div>
       </div>
 

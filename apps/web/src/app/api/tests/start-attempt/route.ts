@@ -3,8 +3,80 @@ import { adminDb } from "@/lib/firebase/admin";
 import { v4 as uuidv4 } from "uuid";
 import { previewAttemptOverlay } from "@/lib/server/userRole";
 import { requireAssignedRole } from "@/lib/server/roleGate";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { assertContestClassroomAccess } from "@/lib/server/quizAttempts";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Resolves whether a student is allowed to start a test in this series.
+ * Mirrors the three-tier check from `assertQuizAccess` so the two flows behave
+ * identically: (1) explicit class context, (2) fan-out across class IDs the
+ * series is assigned to, (3) legacy teacher_enrollments fallback for
+ * pre-class-refactor installs.
+ */
+async function isEnrolledForSeriesAccess(args: {
+    userId: string;
+    teacherId: string;
+    seriesClassIds: string[];
+    requestedClassId: string;
+}): Promise<boolean> {
+    const { userId, teacherId, seriesClassIds, requestedClassId } = args;
+
+    // 1. Class the student arrived from. Verify they're actually in it AND
+    //    that the class belongs to this series' teacher AND (if the series
+    //    is class-scoped) that the series is assigned to that class.
+    if (requestedClassId) {
+        if (seriesClassIds.length > 0 && !seriesClassIds.includes(requestedClassId)) {
+            // Series wasn't assigned to the class the student claims — fail
+            // closed. Fall through to the legacy check just in case.
+        } else {
+            const [memberSnap, classSnap] = await Promise.all([
+                adminDb
+                    .collection("classes")
+                    .doc(requestedClassId)
+                    .collection("students")
+                    .doc(userId)
+                    .get(),
+                adminDb.collection("classes").doc(requestedClassId).get(),
+            ]);
+            if (
+                memberSnap.exists &&
+                memberSnap.data()?.status === "active" &&
+                classSnap.exists &&
+                classSnap.data()?.teacherId === teacherId
+            ) {
+                return true;
+            }
+        }
+    }
+
+    // 2. Class-fan-out — the student didn't pass a classId but may still be
+    //    enrolled in one of the classes this series is published into.
+    if (seriesClassIds.length > 0) {
+        for (const cid of seriesClassIds) {
+            const memberSnap = await adminDb
+                .collection("classes")
+                .doc(cid)
+                .collection("students")
+                .doc(userId)
+                .get();
+            if (memberSnap.exists && memberSnap.data()?.status === "active") {
+                return true;
+            }
+        }
+    }
+
+    // 3. Legacy fallback: pre-class-refactor data has students attached
+    //    directly to the teacher.
+    const legacy = await adminDb
+        .collection("teacher_enrollments")
+        .doc(teacherId)
+        .collection("students")
+        .doc(userId)
+        .get();
+    return legacy.exists && legacy.data()?.status === "active";
+}
 
 function toMillis(value: any): number {
     if (!value) return 0;
@@ -23,16 +95,35 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { userId, seriesId, testId, contestContext, userAgent, questions } = body;
+        const classId = typeof body.classId === "string" && body.classId ? body.classId : "";
 
         if (!userId || !seriesId || !testId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        // Verify the caller actually owns the userId they sent. Pre-existing
+        // routes trusted whatever userId the client put in the body — closing
+        // that gap here. Falls back gracefully for contest flows that may not
+        // include a Bearer token yet.
+        const tokenUserId = await getBearerUserId(req).catch(() => null);
+        if (tokenUserId && tokenUserId !== userId) {
+            return NextResponse.json(
+                { error: "You can only start a test for your own account." },
+                { status: 403 }
+            );
         }
 
         // Defense-in-depth: refuse to create attempts for role-less users.
         const gate = await requireAssignedRole(String(userId));
         if (!gate.ok) return gate.response;
 
-        // Load test data
+        // Load test series + test data so we can run the enrollment check.
+        const seriesSnap = await adminDb.collection("tests").doc(seriesId).get();
+        if (!seriesSnap.exists) {
+            return NextResponse.json({ error: "Test series not found" }, { status: 404 });
+        }
+        const series: any = { id: seriesSnap.id, ...seriesSnap.data() };
+
         const testSnap = await adminDb
             .collection("tests")
             .doc(seriesId)
@@ -43,6 +134,103 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Test not found" }, { status: 404 });
         }
         const test: any = { id: testSnap.id, ...testSnap.data() };
+
+        // ── Contest classroom gate ─────────────────────────────────────────
+        //
+        // Don't trust the body's `contestContext`. Re-fetch the contest doc
+        // and (a) confirm it's the one the client claims, (b) enforce
+        // classroom enrollment when the contest is private. Previously a
+        // classroom-only contest could be opened by anyone with the ID
+        // during the live window.
+        if (contestContext && contestContext.contestId) {
+            const contestSnap = await adminDb
+                .collection("contests")
+                .doc(contestContext.contestId)
+                .get();
+            if (!contestSnap.exists) {
+                return NextResponse.json(
+                    { error: "Contest not found." },
+                    { status: 404 }
+                );
+            }
+            const contestData = contestSnap.data() || {};
+            if (contestData.status !== "published") {
+                return NextResponse.json(
+                    { error: "Contest is not available." },
+                    { status: 403 }
+                );
+            }
+            try {
+                await assertContestClassroomAccess(contestData, String(userId), classId);
+            } catch (e) {
+                return NextResponse.json(
+                    { error: (e as Error).message || "Not authorised for this contest." },
+                    { status: 403 }
+                );
+            }
+        }
+
+        // ── Class-enrollment gate ──────────────────────────────────────────
+        //
+        // Runs for BOTH contest and non-contest attempts. The contest gate
+        // above validates the contest doc's own classroom scoping, but a
+        // public contest can wrap a class-private series — in that case
+        // the series gate is the one that must reject non-enrolled
+        // students. Public-catalogue series (visibility = published/public)
+        // still bypass.
+        if (series.teacherId) {
+            const isPublicCatalog =
+                series.visibility === "published" || series.visibility === "public";
+            if (!isPublicCatalog) {
+                const allowed = await isEnrolledForSeriesAccess({
+                    userId: String(userId),
+                    teacherId: String(series.teacherId),
+                    seriesClassIds: Array.isArray(series.classIds) ? series.classIds : [],
+                    requestedClassId: classId,
+                });
+                if (!allowed) {
+                    return NextResponse.json(
+                        { error: "Join this teacher's class to take this test." },
+                        { status: 403 }
+                    );
+                }
+            }
+        }
+
+        // Institute-authored series: teacherId is empty but instituteId is
+        // set. Same gating model as teacher series — enrolled students of
+        // any assigned class can attempt it. Without this branch, institute
+        // tests were openly accessible (no enrollment check at all).
+        // Runs for both contest and non-contest attempts for the same
+        // reason as the teacher branch.
+        if (!series.teacherId && series.instituteId) {
+            const seriesClassIds: string[] = Array.isArray(series.classIds) ? series.classIds : [];
+            const candidates = classId && (seriesClassIds.length === 0 || seriesClassIds.includes(classId))
+                ? [classId, ...seriesClassIds.filter((c) => c !== classId)]
+                : seriesClassIds;
+            let allowed = false;
+            for (const cid of candidates) {
+                const [memberSnap, classSnap] = await Promise.all([
+                    adminDb.collection("classes").doc(cid).collection("students").doc(String(userId)).get(),
+                    adminDb.collection("classes").doc(cid).get(),
+                ]);
+                if (
+                    memberSnap.exists &&
+                    memberSnap.data()?.status === "active" &&
+                    classSnap.exists &&
+                    classSnap.data()?.instituteId === series.instituteId
+                ) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) {
+                return NextResponse.json(
+                    { error: "You're not enrolled in any class with this test." },
+                    { status: 403 }
+                );
+            }
+        }
 
         // Load questions
         let questionsList = questions;
@@ -200,6 +388,11 @@ export async function POST(req: Request) {
                 userId,
                 seriesId,
                 testId,
+                // Classroom context — preserved on the attempt doc so
+                // teacher dashboards can filter by class. Empty string
+                // means the student arrived outside a classroom (public
+                // test or course-linked test); null normalised elsewhere.
+                ...(classId ? { classId } : {}),
                 sourceType: contestContext ? "contest" : "test_series",
                 ...(contestContext
                     ? {

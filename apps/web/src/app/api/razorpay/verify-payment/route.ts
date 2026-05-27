@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 
@@ -56,7 +57,33 @@ export async function POST(req: Request) {
 
         if (orderData.status !== "completed") {
             await orderRef.update(updateData);
-            
+
+            // If this order was placed by a signed-in buyer (userId stamped
+            // at create-order time), append the items to their
+            // `purchasedProducts` array so /dashboard can surface them.
+            // Guests (userId=null) keep using the access-key flow.
+            const buyerUserId =
+                typeof orderData.userId === "string" && orderData.userId
+                    ? orderData.userId
+                    : null;
+            if (buyerUserId && Array.isArray(orderData.items)) {
+                const productIds = orderData.items
+                    .map((it: any) => it?.productId)
+                    .filter((p: any) => typeof p === "string" && p);
+                if (productIds.length > 0) {
+                    await adminDb
+                        .collection("users")
+                        .doc(buyerUserId)
+                        .set(
+                            {
+                                purchasedProducts: FieldValue.arrayUnion(...productIds),
+                                updatedAt: FieldValue.serverTimestamp(),
+                            },
+                            { merge: true }
+                        );
+                }
+            }
+
             // Send order success email
             const { sendOrderEmail } = await import("@/lib/email");
             await sendOrderEmail(orderId);

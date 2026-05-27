@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card } from "@digimine/ui";
+import { Star } from "lucide-react";
 import { ALL_PATTERNS, patternMeta } from "@digimine/types";
 import { LoadMoreButton } from "@/components/common";
 import { useVisibleSlice } from "@/hooks/useVisibleSlice";
@@ -124,9 +125,10 @@ export default function ProblemsBrowser({
                                             {p.access === "premium" && (
                                                 <span
                                                     title="Premium problem"
-                                                    className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200"
+                                                    className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200"
                                                 >
-                                                    ★ Premium
+                                                    <Star className="h-2.5 w-2.5 fill-current" strokeWidth={0} aria-hidden />
+                                                    Premium
                                                 </span>
                                             )}
                                         </td>

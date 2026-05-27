@@ -204,6 +204,11 @@ export default function QuizDetailPage() {
     const slug = params.slug as string;
     const contestId = searchParams.get("contestId");
     const classroomTeacherId = searchParams.get("teacherId");
+    // Class the student arrived from (e.g. /classroom/[classId]/quizzes). Needed
+    // by the attempt-start endpoint to verify enrollment via
+    // `classes/{classId}/students` — the legacy `teacher_enrollments` path
+    // only works for pre-class-refactor data.
+    const classroomClassId = searchParams.get("classId");
     const { firebaseUser, loading: authLoading } = useAuthContext();
     // Force signed-in-but-role-less users through /role-select first.
     useAttemptGate();
@@ -243,8 +248,13 @@ export default function QuizDetailPage() {
     // Mode + hook deps re-renders). Only re-run when the URL identity changes.
     const loadQuizOnceRef = useRef<string | null>(null);
 
+    // Either a classId (new class-centric arrival) or a teacherId (legacy) is
+    // enough to route through the server API — both signal that the quiz is
+    // teacher-owned and the client Firestore rules will reject it.
+    const isClassroomArrival = Boolean(classroomClassId || classroomTeacherId);
+
     useEffect(() => {
-        const key = `${slug}|${classroomTeacherId || ""}|${firebaseUser?.uid || ""}|${authLoading ? "loading" : "ready"}`;
+        const key = `${slug}|${classroomClassId || ""}|${classroomTeacherId || ""}|${firebaseUser?.uid || ""}|${authLoading ? "loading" : "ready"}`;
         if (loadQuizOnceRef.current === key) return;
         loadQuizOnceRef.current = key;
 
@@ -263,15 +273,23 @@ export default function QuizDetailPage() {
             setSaveStatus("idle");
             try {
                 let quizData: Quiz | null = null;
-                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
-                if (classroomTeacherId) {
+                // Classroom path: skip client Firestore (it'd fail with permissions) and use server API.
+                // The server endpoint accepts EITHER teacherId (legacy) or classId
+                // (current class-centric path), or both.
+                if (isClassroomArrival) {
                     if (authLoading) return;
                     if (!firebaseUser) {
-                        router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${slug}?teacherId=${classroomTeacherId}`)}`);
+                        const qs = new URLSearchParams();
+                        if (classroomClassId) qs.set("classId", classroomClassId);
+                        if (classroomTeacherId) qs.set("teacherId", classroomTeacherId);
+                        router.push(`/login?redirect=${encodeURIComponent(`/quizzes/${slug}?${qs.toString()}`)}`);
                         return;
                     }
                     const token = await firebaseUser.getIdToken();
-                    const res = await fetch(`/api/quizzes/data?slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                    const apiQs = new URLSearchParams({ slug });
+                    if (classroomTeacherId) apiQs.set("teacherId", classroomTeacherId);
+                    if (classroomClassId) apiQs.set("classId", classroomClassId);
+                    const res = await fetch(`/api/quizzes/data?${apiQs.toString()}`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     const serverData = await res.json();
@@ -283,13 +301,21 @@ export default function QuizDetailPage() {
                 setQuiz(quizData);
             } catch (error) {
                 console.error("Failed to load quiz:", error);
+                // Surface the actual server error to the user. Previously this
+                // was swallowed and the UI fell through to "Quiz not found",
+                // making class-enrollment / access-denial bugs invisible.
+                setAccessError(
+                    error instanceof Error
+                        ? error.message
+                        : "We couldn't load this quiz. Please try again."
+                );
             } finally {
                 setLoading(false);
             }
         }
 
         loadQuiz();
-    }, [authLoading, classroomTeacherId, firebaseUser, router, slug]);
+    }, [authLoading, classroomClassId, classroomTeacherId, firebaseUser, router, slug, isClassroomArrival]);
 
     const applyAttemptPayload = useCallback((data: { attempt: QuizAttemptSummary | null; questions?: AttemptQuestion[] }) => {
         if (!data.attempt) {
@@ -614,7 +640,11 @@ export default function QuizDetailPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ contestId, teacherId: classroomTeacherId }),
+                body: JSON.stringify({
+                    contestId,
+                    teacherId: classroomTeacherId,
+                    classId: classroomClassId,
+                }),
             });
             const data = await response.json();
             if (!response.ok) {

@@ -9,8 +9,21 @@ import { signOut } from "@/lib/firebase/auth";
 import { userHomePath } from "@/lib/auth/redirects";
 import { PageLoading } from "@/components/common";
 import { teacherNav } from "@/components/layout/sidebarNav";
+import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 
 export default function TeacherLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <EmailVerificationGate>
+      <TeacherLayoutInner>{children}</TeacherLayoutInner>
+    </EmailVerificationGate>
+  );
+}
+
+function TeacherLayoutInner({
   children,
 }: {
   children: React.ReactNode;
@@ -70,7 +83,7 @@ export default function TeacherLayout({
   return (
     <DashboardShell
       role="teacher"
-      sidebar={({ isOpen, onClose }) => (
+      sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
         <AppSidebar
           role="teacher"
           pathname={pathname}
@@ -78,8 +91,11 @@ export default function TeacherLayout({
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}
+          brandHref="/teacher/dashboard"
           isOpen={isOpen}
           onClose={onClose}
+          collapsed={collapsed}
+          onToggleCollapsed={onToggleCollapsed}
         />
       )}
     >

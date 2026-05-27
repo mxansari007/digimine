@@ -237,7 +237,15 @@ export async function POST(req: Request) {
         await adminDb
             .collection("users")
             .doc(userId)
-            .set({ role: "institute_admin", instituteId: ref.id, updatedAt: now }, { merge: true });
+            .set(
+                {
+                    role: "institute_admin",
+                    instituteId: ref.id,
+                    onboardingStep: "complete",
+                    updatedAt: now,
+                },
+                { merge: true }
+            );
 
         await logInstituteSignupAttempt({
             userId,

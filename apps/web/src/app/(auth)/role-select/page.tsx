@@ -29,7 +29,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { doc, setDoc } from "firebase/firestore";
+
 import { useAuthContext } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase/client";
 import { signOut as firebaseSignOut } from "@/lib/firebase/auth";
 
 function safeNext(raw: string | null): string | null {
@@ -150,11 +153,25 @@ export default function RoleSelectPage() {
         setError("");
         try {
             if (role === "teacher") {
+                // Persist the choice so a sign-out / sign-in mid-onboarding
+                // resumes at the right page instead of dumping the user back
+                // here. Firestore rules let owners update any field except
+                // `role`, so this merge write is safe from the client.
+                await setDoc(
+                    doc(db, "users", firebaseUser.uid),
+                    { onboardingStep: "teacher:phone", updatedAt: new Date() },
+                    { merge: true }
+                );
                 const q = next ? `?next=${encodeURIComponent(next)}` : "";
                 router.push(`/teacher/onboarding/phone${q}`);
                 return;
             }
             if (role === "institute") {
+                await setDoc(
+                    doc(db, "users", firebaseUser.uid),
+                    { onboardingStep: "institute:phone", updatedAt: new Date() },
+                    { merge: true }
+                );
                 const q = next ? `?next=${encodeURIComponent(next)}` : "";
                 router.push(`/institute/onboarding${q}`);
                 return;
@@ -179,12 +196,21 @@ export default function RoleSelectPage() {
             }
             // Don't router.push here — see file header. The snapshot will
             // fire shortly with role=customer and the redirect useEffect
-            // will navigate us to `next || /dashboard`. As a defensive
-            // fallback in case the snapshot is delayed in a flaky network,
-            // we time out after 5s and navigate manually.
-            setTimeout(() => {
-                router.push(next || "/dashboard");
-            }, 5000);
+            // above will navigate us to `next || /dashboard`.
+            //
+            // Defensive fallback: if the snapshot is delayed (network
+            // hiccup, listener disconnected), do a HARD navigation after
+            // 3s. router.push would race the redirect effect and the
+            // (dashboard) layout guard — which sees role=null and bounces
+            // back to /role-select, looping the user. window.location.href
+            // re-establishes auth from scratch so the role lands before
+            // the layout guard runs.
+            const target = next || "/dashboard";
+            window.setTimeout(() => {
+                if (typeof window !== "undefined" && window.location.pathname === "/role-select") {
+                    window.location.href = target;
+                }
+            }, 3000);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
             setPicking(null);

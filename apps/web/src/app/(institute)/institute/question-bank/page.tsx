@@ -4,6 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import {
+    AiQuestionGenerator,
+    LockedFeatureButton,
+    type GeneratedQuestionDraft,
+} from "@/components/teacher/AiQuestionGenerator";
+import { downloadQuestionTemplate } from "@/lib/import/markdownQuestions";
 
 type Option = { id?: string; text: string; isCorrect?: boolean };
 
@@ -38,6 +47,7 @@ export default function InstituteQuestionBankPage() {
 
     const [showForm, setShowForm] = useState(false);
     const [creating, setCreating] = useState(false);
+    const teaching = useTeachingFeatures();
 
     // Filters
     const [search, setSearch] = useState("");
@@ -93,6 +103,50 @@ export default function InstituteQuestionBankPage() {
         });
     }, [questions, search, subjectFilter, difficultyFilter, typeFilter]);
 
+    /**
+     * AI-draft → POST /api/institute/{id}/question-bank adapter.
+     * Mirrors the teacher-side adapter on /teacher/questions.
+     */
+    const handleAiSave = async (
+        q: GeneratedQuestionDraft,
+        ctx: { topic: string; subject: string; difficulty: string; type: string }
+    ) => {
+        if (!firebaseUser || !instituteId) throw new Error("Not signed in");
+        const truncatedTitle =
+            q.questionText.length > 80
+                ? q.questionText.slice(0, 77) + "…"
+                : q.questionText;
+        const difficulty =
+            q.difficulty === "easy" ? "easy" : q.difficulty === "hard" ? "hard" : "moderate";
+        const payload = {
+            title: truncatedTitle,
+            type: q.type,
+            questionText: q.questionText,
+            options:
+                q.type === "mcq"
+                    ? q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+                    : null,
+            correctAnswer: q.type === "text_input" ? q.correctAnswer ?? "" : null,
+            explanation: q.explanation,
+            marks: q.marks,
+            negativeMarks: 0,
+            difficulty,
+            subject: ctx.subject || ctx.topic || "AI generated",
+            topic: ctx.topic || "AI generated",
+            tags: ["ai-generated"],
+        };
+        const res = await teacherFetch(
+            firebaseUser,
+            `/api/institute/${encodeURIComponent(instituteId)}/question-bank`,
+            { method: "POST", body: JSON.stringify(payload) }
+        );
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Save failed");
+        }
+        await loadAll();
+    };
+
     const handleDelete = async (id: string) => {
         if (!firebaseUser || !instituteId) return;
         if (!confirm("Delete this question?")) return;
@@ -113,15 +167,41 @@ export default function InstituteQuestionBankPage() {
         <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Question bank</h1>
+                    <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">Question bank</h1>
+                        <HelpTutorial {...TUTORIALS.institute_question_bank} />
+                    </div>
                     <p className="mt-1 text-gray-500">
                         Central pool of vetted questions. Every teacher in your institute can pull from here when
                         authoring a quiz or test.
                     </p>
                 </div>
-                <Button variant="primary" onClick={() => setShowForm(true)}>
-                    + Add question
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <AiQuestionGenerator
+                        firebaseUser={firebaseUser}
+                        aiEnabled={teaching.aiEnabled}
+                        hasFeature={teaching.has("ai_question_generation")}
+                        maxCount={teaching.aiPublic.maxQuestionsPerRequest}
+                        dailyQuota={teaching.aiQuota}
+                        upgradeHref={teaching.upgradeHref}
+                        onSave={handleAiSave}
+                        onGenerated={teaching.refresh}
+                    />
+                    <LockedFeatureButton
+                        locked={!teaching.has("question_bank_template_download")}
+                        upgradeHref={teaching.upgradeHref}
+                        tooltipWhenLocked="Question template download is included on paid plans."
+                        onClick={() =>
+                            downloadQuestionTemplate("question-bank-template.md")
+                        }
+                        className="inline-flex items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-primary-200 hover:bg-white hover:text-primary-700"
+                    >
+                        Download Template
+                    </LockedFeatureButton>
+                    <Button variant="primary" onClick={() => setShowForm(true)}>
+                        + Add question
+                    </Button>
+                </div>
             </div>
 
             <Card className="p-4">

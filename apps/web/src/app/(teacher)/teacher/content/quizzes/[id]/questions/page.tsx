@@ -7,6 +7,12 @@ import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine
 import { RichTextEditor } from "@digimine/shared";
 import { QuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
+import {
+    AiQuestionGenerator,
+    LockedFeatureButton,
+    type GeneratedQuestionDraft,
+} from "@/components/teacher/AiQuestionGenerator";
 import {
     createTeacherQuizQuestion as createQuizQuestion,
     deleteTeacherQuizQuestion as deleteQuizQuestion,
@@ -60,6 +66,7 @@ function initialQuestion(): QuizQuestionFormData {
 export default function TeacherQuizQuestionsPage() {
     const params = useParams();
     const { firebaseUser } = useAuthContext();
+    const teaching = useTeachingFeatures();
     const quizId = params.id as string;
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -154,6 +161,32 @@ export default function TeacherQuizQuestionsPage() {
         } finally {
             setImporting(false);
         }
+    };
+
+    const handleAiSave = async (q: GeneratedQuestionDraft) => {
+        // The per-quiz editor doesn't accept "code" type — surface a clear
+        // message instead of silently dropping the draft.
+        if (q.type === "code") {
+            throw new Error("Code questions can't be added inside a quiz. Use MCQ or text input.");
+        }
+        const difficulty: DifficultyLevel =
+            q.difficulty === "easy" ? "easy" : q.difficulty === "hard" ? "hard" : "medium";
+        const payload: CreateQuizQuestionInput = {
+            quizId,
+            type: q.type,
+            questionText: q.questionText,
+            options: q.type === "mcq"
+                ? q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+                : undefined,
+            correctAnswer: q.type === "text_input" ? (q.correctAnswer ?? "") : undefined,
+            explanation: q.explanation || undefined,
+            marks: q.marks,
+            negativeMarks: 0,
+            difficulty,
+            order: questions.length,
+        };
+        await createQuizQuestion(payload);
+        await loadData();
     };
 
     const handleAddQuestion = () => {
@@ -302,36 +335,59 @@ export default function TeacherQuizQuestionsPage() {
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="outline"
+                    <AiQuestionGenerator
+                        firebaseUser={firebaseUser}
+                        aiEnabled={teaching.aiEnabled}
+                        hasFeature={teaching.has("ai_question_generation")}
+                        maxCount={teaching.aiPublic.maxQuestionsPerRequest}
+                        dailyQuota={teaching.aiQuota}
+                        upgradeHref={teaching.upgradeHref}
+                        onSave={handleAiSave}
+                        onGenerated={teaching.refresh}
+                        // Quizzes don't accept code questions — hide that
+                        // option from the AI generator's Type dropdown.
+                        allowedTypes={["mcq", "text_input"]}
+                    />
+                    <LockedFeatureButton
+                        locked={!teaching.has("question_bank_template_download")}
+                        upgradeHref={teaching.upgradeHref}
+                        tooltipWhenLocked="Question template download is included on paid plans."
                         onClick={() => downloadQuizQuestionTemplate()}
-                        title="Download a sample Markdown template for quiz questions"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700"
                     >
-                        <span className="inline-flex items-center gap-1.5">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                            </svg>
-                            Download Template
-                        </span>
-                    </Button>
-                    <label className="inline-block">
-                        <input
-                            type="file"
-                            accept=".md,text/markdown,text/plain"
-                            className="hidden"
-                            onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) handleImportFile(file);
-                                event.target.value = "";
-                            }}
-                        />
-                        <span className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5-5 5M12 3v12" />
-                            </svg>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        Download Template
+                    </LockedFeatureButton>
+                    {teaching.has("question_bank_markdown_import") ? (
+                        <label className="inline-block">
+                            <input
+                                type="file"
+                                accept=".md,text/markdown,text/plain"
+                                className="hidden"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) handleImportFile(file);
+                                    event.target.value = "";
+                                }}
+                            />
+                            <span className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2 text-base font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-200 hover:border-primary-200 hover:bg-white hover:text-primary-700">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5-5 5M12 3v12" />
+                                </svg>
+                                Import
+                            </span>
+                        </label>
+                    ) : (
+                        <LockedFeatureButton
+                            locked
+                            upgradeHref={teaching.upgradeHref}
+                            tooltipWhenLocked="Markdown import is included on paid plans."
+                        >
                             Import
-                        </span>
-                    </label>
+                        </LockedFeatureButton>
+                    )}
                     <Button variant="outline" onClick={() => setBankPickerOpen(true)}>
                         Add from Bank
                     </Button>

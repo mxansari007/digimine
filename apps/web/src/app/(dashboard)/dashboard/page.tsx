@@ -7,7 +7,7 @@ import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
-import { BookOpenIcon, HandIcon } from "@/components/icons/AppIcons";
+import { BookOpenIcon } from "@/components/icons/AppIcons";
 
 export default function DashboardPage() {
     const { user, firebaseUser } = useAuthContext();
@@ -26,7 +26,10 @@ export default function DashboardPage() {
 
         async function fetchUserData() {
             try {
-                const res = await fetch(`/api/dashboard?userId=${firebaseUser!.uid}`);
+                const token = await firebaseUser!.getIdToken();
+                const res = await fetch(`/api/dashboard?userId=${firebaseUser!.uid}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 const data = await res.json();
                 setOrders(data.orders || []);
                 setProducts(data.products || []);
@@ -111,25 +114,67 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Greeting Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 p-8 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
+            {/* Greeting Banner. Empty-state copy switches to an inviting
+                onboarding prompt so a brand-new user doesn't see
+                "0 products, 0 test series, 0 classrooms" — which reads as
+                a failure even though it's the expected starting state. */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] sm:p-8">
                 <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)", backgroundSize: "36px 36px" }} />
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-300/70 to-transparent" />
-                <div className="relative z-10">
-                    <p className="text-primary-300 text-sm font-medium mb-1 inline-flex items-center gap-2">
-                        {greeting}
-                        <HandIcon className="h-4 w-4" />
-                    </p>
-                    <h1 className="text-3xl font-bold font-display mb-2 text-white">{userName}</h1>
-                    <p className="text-gray-400 text-base">
-                        You have <span className="text-white font-semibold">{products.length} product{products.length !== 1 ? 's' : ''}</span>, <span className="text-white font-semibold">{purchasedSeries.length} test series</span>, and <span className="text-white font-semibold">{classrooms.length} classroom{classrooms.length !== 1 ? 's' : ''}</span> in your library.
-                    </p>
-                    <Link href="/products" className="inline-flex items-center gap-2 mt-5 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-50">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        Browse Store
-                    </Link>
+                <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-300">
+                            {greeting}
+                        </p>
+                        <h1 className="mt-1.5 font-display text-2xl font-bold text-white sm:text-3xl">
+                            {userName}
+                        </h1>
+                        <p className="mt-2 text-sm text-slate-300 sm:text-base">
+                            {(() => {
+                                const totals = products.length + purchasedSeries.length + classrooms.length;
+                                if (totals === 0) {
+                                    return "Welcome aboard. Pick a starting point below to populate your library.";
+                                }
+                                const parts: string[] = [];
+                                if (products.length) parts.push(`${products.length} product${products.length === 1 ? "" : "s"}`);
+                                if (purchasedSeries.length) parts.push(`${purchasedSeries.length} test series`);
+                                if (classrooms.length) parts.push(`${classrooms.length} classroom${classrooms.length === 1 ? "" : "s"}`);
+                                const formatted =
+                                    parts.length === 1
+                                        ? parts[0]
+                                        : parts.length === 2
+                                          ? `${parts[0]} and ${parts[1]}`
+                                          : `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+                                return `${formatted} in your library.`;
+                            })()}
+                        </p>
+                    </div>
+                    {/* Stacked CTA pair on wide screens; full-width on mobile.
+                        The secondary "Join classroom" link only appears when
+                        the user has no classrooms yet, since otherwise it
+                        duplicates the My Classrooms section below. */}
+                    <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
+                        <Link
+                            href="/products"
+                            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-50"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            Browse Store
+                        </Link>
+                        {classrooms.length === 0 && (
+                            <Link
+                                href="/join"
+                                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:border-white/40 hover:bg-white/10"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Join classroom
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
 

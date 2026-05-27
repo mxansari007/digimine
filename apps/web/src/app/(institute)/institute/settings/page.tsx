@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 
 export default function InstituteSettingsPage() {
     const { firebaseUser } = useAuthContext();
@@ -103,7 +105,10 @@ export default function InstituteSettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                <div className="flex items-center gap-1.5">
+                    <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                    <HelpTutorial {...TUTORIALS.institute_settings} />
+                </div>
                 <p className="mt-1 text-gray-500">Institute identity, contact info, branding.</p>
             </div>
 

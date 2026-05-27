@@ -27,6 +27,7 @@ import {
     type PracticeStatus,
 } from "@digimine/types";
 import { Button, Card } from "@digimine/ui";
+import { X } from "lucide-react";
 import { ImageInput } from "@/components/common/ImageInput";
 
 interface Props {
@@ -336,9 +337,9 @@ export function PracticeSheetForm({ initial, submitting, onSubmit }: Props) {
                                             onClick={() => removeSection(i)}
                                             disabled={sections.length === 1}
                                             aria-label="Remove section"
-                                            className="rounded p-1 text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                                            className="inline-flex h-7 w-7 items-center justify-center rounded p-1 text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                                         >
-                                            ✕
+                                            <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
                                         </button>
                                     </div>
                                 </div>

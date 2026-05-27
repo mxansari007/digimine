@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { HelpTutorial } from "@/components/help/HelpTutorial";
+import { TUTORIALS } from "@/components/help/tutorials";
 import {
     getTeacherQuizzes,
     getTeacherTests,
@@ -237,7 +239,10 @@ export default function TeacherContentPage() {
             )}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">My Content</h1>
+                    <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl font-bold text-gray-900">My Content</h1>
+                        <HelpTutorial {...TUTORIALS.teacher_content} />
+                    </div>
                     <p className="mt-1 text-gray-500">
                         Publish to one or many classes. Submit for review to feature on the main website.
                     </p>

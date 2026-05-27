@@ -47,6 +47,14 @@ export default function TestSeriesDetailPage() {
     const slug = params.slug as string;
     const wasSubmitted = searchParams.get("submitted") === "1";
     const classroomTeacherId = searchParams.get("teacherId");
+    const classroomClassId = searchParams.get("classId");
+    // Either query param means the student is opening this series through
+    // a classroom. The new class-centric flow passes `?classId=…`; legacy
+    // /classroom/legacy:<teacherId>/tests/ still passes `?teacherId=…`.
+    // The series detail page previously only honoured `teacherId`, which
+    // is why a click from inside a new-style classroom fell through to the
+    // public catalogue path and got redirected to /tests.
+    const isClassroomContext = Boolean(classroomTeacherId || classroomClassId);
 
     const [series, setSeries] = useState<TestSeries | null>(null);
     const [tests, setTests] = useState<Test[]>([]);
@@ -56,9 +64,9 @@ export default function TestSeriesDetailPage() {
     const [enrolling, setEnrolling] = useState(false);
 
     useEffect(() => {
-        if (classroomTeacherId && authLoading) return;
+        if (isClassroomContext && authLoading) return;
         loadData();
-    }, [slug, user?.id, firebaseUser, authLoading, classroomTeacherId]);
+    }, [slug, user?.id, firebaseUser, authLoading, isClassroomContext]);
 
     async function loadData() {
         try {
@@ -66,14 +74,25 @@ export default function TestSeriesDetailPage() {
             let seriesData: TestSeries | null = null;
             let classroomToken: string | null = null;
 
-            // Classroom path: skip client Firestore (it'd fail with permissions) and use server API
-            if (classroomTeacherId) {
+            // Classroom path: skip client Firestore (it'd fail with permissions) and use server API.
+            // The /api/content/data route accepts EITHER teacherId or classId
+            // and routes through assertTeacherContentAccess so both old-style
+            // legacy classes (teacherId) and new-style class-centric URLs
+            // (classId) resolve the same private series.
+            if (isClassroomContext) {
+                const classroomQs = new URLSearchParams();
+                classroomQs.set("type", "test");
+                classroomQs.set("slug", slug);
+                if (classroomTeacherId) classroomQs.set("teacherId", classroomTeacherId);
+                if (classroomClassId) classroomQs.set("classId", classroomClassId);
                 if (!firebaseUser) {
-                    router.push(`/login?redirect=${encodeURIComponent(`/tests/${slug}?teacherId=${classroomTeacherId}`)}`);
+                    router.push(
+                        `/login?redirect=${encodeURIComponent(`/tests/${slug}?${classroomQs.toString()}`)}`
+                    );
                     return;
                 }
                 classroomToken = await firebaseUser.getIdToken();
-                const res = await fetch(`/api/content/data?type=test&slug=${encodeURIComponent(slug)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+                const res = await fetch(`/api/content/data?${classroomQs.toString()}`, {
                     headers: { Authorization: `Bearer ${classroomToken}` },
                 });
                 const serverData = await res.json();
@@ -91,8 +110,13 @@ export default function TestSeriesDetailPage() {
             
             // Load tests: use server API if classroom context to avoid Firestore rules
             let testsData: Test[];
-            if (classroomTeacherId) {
-                const testsRes = await fetch(`/api/content/data?type=test&parentId=${encodeURIComponent(seriesData.id)}&teacherId=${encodeURIComponent(classroomTeacherId)}`, {
+            if (isClassroomContext) {
+                const childQs = new URLSearchParams();
+                childQs.set("type", "test");
+                childQs.set("parentId", seriesData.id);
+                if (classroomTeacherId) childQs.set("teacherId", classroomTeacherId);
+                if (classroomClassId) childQs.set("classId", classroomClassId);
+                const testsRes = await fetch(`/api/content/data?${childQs.toString()}`, {
                     headers: classroomToken ? { Authorization: `Bearer ${classroomToken}` } : {},
                 });
                 const testsJson = await testsRes.json();
@@ -104,7 +128,7 @@ export default function TestSeriesDetailPage() {
             setTests(sortTestsByLatest(testsData));
 
             if (user) {
-                if (classroomTeacherId) {
+                if (isClassroomContext) {
                     // Classroom students get access without purchase, while their
                     // own attempt history still drives resume/result buttons.
                     setHasPurchased(true);
@@ -146,11 +170,13 @@ export default function TestSeriesDetailPage() {
     const activeAttemptSeriesTest = activeAttempt
         ? tests.find((test) => test.id === activeAttempt.testId)
         : null;
-    const teacherParam = classroomTeacherId ? `&teacherId=${encodeURIComponent(classroomTeacherId)}` : "";
+    const classroomParam =
+        (classroomTeacherId ? `&teacherId=${encodeURIComponent(classroomTeacherId)}` : "") +
+        (classroomClassId ? `&classId=${encodeURIComponent(classroomClassId)}` : "");
     const primaryStartHref = activeAttempt && activeAttemptSeriesTest
-        ? `/tests/${series.slug}/attempt?testId=${activeAttempt.testId}&attemptId=${activeAttempt.id}${teacherParam}`
+        ? `/tests/${series.slug}/attempt?testId=${activeAttempt.testId}&attemptId=${activeAttempt.id}${classroomParam}`
         : firstAvailableTest
-            ? `/tests/${series.slug}/attempt?testId=${firstAvailableTest.id}${teacherParam}`
+            ? `/tests/${series.slug}/attempt?testId=${firstAvailableTest.id}${classroomParam}`
             : `/tests/${series.slug}`;
 
     const handleFreeEnrollment = async () => {
@@ -256,7 +282,7 @@ export default function TestSeriesDetailPage() {
                                                 {isUnlocked ? (
                                                     <div className="flex flex-col sm:flex-row gap-2">
                                                         {hasInProgress && resumableAttempt ? (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${teacherParam}`}>
+                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${classroomParam}`}>
                                                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full">
                                                                     <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                                                                     Continue Test
@@ -272,13 +298,13 @@ export default function TestSeriesDetailPage() {
                                                                     <Button variant="outline" size="sm" disabled className="w-full">Submitted</Button>
                                                                 )}
                                                                 {test.allowRetake && (
-                                                                    <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${teacherParam}`}>
+                                                                    <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
                                                                         <Button size="sm" className="bg-indigo-600 text-white w-full">Retake Test</Button>
                                                                     </Link>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${teacherParam}`}>
+                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
                                                                 <Button className="bg-green-600 hover:bg-green-700 text-white w-full">Start Test</Button>
                                                             </Link>
                                                         )}
