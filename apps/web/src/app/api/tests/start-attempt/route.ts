@@ -135,6 +135,33 @@ export async function POST(req: Request) {
         }
         const test: any = { id: testSnap.id, ...testSnap.data() };
 
+        // ── Release-date gate ──────────────────────────────────────────────
+        //
+        // If the test has `availableFrom` set and that moment hasn't
+        // arrived, refuse the attempt server-side. Without this guard a
+        // student could open /tests/<slug>/attempt directly via URL even
+        // though the UI shows the test as locked.
+        if (test.availableFrom) {
+            const releaseMillis = toMillis(test.availableFrom);
+            if (releaseMillis > 0 && Date.now() < releaseMillis) {
+                const when = new Date(releaseMillis).toLocaleString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                });
+                return NextResponse.json(
+                    {
+                        error: `This test isn't available yet — releases on ${when}.`,
+                        code: "not_yet_released",
+                        availableFrom: new Date(releaseMillis).toISOString(),
+                    },
+                    { status: 403 }
+                );
+            }
+        }
+
         // ── Contest classroom gate ─────────────────────────────────────────
         //
         // Don't trust the body's `contestContext`. Re-fetch the contest doc

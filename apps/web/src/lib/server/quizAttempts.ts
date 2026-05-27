@@ -64,6 +64,9 @@ type QuizRecord = {
     passingPercentage?: number;
     shuffleQuestions?: boolean;
     shuffleOptions?: boolean;
+    /** Release date — see Quiz type. The runtime value can be a Date,
+     *  Firestore Timestamp, or ISO string depending on the read path. */
+    availableFrom?: unknown;
 };
 
 type CourseRecord = {

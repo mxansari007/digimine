@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button, FormattedContent } from "@digimine/ui";
+import { Button, FormattedContent, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useAttemptGate } from "@/hooks/useAttemptGate";
 import { getQuizBySlug } from "@/lib/firestore/quizzes";
@@ -157,6 +157,36 @@ function clearCachedAttemptState(attemptId: string) {
     }
 }
 
+/**
+ * Resolve a quiz's `availableFrom` (Date | Timestamp | ISO string | null)
+ * into `{ label, future }`. Returns `null` for unset / unparseable values.
+ */
+function formatQuizRelease(value: unknown): { label: string; future: boolean } | null {
+    if (!value) return null;
+    let date: Date;
+    if (value instanceof Date) date = value;
+    else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    } else return null;
+    if (Number.isNaN(date.getTime())) return null;
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    const label = date.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: sameYear ? undefined : "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+    return { label, future: date.getTime() > Date.now() };
+}
+
 function formatTime(seconds: number): string {
     const safeSeconds = Math.max(0, seconds);
     const minutes = Math.floor(safeSeconds / 60);
@@ -200,6 +230,7 @@ function quizStatusClass(status: QuizQuestionStatus, isCurrent: boolean): string
 export default function QuizDetailPage() {
     const router = useRouter();
     const params = useParams();
+    const toast = useToast();
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const contestId = searchParams.get("contestId");
@@ -544,7 +575,7 @@ export default function QuizDetailPage() {
             }
         } catch (error) {
             console.error("Failed to submit quiz:", error);
-            alert(error instanceof Error ? error.message : "Failed to submit quiz");
+            toast.error(error instanceof Error ? error.message : "Failed to submit quiz");
         } finally {
             setSubmitting(false);
         }
@@ -758,6 +789,29 @@ export default function QuizDetailPage() {
             ) : null}
 
             <main className={`container-page ${mode === "attempt" ? "py-4 lg:py-6" : "py-10"}`}>
+                {(() => {
+                    // Release-date gate: future-dated quizzes show the same
+                    // LockedQuizCard used for unauthorised access, but with
+                    // a "Releases on …" message. Replaces the entire intro/
+                    // attempt panel until the release moment passes.
+                    const release = formatQuizRelease(quiz.availableFrom);
+                    if (release?.future) {
+                        return (
+                            <LockedQuizCard
+                                message={`Releases on ${release.label}`}
+                                courses={linkedCourses}
+                                onSignIn={() => router.push(`/login?redirect=/quizzes/${quiz.slug}`)}
+                            />
+                        );
+                    }
+                    return null;
+                })()}
+                {(() => {
+                    // If we already rendered the release-date panel above,
+                    // skip the rest. Done as an IIFE so the existing
+                    // ternary chain below stays readable.
+                    return null;
+                })()}
                 {loadingQuestions ? (
                     <div className="surface-panel p-12 text-center text-slate-500">Preparing quiz environment...</div>
                 ) : accessError ? (
@@ -766,6 +820,10 @@ export default function QuizDetailPage() {
                         courses={linkedCourses}
                         onSignIn={() => router.push(`/login?redirect=/quizzes/${quiz.slug}`)}
                     />
+                ) : formatQuizRelease(quiz.availableFrom)?.future ? (
+                    // Already rendered the release card above; render nothing
+                    // here to avoid duplicate panels.
+                    null
                 ) : mode === "intro" ? (
                     <IntroPanel
                         quiz={quiz}

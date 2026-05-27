@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { doc, getDoc, collection, getDocs, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { type Order, type User } from "@digimine/types";
 import { signUp, signInWithGoogle } from "@/lib/firebase/auth";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ interface ProductFile {
 
 export default function SuccessPage() {
     const searchParams = useSearchParams();
+    const toast = useToast();
     const orderId = searchParams.get("orderId");
     const { firebaseUser, loading: authLoading } = useAuthContext();
 
@@ -445,7 +446,9 @@ export default function SuccessPage() {
                                             className="bg-white border-yellow-300 text-yellow-800 hover:bg-yellow-50"
                                             onClick={() => {
                                                 navigator.clipboard.writeText(searchParams.get("accessKey") || "");
-                                                alert("Access key copied to clipboard!");
+                                                toast.success("Access key copied", {
+                                                    description: "Paste it into the unlock form for any item.",
+                                                });
                                             }}
                                         >
                                             Copy

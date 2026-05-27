@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { FacebookPixel } from "@/components/common";
+import { ToastProvider } from "@digimine/ui";
 import {
     DEFAULT_OG_IMAGE,
     SITE_LOCALE,
@@ -124,11 +125,13 @@ export default function RootLayout({
             </head>
             <body className="font-sans antialiased">
                 <FacebookPixel />
-                <AuthProvider>
-                    <EntitlementsProvider>
-                        {children}
-                    </EntitlementsProvider>
-                </AuthProvider>
+                <ToastProvider>
+                    <AuthProvider>
+                        <EntitlementsProvider>
+                            {children}
+                        </EntitlementsProvider>
+                    </AuthProvider>
+                </ToastProvider>
             </body>
         </html>
     );

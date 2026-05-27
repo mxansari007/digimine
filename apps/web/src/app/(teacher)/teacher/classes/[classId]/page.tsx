@@ -35,7 +35,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import {
     AlertTriangle,
     Users,
@@ -124,6 +124,7 @@ type SortKey = "risk" | "avg" | "coverage" | "lastActive" | "name";
 export default function TeacherClassDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const toast = useToast();
     const classId = params.classId as string;
     const { firebaseUser } = useAuthContext();
 
@@ -196,7 +197,7 @@ export default function TeacherClassDetailPage() {
             if (!res.ok) throw new Error(body.error || "Failed to regenerate invite code.");
             await load();
         } catch (err) {
-            alert((err as Error)?.message || "Failed to regenerate invite code.");
+            toast.error((err as Error)?.message || "Failed to regenerate invite code.");
         }
     };
 
@@ -217,7 +218,7 @@ export default function TeacherClassDetailPage() {
             setShowSettings(false);
             await load();
         } catch (err) {
-            alert((err as Error)?.message || "Failed to update class.");
+            toast.error((err as Error)?.message || "Failed to update class.");
         } finally {
             setSavingName(false);
         }
@@ -238,7 +239,7 @@ export default function TeacherClassDetailPage() {
             }
             router.push("/teacher/classes");
         } catch (err) {
-            alert((err as Error)?.message || "Failed to archive class.");
+            toast.error((err as Error)?.message || "Failed to archive class.");
         }
     };
 
@@ -259,7 +260,7 @@ export default function TeacherClassDetailPage() {
             setEmailInput("");
             await load();
         } catch (err) {
-            alert((err as Error)?.message || "Failed to add student.");
+            toast.error((err as Error)?.message || "Failed to add student.");
         } finally {
             setAdding(false);
         }
@@ -286,7 +287,7 @@ export default function TeacherClassDetailPage() {
             }
             await load();
         } catch (err) {
-            alert((err as Error)?.message || "Failed to update student.");
+            toast.error((err as Error)?.message || "Failed to update student.");
         }
     };
 

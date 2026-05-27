@@ -40,12 +40,48 @@ function parseTags(value: string): string[] {
         .filter(Boolean);
 }
 
+/**
+ * Convert any incoming value (Date / Firestore Timestamp / ISO string)
+ * into the format `<input type="datetime-local">` expects:
+ * `"YYYY-MM-DDTHH:mm"` in local time. Returns `""` for null / undefined /
+ * unparseable values.
+ */
+function toDateTimeLocalString(value: unknown): string {
+    if (!value) return "";
+    let date: Date;
+    if (value instanceof Date) {
+        date = value;
+    } else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    } else {
+        return "";
+    }
+    if (Number.isNaN(date.getTime())) return "";
+    // Offset so toISOString prints local-time clock digits, then slice off
+    // seconds + Z to match the input format.
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "admin" }: QuizFormProps) {
     const isTeacherMode = mode === "teacher";
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
     const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(", "));
-    const [formData, setFormData] = useState<CreateQuizInput>({
+    // Local form state keeps `availableFrom` as a string because the
+    // `<input type="datetime-local">` only reads/writes strings.
+    // Converted to a real Date when submitting via the
+    // `CreateQuizInput` payload below.
+    const [formData, setFormData] = useState<
+        Omit<CreateQuizInput, "availableFrom"> & { availableFrom: string }
+    >({
         title: initialData?.title || "",
         slug: initialData?.slug || "",
         description: initialData?.description || "",
@@ -62,6 +98,9 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
         shuffleOptions: initialData?.shuffleOptions ?? false,
         showExplanations: initialData?.showExplanations ?? true,
         linkedCourseIds: initialData?.linkedCourseIds || [],
+        // `<input type="datetime-local">` value format: "YYYY-MM-DDTHH:mm".
+        // Convert from any Date / Timestamp shape coming in via initialData.
+        availableFrom: toDateTimeLocalString(initialData?.availableFrom),
     });
 
     const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -101,6 +140,11 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
                 thumbnailURL: formData.thumbnailURL || null,
                 timeLimitMinutes: Number(formData.timeLimitMinutes) || 0,
                 passingPercentage: Number(formData.passingPercentage) || 0,
+                // Blank input → null (release immediately). Filled →
+                // Date so the Firestore writer can persist it.
+                availableFrom: formData.availableFrom
+                    ? new Date(formData.availableFrom)
+                    : null,
             };
             await onSubmit(payload, initialData?.id);
         } catch (err) {
@@ -285,6 +329,22 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
                                 onChange={handleChange}
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
                             />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">
+                                Release date <span className="font-normal text-slate-400">(optional)</span>
+                            </label>
+                            <input
+                                type="datetime-local"
+                                name="availableFrom"
+                                value={formData.availableFrom}
+                                onChange={handleChange}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
+                            />
+                            <p className="mt-1 text-xs text-slate-500">
+                                Leave blank to release immediately. Future dates show the quiz as locked
+                                in the catalogue with a "Releases on" badge until this moment passes.
+                            </p>
                         </div>
                         <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Category</label>

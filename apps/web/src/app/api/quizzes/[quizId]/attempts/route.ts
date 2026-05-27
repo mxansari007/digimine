@@ -84,6 +84,39 @@ export async function POST(req: Request, { params }: { params: { quizId: string 
         const quiz = await getQuiz(params.quizId);
         if (!quiz) return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
 
+        // Release-date gate: future-dated quizzes refuse attempts even if
+        // someone navigates directly to /quizzes/<slug>/attempt.
+        if (quiz.availableFrom) {
+            const raw = quiz.availableFrom as unknown;
+            let releaseMillis = 0;
+            if (raw instanceof Date) releaseMillis = raw.getTime();
+            else if (typeof raw === "string" || typeof raw === "number") {
+                releaseMillis = new Date(raw).getTime();
+            } else if (
+                raw && typeof raw === "object" && "toDate" in raw &&
+                typeof (raw as { toDate: () => Date }).toDate === "function"
+            ) {
+                releaseMillis = (raw as { toDate: () => Date }).toDate().getTime();
+            }
+            if (releaseMillis > 0 && Date.now() < releaseMillis) {
+                const when = new Date(releaseMillis).toLocaleString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                });
+                return NextResponse.json(
+                    {
+                        error: `This quiz isn't available yet — releases on ${when}.`,
+                        code: "not_yet_released",
+                        availableFrom: new Date(releaseMillis).toISOString(),
+                    },
+                    { status: 403 }
+                );
+            }
+        }
+
         const body = await req.json().catch(() => ({}));
         const contestId = typeof body.contestId === "string" && body.contestId ? body.contestId : null;
         // Pass through the class the student arrived from. The attempt-start

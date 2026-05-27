@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { getContestBySlug, getContestPhase } from "@/lib/firestore/contests";
 import {
     enrollInFreeTestSeries,
@@ -70,6 +70,7 @@ async function fetchClassroomJson<T>(url: string, token: string): Promise<T> {
 export default function ContestDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const toast = useToast();
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const classroomTeacherId = searchParams.get("teacherId");
@@ -330,7 +331,7 @@ export default function ContestDetailPage() {
             await enrollInFreeTestSeries(userId, series.id);
             setHasAccess(true);
         } catch (error) {
-            alert(error instanceof Error ? error.message : "Could not enroll.");
+            toast.error(error instanceof Error ? error.message : "Could not enroll.");
         } finally {
             setEnrolling(false);
         }

@@ -109,6 +109,14 @@ export interface Test {
     shuffleQuestions: boolean;
     shuffleOptions: boolean;
     sections?: TestSection[];
+    /**
+     * Release date. If set and in the future, the test is "scheduled":
+     * students see it in the series listing with a "Releases on <date>"
+     * badge + lock icon, and the attempt API rejects early starts.
+     * `null` / `undefined` means the test is available immediately once
+     * published.
+     */
+    availableFrom?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -408,6 +416,8 @@ export interface CreateTestInput {
     shuffleQuestions?: boolean;
     shuffleOptions?: boolean;
     sections?: TestSectionInput[];
+    /** Future-dated tests render locked until this moment. */
+    availableFrom?: Date | null;
 }
 
 /**

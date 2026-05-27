@@ -29,6 +29,9 @@ export default function TeacherCreateSubTestPage() {
   const [allowRetake, setAllowRetake] = useState(false);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleOptions, setShuffleOptions] = useState(false);
+  // Optional release-date scheduling. Blank = release immediately.
+  // Value format is the <input type="datetime-local"> string ("YYYY-MM-DDTHH:mm").
+  const [availableFrom, setAvailableFrom] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -100,6 +103,7 @@ export default function TeacherCreateSubTestPage() {
         shuffleQuestions,
         shuffleOptions,
         sections: sections.filter((s) => s.title.trim()),
+        availableFrom: availableFrom ? new Date(availableFrom) : null,
       });
       router.push(`/teacher/content/tests/${seriesId}/tests/${testId}/questions`);
     } catch (err: any) {
@@ -193,6 +197,23 @@ export default function TeacherCreateSubTestPage() {
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Release date <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={availableFrom}
+              onChange={(e) => setAvailableFrom(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Leave empty to make this test available immediately on publish. Future dates
+              render the test in the series listing with a "Releases on" badge + lock
+              icon, and the attempt API rejects starts before this moment.
+            </p>
           </div>
 
           <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">

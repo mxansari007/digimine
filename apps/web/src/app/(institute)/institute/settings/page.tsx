@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { HelpTutorial } from "@/components/help/HelpTutorial";
@@ -9,6 +9,7 @@ import { TUTORIALS } from "@/components/help/tutorials";
 
 export default function InstituteSettingsPage() {
     const { firebaseUser } = useAuthContext();
+    const toast = useToast();
     const [instituteId, setInstituteId] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -75,9 +76,9 @@ export default function InstituteSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed");
             setInviteCode(data.institute.inviteCode);
-            alert("Saved");
+            toast.success("Settings saved");
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Could not save settings.");
         } finally {
             setSaving(false);
         }
@@ -95,8 +96,11 @@ export default function InstituteSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed");
             setInviteCode(data.institute.inviteCode);
+            toast.success("Invite code rotated", {
+                description: "Share the new code with your teachers — the old one is no longer valid.",
+            });
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Could not regenerate invite code.");
         }
     };
 

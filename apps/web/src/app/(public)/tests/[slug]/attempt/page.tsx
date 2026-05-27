@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
-import { Button, Card, FormattedContent } from "@digimine/ui";
+import { Button, Card, FormattedContent, useToast } from "@digimine/ui";
 import Editor from "@monaco-editor/react";
 import {
     getTestSeriesBySlug,
@@ -161,6 +161,7 @@ function applyTestSettings(questions: Question[], test: Test, attemptId: string)
 
 export default function TestAttemptPage() {
     const params = useParams();
+    const toast = useToast();
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, firebaseUser, loading: authLoading } = useAuthContext();
@@ -505,12 +506,17 @@ export default function TestAttemptPage() {
                 if (attemptIdFromUrl) {
                     const existing = await getTestAttempt(attemptIdFromUrl);
                     if (!existing) {
-                        alert("Attempt not found. Starting a new test.");
+                        toast.warning("Attempt not found", {
+                            description: "Starting a fresh attempt instead.",
+                        });
                         newAttempt = await createAttempt(
                             "Could not create a new attempt. Please try again."
                         );
                     } else if (existing.testId !== testId || existing.seriesId !== seriesData.id || (contestAttemptContext ? existing.contestId !== contestAttemptContext.contestId : Boolean(existing.contestId))) {
-                        alert("This attempt belongs to a different test context. Starting a new test.");
+                        toast.warning("Different test context", {
+                            description:
+                                "That attempt was for another test — starting a fresh one here.",
+                        });
                         newAttempt = await createAttempt(
                             "Could not create a new attempt. Please try again."
                         );
@@ -665,7 +671,9 @@ export default function TestAttemptPage() {
 
                 // If time ran out while window was closed, auto-submit
                 if ((contestData ? sharedContestRemaining : newAttempt.remainingTime ?? 0) <= 0) {
-                    alert("The time for this test has expired. Submitting now...");
+                    toast.warning("Time's up", {
+                        description: "Submitting your test now.",
+                    });
                     await finishTest(newAttempt.id, initialAnswers, displayQuestions, 0, "timed_out");
                     return;
                 }

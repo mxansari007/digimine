@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { 
     getTestSeriesBySlug, 
     getTestsInSeries, 
@@ -39,9 +39,39 @@ function formatTestDate(test: Test): string {
     });
 }
 
+/**
+ * Normalize a Date / Firestore Timestamp / ISO string into a printable
+ * date plus a `future` flag. Returns `null` if no release date is set or
+ * the value can't be parsed.
+ */
+function formatReleaseDate(value: unknown): { label: string; future: boolean } | null {
+    if (!value) return null;
+    let date: Date;
+    if (value instanceof Date) date = value;
+    else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    } else return null;
+    if (Number.isNaN(date.getTime())) return null;
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    const label = date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: sameYear ? undefined : "numeric",
+    });
+    return { label, future: date.getTime() > Date.now() };
+}
+
 export default function TestSeriesDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const toast = useToast();
     const searchParams = useSearchParams();
     const { user, firebaseUser, loading: authLoading } = useAuthContext();
     const slug = params.slug as string;
@@ -186,7 +216,7 @@ export default function TestSeriesDetailPage() {
             await enrollInFreeTestSeries(user.id, series.id);
             setHasPurchased(true);
         } catch (error: any) {
-            alert(error.message || "Failed to enroll");
+            toast.error(error.message || "Failed to enroll");
         } finally {
             setEnrolling(false);
         }
@@ -261,16 +291,31 @@ export default function TestSeriesDetailPage() {
                                     const latestAttempt = resumableAttempt || latestFinalizedAttempt || testAttempts[0] || null;
                                     const hasInProgress = !!resumableAttempt;
                                     const hasCompleted = !!latestFinalizedAttempt;
+                                    // Scheduling: tests with `availableFrom` in the future are
+                                    // visible but locked. The right pane swaps from CTAs to
+                                    // a "Releases on …" badge; the row is dimmed.
+                                    const releaseAt = formatReleaseDate(test.availableFrom);
+                                    const notYetReleased = !!releaseAt && releaseAt.future;
 
                                     return (
-                                        <Card key={test.id} className="p-6">
+                                        <Card
+                                            key={test.id}
+                                            className={`p-6 ${notYetReleased ? "opacity-80" : ""}`}
+                                        >
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                                 <div className="flex items-start gap-4">
-                                                    <span className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
+                                                    <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${notYetReleased ? "bg-slate-100 text-slate-500" : "bg-indigo-100 text-indigo-700"}`}>
                                                         {index + 1}
                                                     </span>
                                                     <div>
-                                                        <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
+                                                            {notYetReleased && (
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                                                    <LockIcon className="h-3 w-3" /> Releases on {releaseAt!.label}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
                                                             <span className="inline-flex items-center gap-1"><CalendarIcon className="h-4 w-4" /> {formatTestDate(test)}</span>
                                                             <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" /> {test.duration} mins</span>
@@ -279,7 +324,12 @@ export default function TestSeriesDetailPage() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {isUnlocked ? (
+                                                {notYetReleased ? (
+                                                    <div className="flex items-center gap-2 text-amber-800">
+                                                        <LockIcon className="h-4 w-4" />
+                                                        <span className="text-sm font-medium">Releases on {releaseAt!.label}</span>
+                                                    </div>
+                                                ) : isUnlocked ? (
                                                     <div className="flex flex-col sm:flex-row gap-2">
                                                         {hasInProgress && resumableAttempt ? (
                                                             <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${classroomParam}`}>
@@ -316,7 +366,7 @@ export default function TestSeriesDetailPage() {
                                                         </Button>
                                                     </Link>
                                                 ) : series.accessType === "free" ? (
-                                                    <Button 
+                                                    <Button
                                                         onClick={handleFreeEnrollment}
                                                         disabled={enrolling}
                                                         className="bg-green-600 hover:bg-green-700 text-white"

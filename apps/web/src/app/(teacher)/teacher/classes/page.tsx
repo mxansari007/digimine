@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { getTeacher } from "@/lib/firestore/teachers";
@@ -22,6 +22,7 @@ type ClassRow = {
 
 export default function TeacherClassesPage() {
     const { firebaseUser } = useAuthContext();
+    const toast = useToast();
     const [classes, setClasses] = useState<ClassRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -75,7 +76,7 @@ export default function TeacherClassesPage() {
             setNewDescription("");
             await load();
         } catch (err: any) {
-            alert(err.message || "Failed to create class.");
+            toast.error(err.message || "Failed to create class.");
         } finally {
             setCreating(false);
         }

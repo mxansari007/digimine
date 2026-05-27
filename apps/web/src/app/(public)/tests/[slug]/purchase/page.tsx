@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import { getTestBySlug } from "@/lib/firestore/tests";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { BookOpenIcon, FileTextIcon, FlaskIcon } from "@/components/icons/AppIcons";
@@ -20,6 +20,7 @@ declare global {
 export default function TestPurchasePage() {
     const params = useParams();
     const router = useRouter();
+    const toast = useToast();
     const { user } = useAuthContext();
     const slug = params.slug as string;
 
@@ -141,7 +142,9 @@ export default function TestPurchasePage() {
                         }
                     } catch (error) {
                         console.error("Payment verification error:", error);
-                        alert("Payment verification failed. Please contact support.");
+                        toast.error("Payment verification failed", {
+                            description: "Please contact support — your card has not been charged.",
+                        });
                         setProcessing(false);
                     }
                 },

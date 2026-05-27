@@ -23,6 +23,12 @@ export interface Quiz {
     shuffleOptions: boolean;
     showExplanations: boolean;
     linkedCourseIds: string[];
+    /**
+     * Release date. If set and in the future, the quiz appears in the
+     * catalogue with a "Releases on <date>" badge + lock icon, and the
+     * attempt API rejects early starts.
+     */
+    availableFrom?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
@@ -116,6 +122,8 @@ export interface CreateQuizInput {
     shuffleOptions?: boolean;
     showExplanations?: boolean;
     linkedCourseIds?: string[];
+    /** Future-dated quizzes render locked until this moment. */
+    availableFrom?: Date | null;
 }
 
 export interface UpdateQuizInput extends Partial<CreateQuizInput> {
