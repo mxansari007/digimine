@@ -211,7 +211,7 @@ export default function TeacherCreateSubTestPage() {
             />
             <p className="mt-1 text-xs text-slate-500">
               Leave empty to make this test available immediately on publish. Future dates
-              render the test in the series listing with a "Releases on" badge + lock
+              render the test in the series listing with a &ldquo;Releases on&rdquo; badge + lock
               icon, and the attempt API rejects starts before this moment.
             </p>
           </div>
