@@ -18,38 +18,52 @@ async function sendViaBrevo(to: string, subject: string, html: string) {
             console.log(`Subject: ${subject}`);
             console.log("----------------------------------------------------");
         }
-        return { success: false, error: "Missing Credentials" };
+        // In production we shouldn't pretend the email was sent — throw so the
+        // caller (and the user) learns about the misconfiguration instead of
+        // silently failing.
+        throw new Error("Email service not configured (BREVO_API_KEY missing)");
     }
 
-    try {
-        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: {
-                "accept": "application/json",
-                "api-key": BREVO_API_KEY,
-                "content-type": "application/json",
-            },
-            body: JSON.stringify({
-                sender: { email: FROM_EMAIL, name: FROM_NAME },
-                to: [{ email: to }],
-                subject: subject,
-                htmlContent: html,
-            }),
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+            accept: "application/json",
+            "api-key": BREVO_API_KEY,
+            "content-type": "application/json",
+        },
+        body: JSON.stringify({
+            sender: { email: FROM_EMAIL, name: FROM_NAME },
+            to: [{ email: to }],
+            subject,
+            htmlContent: html,
+        }),
+    });
+
+    if (!response.ok) {
+        // Brevo error body is shaped { code, message } — surface both in the
+        // thrown Error so route handlers can return a useful reason instead of
+        // a generic "Failed to send" message.
+        const errorData = await response.json().catch(() => null);
+        const brevoCode = errorData?.code || "";
+        const brevoMessage = errorData?.message || response.statusText || "unknown";
+        console.error("Brevo API Error:", {
+            httpStatus: response.status,
+            code: brevoCode,
+            message: brevoMessage,
+            from: FROM_EMAIL,
+            to,
         });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            console.error("Brevo API Error:", errorData || response.statusText);
-            throw new Error(`Brevo API responded with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log(`Email sent successfully via Brevo to ${to}. MessageId: ${data.messageId}`);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Failed to send Brevo email:", error);
-        throw error;
+        const err = new Error(
+            `Brevo (${response.status}${brevoCode ? ` ${brevoCode}` : ""}): ${brevoMessage}`
+        );
+        (err as any).brevoCode = brevoCode;
+        (err as any).httpStatus = response.status;
+        throw err;
     }
+
+    const data = await response.json();
+    console.log(`Email sent successfully via Brevo to ${to}. MessageId: ${data.messageId}`);
+    return { success: true, data };
 }
 
 export async function sendOrderEmail(orderId: string) {

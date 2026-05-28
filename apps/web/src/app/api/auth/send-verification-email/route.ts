@@ -42,16 +42,34 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true });
     } catch (error: unknown) {
-        const code = (error as { code?: string })?.code || "";
+        const e = error as {
+            code?: string;
+            message?: string;
+            brevoCode?: string;
+            httpStatus?: number;
+        };
+        const code = e?.code || "";
         if (code === "auth/id-token-expired" || code === "auth/argument-error") {
             return NextResponse.json(
                 { error: "Session expired. Sign in again." },
                 { status: 401 }
             );
         }
-        console.error("send-verification-email error:", error);
+        // Brevo + Firebase errors both have `message`. Bubble it up so the
+        // client toast tells the user what's actually wrong (unverified
+        // sender, bad API key, blocked recipient, etc.) instead of a generic
+        // "Failed to send" that hides the real cause.
+        console.error("send-verification-email error:", {
+            code,
+            brevoCode: e?.brevoCode,
+            httpStatus: e?.httpStatus,
+            message: e?.message,
+        });
         return NextResponse.json(
-            { error: "Failed to send verification email" },
+            {
+                error: e?.message || "Failed to send verification email",
+                code: e?.brevoCode || code || undefined,
+            },
             { status: 500 }
         );
     }
