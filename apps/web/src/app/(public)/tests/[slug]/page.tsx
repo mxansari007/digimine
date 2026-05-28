@@ -193,7 +193,15 @@ export default function TestSeriesDetailPage() {
     if (!series) return null;
 
     const isUnlocked = hasPurchased;
-    const firstAvailableTest = tests[0] || null;
+    const isLockedByRelease = (test: Test) => {
+        const release = formatReleaseDate(test.availableFrom);
+        return !!release && release.future;
+    };
+    const availableTests = tests.filter((test) => !isLockedByRelease(test));
+    const upcomingTests = tests.filter(isLockedByRelease);
+    // First test the student can actually start. Skips locked future
+    // releases so the sidebar CTA never points at a 403-gated test.
+    const firstAvailableTest = availableTests[0] || null;
     const regularAttempts = attempts.filter((attempt) => !attempt.contestId);
     const resumableAttempts = getResumableAttemptsFromList(regularAttempts);
     const activeAttempt = resumableAttempts[0] || null;
@@ -208,6 +216,107 @@ export default function TestSeriesDetailPage() {
         : firstAvailableTest
             ? `/tests/${series.slug}/attempt?testId=${firstAvailableTest.id}${classroomParam}`
             : `/tests/${series.slug}`;
+
+    const renderTestCard = (test: Test, index: number) => {
+        // Find the most recent attempt for this specific test
+        const testAttempts = regularAttempts.filter(a => a.testId === test.id);
+        const resumableAttempt = resumableAttempts.find(a => a.testId === test.id) || null;
+        const latestFinalizedAttempt = testAttempts.find(a => a.status === 'completed' || a.status === 'timed_out') || null;
+        const latestAttempt = resumableAttempt || latestFinalizedAttempt || testAttempts[0] || null;
+        const hasInProgress = !!resumableAttempt;
+        const hasCompleted = !!latestFinalizedAttempt;
+        // Scheduling: tests with `availableFrom` in the future are
+        // visible but locked. The right pane swaps from CTAs to
+        // a "Releases on …" badge; the row is dimmed.
+        const releaseAt = formatReleaseDate(test.availableFrom);
+        const notYetReleased = !!releaseAt && releaseAt.future;
+
+        return (
+            <Card
+                key={test.id}
+                className={`p-6 ${notYetReleased ? "opacity-80" : ""}`}
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${notYetReleased ? "bg-slate-100 text-slate-500" : "bg-indigo-100 text-indigo-700"}`}>
+                            {index + 1}
+                        </span>
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
+                                {notYetReleased && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                        <LockIcon className="h-3 w-3" /> Releases on {releaseAt!.label}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
+                                <span className="inline-flex items-center gap-1"><CalendarIcon className="h-4 w-4" /> {formatTestDate(test)}</span>
+                                <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" /> {test.duration} mins</span>
+                                <span className="inline-flex items-center gap-1"><FileTextIcon className="h-4 w-4" /> {test.totalQuestions} Questions</span>
+                                <span className="inline-flex items-center gap-1"><TargetIcon className="h-4 w-4" /> {test.totalMarks} Marks</span>
+                            </div>
+                        </div>
+                    </div>
+                    {notYetReleased ? (
+                        <div className="flex items-center gap-2 text-amber-800">
+                            <LockIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium">Releases on {releaseAt!.label}</span>
+                        </div>
+                    ) : isUnlocked ? (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            {hasInProgress && resumableAttempt ? (
+                                <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${classroomParam}`}>
+                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full">
+                                        <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                                        Continue Test
+                                    </Button>
+                                </Link>
+                            ) : hasCompleted && latestAttempt ? (
+                                <>
+                                    {test.instantResults ? (
+                                        <Link href={`/dashboard/tests/results/${latestAttempt.id}`}>
+                                            <Button variant="outline" size="sm" className="w-full">View Result</Button>
+                                        </Link>
+                                    ) : (
+                                        <Button variant="outline" size="sm" disabled className="w-full">Submitted</Button>
+                                    )}
+                                    {test.allowRetake && (
+                                        <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
+                                            <Button size="sm" className="bg-indigo-600 text-white w-full">Retake Test</Button>
+                                        </Link>
+                                    )}
+                                </>
+                            ) : (
+                                <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
+                                    <Button className="bg-green-600 hover:bg-green-700 text-white w-full">Start Test</Button>
+                                </Link>
+                            )}
+                        </div>
+                    ) : !user ? (
+                        <Link href="/login">
+                            <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                                Login to Access
+                            </Button>
+                        </Link>
+                    ) : series.accessType === "free" ? (
+                        <Button
+                            onClick={handleFreeEnrollment}
+                            disabled={enrolling}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            {enrolling ? "Enrolling..." : "Enroll for Free"}
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-2 text-gray-400">
+                            <LockIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium">Locked</span>
+                        </div>
+                    )}
+                </div>
+            </Card>
+        );
+    };
 
     const handleFreeEnrollment = async () => {
         if (!user || enrolling) return;
@@ -283,106 +392,29 @@ export default function TestSeriesDetailPage() {
                             {tests.length === 0 ? (
                                 <Card className="p-8 text-center text-gray-500">No tests available in this series yet.</Card>
                             ) : (
-                                tests.map((test, index) => {
-                                    // Find the most recent attempt for this specific test
-                                    const testAttempts = regularAttempts.filter(a => a.testId === test.id);
-                                    const resumableAttempt = resumableAttempts.find(a => a.testId === test.id) || null;
-                                    const latestFinalizedAttempt = testAttempts.find(a => a.status === 'completed' || a.status === 'timed_out') || null;
-                                    const latestAttempt = resumableAttempt || latestFinalizedAttempt || testAttempts[0] || null;
-                                    const hasInProgress = !!resumableAttempt;
-                                    const hasCompleted = !!latestFinalizedAttempt;
-                                    // Scheduling: tests with `availableFrom` in the future are
-                                    // visible but locked. The right pane swaps from CTAs to
-                                    // a "Releases on …" badge; the row is dimmed.
-                                    const releaseAt = formatReleaseDate(test.availableFrom);
-                                    const notYetReleased = !!releaseAt && releaseAt.future;
-
-                                    return (
-                                        <Card
-                                            key={test.id}
-                                            className={`p-6 ${notYetReleased ? "opacity-80" : ""}`}
-                                        >
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                <div className="flex items-start gap-4">
-                                                    <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${notYetReleased ? "bg-slate-100 text-slate-500" : "bg-indigo-100 text-indigo-700"}`}>
-                                                        {index + 1}
-                                                    </span>
-                                                    <div>
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
-                                                            {notYetReleased && (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                                                                    <LockIcon className="h-3 w-3" /> Releases on {releaseAt!.label}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
-                                                            <span className="inline-flex items-center gap-1"><CalendarIcon className="h-4 w-4" /> {formatTestDate(test)}</span>
-                                                            <span className="inline-flex items-center gap-1"><ClockIcon className="h-4 w-4" /> {test.duration} mins</span>
-                                                            <span className="inline-flex items-center gap-1"><FileTextIcon className="h-4 w-4" /> {test.totalQuestions} Questions</span>
-                                                            <span className="inline-flex items-center gap-1"><TargetIcon className="h-4 w-4" /> {test.totalMarks} Marks</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {notYetReleased ? (
-                                                    <div className="flex items-center gap-2 text-amber-800">
-                                                        <LockIcon className="h-4 w-4" />
-                                                        <span className="text-sm font-medium">Releases on {releaseAt!.label}</span>
-                                                    </div>
-                                                ) : isUnlocked ? (
-                                                    <div className="flex flex-col sm:flex-row gap-2">
-                                                        {hasInProgress && resumableAttempt ? (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}&attemptId=${resumableAttempt.id}${classroomParam}`}>
-                                                                <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full">
-                                                                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                                                                    Continue Test
-                                                                </Button>
-                                                            </Link>
-                                                        ) : hasCompleted && latestAttempt ? (
-                                                            <>
-                                                                {test.instantResults ? (
-                                                                    <Link href={`/dashboard/tests/results/${latestAttempt.id}`}>
-                                                                        <Button variant="outline" size="sm" className="w-full">View Result</Button>
-                                                                    </Link>
-                                                                ) : (
-                                                                    <Button variant="outline" size="sm" disabled className="w-full">Submitted</Button>
-                                                                )}
-                                                                {test.allowRetake && (
-                                                                    <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
-                                                                        <Button size="sm" className="bg-indigo-600 text-white w-full">Retake Test</Button>
-                                                                    </Link>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <Link href={`/tests/${series.slug}/attempt?testId=${test.id}${classroomParam}`}>
-                                                                <Button className="bg-green-600 hover:bg-green-700 text-white w-full">Start Test</Button>
-                                                            </Link>
-                                                        )}
-                                                    </div>
-                                                ) : !user ? (
-                                                    <Link href="/login">
-                                                        <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50">
-                                                            Login to Access
-                                                        </Button>
-                                                    </Link>
-                                                ) : series.accessType === "free" ? (
-                                                    <Button
-                                                        onClick={handleFreeEnrollment}
-                                                        disabled={enrolling}
-                                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                                    >
-                                                        {enrolling ? "Enrolling..." : "Enroll for Free"}
-                                                    </Button>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-gray-400">
-                                                        <LockIcon className="h-4 w-4" />
-                                                        <span className="text-sm font-medium">Locked</span>
-                                                    </div>
+                                <>
+                                    {availableTests.map((test, index) => renderTestCard(test, index))}
+                                    {upcomingTests.length > 0 && (
+                                        <div className="pt-4">
+                                            <div className="mb-3 flex items-center gap-3">
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                                                    <LockIcon className="h-3 w-3" /> Coming Soon
+                                                </span>
+                                                <h3 className="text-lg font-bold text-gray-900">
+                                                    Future Mock Tests ({upcomingTests.length})
+                                                </h3>
+                                            </div>
+                                            <p className="mb-4 text-sm text-gray-600">
+                                                These mock tests are part of this series and unlock automatically on their scheduled date. Enrol now so they appear ready to attempt the moment they go live.
+                                            </p>
+                                            <div className="space-y-4">
+                                                {upcomingTests.map((test, index) =>
+                                                    renderTestCard(test, availableTests.length + index)
                                                 )}
                                             </div>
-                                        </Card>
-                                    );
-                                })
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -456,6 +488,11 @@ export default function TestSeriesDetailPage() {
                                 <h3 className="font-bold text-gray-900 mb-4">Series Features:</h3>
                                 <ul className="space-y-3">
                                     <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> {tests.length} Practice Tests</li>
+                                    {upcomingTests.length > 0 && (
+                                        <li className="flex items-center gap-3 text-sm text-amber-700">
+                                            <LockIcon className="h-4 w-4 text-amber-500" /> {upcomingTests.length} Upcoming Mock Test{upcomingTests.length === 1 ? "" : "s"}
+                                        </li>
+                                    )}
                                     <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> Detailed Performance Reports</li>
                                     <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> Instant Score Calculation</li>
                                     <li className="flex items-center gap-3 text-sm text-gray-600"><CheckIcon className="h-4 w-4 text-green-500" /> All India Ranking</li>

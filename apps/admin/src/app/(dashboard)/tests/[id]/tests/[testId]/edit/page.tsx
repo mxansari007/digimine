@@ -7,6 +7,31 @@ import { getTestSeries, getTestById, updateTestInSeries } from "@/lib/firestore/
 import type { TestSeries, Test, UpdateTestInput, TestSectionInput } from "@digimine/types";
 import Link from "next/link";
 
+/**
+ * Format any Date / Firestore Timestamp / ISO string into the
+ * `YYYY-MM-DDTHH:mm` shape that `<input type="datetime-local">` expects.
+ * Uses local components so the displayed value matches what the admin sees
+ * elsewhere in the dashboard.
+ */
+function toDateTimeLocalValue(value: unknown): string {
+    if (!value) return "";
+    let date: Date;
+    if (value instanceof Date) date = value;
+    else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    } else return "";
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function EditSubTestPage() {
     const params = useParams();
     const router = useRouter();
@@ -31,6 +56,7 @@ export default function EditSubTestPage() {
         shuffleOptions: false,
         sections: [],
     });
+    const [availableFromInput, setAvailableFromInput] = useState<string>("");
 
     const sections = formData.sections || [];
 
@@ -98,6 +124,7 @@ export default function EditSubTestPage() {
                         shuffleOptions: testData.shuffleOptions,
                         sections: testData.sections || [],
                     });
+                    setAvailableFromInput(toDateTimeLocalValue(testData.availableFrom));
                 }
             } catch (error) {
                 console.error("Error loading data:", error);
@@ -115,6 +142,17 @@ export default function EditSubTestPage() {
             return;
         }
 
+        const trimmedAvailableFrom = availableFromInput.trim();
+        let availableFromValue: Date | null = null;
+        if (trimmedAvailableFrom) {
+            const parsed = new Date(trimmedAvailableFrom);
+            if (Number.isNaN(parsed.getTime())) {
+                alert("Release date is invalid");
+                return;
+            }
+            availableFromValue = parsed;
+        }
+
         setSaving(true);
         try {
             await updateTestInSeries({
@@ -122,6 +160,7 @@ export default function EditSubTestPage() {
                 seriesId,
                 ...formData,
                 sections: sections.filter((section) => section.title.trim()),
+                availableFrom: availableFromValue,
             });
             router.push(`/tests/${seriesId}/tests`);
         } catch (error: any) {
@@ -211,6 +250,37 @@ export default function EditSubTestPage() {
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
+                        </div>
+
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                                <div className="flex-1">
+                                    <label htmlFor="availableFrom" className="block text-sm font-bold text-gray-900">
+                                        Schedule release (optional)
+                                    </label>
+                                    <p className="mt-0.5 text-xs text-gray-600">
+                                        Leave empty to make this test available as soon as it&rsquo;s published. Set a future date/time to show it as an upcoming &ldquo;Releases on …&rdquo; mock test inside the series; the attempt API will reject any early starts.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="availableFrom"
+                                        type="datetime-local"
+                                        value={availableFromInput}
+                                        onChange={(e) => setAvailableFromInput(e.target.value)}
+                                        className="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                    {availableFromInput && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setAvailableFromInput("")}
+                                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">

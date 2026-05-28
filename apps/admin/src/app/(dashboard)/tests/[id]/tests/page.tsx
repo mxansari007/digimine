@@ -18,6 +18,31 @@ function getTestCreatedTime(test: Test): number {
     return test.createdAt instanceof Date ? test.createdAt.getTime() : 0;
 }
 
+function getAvailableFromInfo(value: unknown): { label: string; future: boolean } | null {
+    if (!value) return null;
+    let date: Date;
+    if (value instanceof Date) date = value;
+    else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    } else return null;
+    if (Number.isNaN(date.getTime())) return null;
+    const label = date.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+    return { label, future: date.getTime() > Date.now() };
+}
+
 function sortTestsByLatest(tests: Test[]): Test[] {
     return [...tests].sort((a, b) => {
         const latestDiff = getTestCreatedTime(b) - getTestCreatedTime(a);
@@ -206,8 +231,10 @@ export default function SeriesTestsPage() {
                         </Link>
                     </Card>
                 ) : (
-                    tests.map((test, index) => (
-                        <Card key={test.id} className="p-6">
+                    tests.map((test, index) => {
+                        const release = getAvailableFromInfo(test.availableFrom);
+                        return (
+                        <Card key={test.id} className={`p-6 ${release?.future ? "border-amber-200 bg-amber-50/40" : ""}`}>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
                                     <span className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-medium">
@@ -230,6 +257,13 @@ export default function SeriesTestsPage() {
                                             }`}>
                                                 {test.status}
                                             </span>
+                                            {release && (
+                                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                                    release.future ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
+                                                }`}>
+                                                    {release.future ? "Releases " : "Released "}{release.label}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -269,7 +303,8 @@ export default function SeriesTestsPage() {
                                 </div>
                             </div>
                         </Card>
-                    ))
+                    );
+                    })
                 )}
             </div>
         </div>

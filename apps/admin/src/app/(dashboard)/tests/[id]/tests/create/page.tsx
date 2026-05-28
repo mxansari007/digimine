@@ -28,7 +28,9 @@ export default function CreateSubTestPage() {
         shuffleQuestions: false,
         shuffleOptions: false,
         sections: [],
+        availableFrom: null,
     });
+    const [availableFromInput, setAvailableFromInput] = useState<string>("");
 
     const sections = formData.sections || [];
 
@@ -101,6 +103,17 @@ export default function CreateSubTestPage() {
             return;
         }
 
+        const trimmedAvailableFrom = availableFromInput.trim();
+        let availableFromValue: Date | null = null;
+        if (trimmedAvailableFrom) {
+            const parsed = new Date(trimmedAvailableFrom);
+            if (Number.isNaN(parsed.getTime())) {
+                alert("Release date is invalid");
+                return;
+            }
+            availableFromValue = parsed;
+        }
+
         setSaving(true);
         try {
             await createTestInSeries({
@@ -116,6 +129,7 @@ export default function CreateSubTestPage() {
                 shuffleQuestions: formData.shuffleQuestions,
                 shuffleOptions: formData.shuffleOptions,
                 sections: sections.filter((section) => section.title.trim()),
+                availableFrom: availableFromValue,
             });
             router.push(`/tests/${seriesId}/tests`);
         } catch (error: any) {
@@ -190,6 +204,37 @@ export default function CreateSubTestPage() {
                                     onChange={(e) => setFormData({ ...formData, passingMarks: parseInt(e.target.value) })}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                 />
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                                <div className="flex-1">
+                                    <label htmlFor="availableFrom" className="block text-sm font-bold text-gray-900">
+                                        Schedule release (optional)
+                                    </label>
+                                    <p className="mt-0.5 text-xs text-gray-600">
+                                        Leave empty to make this test available as soon as it&rsquo;s published. Set a future date/time to show it as an upcoming &ldquo;Releases on …&rdquo; mock test inside the series; the attempt API will reject any early starts.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="availableFrom"
+                                        type="datetime-local"
+                                        value={availableFromInput}
+                                        onChange={(e) => setAvailableFromInput(e.target.value)}
+                                        className="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    />
+                                    {availableFromInput && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setAvailableFromInput("")}
+                                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
