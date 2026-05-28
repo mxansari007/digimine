@@ -130,9 +130,15 @@ export default function SubscribePage() {
                 else throw new Error(vd.message || vd.error || "Failed to switch plan");
                 return;
             }
+            // /api/teacher/subscribe authenticates via Bearer token (getBearerUserId).
+            // Without this header it returns 401 and the Razorpay popup never opens.
+            const token = await firebaseUser.getIdToken();
             const res = await fetch("/api/teacher/subscribe", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     planId: plan.code,
                     planName: plan.name,

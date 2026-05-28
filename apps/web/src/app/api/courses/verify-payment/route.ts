@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+
+// Constant-time hex compare for HMAC signatures.
+function safeEqualHex(a: string, b: string): boolean {
+    if (typeof a !== "string" || typeof b !== "string") return false;
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+}
 
 async function getAuthenticatedUserId(req: Request): Promise<string | null> {
     const header = req.headers.get("authorization") || "";
@@ -34,7 +41,7 @@ export async function POST(req: Request) {
         shasum.update(`${razorpay_order_id}|${razorpay_payment_id}`);
         const digest = shasum.digest("hex");
 
-        if (digest !== razorpay_signature) {
+        if (!safeEqualHex(digest, razorpay_signature)) {
             return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
         }
 

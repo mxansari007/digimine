@@ -87,7 +87,15 @@ export class RazorpayProvider implements PaymentProvider {
             .update(body)
             .digest("hex");
 
-        if (expectedSignature === input.signature) {
+        // `===` on hex strings is fast-exit on the first byte that differs,
+        // leaking timing info about the prefix. Razorpay signatures are 64-char
+        // hex of fixed length; use `timingSafeEqual` so the only signal is the
+        // boolean result.
+        const sig = String(input.signature || "");
+        if (
+            sig.length === expectedSignature.length &&
+            crypto.timingSafeEqual(Buffer.from(expectedSignature, "hex"), Buffer.from(sig, "hex"))
+        ) {
             return { success: true };
         }
         return { success: false, message: "Invalid payment signature" };

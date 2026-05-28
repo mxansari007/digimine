@@ -52,10 +52,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ alreadyPurchased: true, courseId });
         }
 
+        // Razorpay caps `receipt` at 40 chars. The previous `.slice(0, 40)`
+        // dropped trailing digits of the timestamp when the courseId was long,
+        // hurting uniqueness. Pack the courseId (last 12) and a base36 timestamp
+        // instead — always under 30 chars and uniquely identifies the attempt.
+        const shortCourseId = String(courseId).slice(-12);
+        const shortTs = Date.now().toString(36);
         const razorpayOrder = await razorpay.orders.create({
             amount: Math.round(price * 100),
             currency: "INR",
-            receipt: `course_${courseId}_${Date.now()}`.slice(0, 40),
+            receipt: `c_${shortCourseId}_${shortTs}`,
         });
 
         await enrollmentRef.set(
@@ -77,9 +83,23 @@ export async function POST(req: Request) {
             amount: razorpayOrder.amount,
             currency: razorpayOrder.currency,
         });
-    } catch (error: unknown) {
-        console.error("Error creating course order:", error);
-        const message = error instanceof Error ? error.message : "Failed to create course order";
-        return NextResponse.json({ error: message }, { status: 500 });
+    } catch (error: any) {
+        // Razorpay SDK throws { statusCode, error: { code, description, ... } } —
+        // these don't pass `instanceof Error`, so the old check always fell back
+        // to the generic message. Unwrap the SDK shape first.
+        const rzp = error?.error;
+        const message =
+            rzp?.description ||
+            rzp?.reason ||
+            (error instanceof Error ? error.message : null) ||
+            "Failed to create course order";
+        console.error("Error creating course order:", {
+            statusCode: error?.statusCode,
+            code: rzp?.code,
+            description: rzp?.description,
+            field: rzp?.field,
+            message: error?.message,
+        });
+        return NextResponse.json({ error: message, code: rzp?.code, field: rzp?.field }, { status: 500 });
     }
 }

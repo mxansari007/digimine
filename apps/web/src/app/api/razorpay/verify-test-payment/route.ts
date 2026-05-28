@@ -1,9 +1,36 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { createHmac } from "crypto";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { createHmac, timingSafeEqual } from "crypto";
+
+// `===` on hex strings leaks per-character timing info. Razorpay signatures are
+// 64-char hex; compare them with `timingSafeEqual` (after length match) so the
+// only signal a forger can extract is the success/failure boolean.
+function safeEqualHex(a: string, b: string): boolean {
+    if (typeof a !== "string" || typeof b !== "string") return false;
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+}
+
+async function getAuthenticatedUserId(req: Request): Promise<string | null> {
+    const header = req.headers.get("authorization") || "";
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    if (!match) return null;
+    try {
+        const decoded = await adminAuth.verifyIdToken(match[1]);
+        return decoded.uid;
+    } catch {
+        return null;
+    }
+}
 
 export async function POST(req: Request) {
     try {
+        // Auth via bearer — see create-test-order for the same rationale.
+        const authUserId = await getAuthenticatedUserId(req);
+        if (!authUserId) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
         const body = await req.json();
         const {
             razorpay_payment_id,
@@ -11,15 +38,15 @@ export async function POST(req: Request) {
             razorpay_signature,
             orderId,
             testId,
-            userId,
         } = body;
+        const userId = authUserId;
 
         // Verify signature
         const shasum = createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!);
         shasum.update(`${razorpay_order_id}|${razorpay_payment_id}`);
         const digest = shasum.digest("hex");
 
-        if (digest !== razorpay_signature) {
+        if (!safeEqualHex(digest, razorpay_signature)) {
             return NextResponse.json(
                 { error: "Invalid signature" },
                 { status: 400 }
@@ -65,10 +92,18 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, purchaseId: orderId });
     } catch (error: any) {
-        console.error("Error verifying payment:", error);
-        return NextResponse.json(
-            { error: error.message || "Failed to verify payment" },
-            { status: 500 }
-        );
+        const rzp = error?.error;
+        const reason =
+            rzp?.description ||
+            rzp?.reason ||
+            error?.message ||
+            "Failed to verify payment";
+        console.error("Error verifying payment:", {
+            statusCode: error?.statusCode,
+            code: rzp?.code,
+            description: rzp?.description,
+            message: error?.message,
+        });
+        return NextResponse.json({ error: reason }, { status: 500 });
     }
 }

@@ -95,13 +95,17 @@ export default function PaymentOnboardingPage() {
                     // real one with a mismatched signature) could push the
                     // teacher into the next step + onboarding completion
                     // without a valid payment landing in our books.
+                    // verify-payment expects Razorpay's snake_case field names
+                    // (razorpay_order_id, razorpay_payment_id, razorpay_signature)
+                    // and ALL THREE are required to recompute the HMAC.
                     const verifyRes = await fetch("/api/razorpay/verify-payment", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             orderId: orderData.orderId,
-                            razorpayPaymentId: response.razorpay_payment_id,
-                            razorpaySignature: response.razorpay_signature,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
                         }),
                     });
                     const verifyData = await verifyRes.json().catch(() => ({}));

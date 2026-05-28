@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { TestPurchase } from "@digimine/types";
 import Razorpay from "razorpay";
 import { Timestamp } from "firebase-admin/firestore";
@@ -9,13 +9,34 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
+async function getAuthenticatedUserId(req: Request): Promise<string | null> {
+    const header = req.headers.get("authorization") || "";
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    if (!match) return null;
+    try {
+        const decoded = await adminAuth.verifyIdToken(match[1]);
+        return decoded.uid;
+    } catch {
+        return null;
+    }
+}
+
 export async function POST(req: Request) {
     try {
+        // Authenticate via bearer token. Previously the route trusted `userId`
+        // from the body — a forged request could create a pending purchase
+        // under any account.
+        const authUserId = await getAuthenticatedUserId(req);
+        if (!authUserId) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
         const body = await req.json();
-        const { testId, amount, userId } = body;
+        const { testId, amount } = body;
+        const userId = authUserId;
         const seriesId = testId;
 
-        if (!testId || !amount || !userId) {
+        if (!testId || !amount) {
             return NextResponse.json(
                 { error: "Missing required fields" },
                 { status: 400 }

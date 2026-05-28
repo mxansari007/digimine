@@ -4,6 +4,13 @@ import { FieldValue } from "firebase-admin/firestore";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 
+// Constant-time comparison for HMAC signatures. See verify-test-payment for rationale.
+function safeEqualHex(a: string, b: string): boolean {
+    if (typeof a !== "string" || typeof b !== "string") return false;
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+}
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -24,7 +31,7 @@ export async function POST(req: Request) {
             .update(razorpay_order_id + "|" + razorpay_payment_id)
             .digest("hex");
 
-        if (generated_signature !== razorpay_signature) {
+        if (!safeEqualHex(generated_signature, razorpay_signature)) {
             return NextResponse.json({ success: false, error: "Signature mismatch" }, { status: 400 });
         }
 
@@ -95,10 +102,18 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("Error verifying Razorpay payment:", error);
-        return NextResponse.json(
-            { error: "Verification failed" },
-            { status: 500 }
-        );
+        const rzp = error?.error;
+        const reason =
+            rzp?.description ||
+            rzp?.reason ||
+            error?.message ||
+            "Verification failed";
+        console.error("Error verifying Razorpay payment:", {
+            statusCode: error?.statusCode,
+            code: rzp?.code,
+            description: rzp?.description,
+            message: error?.message,
+        });
+        return NextResponse.json({ error: reason }, { status: 500 });
     }
 }

@@ -21,7 +21,7 @@ export default function TestPurchasePage() {
     const params = useParams();
     const router = useRouter();
     const toast = useToast();
-    const { user } = useAuthContext();
+    const { user, firebaseUser } = useAuthContext();
     const slug = params.slug as string;
 
     const [test, setTest] = useState<TestSeries | null>(null);
@@ -86,14 +86,23 @@ export default function TestPurchasePage() {
         }
 
         try {
-            // Create order
+            // create-test-order now authenticates via Bearer token rather than
+            // trusting the userId in the body. Without the header it returns 401.
+            const token = firebaseUser ? await firebaseUser.getIdToken() : null;
+            if (!token) {
+                setPaymentError("You're signed out. Sign in again and retry.");
+                setProcessing(false);
+                return;
+            }
             const response = await fetch("/api/razorpay/create-test-order", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     testId: test.id,
                     amount: test.price,
-                    userId: user.id,
                 }),
             });
 
@@ -118,17 +127,22 @@ export default function TestPurchasePage() {
                 order_id: data.razorpayOrderId,
                 handler: async (response: any) => {
                     try {
-                        // Verify payment
+                        // verify-test-payment now requires the same bearer token
+                        // as create-test-order. Without it the server returns 401
+                        // and we'd lose the payment record.
+                        const verifyToken = firebaseUser ? await firebaseUser.getIdToken() : null;
                         const verifyResponse = await fetch("/api/razorpay/verify-test-payment", {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: {
+                                "Content-Type": "application/json",
+                                ...(verifyToken ? { Authorization: `Bearer ${verifyToken}` } : {}),
+                            },
                             body: JSON.stringify({
                                 razorpay_payment_id: response.razorpay_payment_id,
                                 razorpay_order_id: response.razorpay_order_id,
                                 razorpay_signature: response.razorpay_signature,
                                 orderId: data.orderId,
                                 testId: test.id,
-                                userId: user.id,
                             }),
                         });
 
