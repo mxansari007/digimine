@@ -82,6 +82,29 @@ const nextConfig = {
             "@huggingface/transformers",
             "kokoro-js",
         ],
+        // The /api/ai-interview/tts route imports kokoroTts (in-process Kokoro)
+        // as a LOCAL-DEV fallback. Next's file-tracing follows the dynamic
+        // `import("kokoro-js")` and drags in onnxruntime-node — 405 MB of
+        // GPU/CUDA/TensorRT .so files — which blows past Vercel's 250 MB
+        // serverless-function limit and fails the deploy. In production this
+        // path is never used (Azure AI Speech is primary, the Azure VM Kokoro
+        // is the next fallback), so exclude those native packages from the
+        // function bundle. If the in-process path were ever reached, the
+        // dynamic import simply throws and the route's try/catch handles it.
+        outputFileTracingExcludes: {
+            "/api/ai-interview/tts": [
+                "**/onnxruntime-node/**",
+                "**/@huggingface/transformers/**",
+                "**/kokoro-js/**",
+                "**/phonemizer/**",
+            ],
+            "/api/ai-interview/stt": [
+                "**/onnxruntime-node/**",
+                "**/@huggingface/transformers/**",
+                "**/kokoro-js/**",
+                "**/phonemizer/**",
+            ],
+        },
     },
 };
 
