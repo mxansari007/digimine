@@ -43,7 +43,13 @@ export default function PhoneOnboardingPage() {
         if (authLoading || !user) return;
         if (user.role === "teacher" || user.onboardingStep === "complete") {
             router.replace("/teacher/dashboard");
-        } else if (user.onboardingStep === "teacher:profile") {
+        } else if (user.onboardingStep === "teacher:profile" && user.phoneNumber) {
+            // Only forward to the profile step if a verified phone actually
+            // exists. Without the phoneNumber guard this fought the profile
+            // page's empty-phone guard (which sends users back HERE when the
+            // phone is missing) and the two ping-ponged in a redirect loop.
+            // If the step says "profile" but no phone is on record, let the
+            // user (re-)complete the phone step here, which sets it.
             router.replace("/teacher/onboarding/profile");
         }
     }, [authLoading, user?.role, user?.onboardingStep, router, user]);

@@ -53,14 +53,20 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                // `/api/institute/me` returns `{institute: null}` for genuine
-                // not-an-admin AND for transient failures (401 token blip, 500).
-                // If the user doc already says they're an institute_admin, trust
-                // it rather than bouncing an established admin into the
-                // onboarding wizard over a momentary hiccup.
-                const ok =
-                    (res.ok && Boolean(data?.institute)) ||
-                    user?.role === "institute_admin";
+                // When the request SUCCEEDS, trust its answer outright: a 200
+                // with institute:null genuinely means "no institute" (e.g. it
+                // was deleted) and the user should be routed out — we must not
+                // admit them on a stale role or the dashboard would crash
+                // fetching a non-existent institute. (The post-create
+                // consistency lag that used to return a false null is fixed at
+                // the source in findInstituteForAdmin, which now reads the
+                // strongly-consistent users.instituteId.) Only when the request
+                // itself FAILS (401 token blip, 500, network) do we fall back
+                // to trusting role so a transient hiccup can't bounce an
+                // established admin into the onboarding wizard.
+                const ok = res.ok
+                    ? Boolean(data?.institute)
+                    : user?.role === "institute_admin";
                 setHasInstitute(ok);
 
                 // Abuse-prevention: every new institute admin must verify
