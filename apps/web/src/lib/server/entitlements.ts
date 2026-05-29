@@ -103,11 +103,29 @@ export async function getEntitlements(userId: string | null): Promise<ResolvedEn
 // Quota tracking
 // ─────────────────────────────────────────────────────────────────────
 
+/** ISO-8601 week key, e.g. "2026-W22". Weeks start Monday; stable across
+ *  year boundaries so a user can't get a double allowance at the new year. */
+function isoWeekKey(d: Date): string {
+    const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+    date.setUTCDate(date.getUTCDate() - dayNum + 3); // shift to the week's Thursday
+    const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+    const week =
+        1 +
+        Math.round(
+            ((date.getTime() - firstThursday.getTime()) / 86400000 -
+                3 +
+                ((firstThursday.getUTCDay() + 6) % 7)) /
+                7
+        );
+    return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
 function periodKey(quota: EntitlementQuota, now: Date): string {
-    // Daily quotas roll on the calendar day; the rest roll monthly.
-    const daily =
-        quota === "practiceSubmissionsPerDay" || quota === "aiInterviewsPerDay";
-    if (daily) return now.toISOString().slice(0, 10); // YYYY-MM-DD
+    // Daily quotas roll on the calendar day; weekly on the ISO week; the rest
+    // roll monthly.
+    if (quota === "practiceSubmissionsPerDay") return now.toISOString().slice(0, 10); // YYYY-MM-DD
+    if (quota === "aiInterviewsPerWeek") return isoWeekKey(now); // YYYY-Www
     return now.toISOString().slice(0, 7); // YYYY-MM
 }
 

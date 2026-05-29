@@ -42,7 +42,7 @@ export type EntitlementQuota =
     | "mockTestsPerMonth"
     | "premiumQuizzesPerMonth"
     | "courseEnrollmentsActive"
-    | "aiInterviewsPerDay";
+    | "aiInterviewsPerWeek";
 
 export interface EntitlementFeatureMeta {
     key: EntitlementFeature;
@@ -81,7 +81,7 @@ export const ENTITLEMENT_QUOTAS: EntitlementQuotaMeta[] = [
     { key: "mockTestsPerMonth", label: "Mock tests / month", blurb: "Paid mock tests attemptable.", group: "tests", freeDefault: 2 },
     { key: "premiumQuizzesPerMonth", label: "Premium quizzes / month", blurb: "Premium quizzes attemptable.", group: "quizzes", freeDefault: 5 },
     { key: "courseEnrollmentsActive", label: "Active premium course enrollments", blurb: "Premium courses enrolled at once.", group: "courses", freeDefault: 1 },
-    { key: "aiInterviewsPerDay", label: "AI interviews / day", blurb: "AI mock interviews a user can run per day.", group: "practice", freeDefault: 0 },
+    { key: "aiInterviewsPerWeek", label: "AI interviews / week", blurb: "AI mock interviews a user can run per week.", group: "practice", freeDefault: 1 },
 ];
 
 export type EntitlementFeatureMap = Partial<Record<EntitlementFeature, boolean>>;

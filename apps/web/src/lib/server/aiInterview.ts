@@ -36,8 +36,8 @@ export const AI_INTERVIEW_SESSIONS = "aiInterviewSessions";
 export const AI_INTERVIEW_READINESS = "aiInterviewReadiness";
 /** Premium feature flag (strict `isPaid` is the real gate; this stays for admin UI). */
 export const AI_INTERVIEW_FEATURE = "ai_interview" as const;
-/** Daily cost-control quota key. */
-export const AI_INTERVIEW_QUOTA = "aiInterviewsPerDay" as const;
+/** Weekly cost-control quota key. */
+export const AI_INTERVIEW_QUOTA = "aiInterviewsPerWeek" as const;
 
 /** How many recent turns to feed the interviewer (bounds token cost). */
 const MAX_CONTEXT_TURNS = 24;

@@ -11,7 +11,14 @@
 import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { getEntitlements } from "@/lib/server/entitlements";
-import { generateSpeechWav } from "@/lib/server/kokoroTts";
+// NOTE: do NOT import "@/lib/server/kokoroTts" (in-process Kokoro) here. It
+// pulls in kokoro-js → onnxruntime-node (~405 MB of GPU/CUDA/TensorRT .so
+// files), which Next's file-tracer would bundle into this serverless function
+// and blow past Vercel's 250 MB limit (failing every deploy). Production
+// synthesizes via Azure AI Speech (primary) or the self-hosted Kokoro VM
+// (KOKORO_TTS_URL); the browser falls back to native speechSynthesis if both
+// are unavailable. The in-process path remains in kokoroTts.ts for local
+// experiments but is intentionally not wired into the deployed route.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +31,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
         const ent = await getEntitlements(userId);
-        if (!ent.isPaid) {
+        if (!ent.features.ai_interview) {
             return NextResponse.json({ error: "Premium feature" }, { status: 402 });
         }
 
@@ -107,21 +114,13 @@ export async function POST(req: Request) {
             });
         }
 
-        const wav = await generateSpeechWav(text, voice);
-        // Hand Response a plain ArrayBuffer (exact bytes) — TS's BodyInit won't
-        // accept a Uint8Array<ArrayBufferLike>, and this avoids any cast.
-        const audioBody = wav.buffer.slice(
-            wav.byteOffset,
-            wav.byteOffset + wav.byteLength
-        ) as ArrayBuffer;
-        return new Response(audioBody, {
-            status: 200,
-            headers: {
-                "Content-Type": "audio/wav",
-                "Content-Length": String(wav.byteLength),
-                "Cache-Control": "no-store",
-            },
-        });
+        // Neither Azure Speech nor the Kokoro VM is configured/reachable. We
+        // don't synthesize in-process in the deployed build (see the import
+        // note above), so signal the client to fall back to browser TTS.
+        return NextResponse.json(
+            { error: "Voice synthesis isn't configured. Set AZURE_SPEECH_KEY or KOKORO_TTS_URL." },
+            { status: 503 }
+        );
     } catch (error) {
         const e = error as Error;
         console.error("[/api/ai-interview/tts] failed:", e);

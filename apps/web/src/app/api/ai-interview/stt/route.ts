@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
         const ent = await getEntitlements(userId);
-        if (!ent.isPaid) {
+        if (!ent.features.ai_interview) {
             return NextResponse.json({ error: "Premium feature" }, { status: 402 });
         }
 

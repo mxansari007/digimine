@@ -1,14 +1,14 @@
 /**
  * POST /api/ai-interview/start
  *
- * Starts a premium AI coding interview. Gating, strongest-first:
+ * Starts an AI coding interview. Gating, strongest-first:
  *   1. Auth (401)
- *   2. Strict premium check `ent.isPaid` (402) — stays locked even in launch
- *      mode, exactly like premium practice problems.
+ *   2. Feature gate `ent.features.ai_interview` (402) — the free plan grants a
+ *      small weekly taste; paid plans grant more.
  *   3. AI provider configured + enabled (503) — fail early so the user never
  *      starts an interview they can't continue.
  *   4. A matching published problem exists (404).
- *   5. Daily interview quota (402/429) — consumed only once the above pass.
+ *   5. Weekly interview quota (429) — consumed only once the above pass.
  *
  * The opening interviewer line is templated (no LLM call) so starting is fast
  * and can't fail on the model; the LLM kicks in on the first candidate turn.
@@ -45,12 +45,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
 
-        // Premium gate — strict paid flag, independent of the launch kill switch.
+        // Feature gate — does the user's plan grant AI interviews at all? The
+        // free plan includes a small weekly taste (see the per-week quota
+        // below); paid plans grant more. (In launch mode every plan grants it.)
         const ent = await getEntitlements(userId);
-        if (!ent.isPaid) {
+        if (!ent.features.ai_interview) {
             return NextResponse.json(
                 {
-                    error: "AI mock interviews are a Premium feature. Upgrade to start.",
+                    error: "AI mock interviews aren't included in your plan. Upgrade to unlock.",
                     code: "premium_required",
                     upgradeUrl: "/membership",
                 },
@@ -126,7 +128,7 @@ export async function POST(req: Request) {
                     error:
                         quota.limit === 0
                             ? "Your plan doesn't include AI interviews. Upgrade to unlock."
-                            : `You've used today's ${quota.limit} AI interviews. Come back tomorrow or upgrade.`,
+                            : `You've used this week's ${quota.limit} AI interview${quota.limit === 1 ? "" : "s"}. Come back next week or upgrade for more.`,
                     code: "quota_exceeded",
                     upgradeUrl: "/membership",
                 },

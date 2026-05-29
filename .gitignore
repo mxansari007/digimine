@@ -12,6 +12,9 @@ serviceAccountKey.json
 .env.local
 .env.*.local
 
+# Vercel CLI (local project link + auth artifacts)
+.vercel
+
 # Logs
 *.log
 logs/

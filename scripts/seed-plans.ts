@@ -120,6 +120,7 @@ const PLANS: SeedPlan[] = [
         tagline: "Everything you need to start practising.",
         highlights: [
             "50 practice submissions / day",
+            "1 AI mock interview / week",
             "Revision Radar (spaced repetition)",
             "Join live contests",
             "Completion certificates",
@@ -145,6 +146,9 @@ const PLANS: SeedPlan[] = [
             quizzes_premium: false,
             courses_premium: false,
             contests: true,
+            // AI interview is on for free, but capped to a weekly taste below
+            // (the per-week quota is what actually limits it).
+            ai_interview: true,
             downloads: false,
             ad_free: false,
             certificates: true,
@@ -155,6 +159,7 @@ const PLANS: SeedPlan[] = [
             mockTestsPerMonth: 2,
             premiumQuizzesPerMonth: 5,
             courseEnrollmentsActive: 1,
+            aiInterviewsPerWeek: 1,
         },
         trialDays: 0,
         support: { channel: "community", slaHours: null },
@@ -166,6 +171,7 @@ const PLANS: SeedPlan[] = [
         tagline: "Unlock everything — one simple plan.",
         highlights: [
             "Unlimited practice + full solutions",
+            "Unlimited AI mock interviews",
             "All mock test series, premium quizzes & courses",
             "Mentor Rescue hints",
             "Downloads + ad-free",
@@ -189,6 +195,7 @@ const PLANS: SeedPlan[] = [
             quizzes_premium: true,
             courses_premium: true,
             contests: true,
+            ai_interview: true,
             downloads: true,
             ad_free: true,
             certificates: true,
@@ -199,6 +206,7 @@ const PLANS: SeedPlan[] = [
             mockTestsPerMonth: -1,
             premiumQuizzesPerMonth: -1,
             courseEnrollmentsActive: -1,
+            aiInterviewsPerWeek: -1,
         },
         trialDays: 0,
         support: { channel: "email", slaHours: 48 },
@@ -483,25 +491,30 @@ async function seedPlans() {
 async function seedGlobalConfig() {
     const ref = db.collection("appConfig").doc("subscription");
     const existing = await ref.get();
-    // LAUNCH MODE: paywall OFF so everyone gets full access while pricing is
-    // still visible on the pricing pages. Flip `enforced` → true in
-    // /admin/subscription when you're ready to start charging.
     const payload: any = {
-        enforced: false,
         currency: "INR",
         freePlanCode: "free",
-        promoBanner: null,
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: "seed:seed-plans",
     };
-    // Don't clobber an admin-set `enforced` flag on re-runs — only seed it
-    // the first time. Prices/plans still refresh above regardless.
-    if (existing.exists) {
-        delete payload.enforced;
-        delete payload.promoBanner;
-        console.log("[seed] appConfig/subscription exists — refreshing currency/freePlanCode only, leaving enforced untouched");
-    } else {
+
+    // Enforcement (the paywall kill switch):
+    //   - SEED_ENFORCED=true|false  → explicitly set it (deliberate flip).
+    //   - unset, doc missing        → create in LAUNCH MODE (enforced=false).
+    //   - unset, doc exists         → leave the admin-set flag untouched.
+    const seedEnforced = process.env.SEED_ENFORCED;
+    if (seedEnforced === "true" || seedEnforced === "false") {
+        payload.enforced = seedEnforced === "true";
+        console.log(
+            `[seed] appConfig/subscription — explicitly setting enforced=${payload.enforced}` +
+                (payload.enforced ? "  ⚠️  PAYWALL ON: plans are now gated" : "")
+        );
+    } else if (!existing.exists) {
+        payload.enforced = false;
+        payload.promoBanner = null;
         console.log("[seed] appConfig/subscription created in LAUNCH MODE (enforced=false)");
+    } else {
+        console.log("[seed] appConfig/subscription exists — refreshing currency/freePlanCode only, leaving enforced untouched");
     }
     await ref.set(payload, { merge: true });
 }

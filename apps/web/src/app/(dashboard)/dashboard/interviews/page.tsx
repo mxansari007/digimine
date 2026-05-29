@@ -36,7 +36,8 @@ export default function InterviewsDashboardPage() {
     const router = useRouter();
     const toast = useToast();
     const { firebaseUser, loading: authLoading } = useAuthContext();
-    const { isPremium, ready: entReady } = useEntitlements();
+    const { hasFeature, ready: entReady } = useEntitlements();
+    const canInterview = hasFeature("ai_interview");
 
     const [loading, setLoading] = useState(true);
     const [sessions, setSessions] = useState<AIInterviewSessionSummary[]>([]);
@@ -118,8 +119,10 @@ export default function InterviewsDashboardPage() {
         );
     }
 
-    // ── Premium gate ──
-    if (!isPremium) {
+    // ── Feature gate — only shown to plans that don't include AI interviews.
+    // The free plan grants a small weekly taste, so most signed-in users pass
+    // this and land on the dashboard below.
+    if (!canInterview) {
         return (
             <div className="space-y-8">
                 <div>
