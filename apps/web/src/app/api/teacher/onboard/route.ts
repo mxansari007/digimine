@@ -11,7 +11,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { step, phone, uid, paymentId } = body;
+        const { step, phone, uid } = body;
 
         if (!step || !uid) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -48,41 +48,10 @@ export async function POST(req: Request) {
             }
 
             await adminDb.collection("users").doc(uid).set(
-                { onboardingStep: "teacher:payment", updatedAt: new Date() },
-                { merge: true }
-            );
-            return NextResponse.json({ success: true });
-        }
-
-        if (step === "payment") {
-            if (!paymentId) {
-                return NextResponse.json({ error: "Payment ID required" }, { status: 400 });
-            }
-
-            // Check if this payment fingerprint was used before
-            const paymentsSnap = await adminDb
-                .collection("teacher_payment_fingerprints")
-                .where("paymentId", "==", paymentId)
-                .limit(1)
-                .get();
-
-            let reduced = false;
-            if (!paymentsSnap.empty) {
-                reduced = true; // Payment method reused
-            }
-
-            // Store fingerprint for future checks
-            await adminDb.collection("teacher_payment_fingerprints").add({
-                teacherId: uid,
-                paymentId,
-                createdAt: new Date(),
-            });
-
-            await adminDb.collection("users").doc(uid).set(
                 { onboardingStep: "teacher:profile", updatedAt: new Date() },
                 { merge: true }
             );
-            return NextResponse.json({ success: true, reduced });
+            return NextResponse.json({ success: true });
         }
 
         if (step === "profile") {

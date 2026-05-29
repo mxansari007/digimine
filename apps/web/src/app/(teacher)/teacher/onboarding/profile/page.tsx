@@ -34,7 +34,7 @@ import {
     textInputClass,
 } from "@/components/onboarding";
 
-const STEPS = ["Phone", "Payment", "Profile"];
+const STEPS = ["Phone", "Profile"];
 
 function generateInviteCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -196,7 +196,6 @@ export default function ProfileOnboardingPage() {
                         </p>
                         <div className="mt-6 flex w-full flex-col gap-2 text-left text-xs text-slate-500">
                             <FinaliseRow done label="Verified phone" />
-                            <FinaliseRow done label="Verified payment method" />
                             <FinaliseRow done label="Profile saved" />
                             <FinaliseRow
                                 done={user?.role === "teacher"}
@@ -212,7 +211,7 @@ export default function ProfileOnboardingPage() {
     return (
         <OnboardingShell maxWidth="2xl">
             <div className="mb-8">
-                <Stepper steps={STEPS} current={2} />
+                <Stepper steps={STEPS} current={1} />
             </div>
 
             <div className="mb-6">

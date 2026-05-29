@@ -17,6 +17,13 @@
  *   institute@test.com      institute admin owning an institute + class
  *   student1@test.com  …  student5@test.com  students enrolled in classes
  *
+ *   ── Persona accounts (one canonical example per feature state) ──
+ *   rookie / explorer / active / streaker / lapsed / struggler / firsttry /
+ *   sqlonly / polyglot / paid-pro / trial-pro / expired-pro / promo /
+ *   community / rescue / course-active / multiclass / quiz-resume /
+ *   test-resume / test-failed @test.com — see scripts/seed-student-scenarios.ts
+ *   for what each one exercises. Final seed output prints the full table.
+ *
  *   ── Structures ──
  *   teachers/{uid}             1 teacher doc with starter plan trial
  *   institutes/{instId}        1 institute with starter trial
@@ -37,6 +44,7 @@ import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import { seedStudentScenarios, printPersonaSummary } from "./seed-student-scenarios";
 
 // ─── Emulator wiring ──────────────────────────────────────────────────
 // The admin SDK auto-detects these env vars and routes all calls through
@@ -1219,6 +1227,26 @@ async function main() {
         console.log(`         ✓ student${a.studentN} → ${a.slug} (${a.verdict})`);
     }
 
+    // 14. Comprehensive student persona scenarios — ~20 accounts, each one
+    //     a canonical example of a specific feature state (rookie / streaker
+    //     / lapsed / paid-pro / community / rescue / multiclass / etc.).
+    //     Lives in scripts/seed-student-scenarios.ts.
+    await seedStudentScenarios({
+        auth,
+        db,
+        teacherId: teacher.uid,
+        quizId: QUIZ_IDS[0],
+        quizTitle: "Arrays Basics",
+        quizCategory: "Arrays",
+        testSeriesId: TEST_IDS[0],
+        testSubtestId: "s1",
+        testTitle: "DSA Mock — Set 1 · Section 1",
+        testDurationMinutes: 60,
+        courseId: COURSE_IDS[0],
+        classA: { classId: CLASS_A_ID, teacherId: teacher.uid },
+        classB: { classId: CLASS_B_ID, teacherId: institute.uid },
+    });
+
     console.log("\n[seed] ✓ Done.");
     console.log("\nLog in with any of these accounts (password is the same for all):");
     console.log("─────────────────────────────────────────────────────────────");
@@ -1238,6 +1266,9 @@ async function main() {
     console.log(`    Course:    DSA Foundations (5 modules, linked to test + quiz)`);
     console.log(`\n  Public catalog:  Aptitude — Public Sample (visible to anonymous users)`);
     console.log(`\n  User subscriptions:  student1 active(pro) · student2 trialing(pro) · student4 expired(pro)`);
+
+    printPersonaSummary();
+
     console.log(`\n  Emulator UI: http://localhost:4000`);
 
     for (const a of getApps()) await deleteApp(a);

@@ -74,3 +74,61 @@ want a clean re-seed.
    for a non-subscribed user.
 5. After a correct submit, check **Pattern Lens** recognition prompt and that
    `/practice` dashboard / Revision Radar pick up the solved problem.
+
+---
+
+## Persona accounts for QA (`pnpm seed:emulators`)
+
+Running the full emulator seed (`pnpm seed:emulators`) creates ~20 persona
+accounts on top of the 5 base `studentN@test.com` accounts — each persona is
+a canonical, pre-built example of one student-side state of the app. Log in
+as the persona for the feature you want to QA; no manual click-through
+required to reach the state.
+
+All persona passwords: **`Test1234!`** (same as the rest of the seed).
+
+| Email | Scenario | Use to test |
+|---|---|---|
+| `rookie@test.com` | rookie | Empty-state UI everywhere — dashboard, journal, revision, mastery. |
+| `explorer@test.com` | explorer | 5 attempts, 2 solves. Partial-state filters & "attempted but not solved" rendering. |
+| `active@test.com` | active | Healthy power user — 15 solved across 6 patterns, **current 7-day streak**, mature SM-2. Dashboard, heatmap, recommendations. |
+| `streaker@test.com` | streaker | **30-day continuous solve streak.** Longest-streak badge, heatmap density. |
+| `lapsed@test.com` | lapsed | **12 overdue revision items.** Revision Radar urgency, return-from-break nudges. |
+| `struggler@test.com` | struggler | 40+ failed attempts, 6 eventual solves. Low-mastery analytics, mentor-rescue prompts. |
+| `firsttry@test.com` | firsttry | 12 first-try solves → **mastered tier** on multiple patterns. Mastery UI elite states. |
+| `sqlonly@test.com` | sqlonly | Only SQL problems solved. SQL pattern Mastery Map, kind=sql filters. |
+| `polyglot@test.com` | polyglot | Same problems solved in python/js/cpp/java. Language breakdown in profile. |
+| `paid-pro@test.com` | paid-pro | Active Pro subscription. Premium problems (`maximum-subarray-sum`, `number-of-islands`) **unlocked + solved**. |
+| `trial-pro@test.com` | trial-pro | Pro trialing — 5 days left. Trial countdown CTA. |
+| `expired-pro@test.com` | expired-pro | Pro expired 10 days ago. Upgrade nudge + locked-but-formerly-solved premium problems. |
+| `promo@test.com` | promo | Pro via promo grant. `source: "promo"`, `promoCode: "LAUNCH-50"`. |
+| `community@test.com` | community | Authored 4 discussions + 3 solutions with upvotes. Profile activity, community surfaces. |
+| `rescue@test.com` | rescue | One **open**, one **answered**, one **resolved** mentor rescue. Teacher inbox + student-side rescue thread. |
+| `course-active@test.com` | course-active | Enrolled in **DSA Foundations** course. Course content access, my-courses listing. |
+| `multiclass@test.com` | multiclass | Enrolled in **both** Class A (teacher-owned) and Class B (institute-owned). Multi-class nav + assignments. |
+| `quiz-resume@test.com` | quiz-resume | In-progress attempt on **Arrays Basics** quiz. "Resume quiz" flow + state restoration. |
+| `test-resume@test.com` | test-resume | In-progress attempt on **DSA Mock — Set 1 · Section 1**. "Resume test" flow. |
+| `test-failed@test.com` | test-failed | Completed Mock Set 1 at 36% (below the 40% passing). Result page failure UX. |
+
+### Where the data lives
+- **Problems & sheets** — `practiceProblems`, `practiceSheets`
+- **Per-student state** — `practiceProgress/{userId}_{problemId}`,
+  `practiceMastery/{userId}_{pattern}`, `practiceSubmissions/{auto}`
+- **Community** — `practiceDiscussions`, `practiceSolutions`, `practiceVotes`
+- **Mentor rescue** — `practiceRescueRequests`
+- **Subscriptions** — `userSubscriptions/{userId}`
+- **Attempts** — `quizAttempts`, `testAttempts`
+- **Enrollment** — `courseEnrollments/{userId}_{courseId}`, `classes/{classId}/students/{userId}`
+
+The generating code is in `scripts/seed-student-scenarios.ts` and runs as
+the last step of `pnpm seed:emulators`. Idempotent — every doc id is
+deterministic, so re-running cleanly overwrites prior persona state.
+
+### Adding a new persona
+1. Add an entry to `PERSONAS` in `scripts/seed-student-scenarios.ts`.
+2. Add a `case` branch to the dispatcher in `seedStudentScenarios()`.
+3. Write a `scenarioYour-name()` function — reuse the helpers
+   `simulateSolve()`, `simulateFailedAttempt()`, `setSubscription()`,
+   `bumpMastery()` so mastery/SM-2 stay consistent with what the live
+   `recordSubmission()` would have written.
+4. Append a row to the table above.

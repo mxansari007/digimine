@@ -36,8 +36,10 @@ export function resumeOnboardingPath(
     switch (step) {
         case "teacher:phone":
             return "/teacher/onboarding/phone";
+        // Legacy step: the payment step was removed to reduce onboarding
+        // friction. Any user whose doc still reads "teacher:payment" resumes
+        // at the profile step instead of a now-deleted page.
         case "teacher:payment":
-            return "/teacher/onboarding/payment";
         case "teacher:profile":
             return "/teacher/onboarding/profile";
         case "institute:phone":

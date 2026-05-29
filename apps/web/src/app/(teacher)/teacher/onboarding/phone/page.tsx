@@ -23,7 +23,7 @@ import {
     StepHeader,
 } from "@/components/onboarding";
 
-const STEPS = ["Phone", "Payment", "Profile"];
+const STEPS = ["Phone", "Profile"];
 
 export default function PhoneOnboardingPage() {
     const router = useRouter();
@@ -49,7 +49,7 @@ export default function PhoneOnboardingPage() {
             window.alert(d?.error || "We couldn't save that phone number. Please try again.");
             return;
         }
-        router.push(`/teacher/onboarding/payment?phone=${encodeURIComponent(otp.phone)}`);
+        router.push(`/teacher/onboarding/profile?phone=${encodeURIComponent(otp.phone)}`);
     };
 
     if (authLoading || !isAuthenticated) {
