@@ -46,9 +46,18 @@ function generateInviteCode(): string {
 export default function ProfileOnboardingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const phone = searchParams.get("phone") || "";
 
     const { firebaseUser, user, isAuthenticated, loading: authLoading } = useAuthContext();
+
+    // Phone comes from the phone step via the ?phone= query param on a normal
+    // forward. But when a user RESUMES (logs back in mid-onboarding, landing
+    // here straight from the resume redirect), that param is absent — so fall
+    // back to the phone we persisted on their user doc during the phone step.
+    // Without this, the profile would be saved with an empty phone.
+    const phone = useMemo(
+        () => searchParams.get("phone") || user?.phoneNumber || "",
+        [searchParams, user?.phoneNumber]
+    );
 
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -57,7 +66,6 @@ export default function ProfileOnboardingPage() {
     const [fallbackName, setFallbackName] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [finalising, setFinalising] = useState(false);
-    const [finalisingStartedAt, setFinalisingStartedAt] = useState<number | null>(null);
 
     // We already collected the user's full name at signup, so don't ask for
     // it again here. Prefer firstName+lastName from the users doc, fall back
@@ -91,16 +99,27 @@ export default function ProfileOnboardingPage() {
             router.push("/teacher/dashboard");
             return;
         }
-        const startedAt = finalisingStartedAt ?? Date.now();
-        const elapsed = Date.now() - startedAt;
-        if (elapsed > 8000) {
-            // Hard fallback — should be unreachable in normal conditions.
+        // Hard fallback if the snapshot stalls. This MUST be a timer, not an
+        // inline `elapsed > 8000` check — the effect only re-runs when its deps
+        // change, so if the role snapshot never arrives the effect never fires
+        // again and an inline check would never trip (the user would be stuck
+        // on "Finishing setup…" forever). A full-page navigation remounts the
+        // auth provider, so the dashboard re-resolves the fresh role itself.
+        const t = setTimeout(() => {
             window.location.href = "/teacher/dashboard";
-        }
-    }, [finalising, user?.role, finalisingStartedAt, router]);
+        }, 8000);
+        return () => clearTimeout(t);
+    }, [finalising, user?.role, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Guard: never save a teacher profile with an empty phone. If we got
+        // here without one (skipped/abandoned the phone step), send them back
+        // to complete it rather than persisting a blank number.
+        if (!phone.trim()) {
+            router.push("/teacher/onboarding/phone");
+            return;
+        }
         if (!firebaseUser || !effectiveName || !form.institute.trim()) {
             setError(
                 !effectiveName
@@ -137,8 +156,7 @@ export default function ProfileOnboardingPage() {
             }
             // Server wrote successfully — flip into the "finalising" state.
             // The effect above watches `user.role` and navigates when it
-            // flips to "teacher".
-            setFinalisingStartedAt(Date.now());
+            // flips to "teacher" (with a timer fallback if it stalls).
             setFinalising(true);
         } catch (err) {
             setError((err as Error)?.message || "Failed to complete onboarding.");

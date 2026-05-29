@@ -27,13 +27,26 @@ const STEPS = ["Phone", "Profile"];
 
 export default function PhoneOnboardingPage() {
     const router = useRouter();
-    const { firebaseUser, isAuthenticated, loading: authLoading } = useAuthContext();
+    const { firebaseUser, user, isAuthenticated, loading: authLoading } = useAuthContext();
 
     const otp = usePhoneOtp();
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/login");
     }, [authLoading, isAuthenticated, router]);
+
+    // If the phone step is already done (resume, browser-back, or a slow
+    // redirect that left the user here), move them forward instead of letting
+    // them re-verify — a second phone POST would 409 on the uniqueness check
+    // and strand them. Honour the persisted onboardingStep / role.
+    useEffect(() => {
+        if (authLoading || !user) return;
+        if (user.role === "teacher" || user.onboardingStep === "complete") {
+            router.replace("/teacher/dashboard");
+        } else if (user.onboardingStep === "teacher:profile") {
+            router.replace("/teacher/onboarding/profile");
+        }
+    }, [authLoading, user?.role, user?.onboardingStep, router, user]);
 
     const onVerify = async () => {
         const result = await otp.verifyOtp();
@@ -45,7 +58,12 @@ export default function PhoneOnboardingPage() {
         });
         if (!res.ok) {
             const d = await res.json().catch(() => ({}));
-            otp.setOtp("");
+            // The OTP confirmation is single-use — once verifyOtp() consumes it,
+            // re-entering the same code can't work. Reset all the way back to the
+            // phone-entry step so the user can pick a different number (e.g. on a
+            // "already registered" 409) or request a fresh code, instead of being
+            // stranded on a dead OTP field.
+            otp.changeNumber();
             window.alert(d?.error || "We couldn't save that phone number. Please try again.");
             return;
         }

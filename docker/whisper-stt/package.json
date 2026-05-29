@@ -1,0 +1,14 @@
+{
+    "name": "whisper-stt-service",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Standalone Whisper speech-to-text HTTP service (runs on the Azure VM alongside Piston + Kokoro).",
+    "main": "server.mjs",
+    "scripts": {
+        "start": "node server.mjs"
+    },
+    "dependencies": {
+        "@huggingface/transformers": "^3.8.1"
+    }
+}

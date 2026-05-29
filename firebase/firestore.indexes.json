@@ -1,6 +1,31 @@
 {
     "indexes": [
         {
+            "collectionGroup": "aiInterviewSessions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "practiceProblems",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "kind", "order": "ASCENDING" },
+                { "fieldPath": "difficulty", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "practiceProblems",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "kind", "order": "ASCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "institute_signup_logs",
             "queryScope": "COLLECTION",
             "fields": [

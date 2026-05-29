@@ -101,6 +101,23 @@ export async function assertInstituteAdmin(
  */
 export async function findInstituteForAdmin(userId: string): Promise<any | null> {
     if (!userId) return null;
+
+    // Fast, strongly-consistent path: the owner's user doc records their
+    // instituteId (written atomically with role at creation). A direct doc
+    // read never lags, so the dashboard resolves immediately after onboarding
+    // — unlike the collectionGroup query below, whose index is only eventually
+    // consistent and can return empty for a few seconds post-creation, which
+    // used to bounce a brand-new admin straight back into the onboarding loop.
+    const userSnap = await adminDb.collection("users").doc(userId).get();
+    const instituteId = userSnap.exists
+        ? (userSnap.data()?.instituteId as string | undefined)
+        : undefined;
+    if (instituteId) {
+        const inst = await getInstituteById(instituteId);
+        if (inst) return inst;
+    }
+
+    // Fallback: covers co-admins added without the user-doc pointer.
     const snap = await adminDb
         .collectionGroup("admins")
         .where("userId", "==", userId)
@@ -109,8 +126,7 @@ export async function findInstituteForAdmin(userId: string): Promise<any | null>
     if (snap.empty) return null;
     // Path: institutes/{instituteId}/admins/{userId}
     const path = snap.docs[0].ref.path.split("/");
-    const instituteId = path[1];
-    return getInstituteById(instituteId);
+    return getInstituteById(path[1]);
 }
 
 /**

@@ -30,6 +30,7 @@ export type EntitlementFeature =
     | "quizzes_premium" // premium quizzes
     | "courses_premium" // premium courses
     | "contests" // join contests
+    | "ai_interview" // AI mock coding interviews + behaviour tracker
     | "downloads" // downloadable resources
     | "ad_free" // no ads
     | "certificates"; // completion certificates
@@ -40,7 +41,8 @@ export type EntitlementQuota =
     | "premiumProblemUnlocksPerMonth"
     | "mockTestsPerMonth"
     | "premiumQuizzesPerMonth"
-    | "courseEnrollmentsActive";
+    | "courseEnrollmentsActive"
+    | "aiInterviewsPerDay";
 
 export interface EntitlementFeatureMeta {
     key: EntitlementFeature;
@@ -67,6 +69,7 @@ export const ENTITLEMENT_FEATURES: EntitlementFeatureMeta[] = [
     { key: "quizzes_premium", label: "Premium quizzes", blurb: "Access premium quizzes.", group: "quizzes" },
     { key: "courses_premium", label: "Premium courses", blurb: "Access enrollment-required courses.", group: "courses" },
     { key: "contests", label: "Contests", blurb: "Join live contests.", group: "general" },
+    { key: "ai_interview", label: "AI mock interviews", blurb: "AI coding interviews with a behaviour-tracker scorecard.", group: "practice" },
     { key: "downloads", label: "Downloads", blurb: "Downloadable PDFs and resources.", group: "general" },
     { key: "ad_free", label: "Ad-free", blurb: "Remove ads across the platform.", group: "general" },
     { key: "certificates", label: "Certificates", blurb: "Earn completion certificates.", group: "general" },
@@ -78,6 +81,7 @@ export const ENTITLEMENT_QUOTAS: EntitlementQuotaMeta[] = [
     { key: "mockTestsPerMonth", label: "Mock tests / month", blurb: "Paid mock tests attemptable.", group: "tests", freeDefault: 2 },
     { key: "premiumQuizzesPerMonth", label: "Premium quizzes / month", blurb: "Premium quizzes attemptable.", group: "quizzes", freeDefault: 5 },
     { key: "courseEnrollmentsActive", label: "Active premium course enrollments", blurb: "Premium courses enrolled at once.", group: "courses", freeDefault: 1 },
+    { key: "aiInterviewsPerDay", label: "AI interviews / day", blurb: "AI mock interviews a user can run per day.", group: "practice", freeDefault: 0 },
 ];
 
 export type EntitlementFeatureMap = Partial<Record<EntitlementFeature, boolean>>;

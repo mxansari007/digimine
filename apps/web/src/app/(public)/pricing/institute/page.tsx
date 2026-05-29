@@ -27,6 +27,7 @@ type Plan = {
     annualPriceINR: number | null;
     compareAtINR: number | null;
     seatCap: number | null;
+    roleScope?: string;
     isFree: boolean;
     recommended: boolean;
     badge: string | null;

@@ -41,6 +41,15 @@ const nextConfig = {
                 undici: false,
             };
 
+            // Keep the Node-only ONNX backend + sharp out of the CLIENT bundle.
+            // Kokoro TTS now runs SERVER-side (see /api/ai-interview/tts), so the
+            // browser never needs these — alias them to false for the client only.
+            config.resolve.alias = {
+                ...(config.resolve.alias || {}),
+                sharp$: false,
+                "onnxruntime-node$": false,
+            };
+
             // Alias undici to a mock file to prevent parsing errors
             config.resolve.alias['undici'] = path.join(__dirname, 'src/mocks/undici.js');
 
@@ -52,6 +61,7 @@ const nextConfig = {
             } catch (e) {
                 console.warn('Could not resolve @firebase/auth browser path, fallback to default resolution');
             }
+
         } else {
             // SERVER-SIDE CONFIGURATION
 
@@ -63,7 +73,15 @@ const nextConfig = {
         return config;
     },
     experimental: {
-        serverComponentsExternalPackages: ["undici"],
+        // Server-side Kokoro TTS: keep these as runtime requires (real native
+        // onnxruntime-node, transformers.js, kokoro-js) instead of bundling.
+        serverComponentsExternalPackages: [
+            "undici",
+            "sharp",
+            "onnxruntime-node",
+            "@huggingface/transformers",
+            "kokoro-js",
+        ],
     },
 };
 

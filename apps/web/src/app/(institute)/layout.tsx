@@ -53,7 +53,14 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                const ok = res.ok && Boolean(data?.institute);
+                // `/api/institute/me` returns `{institute: null}` for genuine
+                // not-an-admin AND for transient failures (401 token blip, 500).
+                // If the user doc already says they're an institute_admin, trust
+                // it rather than bouncing an established admin into the
+                // onboarding wizard over a momentary hiccup.
+                const ok =
+                    (res.ok && Boolean(data?.institute)) ||
+                    user?.role === "institute_admin";
                 setHasInstitute(ok);
 
                 // Abuse-prevention: every new institute admin must verify
@@ -73,17 +80,24 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                     router.replace(needsPhoneStep ? "/institute/onboarding/phone" : "/institute/onboarding");
                 }
             } catch {
-                setHasInstitute(false);
-                if (!isOnboardingPath) {
-                    router.replace(
-                        user?.phoneNumber ? "/institute/onboarding" : "/institute/onboarding/phone"
-                    );
+                // Network error reaching /api/institute/me — don't strand a
+                // real admin on the onboarding wizard. Trust the role if we
+                // have it; only a non-admin (or unknown role) gets routed out.
+                if (user?.role === "institute_admin") {
+                    setHasInstitute(true);
+                } else {
+                    setHasInstitute(false);
+                    if (!isOnboardingPath) {
+                        router.replace(
+                            user?.phoneNumber ? "/institute/onboarding" : "/institute/onboarding/phone"
+                        );
+                    }
                 }
             } finally {
                 setResolving(false);
             }
         })();
-    }, [firebaseUser, isAuthenticated, isOnboardingPath, isPhoneStepPath, loading, router, user?.phoneNumber]);
+    }, [firebaseUser, isAuthenticated, isOnboardingPath, isPhoneStepPath, loading, router, user?.phoneNumber, user?.role]);
 
     if (loading || resolving) return <PageLoading />;
 

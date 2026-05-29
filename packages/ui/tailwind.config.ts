@@ -101,8 +101,12 @@ const config: Partial<Config> = {
                 },
             },
             fontFamily: {
-                sans: ["Inter", "system-ui", "sans-serif"],
-                display: ["Outfit", "system-ui", "sans-serif"],
+                // Use the next/font CSS variables (set on <html> in the web app's
+                // layout). Bare "Inter"/"Outfit" aren't real loaded families —
+                // next/font only exposes them via these variables — so using the
+                // names directly silently falls back to system-ui.
+                sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+                display: ["var(--font-outfit)", "system-ui", "sans-serif"],
                 mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
             },
             borderRadius: {

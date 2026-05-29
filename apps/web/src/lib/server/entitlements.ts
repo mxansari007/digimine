@@ -105,7 +105,8 @@ export async function getEntitlements(userId: string | null): Promise<ResolvedEn
 
 function periodKey(quota: EntitlementQuota, now: Date): string {
     // Daily quotas roll on the calendar day; the rest roll monthly.
-    const daily = quota === "practiceSubmissionsPerDay";
+    const daily =
+        quota === "practiceSubmissionsPerDay" || quota === "aiInterviewsPerDay";
     if (daily) return now.toISOString().slice(0, 10); // YYYY-MM-DD
     return now.toISOString().slice(0, 7); // YYYY-MM
 }

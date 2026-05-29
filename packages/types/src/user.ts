@@ -59,6 +59,13 @@ export interface User {
      * step instead of dropping them on a dashboard with no role committed.
      */
     onboardingStep?: OnboardingStep;
+    /**
+     * For `institute_admin` users — the institute they own/administer. Written
+     * atomically alongside `role` when the institute is created, so route
+     * guards can trust it as a strongly-consistent signal that the user has an
+     * institute (the `admins` collectionGroup query lags right after creation).
+     */
+    instituteId?: string;
     // Legacy: string[] for backward compatibility, new: PurchaseRecord[]
     purchasedProducts: string[] | PurchaseRecord[];
     // Test purchases for quick lookup

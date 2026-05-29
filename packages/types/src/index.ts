@@ -35,6 +35,7 @@ export * from "./instituteBilling";
 export * from "./teacherBilling";
 export * from "./article";
 export * from "./dsaPractice";
+export * from "./aiInterview";
 export * from "./practiceEngine";
 export * from "./practiceCommunity";
 export * from "./appSubscription";

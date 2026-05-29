@@ -1,0 +1,130 @@
+/**
+ * POST /api/ai-interview/tts
+ *
+ * Server-side Kokoro text-to-speech. The interview room posts the interviewer's
+ * line and gets back WAV audio from our own origin — so it works behind Brave
+ * Shields / restrictive networks and needs no in-browser model download.
+ *
+ * Premium-gated (same as the rest of the AI interview). The first request after
+ * a cold start loads the model and may take longer; subsequent calls are fast.
+ */
+import { NextResponse } from "next/server";
+import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { getEntitlements } from "@/lib/server/entitlements";
+import { generateSpeechWav } from "@/lib/server/kokoroTts";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
+    try {
+        const userId = await getBearerUserId(req).catch(() => null);
+        if (!userId) {
+            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        }
+        const ent = await getEntitlements(userId);
+        if (!ent.isPaid) {
+            return NextResponse.json({ error: "Premium feature" }, { status: 402 });
+        }
+
+        const body = await req.json().catch(() => ({}));
+        const text =
+            typeof body.text === "string" ? body.text.replace(/\s+/g, " ").trim().slice(0, 1200) : "";
+        const voice = typeof body.voice === "string" ? body.voice : "af_heart";
+        if (!text) {
+            return NextResponse.json({ error: "text required" }, { status: 400 });
+        }
+
+        // Fastest path: Azure AI Speech neural TTS (~sub-second vs ~12s on the
+        // CPU VM). Server-side, so the browser still never talks to a third
+        // party. Falls through to Kokoro/in-process if it fails or isn't set.
+        const azKey = process.env.AZURE_SPEECH_KEY;
+        const azRegion = process.env.AZURE_SPEECH_REGION;
+        if (azKey && azRegion) {
+            try {
+                const azVoice = process.env.AZURE_SPEECH_VOICE || "en-US-AriaNeural";
+                const esc = text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&apos;");
+                const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${azVoice}">${esc}</voice></speak>`;
+                const az = await fetch(
+                    `https://${azRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Ocp-Apim-Subscription-Key": azKey,
+                            "Content-Type": "application/ssml+xml",
+                            "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+                            "User-Agent": "digimine",
+                        },
+                        body: ssml,
+                    }
+                );
+                if (az.ok) {
+                    const audio = await az.arrayBuffer();
+                    return new Response(audio, {
+                        status: 200,
+                        headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+                    });
+                }
+                console.error(
+                    "[/api/ai-interview/tts] Azure Speech error",
+                    az.status,
+                    (await az.text().catch(() => "")).slice(0, 200)
+                );
+            } catch (azErr) {
+                console.error("[/api/ai-interview/tts] Azure Speech threw:", azErr);
+            }
+            // fall through to Kokoro / in-process below
+        }
+
+        // Fallback: the self-hosted Kokoro model on the Azure VM (KOKORO_TTS_URL),
+        // or in-process generation for local dev.
+        const ttsUrl = process.env.KOKORO_TTS_URL;
+        if (ttsUrl) {
+            const upstream = await fetch(ttsUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(process.env.KOKORO_TTS_SECRET
+                        ? { "x-tts-secret": process.env.KOKORO_TTS_SECRET }
+                        : {}),
+                },
+                body: JSON.stringify({ text, voice }),
+            });
+            if (!upstream.ok) {
+                const detail = await upstream.text().catch(() => "");
+                throw new Error(`TTS service ${upstream.status}: ${detail.slice(0, 200)}`);
+            }
+            const audio = await upstream.arrayBuffer();
+            return new Response(audio, {
+                status: 200,
+                headers: { "Content-Type": "audio/wav", "Cache-Control": "no-store" },
+            });
+        }
+
+        const wav = await generateSpeechWav(text, voice);
+        // Hand Response a plain ArrayBuffer (exact bytes) — TS's BodyInit won't
+        // accept a Uint8Array<ArrayBufferLike>, and this avoids any cast.
+        const audioBody = wav.buffer.slice(
+            wav.byteOffset,
+            wav.byteOffset + wav.byteLength
+        ) as ArrayBuffer;
+        return new Response(audioBody, {
+            status: 200,
+            headers: {
+                "Content-Type": "audio/wav",
+                "Content-Length": String(wav.byteLength),
+                "Cache-Control": "no-store",
+            },
+        });
+    } catch (error) {
+        const e = error as Error;
+        console.error("[/api/ai-interview/tts] failed:", e);
+        return NextResponse.json({ error: e.message || "TTS failed" }, { status: 500 });
+    }
+}

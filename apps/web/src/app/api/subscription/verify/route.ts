@@ -43,7 +43,9 @@ export async function POST(req: Request) {
         }
 
         const plan = await getPlanByCode(order.planCode);
-        const interval = plan?.interval || order.interval || "monthly";
+        // The cadence the user actually paid for is recorded on the order;
+        // prefer it over the plan's legacy default interval.
+        const interval = order.interval || plan?.interval || "monthly";
 
         await grantPlan({
             userId,

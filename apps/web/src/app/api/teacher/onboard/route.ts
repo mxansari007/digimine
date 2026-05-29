@@ -47,8 +47,17 @@ export async function POST(req: Request) {
                 }
             }
 
+            // Persist the verified phone on the user doc (not just the step) so
+            // a resume — e.g. logging back in mid-onboarding, which lands on the
+            // profile page without the ?phone= query param — can recover it
+            // instead of saving an empty phone on the teacher profile.
             await adminDb.collection("users").doc(uid).set(
-                { onboardingStep: "teacher:profile", updatedAt: new Date() },
+                {
+                    phoneNumber: phone,
+                    phoneVerifiedAt: new Date(),
+                    onboardingStep: "teacher:profile",
+                    updatedAt: new Date(),
+                },
                 { merge: true }
             );
             return NextResponse.json({ success: true });

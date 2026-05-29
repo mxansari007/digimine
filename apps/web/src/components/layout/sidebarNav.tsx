@@ -80,6 +80,12 @@ const PracticeIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const InterviewIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h8m-8 4h5M7 20l-3 1 1-3.5A8.5 8.5 0 1112 20.5 8.6 8.6 0 017 20z" />
+    </svg>
+);
+
 const UsageIcon = ({ className }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V5m0 14H5a2 2 0 01-2-2v-2a2 2 0 012-2h4m0 6h4m-4 0V11m4 8V9m0 10h4a2 2 0 002-2V7a2 2 0 00-2-2h-4m0 14V5" />
@@ -89,6 +95,7 @@ const UsageIcon = ({ className }: { className?: string }) => (
 export const studentNav: AppSidebarNavItem[] = [
     { name: "My Library", href: "/dashboard", icon: LibraryIcon, exact: true },
     { name: "Practice (DSA/SQL)", href: "/practice", icon: PracticeIcon },
+    { name: "AI Interview", href: "/dashboard/interviews", icon: InterviewIcon },
     { name: "Test Series", href: "/dashboard/tests", icon: TestIcon },
     { name: "Quizzes", href: "/dashboard/quizzes", icon: QuizIcon },
     { name: "Contests", href: "/dashboard/contests", icon: ContestIcon },

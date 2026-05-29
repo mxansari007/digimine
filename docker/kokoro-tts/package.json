@@ -1,0 +1,14 @@
+{
+    "name": "kokoro-tts-service",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Standalone Kokoro-82M text-to-speech HTTP service (runs on the Azure VM alongside Piston).",
+    "main": "server.mjs",
+    "scripts": {
+        "start": "node server.mjs"
+    },
+    "dependencies": {
+        "kokoro-js": "^1.2.1"
+    }
+}

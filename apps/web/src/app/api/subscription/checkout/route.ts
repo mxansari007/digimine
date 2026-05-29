@@ -26,22 +26,40 @@ export async function POST(req: Request) {
         const body = await req.json().catch(() => ({}));
         const planCode = String(body.planCode || "");
         const promoCode = body.promoCode ? String(body.promoCode) : "";
+        const cadence = body.cadence === "annual" ? "annual" : "monthly";
 
         const plan = await getPlanByCode(planCode);
         if (!plan) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
 
+        // Resolve price + billing interval for the chosen cadence. Plans carry
+        // monthlyPriceINR/annualPriceINR; `priceINR` is a legacy monthly mirror
+        // some seeds omit, so fall back through both.
+        const monthlyPrice =
+            typeof plan.monthlyPriceINR === "number"
+                ? plan.monthlyPriceINR
+                : typeof plan.priceINR === "number"
+                    ? plan.priceINR
+                    : 0;
+        const annualPrice =
+            typeof plan.annualPriceINR === "number" && plan.annualPriceINR > 0
+                ? plan.annualPriceINR
+                : null;
+        const useAnnual = cadence === "annual" && annualPrice != null;
+        const interval = useAnnual ? "annual" : "monthly";
+        const basePrice = useAnnual ? (annualPrice as number) : monthlyPrice;
+
         // Free plan — grant directly.
-        if (plan.isFree || plan.priceINR <= 0) {
-            await grantPlan({ userId, planCode: plan.code, source: "grant", interval: plan.interval });
+        if (plan.isFree || basePrice <= 0) {
+            await grantPlan({ userId, planCode: plan.code, source: "grant", interval });
             return NextResponse.json({ granted: true, planCode: plan.code });
         }
 
         // Apply promo if provided.
-        let finalPrice = plan.priceINR;
+        let finalPrice = basePrice;
         let extraMonths = 0;
         let appliedPromo: string | null = null;
         if (promoCode) {
-            const v = await validatePromo(promoCode, { planCode: plan.code, priceINR: plan.priceINR }, userId);
+            const v = await validatePromo(promoCode, { planCode: plan.code, priceINR: basePrice }, userId);
             if (!v.valid) return NextResponse.json({ error: v.reason || "Invalid promo" }, { status: 400 });
             appliedPromo = v.code;
             if (v.grantsPlanCode) {
@@ -58,7 +76,7 @@ export async function POST(req: Request) {
 
         // 100%-off → grant free.
         if (finalPrice <= 0) {
-            await grantPlan({ userId, planCode: plan.code, source: "promo", interval: plan.interval, extraMonths, promoCode: appliedPromo });
+            await grantPlan({ userId, planCode: plan.code, source: "promo", interval, extraMonths, promoCode: appliedPromo });
             if (appliedPromo) await recordRedemption({ userId, code: appliedPromo, planCode: plan.code, amountPaidINR: 0 });
             return NextResponse.json({ granted: true, planCode: plan.code, viaPromo: Boolean(appliedPromo) });
         }
@@ -82,7 +100,7 @@ export async function POST(req: Request) {
             id: pendingRef.id,
             userId,
             planCode: plan.code,
-            interval: plan.interval,
+            interval,
             amountINR: finalPrice,
             promoCode: appliedPromo,
             extraMonths,

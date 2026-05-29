@@ -33,6 +33,7 @@ type Plan = {
     monthlyPriceINR: number;
     annualPriceINR: number | null;
     compareAtINR: number | null;
+    roleScope?: string;
     isFree: boolean;
     recommended: boolean;
     badge: string | null;

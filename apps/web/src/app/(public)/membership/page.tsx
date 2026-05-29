@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, useToast } from "@digimine/ui";
 import {
     Check,
     X as XIcon,
@@ -42,6 +42,7 @@ import {
     type EntitlementFeature,
 } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/contexts/EntitlementsContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 
 type Plan = {
@@ -50,9 +51,13 @@ type Plan = {
     name: string;
     tagline: string;
     highlights: string[];
+    /** Monthly price (legacy mirror of monthlyPriceINR). */
     priceINR: number;
+    monthlyPriceINR: number;
+    annualPriceINR: number | null;
     compareAtINR: number | null;
     interval: string;
+    roleScope?: string;
     features: Record<string, boolean>;
     isFree: boolean;
     recommended: boolean;
@@ -140,43 +145,25 @@ const FAQS = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-function intervalLabel(interval: string): string {
-    if (interval === "annual") return "year";
-    if (interval === "lifetime") return "once";
-    return "month";
-}
-function intervalChip(interval: string): string {
-    if (interval === "annual") return "Annual";
-    if (interval === "lifetime") return "Lifetime";
-    return "Monthly";
-}
-
 function discountPct(price: number, compareAt: number | null): number | null {
     if (!compareAt || compareAt <= price) return null;
     return Math.round(((compareAt - price) / compareAt) * 100);
-}
-
-// Estimated effective monthly price for non-monthly plans, e.g. "₹333 / mo
-// billed yearly". Helps users compare durations at a glance.
-function perMonthHint(plan: Plan): string | null {
-    if (plan.interval === "monthly" || plan.priceINR <= 0) return null;
-    if (plan.interval === "annual") {
-        return `Effective ${formatINR(Math.round(plan.priceINR / 12))} / month`;
-    }
-    if (plan.interval === "lifetime") return "Pay once, use forever";
-    return null;
 }
 
 // ─── Page ────────────────────────────────────────────────────────────
 
 export default function MembershipPage() {
     const router = useRouter();
+    const toast = useToast();
     const { firebaseUser, isAuthenticated } = useAuthContext();
+    const { refresh: refreshEntitlements } = useEntitlements();
     const [enforced, setEnforced] = useState(true);
     const [banner, setBanner] = useState<string | null>(null);
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+    const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+    const [success, setSuccess] = useState<string | null>(null);
 
     const [promo, setPromo] = useState("");
     const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -186,11 +173,18 @@ export default function MembershipPage() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/subscription/config");
-            const data = await res.json();
-            setEnforced(Boolean(data.enforced));
-            setBanner(data.promoBanner || null);
-            setPlans(Array.isArray(data.plans) ? data.plans : []);
+            // Global config for the launch-mode flag + promo banner only.
+            const cfg = await fetch("/api/subscription/config")
+                .then((r) => r.json())
+                .catch(() => ({}));
+            setEnforced(Boolean(cfg.enforced));
+            setBanner(cfg.promoBanner || null);
+            // Plans come from the role-scoped endpoint so students never see
+            // teacher/institute plans, and prices read monthlyPriceINR correctly.
+            const plansRes = await fetch("/api/subscription/plans?roleScope=student")
+                .then((r) => r.json())
+                .catch(() => ({ plans: [] }));
+            setPlans(Array.isArray(plansRes.plans) ? plansRes.plans : []);
             if (firebaseUser) {
                 const me = await teacherFetch(firebaseUser, "/api/subscription/me")
                     .then((r) => r.json())
@@ -201,6 +195,19 @@ export default function MembershipPage() {
             setLoading(false);
         }
     }, [firebaseUser]);
+
+    /** Shared success path: refresh global entitlements so the rest of the app
+     *  (sidebar, gates, premium features) unlocks immediately, refresh this
+     *  page's "current plan", then surface a clear acknowledgement. */
+    const onSubscribed = useCallback(
+        async (message: string) => {
+            await refreshEntitlements().catch(() => {});
+            await load();
+            toast.success(message);
+            setSuccess(message);
+        },
+        [refreshEntitlements, load, toast]
+    );
 
     useEffect(() => {
         load();
@@ -219,6 +226,32 @@ export default function MembershipPage() {
     }, [paidPlans]);
 
     const scrollToPricing = () => pricingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // Only offer the annual toggle if at least one paid plan has an annual price.
+    const hasAnnual = useMemo(
+        () => paidPlans.some((p) => typeof p.annualPriceINR === "number" && (p.annualPriceINR as number) > 0),
+        [paidPlans]
+    );
+    useEffect(() => {
+        if (!hasAnnual) setBilling("monthly");
+    }, [hasAnnual]);
+
+    const hasAnnualPrice = (p: Plan) =>
+        typeof p.annualPriceINR === "number" && (p.annualPriceINR as number) > 0;
+    const priceFor = (p: Plan) =>
+        billing === "annual" && hasAnnualPrice(p)
+            ? (p.annualPriceINR as number)
+            : p.monthlyPriceINR ?? p.priceINR;
+    const unitFor = (p: Plan) => (billing === "annual" && hasAnnualPrice(p) ? "year" : "month");
+    const cadenceFor = (p: Plan): "monthly" | "annual" =>
+        billing === "annual" && hasAnnualPrice(p) ? "annual" : "monthly";
+    const annualSavePct = (p: Plan): number | null => {
+        const m = p.monthlyPriceINR ?? p.priceINR;
+        const a = p.annualPriceINR;
+        if (!a || !m || m <= 0) return null;
+        const pct = Math.round((1 - a / (m * 12)) * 100);
+        return pct > 0 ? pct : null;
+    };
 
     const applyPromo = async (planCode: string, priceINR: number) => {
         if (!promo.trim()) return;
@@ -261,14 +294,22 @@ export default function MembershipPage() {
         try {
             const res = await teacherFetch(firebaseUser, "/api/subscription/checkout", {
                 method: "POST",
-                body: JSON.stringify({ planCode: plan.code, promoCode: promo.trim() || undefined }),
+                body: JSON.stringify({
+                    planCode: plan.code,
+                    cadence: cadenceFor(plan),
+                    promoCode: promo.trim() || undefined,
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Checkout failed");
 
             if (data.granted) {
-                setPromoMsg({ ok: true, text: "You're all set — plan activated." });
-                await load();
+                setBusyPlan(null);
+                await onSubscribed(
+                    plan.isFree
+                        ? "You're on the Free plan."
+                        : "You're all set — Premium is active! 🎉"
+                );
                 return;
             }
 
@@ -281,7 +322,11 @@ export default function MembershipPage() {
                     s.onload = r;
                 });
             }
-            new (window as any).Razorpay({
+            // Razorpay.open() is non-blocking, so the button's busy state is
+            // cleared from the modal's terminal callbacks (success / dismiss /
+            // failure) — NOT synchronously after open(), which would unlock the
+            // button while the modal is still up.
+            const rzp = new (window as any).Razorpay({
                 key: data.keyId,
                 amount: data.amount,
                 currency: data.currency || "INR",
@@ -289,34 +334,74 @@ export default function MembershipPage() {
                 description: `${data.planName} membership`,
                 order_id: data.razorpayOrderId,
                 handler: async (resp: any) => {
-                    const v = await teacherFetch(firebaseUser, "/api/subscription/verify", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            orderId: data.orderId,
-                            razorpayOrderId: data.razorpayOrderId,
-                            razorpayPaymentId: resp.razorpay_payment_id,
-                            razorpaySignature: resp.razorpay_signature,
-                        }),
-                    });
-                    const vd = await v.json();
-                    if (vd.success) {
-                        setPromoMsg({ ok: true, text: "Payment successful — membership active!" });
-                        await load();
-                    } else {
-                        setPromoMsg({ ok: false, text: vd.error || "Verification failed" });
+                    try {
+                        const v = await teacherFetch(firebaseUser, "/api/subscription/verify", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                orderId: data.orderId,
+                                razorpayOrderId: data.razorpayOrderId,
+                                razorpayPaymentId: resp.razorpay_payment_id,
+                                razorpaySignature: resp.razorpay_signature,
+                            }),
+                        });
+                        const vd = await v.json();
+                        if (vd.success) {
+                            await onSubscribed("Payment successful — you're Premium! 🎉");
+                        } else {
+                            setPromoMsg({ ok: false, text: vd.error || "Verification failed" });
+                            toast.error(vd.error || "Verification failed");
+                        }
+                    } finally {
+                        setBusyPlan(null);
                     }
                 },
+                modal: {
+                    ondismiss: () => {
+                        setBusyPlan(null);
+                        setPromoMsg({ ok: false, text: "Payment cancelled — you can try again any time." });
+                    },
+                },
                 theme: { color: "#0d9488" },
-            }).open();
+            });
+            rzp.on("payment.failed", (resp: any) => {
+                setBusyPlan(null);
+                const msg = resp?.error?.description || "Payment failed. Please try again.";
+                setPromoMsg({ ok: false, text: msg });
+                toast.error(msg);
+            });
+            rzp.open();
         } catch (e: any) {
-            setPromoMsg({ ok: false, text: e.message || "Failed" });
-        } finally {
             setBusyPlan(null);
+            setPromoMsg({ ok: false, text: e.message || "Failed" });
+            toast.error(e.message || "Something went wrong");
         }
     };
 
     return (
         <main className="min-h-screen bg-white">
+            {/* ───────────── Success modal ───────────── */}
+            {success && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+                    <Card className="w-full max-w-md p-8 text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <PartyPopper className="h-7 w-7" strokeWidth={2} aria-hidden />
+                        </div>
+                        <h3 className="mt-4 font-display text-2xl font-bold text-slate-900">
+                            You&apos;re Premium! 🎉
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-600">{success}</p>
+                        <div className="mt-6 flex flex-col gap-2">
+                            <Button variant="primary" onClick={() => router.push("/dashboard")}>
+                                Go to dashboard
+                            </Button>
+                            <Button variant="ghost" onClick={() => setSuccess(null)}>
+                                Keep browsing
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {/* ───────────── Hero ───────────── */}
             <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 text-white">
                 <div
@@ -445,6 +530,45 @@ export default function MembershipPage() {
                     )}
                 </div>
 
+                {/* Billing cadence toggle */}
+                {!loading && hasAnnual && paidPlans.length > 0 && (
+                    <div className="mt-8 flex justify-center">
+                        <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setBilling("monthly");
+                                    setPromoMsg(null);
+                                }}
+                                className={`rounded-full px-5 py-1.5 text-sm font-semibold transition ${
+                                    billing === "monthly"
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setBilling("annual");
+                                    setPromoMsg(null);
+                                }}
+                                className={`flex items-center gap-1.5 rounded-full px-5 py-1.5 text-sm font-semibold transition ${
+                                    billing === "annual"
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Annual
+                                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                                    Save more
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Plan cards */}
                 {loading ? (
                     <Card className="mt-10 p-14 text-center text-sm text-slate-500">
@@ -459,8 +583,18 @@ export default function MembershipPage() {
                         <div className={`mt-10 grid gap-5 ${paidPlans.length >= 3 ? "lg:grid-cols-3" : paidPlans.length === 2 ? "sm:grid-cols-2" : ""}`}>
                             {paidPlans.map((plan) => {
                                 const isCurrent = currentPlan === plan.code;
-                                const off = discountPct(plan.priceINR, plan.compareAtINR);
-                                const perMonth = perMonthHint(plan);
+                                const price = priceFor(plan);
+                                const unit = unitFor(plan);
+                                const isAnnual = unit === "year";
+                                const savePct = annualSavePct(plan);
+                                const monthlyOff = discountPct(
+                                    plan.monthlyPriceINR ?? plan.priceINR,
+                                    plan.compareAtINR
+                                );
+                                const monthlyEq =
+                                    isAnnual && plan.annualPriceINR
+                                        ? Math.round(plan.annualPriceINR / 12)
+                                        : null;
                                 return (
                                     <Card
                                         key={plan.id}
@@ -491,7 +625,7 @@ export default function MembershipPage() {
                                         {/* Plan header */}
                                         <div>
                                             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                {intervalChip(plan.interval)}
+                                                {isAnnual ? "Billed annually" : "Billed monthly"}
                                             </p>
                                             <h3 className="mt-1 font-display text-2xl font-bold text-slate-900">
                                                 {plan.name}
@@ -506,24 +640,38 @@ export default function MembershipPage() {
                                         {/* Pricing block */}
                                         <div className="mt-5 flex items-end gap-2">
                                             <span className="font-display text-4xl font-bold text-slate-900">
-                                                {formatINR(plan.priceINR)}
+                                                {formatINR(price)}
                                             </span>
-                                            <span className="pb-1 text-sm text-slate-500">
-                                                / {intervalLabel(plan.interval)}
-                                            </span>
+                                            <span className="pb-1 text-sm text-slate-500">/ {unit}</span>
                                         </div>
                                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                                            {plan.compareAtINR && (
-                                                <span className="text-slate-400 line-through">
-                                                    {formatINR(plan.compareAtINR)}
-                                                </span>
+                                            {isAnnual ? (
+                                                <>
+                                                    {monthlyEq != null && (
+                                                        <span className="text-slate-500">
+                                                            ≈ {formatINR(monthlyEq)} / month
+                                                        </span>
+                                                    )}
+                                                    {savePct != null && (
+                                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                                            Save {savePct}% vs monthly
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {plan.compareAtINR && (
+                                                        <span className="text-slate-400 line-through">
+                                                            {formatINR(plan.compareAtINR)}
+                                                        </span>
+                                                    )}
+                                                    {monthlyOff && (
+                                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                                            Save {monthlyOff}%
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
-                                            {off && (
-                                                <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                                    Save {off}%
-                                                </span>
-                                            )}
-                                            {perMonth && <span className="text-slate-500">{perMonth}</span>}
                                         </div>
 
                                         {/* Feature list */}
@@ -557,7 +705,7 @@ export default function MembershipPage() {
                                             )}
                                             {promo && (
                                                 <button
-                                                    onClick={() => applyPromo(plan.code, plan.priceINR)}
+                                                    onClick={() => applyPromo(plan.code, priceFor(plan))}
                                                     className="mt-2 w-full text-center text-xs text-primary-700 hover:underline"
                                                 >
                                                     Check promo on this plan

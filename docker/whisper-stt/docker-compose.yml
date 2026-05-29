@@ -1,0 +1,24 @@
+services:
+  whisper-stt:
+    build: .
+    image: digimine-whisper-stt:latest
+    container_name: whisper-stt
+    restart: unless-stopped
+    ports:
+      - "2002:2002"
+    environment:
+      PORT: "2002"
+      WHISPER_STT_SECRET: "${WHISPER_STT_SECRET:-}"
+      # whisper-tiny.en = fastest; set to onnx-community/whisper-base.en for accuracy.
+      WHISPER_MODEL: "${WHISPER_MODEL:-onnx-community/whisper-tiny.en}"
+    volumes:
+      - whisper-cache:/app/.cache
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:2002/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+
+volumes:
+  whisper-cache:

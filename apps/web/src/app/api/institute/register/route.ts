@@ -219,12 +219,20 @@ export async function POST(req: Request) {
             updatedAt: now,
         };
 
-        await ref.set(data);
-
-        // Write the founding admin row.
+        // All three writes — institute doc, founding admin row, and the user's
+        // role promotion — go in ONE atomic batch. Previously these were three
+        // separate awaited writes: if the 2nd or 3rd failed, an orphaned
+        // institute was left behind with no admin row / unpromoted user, and a
+        // retry couldn't find the admin row (so it created a DUPLICATE) yet the
+        // route guards could never resolve the institute → permanent dead-end.
+        // A batch is all-or-nothing, so a failure leaves zero state and the
+        // user can simply retry cleanly.
         const userSnap = await adminDb.collection("users").doc(userId).get();
         const userData = userSnap.exists ? userSnap.data() || {} : {};
-        await ref.collection("admins").doc(userId).set({
+
+        const batch = adminDb.batch();
+        batch.set(ref, data);
+        batch.set(ref.collection("admins").doc(userId), {
             userId,
             email: userData.email || "",
             name: userData.displayName || userData.name || "",
@@ -232,20 +240,17 @@ export async function POST(req: Request) {
             addedAt: now,
             addedBy: userId,
         });
-
-        // Promote the user role for sidebar / route guards.
-        await adminDb
-            .collection("users")
-            .doc(userId)
-            .set(
-                {
-                    role: "institute_admin",
-                    instituteId: ref.id,
-                    onboardingStep: "complete",
-                    updatedAt: now,
-                },
-                { merge: true }
-            );
+        batch.set(
+            adminDb.collection("users").doc(userId),
+            {
+                role: "institute_admin",
+                instituteId: ref.id,
+                onboardingStep: "complete",
+                updatedAt: now,
+            },
+            { merge: true }
+        );
+        await batch.commit();
 
         await logInstituteSignupAttempt({
             userId,

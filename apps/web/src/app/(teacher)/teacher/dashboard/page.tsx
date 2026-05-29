@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card } from "@digimine/ui";
+import { Card, Button } from "@digimine/ui";
 import { FileText, ClipboardList, Trophy, BookOpen, Users } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { signOut } from "@/lib/firebase/auth";
 import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
 import { HelpTutorial } from "@/components/help/HelpTutorial";
 import { TUTORIALS } from "@/components/help/tutorials";
@@ -42,34 +43,49 @@ export default function TeacherDashboardPage() {
 
   useEffect(() => {
     if (!firebaseUser) return;
+    let cancelled = false;
     (async () => {
-      const t = await getTeacher(firebaseUser.uid);
-      setTeacher(t);
-      const [q, ts, c, cs, e] = await Promise.all([
-        getTeacherQuizzes(firebaseUser.uid),
-        getTeacherTests(firebaseUser.uid),
-        getTeacherCourses(firebaseUser.uid),
-        getTeacherContests(firebaseUser.uid),
-        getTeacherEnrollments(firebaseUser.uid),
-      ]);
-      setStats({
-        quizzes: q.length,
-        tests: ts.length,
-        courses: c.length,
-        contests: cs.length,
-        students: e.filter((en) => en.status === "active").length,
-      });
-      if (t?.subscription?.status === "trial" && t.subscription?.expiresAt) {
-        const exp = toDate(t.subscription.expiresAt);
-        if (exp) {
-          const diff = Math.ceil(
-            (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          );
-          setTrialDays(Math.max(0, diff));
+      try {
+        const t = await getTeacher(firebaseUser.uid);
+        if (cancelled) return;
+        setTeacher(t);
+        const [q, ts, c, cs, e] = await Promise.all([
+          getTeacherQuizzes(firebaseUser.uid),
+          getTeacherTests(firebaseUser.uid),
+          getTeacherCourses(firebaseUser.uid),
+          getTeacherContests(firebaseUser.uid),
+          getTeacherEnrollments(firebaseUser.uid),
+        ]);
+        if (cancelled) return;
+        setStats({
+          quizzes: q.length,
+          tests: ts.length,
+          courses: c.length,
+          contests: cs.length,
+          students: e.filter((en) => en.status === "active").length,
+        });
+        if (t?.subscription?.status === "trial" && t.subscription?.expiresAt) {
+          const exp = toDate(t.subscription.expiresAt);
+          if (exp) {
+            const diff = Math.ceil(
+              (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            );
+            setTrialDays(Math.max(0, diff));
+          }
         }
+      } catch (err) {
+        // A transient read failure must NOT hang the page on "Loading…"
+        // forever — clear loading in `finally` and let the recovery card
+        // (below, when `teacher` is still null) offer a retry.
+        // eslint-disable-next-line no-console
+        console.error("Teacher dashboard load failed:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [firebaseUser]);
 
   if (loading)
@@ -80,14 +96,36 @@ export default function TeacherDashboardPage() {
     );
   if (!teacher)
     return (
-      <Card className="p-8 text-center text-gray-500">
-        Profile not found.{" "}
-        <Link
-          href="/teacher/onboarding"
-          className="text-primary-700 hover:text-primary-800"
-        >
-          Complete onboarding →
-        </Link>
+      <Card className="mx-auto max-w-md p-8 text-center">
+        <p className="font-semibold text-slate-800">
+          We couldn&apos;t load your teacher profile
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          This is usually a temporary connection hiccup. Reload to try again — your
+          account and content are safe.
+        </p>
+        {/* Deliberately NOT a link to /teacher/onboarding: a teacher (role
+            already set) gets bounced straight back here by the layout guard,
+            which previously created an infinite dashboard → onboarding loop.
+            Reload retries the read; sign-out is the clean escape hatch. */}
+        <div className="mt-5 flex items-center justify-center gap-4">
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await signOut();
+              } finally {
+                window.location.href = "/login";
+              }
+            }}
+            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Sign out
+          </button>
+        </div>
       </Card>
     );
 

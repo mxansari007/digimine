@@ -56,6 +56,10 @@ export async function GET(req: Request) {
                     recommended: Boolean(data.recommended),
                     badge: data.badge ?? null,
                     sortOrder: data.sortOrder ?? 0,
+                    features:
+                        data.features && typeof data.features === "object" ? data.features : {},
+                    quotas:
+                        data.quotas && typeof data.quotas === "object" ? data.quotas : {},
                 };
             })
             .filter((p) => p.isActive)

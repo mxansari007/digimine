@@ -58,6 +58,10 @@ export default function InstitutePhoneOnboardingPage() {
         });
         if (!res.ok) {
             const d = await res.json().catch(() => ({}));
+            // The OTP confirmation is single-use — reset to the phone-entry step
+            // so the user can request a fresh code or change the number, rather
+            // than being stuck on a dead OTP field after a save error.
+            otp.changeNumber();
             window.alert(d?.error || "We couldn't save that phone number. Please try again.");
             return;
         }

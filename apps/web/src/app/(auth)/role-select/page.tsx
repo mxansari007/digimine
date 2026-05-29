@@ -182,14 +182,30 @@ export default function RoleSelectPage() {
             // role=customer via Admin SDK; the snapshot listener then fires
             // and the useEffect above forwards to `next || /dashboard`.
             const token = await firebaseUser.getIdToken();
-            const res = await fetch("/api/auth/role-select", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ role: "student" }),
-            });
+            // Bound the request so a hung connection can't leave the user
+            // staring at a "Setting up…" spinner forever — an abort surfaces a
+            // retryable error (caught below) instead of silently hanging.
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            let res: Response;
+            try {
+                res = await fetch("/api/auth/role-select", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ role: "student" }),
+                    signal: controller.signal,
+                });
+            } catch (fetchErr) {
+                if ((fetchErr as Error)?.name === "AbortError") {
+                    throw new Error("That took too long. Check your connection and try again.");
+                }
+                throw fetchErr;
+            } finally {
+                clearTimeout(timeout);
+            }
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.error || `Failed (${res.status}).`);

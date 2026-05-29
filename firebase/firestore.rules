@@ -1089,6 +1089,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // AI mock interviews — owner-only. All writes go through server (admin
+    // SDK) routes; these rules govern any direct client read of the user's
+    // own sessions / readiness rollup.
+    match /aiInterviewSessions/{sessionId} {
+      // Owner (or admin) may READ their sessions. ALL writes go through the
+      // server (admin SDK) API routes, which enforce the premium gate, daily
+      // quota, and lifecycle — so clients get no direct write access.
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+    match /aiInterviewReadiness/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
     // ─── Consumer subscription control plane ────────────────────────────
     // Plans + global config + promo codes are admin-authored and publicly
     // readable (the membership page renders them). Sensitive promo internals
