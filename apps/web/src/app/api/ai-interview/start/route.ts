@@ -106,15 +106,27 @@ export async function POST(req: Request) {
         const isCoding = interviewType === "dsa" || interviewType === "sql";
         let problem: Awaited<ReturnType<typeof pickInterviewProblem>> = null;
         if (isCoding) {
-            problem = await pickInterviewProblem(config);
+            // Free users only get non-premium problems (the interview exposes the
+            // problem's full paid content); paid users get the whole library.
+            problem = await pickInterviewProblem(config, { allowPremium: ent.isPaid });
             if (!problem) {
+                const kindLabel = interviewType === "sql" ? "SQL" : "coding";
+                // For a free user, "no problem" usually means the only matching
+                // problems are premium (which they can't be served) — point them
+                // to upgrade rather than a dead-end. A paid user seeing this means
+                // the bank genuinely has none of this kind yet.
+                if (!ent.isPaid) {
+                    return NextResponse.json(
+                        {
+                            error: `No free ${kindLabel} interview problems are available right now. Upgrade to unlock the full problem library.`,
+                            code: "premium_required",
+                            upgradeUrl: "/membership",
+                        },
+                        { status: 402 }
+                    );
+                }
                 return NextResponse.json(
-                    {
-                        error:
-                            interviewType === "sql"
-                                ? "No SQL interview problems are available yet. Please try again later."
-                                : "No interview problems are available yet. Please try again later.",
-                    },
+                    { error: `No ${kindLabel} interview problems are available yet. Please try again later.` },
                     { status: 404 }
                 );
             }

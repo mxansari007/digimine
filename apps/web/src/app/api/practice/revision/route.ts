@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
+import { getEntitlements } from "@/lib/server/entitlements";
 import { PROBLEMS, PROGRESS, serializeProblemSummary } from "@/lib/server/practice";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,16 @@ export async function GET(req: Request) {
     try {
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) return NextResponse.json({ error: "Sign in." }, { status: 401 });
+
+        // Premium feature gate — Revision Radar is plan-gated. (Free in launch
+        // mode; gated to plans that grant it once enforced.)
+        const ent = await getEntitlements(userId);
+        if (!ent.features.revision_radar) {
+            return NextResponse.json(
+                { error: "Revision Radar is a premium feature. Upgrade to unlock.", code: "premium_required", upgradeUrl: "/membership" },
+                { status: 402 }
+            );
+        }
 
         const now = Timestamp.now();
         let snap: FirebaseFirestore.QuerySnapshot;

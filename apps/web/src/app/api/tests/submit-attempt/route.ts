@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase/admin";
 import {
     requireOwnedAttempt,
     serializeTestAttempt,
     submitTestAttemptServer,
 } from "@/lib/server/testAttempts";
+import { userOwnsTestSeries, isPaidCatalogSeries } from "@/lib/server/testAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,29 @@ export async function POST(req: Request) {
         const owned = await requireOwnedAttempt(req, attemptId);
         if (owned.error) {
             return NextResponse.json({ error: owned.error.message }, { status: owned.error.status });
+        }
+
+        // Paid-catalogue purchase gate (mirrors start-attempt). Firestore rules
+        // let a client CREATE a testAttempts doc directly without buying the
+        // series; without this, grading it server-side would hand back the
+        // answer key for a paid test the user never purchased.
+        const seriesId = String(owned.attempt?.seriesId || "");
+        const contestId = owned.attempt?.contestId || null;
+        if (seriesId && !contestId) {
+            const seriesSnap = await adminDb.collection("tests").doc(seriesId).get();
+            const series: any = seriesSnap.exists
+                ? { id: seriesSnap.id, ...seriesSnap.data() }
+                : null;
+            if (
+                series &&
+                isPaidCatalogSeries(series) &&
+                !(await userOwnsTestSeries(owned.userId!, seriesId))
+            ) {
+                return NextResponse.json(
+                    { error: "Purchase this test series to submit it.", code: "purchase_required" },
+                    { status: 402 }
+                );
+            }
         }
 
         const answers = normalizeAnswers(body.answers);

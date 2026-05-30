@@ -5,6 +5,7 @@ import { previewAttemptOverlay } from "@/lib/server/userRole";
 import { requireAssignedRole } from "@/lib/server/roleGate";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { assertContestClassroomAccess } from "@/lib/server/quizAttempts";
+import { userOwnsTestSeries, isPaidCatalogSeries } from "@/lib/server/testAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -255,6 +256,24 @@ export async function POST(req: Request) {
                 return NextResponse.json(
                     { error: "You're not enrolled in any class with this test." },
                     { status: 403 }
+                );
+            }
+        }
+
+        // ── Paid catalogue purchase gate ───────────────────────────────────
+        //
+        // Public catalogue series (no teacher/institute owner, not a contest)
+        // with a paid accessType require a purchase. The Firestore rules gate
+        // direct client reads of the questions, but this route loads them via
+        // the Admin SDK (which bypasses rules) and returns them in the response
+        // — so without this check a free user could attempt a paid series by
+        // calling the API directly.
+        if (!contestContext && isPaidCatalogSeries(series)) {
+            const owned = await userOwnsTestSeries(String(userId), seriesId);
+            if (!owned) {
+                return NextResponse.json(
+                    { error: "Purchase this test series to attempt it.", code: "purchase_required" },
+                    { status: 402 }
                 );
             }
         }

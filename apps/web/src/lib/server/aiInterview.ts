@@ -144,11 +144,19 @@ function pickFromPool(
  * everything else (DSA) from the code bank.
  */
 export async function pickInterviewProblem(
-    config: AIInterviewConfig
+    config: AIInterviewConfig,
+    opts: { allowPremium?: boolean } = {}
 ): Promise<(PracticeProblem & { id: string }) | null> {
     const kind = config.interviewType === "sql" ? "sql" : "dsa";
+    // Non-paid users must never be served a premium (access:"premium") problem
+    // — the interview hands back its full statement, starters, hints and SQL
+    // schema, which is exactly the paid practice content. Free interviews draw
+    // from the non-premium pool only; paid users get the whole library.
+    const allowPremium = opts.allowPremium === true;
     const mapDocs = (snap: { docs: Array<{ id: string; data: () => any }> }) =>
-        snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Array<
+        snap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as any) }))
+            .filter((p: any) => allowPremium || p.access !== "premium") as Array<
             PracticeProblem & { id: string }
         >;
 

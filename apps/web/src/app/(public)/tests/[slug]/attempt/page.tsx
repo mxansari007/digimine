@@ -1097,7 +1097,12 @@ export default function TestAttemptPage() {
 
     const fetchAttempt = async (attemptId: string): Promise<TestAttempt | null> => {
         if (isClassroomContext) {
-            const res = await fetch(`/api/tests/attempt?attemptId=${encodeURIComponent(attemptId)}`);
+            // /api/tests/attempt now requires auth + ownership (it used to be an
+            // open IDOR), so pass the caller's bearer token.
+            const token = await firebaseUser?.getIdToken();
+            const res = await fetch(`/api/tests/attempt?attemptId=${encodeURIComponent(attemptId)}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             if (!res.ok) return null;
             const payload = await res.json().catch(() => ({}));
             return (payload.attempt as TestAttempt) || null;

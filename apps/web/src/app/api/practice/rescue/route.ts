@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
+import { getEntitlements } from "@/lib/server/entitlements";
 import { loadProblemById } from "@/lib/server/practice";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,15 @@ export async function POST(req: Request) {
     try {
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) return NextResponse.json({ error: "Sign in." }, { status: 401 });
+
+        // Premium feature gate — Mentor Rescue is plan-gated.
+        const ent = await getEntitlements(userId);
+        if (!ent.features.mentor_rescue) {
+            return NextResponse.json(
+                { error: "Mentor Rescue is a premium feature. Upgrade to unlock.", code: "premium_required", upgradeUrl: "/membership" },
+                { status: 402 }
+            );
+        }
 
         const body = await req.json().catch(() => ({}));
         const problemId = String(body.problemId || "");
