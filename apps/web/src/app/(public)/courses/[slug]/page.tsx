@@ -7,9 +7,10 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { getCourseBySlug, getCourseChapters, getCourseEnrollment } from "@/lib/firestore/courses";
+import { getCourseBySlug, getCourseEnrollment } from "@/lib/firestore/courses";
 import { getTestSeriesBySlug } from "@/lib/firestore/tests";
-import type { Course, CourseNoteChapter, CourseNoteSubtopic, TestSeries } from "@digimine/types";
+import { chapterSlug } from "@/components/courses/chapter";
+import type { Course, TestSeries } from "@digimine/types";
 
 type RazorpayPaymentResponse = {
     razorpay_payment_id: string;
@@ -39,11 +40,9 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
     const router = useRouter();
     const { firebaseUser } = useAuthContext();
     const [course, setCourse] = useState<Course | null>(null);
-    const [chapters, setChapters] = useState<CourseNoteChapter[]>([]);
     const [linkedTests, setLinkedTests] = useState<TestSeries[]>([]);
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [notesLoading, setNotesLoading] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [razorpayReady, setRazorpayReady] = useState(false);
     const [paymentProcessing, setPaymentProcessing] = useState(false);
@@ -67,25 +66,15 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 setLinkedTests(tests.filter(Boolean) as TestSeries[]);
 
                 if (courseData.accessType === "free") {
-                    setNotesLoading(true);
-                    const notes = await getCourseChapters(courseData.id);
-                    setChapters(notes);
                     setIsEnrolled(true);
                 } else if (firebaseUser) {
                     const enrollment = await getCourseEnrollment(firebaseUser.uid, courseData.id);
-                    const active = enrollment?.status === "active";
-                    setIsEnrolled(active);
-                    if (active) {
-                        setNotesLoading(true);
-                        const notes = await getCourseChapters(courseData.id);
-                        setChapters(notes);
-                    }
+                    setIsEnrolled(enrollment?.status === "active");
                 }
             } catch (err) {
                 console.error("Error loading course:", err);
                 setError(err instanceof Error ? err.message : "Failed to load course");
             } finally {
-                setNotesLoading(false);
                 setLoading(false);
             }
         }
@@ -131,8 +120,6 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
             if (!response.ok) throw new Error(data.error || "Failed to enroll");
 
             setIsEnrolled(true);
-            const notes = await getCourseChapters(course.id);
-            setChapters(notes);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to enroll");
         } finally {
@@ -181,8 +168,6 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
 
             if (orderData.alreadyPurchased) {
                 setIsEnrolled(true);
-                const notes = await getCourseChapters(course.id);
-                setChapters(notes);
                 setPaymentProcessing(false);
                 return;
             }
@@ -228,8 +213,6 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                         }
 
                         setIsEnrolled(true);
-                        const notes = await getCourseChapters(course.id);
-                        setChapters(notes);
                     } catch (err) {
                         console.error("Course payment verification failed:", err);
                         setError(err instanceof Error ? err.message : "Payment verification failed. Please contact support.");
@@ -366,10 +349,10 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                             : "Sign In to Enroll"}
                                 </Button>
                             )}
-                            {canReadNotes && (
-                                <a href="#course-notes" className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#020617] px-4 py-3 text-sm font-bold text-white hover:bg-[#1e293b]">
+                            {canReadNotes && notesOutline.length > 0 && (
+                                <Link href={`/courses/${params.slug}/${chapterSlug(notesOutline[0])}`} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#020617] px-4 py-3 text-sm font-bold text-white hover:bg-[#1e293b]">
                                     Start Reading
-                                </a>
+                                </Link>
                             )}
                         </div>
                     </div>
@@ -379,47 +362,54 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
             <section className="container-page grid gap-8 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div id="course-notes" className="space-y-5">
                     <div>
-                        <h2 className="text-2xl font-black text-slate-950">Course Notes</h2>
+                        <h2 className="text-2xl font-black text-slate-950">Chapters</h2>
                         <p className="mt-1 text-slate-500">
-                            {canReadNotes ? "Chapter-wise material with diagrams and videos." : "Preview the course outline before enrollment."}
+                            {canReadNotes
+                                ? "Open any chapter to read its notes, diagrams and videos on its own page."
+                                : "Preview the course outline. Unlock to open each chapter."}
                         </p>
                     </div>
 
-                    {notesLoading ? (
-                        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-                            Loading notes...
-                        </div>
-                    ) : canReadNotes ? (
-                        chapters.length > 0 ? (
-                            <div className="space-y-5">
-                                {chapters.map((chapter, index) => (
-                                    <CourseChapter key={chapter.id} chapter={chapter} index={index} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
-                                Notes are being prepared for this course.
-                            </div>
-                        )
-                    ) : (
-                        <div className="space-y-4">
-                            {notesOutline.map((chapter, index) => (
-                                <div key={chapter.id} className="rounded-3xl border border-slate-200 bg-white p-5">
-                                    <p className="text-xs font-black uppercase tracking-[0.14em] text-primary-600">
-                                        Chapter {index + 1}
-                                    </p>
-                                    <h3 className="mt-1 text-xl font-black text-slate-950">{chapter.title}</h3>
-                                    {chapter.description && <p className="mt-2 text-sm text-slate-500">{chapter.description}</p>}
-                                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                                        {(chapter.subtopics || []).map((subtopic) => (
-                                            <div key={subtopic.id} className="rounded-xl bg-slate-50 px-3 py-2">
-                                                <p className="truncate text-sm font-bold text-slate-700">{subtopic.title}</p>
-                                                {subtopic.summary && <p className="mt-1 line-clamp-1 text-xs text-slate-500">{subtopic.summary}</p>}
+                    {notesOutline.length > 0 ? (
+                        <div className="space-y-3">
+                            {notesOutline.map((chapter, index) => {
+                                const card = (
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition group-hover:border-primary-300 group-hover:shadow-sm">
+                                        <div className="flex items-start gap-4">
+                                            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-black text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
+                                                {index + 1}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-lg font-black text-slate-950">{chapter.title}</h3>
+                                                {chapter.description && <p className="mt-1 text-sm text-slate-500">{chapter.description}</p>}
+                                                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                                                    {(chapter.subtopics || []).length} subtopics
+                                                </p>
                                             </div>
-                                        ))}
+                                            <span className="mt-1 shrink-0 text-slate-400">
+                                                {canReadNotes ? (
+                                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.3 5.3a1 1 0 011.4 0l4 4a1 1 0 010 1.4l-4 4a1 1 0 01-1.4-1.4L10.6 10 7.3 6.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
+                                                ) : (
+                                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 1a4 4 0 00-4 4v2H5a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-1V5a4 4 0 00-4-4zm2 6V5a2 2 0 10-4 0v2h4z" clipRule="evenodd" /></svg>
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                                return canReadNotes ? (
+                                    <Link key={chapter.id} href={`/courses/${params.slug}/${chapterSlug(chapter)}`} className="group block">
+                                        {card}
+                                    </Link>
+                                ) : (
+                                    <div key={chapter.id} className="group block cursor-not-allowed opacity-90">
+                                        {card}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
+                            Chapters are being prepared for this course.
                         </div>
                     )}
                 </div>
@@ -477,78 +467,5 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 </aside>
             </section>
         </div>
-    );
-}
-
-function CourseChapter({ chapter, index }: { chapter: CourseNoteChapter; index: number }) {
-    return (
-        <details className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" open={index === 0}>
-            <summary className="flex cursor-pointer list-none items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-primary-600">Chapter {index + 1}</p>
-                    <h3 className="mt-1 text-2xl font-black text-slate-950">{chapter.title}</h3>
-                    {chapter.description && <p className="mt-1 text-sm text-slate-500">{chapter.description}</p>}
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 group-open:bg-primary-50 dark:group-open:bg-primary-500/10 group-open:text-primary-700 dark:group-open:text-primary-300">
-                    {(chapter.subtopics || []).length} subtopics
-                </span>
-            </summary>
-            <div className="divide-y divide-slate-100">
-                {(chapter.subtopics || []).map((subtopic, subtopicIndex) => (
-                    <CourseSubtopic key={subtopic.id} subtopic={subtopic} index={subtopicIndex} />
-                ))}
-            </div>
-        </details>
-    );
-}
-
-function CourseSubtopic({ subtopic, index }: { subtopic: CourseNoteSubtopic; index: number }) {
-    return (
-        <article className="p-5 lg:p-6">
-            <div className="mb-5">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Subtopic {index + 1}</p>
-                <h4 className="mt-1 text-xl font-black text-slate-950">{subtopic.title}</h4>
-                {subtopic.summary && <p className="mt-1 text-sm text-slate-500">{subtopic.summary}</p>}
-            </div>
-
-            {subtopic.contentHtml && <FormattedContent html={subtopic.contentHtml} size="base" className="text-slate-700" />}
-
-            {(subtopic.imageUrls || []).length > 0 && (
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {subtopic.imageUrls.map((url, imageIndex) => (
-                        <a
-                            key={`${url}-${imageIndex}`}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-                        >
-                            <img src={url} alt={`${subtopic.title} diagram ${imageIndex + 1}`} className="h-56 w-full object-contain" />
-                        </a>
-                    ))}
-                </div>
-            )}
-
-            {(subtopic.videos || []).length > 0 && (
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                    {subtopic.videos.map((video) => (
-                        <div key={video.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-[#020617] shadow-sm">
-                            <div className="aspect-video">
-                                <iframe
-                                    src={`https://www.youtube.com/embed/${video.videoId}`}
-                                    title={video.title}
-                                    className="h-full w-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowFullScreen
-                                />
-                            </div>
-                            <div className="border-t border-white/10 px-4 py-3">
-                                <p className="truncate text-sm font-bold text-white">{video.title}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </article>
     );
 }
