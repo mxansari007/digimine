@@ -8,15 +8,20 @@ const WEB_API_URL =
 
 const nextConfig = {
     reactStrictMode: true,
-    // Next's "Collecting build traces" step runs the shared monorepo
-    // node_modules (which contains onnxruntime-node — 405 MB of native files,
-    // a web-app dependency) through micromatch, which recurses until the call
-    // stack overflows ("RangeError: Maximum call stack size exceeded") and
-    // fails the build. The admin app ships NO serverless functions that need
-    // tracing — every page is a client component prerendered to static HTML,
-    // and its only `/api/*` paths are rewritten to the web app — so disabling
-    // the trace step is safe and sidesteps the crash entirely.
-    outputFileTracing: false,
+    // onnxruntime-node (405 MB of native binaries, a web-app dep) is excluded
+    // from tracing so it doesn't trigger the micromatch stack-overflow that
+    // previously forced outputFileTracing:false. Dynamic admin routes like
+    // /courses/[id]/edit need tracing ON so Vercel bundles the modules they
+    // import at runtime; without it they throw "Cannot find module" 500s.
+    experimental: {
+        serverComponentsExternalPackages: ["undici"],
+        outputFileTracingExcludes: {
+            "*": [
+                "./node_modules/onnxruntime-node/**",
+                "../../node_modules/onnxruntime-node/**",
+            ],
+        },
+    },
     transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         domains: ["firebasestorage.googleapis.com"],
@@ -71,9 +76,6 @@ const nextConfig = {
         }
 
         return config;
-    },
-    experimental: {
-        serverComponentsExternalPackages: ["undici"],
     },
 };
 
