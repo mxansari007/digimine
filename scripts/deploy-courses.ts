@@ -744,6 +744,31 @@ async function deployCourse(
     teacherId: "", classIds: [], isDeleted: false,
     createdAt: ts, updatedAt: ts, createdBy: "placement-content",
   });
+
+  // ALSO write the `chapters` SUBCOLLECTION — the admin CourseNotesEditor binds
+  // to course.chapters (loaded from courses/{id}/chapters), NOT the inline
+  // notesOutline. Without these docs the editor shows "0 chapters". Each doc is
+  // a full CourseNoteChapter { id, title, description, order, subtopics:[{ id,
+  // title, summary, contentHtml, imageUrls, videos, order }] }.
+  const chaptersRef = db.collection("courses").doc(c.slug).collection("chapters");
+  const oldChapters = await chaptersRef.get();
+  if (!oldChapters.empty) {
+    const wipe = db.batch();
+    oldChapters.docs.forEach((d) => wipe.delete(d.ref));
+    await wipe.commit();
+  }
+  const chBatch = db.batch();
+  notesOutline.forEach((ch) => {
+    chBatch.set(chaptersRef.doc(ch.id), {
+      id: ch.id, title: ch.title, description: ch.description || "", order: ch.order,
+      subtopics: ch.subtopics.map((s) => ({
+        id: s.id, title: s.title, summary: s.summary || "",
+        contentHtml: "", imageUrls: [] as string[], videos: [] as any[], order: s.order,
+      })),
+    });
+  });
+  await chBatch.commit();
+
   return { slug: c.slug, chapters: notesSummary.chapterCount, subtopics: notesSummary.subtopicCount };
 }
 
