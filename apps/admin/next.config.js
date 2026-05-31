@@ -8,10 +8,23 @@ const WEB_API_URL =
 
 const nextConfig = {
     reactStrictMode: true,
-    // outputFileTracing must be ON so Vercel includes next/dist/... runtime
-    // files in the lambda bundle. The build script uses node --stack-size=65536
-    // to prevent the micromatch stack-overflow caused by onnxruntime-node's
-    // 405 MB of deeply-nested native files in the monorepo node_modules.
+    // outputFileTracing ON so Vercel includes next/dist/... runtime files in
+    // the lambda bundle (fixes "Cannot find module" 500s on edit pages).
+    // outputFileTracingExcludes skips onnxruntime-node (405 MB of native GPU
+    // binaries, a web-app dep hoisted to the monorepo root). Without the
+    // exclude the tracer walks all those files → very slow build on Vercel.
+    // The build script (package.json) passes --stack-size=65536 so the
+    // micromatch pattern-matching has enough stack for any remaining deep paths.
+    experimental: {
+        outputFileTracingExcludes: {
+            "*": [
+                "../../node_modules/onnxruntime-node/**",
+                "../../node_modules/onnxruntime-web/**",
+                "../../node_modules/@node-llama-cpp/**",
+                "../../node_modules/sharp/**",
+            ],
+        },
+    },
     transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         domains: ["firebasestorage.googleapis.com"],
