@@ -153,7 +153,7 @@ function VerifyEmailContent() {
     return (
         <Card className="w-full max-w-md p-8 shadow-lg">
             <div className="flex flex-col items-center text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300">
                     <Mail className="h-7 w-7" strokeWidth={1.75} aria-hidden />
                 </span>
                 <h1 className="mt-5 text-xl font-bold text-slate-900">
@@ -168,7 +168,7 @@ function VerifyEmailContent() {
                 </p>
             </div>
 
-            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <div className="mt-6 rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
                 <p className="flex items-start gap-2">
                     <AlertTriangle
                         className="mt-0.5 h-3.5 w-3.5 flex-shrink-0"

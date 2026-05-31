@@ -135,8 +135,8 @@ function getErrorMessage(error: unknown) {
 function statusBadge(status: TestStatus) {
     const styles = {
         draft: "bg-slate-100 text-slate-700",
-        published: "bg-emerald-100 text-emerald-700",
-        archived: "bg-amber-100 text-amber-700",
+        published: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+        archived: "bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300",
     };
     return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${styles[status]}`}>{status}</span>;
 }
@@ -714,7 +714,7 @@ export default function TeacherQuestionBankPage() {
             />
 
             {importOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
                         <div className="space-y-5 p-6">
                             <div className="flex items-start justify-between gap-4">
@@ -735,8 +735,8 @@ export default function TeacherQuestionBankPage() {
                             </div>
 
                             {importStatus && (
-                                <div className="rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                                    <div className="flex items-center justify-between gap-4 text-sm font-semibold text-primary-800">
+                                <div className="rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4">
+                                    <div className="flex items-center justify-between gap-4 text-sm font-semibold text-primary-800 dark:text-primary-300">
                                         <span>{importStatus}</span>
                                         {importProgress.total > 0 && <span>{importProgress.completed}/{importProgress.total}</span>}
                                     </div>
@@ -752,9 +752,9 @@ export default function TeacherQuestionBankPage() {
                             )}
 
                             {importErrors.length > 0 && (
-                                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                                    <h3 className="font-bold text-red-800">Fix these parser issues before importing</h3>
-                                    <div className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm text-red-700">
+                                <div className="rounded-2xl border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 p-4">
+                                    <h3 className="font-bold text-red-800 dark:text-red-300">Fix these parser issues before importing</h3>
+                                    <div className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm text-red-700 dark:text-red-300">
                                         {importErrors.map((error, index) => (
                                             <div key={`${error.line}-${index}`} className="rounded-lg bg-white/70 px-3 py-2">
                                                 Line {error.line}: {error.message}
@@ -838,17 +838,17 @@ export default function TeacherQuestionBankPage() {
                                         <p className="px-4 py-8 text-center text-sm text-slate-500">No valid questions were parsed from this file.</p>
                                     ) : importPreview.map((question, index) => (
                                         <div key={`${question.type}-${index}`} className="grid gap-3 px-4 py-3 text-sm md:grid-cols-[56px_1fr_180px] md:items-center">
-                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-50 font-black text-primary-700">{index + 1}</span>
+                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10 font-black text-primary-700 dark:text-primary-300">{index + 1}</span>
                                             <div>
                                                 <div className="font-bold text-slate-950">{createImportedTitle(question, index)}</div>
                                                 <p className="mt-1 line-clamp-1 text-slate-500">{stripFormattedContent(question.questionText)}</p>
                                             </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
                                                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{optionLabel(question.type)}</span>
-                                                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                                <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                                     {getImportedSectionTitle(question.sectionId) || importDefaults.topic.trim() || "General"}
                                                 </span>
-                                                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{question.marks} marks</span>
+                                                <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">{question.marks} marks</span>
                                             </div>
                                         </div>
                                     ))}
@@ -867,7 +867,7 @@ export default function TeacherQuestionBankPage() {
             )}
 
             {showForm && editingQuestion && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
                         <div className="space-y-5 p-6">
                             <div className="flex items-start justify-between gap-4">
@@ -928,8 +928,8 @@ export default function TeacherQuestionBankPage() {
                                 mediaUploadPath={`question-bank/${editingQuestion.id || "draft"}/question-text`}
                             />
 
-                            <details className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                                <summary className="cursor-pointer text-sm font-bold text-amber-900">Shared passage or case text (optional)</summary>
+                            <details className="rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50/50 dark:bg-amber-500/10 p-4">
+                                <summary className="cursor-pointer text-sm font-bold text-amber-900 dark:text-amber-300">Shared passage or case text (optional)</summary>
                                 <div className="mt-4 space-y-3">
                                     <input
                                         value={editingQuestion.passageGroup}

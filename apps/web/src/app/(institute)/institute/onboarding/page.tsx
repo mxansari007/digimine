@@ -120,14 +120,14 @@ export default function InstituteOnboardingPage() {
                         <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                             Invite code
                         </p>
-                        <div className="mt-2 inline-flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50 px-5 py-4">
-                            <p className="font-mono text-2xl font-bold tracking-wider text-primary-900 sm:text-3xl">
+                        <div className="mt-2 inline-flex items-center gap-3 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 px-5 py-4">
+                            <p className="font-mono text-2xl font-bold tracking-wider text-primary-900 dark:text-primary-300 sm:text-3xl">
                                 {institute.inviteCode}
                             </p>
                             <button
                                 type="button"
                                 onClick={onCopyInvite}
-                                className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-primary-700 shadow-sm ring-1 ring-primary-200 transition-colors hover:bg-primary-100"
+                                className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-primary-700 shadow-sm ring-1 ring-primary-200 dark:ring-primary-500/25 transition-colors hover:bg-primary-100 dark:hover:bg-primary-500/15"
                             >
                                 {copied ? "Copied!" : "Copy"}
                             </button>
@@ -225,7 +225,7 @@ export default function InstituteOnboardingPage() {
                     </FormField>
 
                     {error && (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                        <div className="rounded-xl border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">
                             {error}
                         </div>
                     )}

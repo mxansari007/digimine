@@ -363,7 +363,7 @@ export default function InstituteClassDetailPage() {
                                 key={s.id}
                                 className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
                             >
-                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary-600">
+                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300">
                                     <BookOpen
                                         className="h-3.5 w-3.5"
                                         strokeWidth={2}

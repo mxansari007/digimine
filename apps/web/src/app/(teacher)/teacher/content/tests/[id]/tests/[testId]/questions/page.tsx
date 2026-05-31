@@ -611,7 +611,7 @@ export default function TeacherTestQuestionsPage() {
                     questions.map((question, index) => (
                         <Card key={question.id} className="p-6">
                             <div className="flex items-start gap-4">
-                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 font-medium text-primary-700">
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 font-medium text-primary-700 dark:text-primary-300">
                                     {index + 1}
                                 </span>
                                 <div className="flex-1">
@@ -619,19 +619,19 @@ export default function TeacherTestQuestionsPage() {
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                             {question.type === "mcq" ? "MCQ" : question.type === "code" ? "Code" : "Text Input"}
                                         </span>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300">
                                             {question.marks} marks
                                         </span>
                                         {(question.negativeMarks || 0) > 0 && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300">
                                                 -{question.negativeMarks} neg
                                             </span>
                                         )}
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-green-100 text-green-800">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300">
                                             {question.difficulty}
                                         </span>
                                         {question.sectionId && sectionById.has(question.sectionId) && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-50 dark:bg-primary-500/10 text-primary-800 dark:text-primary-300">
                                                 {sectionById.get(question.sectionId)?.title}
                                             </span>
                                         )}
@@ -678,7 +678,7 @@ export default function TeacherTestQuestionsPage() {
                                             <div className="flex flex-wrap gap-2">
                                                 <span className="text-gray-500">Languages:</span>
                                                 {question.supportedLanguages?.map((lang) => (
-                                                    <span key={lang} className="px-2 py-0.5 bg-primary-50 text-primary-800 rounded text-xs font-medium">
+                                                    <span key={lang} className="px-2 py-0.5 bg-primary-50 dark:bg-primary-500/10 text-primary-800 dark:text-primary-300 rounded text-xs font-medium">
                                                         {lang}
                                                     </span>
                                                 ))}
@@ -812,8 +812,8 @@ export default function TeacherTestQuestionsPage() {
                                     />
                                 </div>
 
-                                <details className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                                    <summary className="cursor-pointer text-sm font-bold text-amber-900">
+                                <details className="rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50/50 dark:bg-amber-500/10 p-4">
+                                    <summary className="cursor-pointer text-sm font-bold text-amber-900 dark:text-amber-300">
                                         Shared passage or case text (optional)
                                     </summary>
                                     <div className="mt-4 space-y-3">
@@ -880,7 +880,7 @@ export default function TeacherTestQuestionsPage() {
                                                             />
                                                             Option {String.fromCharCode(65 + index)}
                                                             {option.isCorrect && (
-                                                                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
+                                                                <span className="rounded-full bg-green-100 dark:bg-green-500/15 px-2 py-0.5 text-xs font-bold text-green-700 dark:text-green-300">
                                                                     Correct
                                                                 </span>
                                                             )}
@@ -1014,7 +1014,7 @@ export default function TeacherTestQuestionsPage() {
                                                 Scoring Mode
                                             </label>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <label className={`relative flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${editingQuestion.codeScoringMode === 'all_or_nothing' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                                                <label className={`relative flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${editingQuestion.codeScoringMode === 'all_or_nothing' ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
                                                     <input
                                                         type="radio"
                                                         name="codeScoringMode"
@@ -1028,7 +1028,7 @@ export default function TeacherTestQuestionsPage() {
                                                         <div className="text-xs text-gray-500">Full marks only if all test cases pass. Otherwise 0 (or negative marks).</div>
                                                     </div>
                                                 </label>
-                                                <label className={`relative flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${editingQuestion.codeScoringMode === 'weighted' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                                                <label className={`relative flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${editingQuestion.codeScoringMode === 'weighted' ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
                                                     <input
                                                         type="radio"
                                                         name="codeScoringMode"
@@ -1336,22 +1336,22 @@ export default function TeacherTestQuestionsPage() {
                         <div className="p-6 overflow-y-auto flex-1 space-y-4">
                             {/* Summary */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
-                                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Ready to import</div>
-                                    <div className="text-2xl font-bold text-emerald-900 mt-1">{importPreview.length}</div>
+                                <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25">
+                                    <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Ready to import</div>
+                                    <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-300 mt-1">{importPreview.length}</div>
                                 </div>
-                                <div className="p-4 rounded-lg bg-primary-50 border border-primary-200">
-                                    <div className="text-xs font-bold text-primary-800 uppercase tracking-wider">Sections</div>
-                                    <div className="text-2xl font-bold text-primary-950 mt-1">{importSections.length}</div>
+                                <div className="p-4 rounded-lg bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/25">
+                                    <div className="text-xs font-bold text-primary-800 dark:text-primary-300 uppercase tracking-wider">Sections</div>
+                                    <div className="text-2xl font-bold text-primary-950 dark:text-primary-300 mt-1">{importSections.length}</div>
                                 </div>
-                                <div className={`p-4 rounded-lg border ${importErrors.length ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
-                                    <div className={`text-xs font-bold uppercase tracking-wider ${importErrors.length ? "text-red-700" : "text-gray-500"}`}>Errors</div>
-                                    <div className={`text-2xl font-bold mt-1 ${importErrors.length ? "text-red-900" : "text-gray-700"}`}>{importErrors.length}</div>
+                                <div className={`p-4 rounded-lg border ${importErrors.length ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25" : "bg-gray-50 border-gray-200"}`}>
+                                    <div className={`text-xs font-bold uppercase tracking-wider ${importErrors.length ? "text-red-700 dark:text-red-300" : "text-gray-500"}`}>Errors</div>
+                                    <div className={`text-2xl font-bold mt-1 ${importErrors.length ? "text-red-900 dark:text-red-300" : "text-gray-700"}`}>{importErrors.length}</div>
                                 </div>
                             </div>
 
                             {(importing || importStatus) && (
-                                <div className="p-4 rounded-lg bg-primary-50 border border-primary-200" role="status" aria-live="polite">
+                                <div className="p-4 rounded-lg bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/25" role="status" aria-live="polite">
                                     <div className="flex items-center gap-3">
                                         {importing && (
                                             <span className="h-4 w-4 rounded-full border-2 border-primary-200 border-t-primary-700 animate-spin" aria-hidden="true" />
@@ -1384,11 +1384,11 @@ export default function TeacherTestQuestionsPage() {
                             )}
 
                             {importSections.length > 0 && (
-                                <div className="p-4 rounded-lg bg-primary-50 border border-primary-200">
-                                    <h3 className="text-sm font-bold text-primary-950 mb-2">Sections to create or reuse</h3>
+                                <div className="p-4 rounded-lg bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/25">
+                                    <h3 className="text-sm font-bold text-primary-950 dark:text-primary-300 mb-2">Sections to create or reuse</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {importSections.map((section) => (
-                                            <span key={section.key} className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-primary-800 border border-primary-100">
+                                            <span key={section.key} className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-primary-800 dark:text-primary-300 border border-primary-100 dark:border-primary-500/25">
                                                 {section.title}
                                                 {section.marksPerQuestion !== undefined ? ` · ${section.marksPerQuestion} marks/Q` : ""}
                                                 {section.negativeMarks !== undefined ? ` · -${section.negativeMarks}` : ""}
@@ -1401,12 +1401,12 @@ export default function TeacherTestQuestionsPage() {
 
                             {/* Errors */}
                             {importErrors.length > 0 && (
-                                <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                                    <h3 className="text-sm font-bold text-red-900 mb-2">Issues found</h3>
-                                    <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25">
+                                    <h3 className="text-sm font-bold text-red-900 dark:text-red-300 mb-2">Issues found</h3>
+                                    <ul className="text-sm text-red-800 dark:text-red-300 space-y-1 list-disc list-inside">
                                         {importErrors.map((err, i) => (
                                             <li key={i}>
-                                                <span className="font-mono text-xs bg-red-100 px-1.5 py-0.5 rounded">line {err.line}</span> {err.message}
+                                                <span className="font-mono text-xs bg-red-100 dark:bg-red-500/15 px-1.5 py-0.5 rounded">line {err.line}</span> {err.message}
                                             </li>
                                         ))}
                                     </ul>
@@ -1421,7 +1421,7 @@ export default function TeacherTestQuestionsPage() {
                                         <div key={idx} className="p-3 rounded-lg border border-gray-200 bg-white">
                                             <div className="flex items-center justify-between gap-3 mb-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-800 text-xs font-bold">
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-500/15 text-primary-800 dark:text-primary-300 text-xs font-bold">
                                                         {idx + 1}
                                                     </span>
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-800">

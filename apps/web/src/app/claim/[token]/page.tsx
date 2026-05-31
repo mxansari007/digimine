@@ -203,7 +203,7 @@ export default function ClaimPage() {
         return (
             <OnboardingShell maxWidth="md">
                 <Card className="p-10 text-center">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
                         <Check className="h-8 w-8" strokeWidth={2.5} aria-hidden />
                     </div>
                     <h2 className="font-display text-xl font-bold text-slate-900">
@@ -304,7 +304,7 @@ export default function ClaimPage() {
                     </FormField>
 
                     {error && (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                        <div className="rounded-xl border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">
                             {error}
                         </div>
                     )}

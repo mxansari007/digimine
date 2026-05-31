@@ -98,7 +98,7 @@ export function DashboardShell({
           <button
             type="button"
             onClick={() => setIsMobileOpen(true)}
-            className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-primary-50 hover:text-primary-800"
+            className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-primary-50 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200"
             aria-label="Open sidebar"
           >
             <svg

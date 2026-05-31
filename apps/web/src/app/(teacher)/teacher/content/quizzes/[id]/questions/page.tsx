@@ -405,7 +405,7 @@ export default function TeacherQuizQuestionsPage() {
                     questions.map((question, index) => (
                         <Card key={question.id} className="p-6">
                             <div className="flex items-start gap-4">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-700">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 font-bold text-primary-700 dark:text-primary-300">
                                     {index + 1}
                                 </span>
                                 <div className="min-w-0 flex-1">
@@ -413,15 +413,15 @@ export default function TeacherQuizQuestionsPage() {
                                         <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold capitalize text-slate-700">
                                             {question.type === "mcq" ? "MCQ" : "Text input"}
                                         </span>
-                                        <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                                        <span className="rounded-full bg-blue-100 dark:bg-blue-500/15 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-300">
                                             {question.marks} marks
                                         </span>
-                                        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold capitalize text-emerald-700">
+                                        <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold capitalize text-emerald-700 dark:text-emerald-300">
                                             {question.difficulty}
                                         </span>
                                     </div>
                                     {question.passage && (
-                                        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                        <div className="mb-3 rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-3">
                                             <FormattedContent html={question.passage} size="sm" />
                                         </div>
                                     )}
@@ -498,18 +498,18 @@ export default function TeacherQuizQuestionsPage() {
 
                         <div className="flex-1 space-y-4 overflow-y-auto p-6">
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-700">Ready to import</div>
-                                    <div className="mt-1 text-2xl font-bold text-emerald-950">{importPreview.length}</div>
+                                <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 p-4">
+                                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Ready to import</div>
+                                    <div className="mt-1 text-2xl font-bold text-emerald-950 dark:text-emerald-300">{importPreview.length}</div>
                                 </div>
-                                <div className={`rounded-xl border p-4 ${importErrors.length ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
-                                    <div className={`text-xs font-bold uppercase tracking-wider ${importErrors.length ? "text-red-700" : "text-slate-500"}`}>Errors</div>
-                                    <div className={`mt-1 text-2xl font-bold ${importErrors.length ? "text-red-950" : "text-slate-700"}`}>{importErrors.length}</div>
+                                <div className={`rounded-xl border p-4 ${importErrors.length ? "border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10" : "border-slate-200 bg-slate-50"}`}>
+                                    <div className={`text-xs font-bold uppercase tracking-wider ${importErrors.length ? "text-red-700 dark:text-red-300" : "text-slate-500"}`}>Errors</div>
+                                    <div className={`mt-1 text-2xl font-bold ${importErrors.length ? "text-red-950 dark:text-red-300" : "text-slate-700"}`}>{importErrors.length}</div>
                                 </div>
                             </div>
 
                             {(importing || importStatus) && (
-                                <div className="rounded-xl border border-primary-200 bg-primary-50 p-4" role="status" aria-live="polite">
+                                <div className="rounded-xl border border-primary-200 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4" role="status" aria-live="polite">
                                     <div className="flex items-center gap-3">
                                         {importing && (
                                             <span className="h-4 w-4 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" aria-hidden="true" />
@@ -540,12 +540,12 @@ export default function TeacherQuizQuestionsPage() {
                             )}
 
                             {importErrors.length > 0 && (
-                                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-                                    <h3 className="mb-2 text-sm font-bold text-red-950">Fix these issues first</h3>
-                                    <ul className="space-y-1 text-sm text-red-800">
+                                <div className="rounded-xl border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 p-4">
+                                    <h3 className="mb-2 text-sm font-bold text-red-950 dark:text-red-300">Fix these issues first</h3>
+                                    <ul className="space-y-1 text-sm text-red-800 dark:text-red-300">
                                         {importErrors.map((error, index) => (
                                             <li key={index}>
-                                                <span className="rounded bg-red-100 px-1.5 py-0.5 font-mono text-xs">line {error.line}</span>{" "}
+                                                <span className="rounded bg-red-100 dark:bg-red-500/15 px-1.5 py-0.5 font-mono text-xs">line {error.line}</span>{" "}
                                                 {error.message}
                                             </li>
                                         ))}
@@ -560,7 +560,7 @@ export default function TeacherQuizQuestionsPage() {
                                         <div key={index} className="rounded-xl border border-slate-200 bg-white p-3">
                                             <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 text-xs font-bold text-primary-700 dark:text-primary-300">
                                                         {index + 1}
                                                     </span>
                                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
@@ -640,8 +640,8 @@ export default function TeacherQuizQuestionsPage() {
                                 mediaUploadPath={`quizzes/${quizId}/questions/question-text`}
                             />
 
-                            <details className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                                <summary className="cursor-pointer text-sm font-bold text-amber-900">Shared passage or case text (optional)</summary>
+                            <details className="rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50/50 dark:bg-amber-500/10 p-4">
+                                <summary className="cursor-pointer text-sm font-bold text-amber-900 dark:text-amber-300">Shared passage or case text (optional)</summary>
                                 <div className="mt-4 space-y-3">
                                     <input
                                         value={editingQuestion.passageGroup}

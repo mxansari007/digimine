@@ -88,7 +88,7 @@ export default function PublicProfilePage() {
     return (
         <main className="min-h-screen bg-slate-50">
             {/* Header */}
-            <section className="border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
+            <section className="on-dark border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
                 <div className="container-page flex flex-wrap items-center gap-5 py-10">
                     {profile.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element

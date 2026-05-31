@@ -91,9 +91,13 @@ export function Logo({
     className = "",
 }: LogoProps) {
     const fontSize = iconSize * 0.66;
-    const mutedColor =
-        variant === "light" ? "rgba(255,255,255,0.72)" : "rgba(51,65,85,0.85)";
-    const boldColor = variant === "light" ? "#fff" : "#0f172a";
+    // `variant="light"` forces a white wordmark for surfaces that are dark in
+    // BOTH themes (dark heroes, footers). Otherwise the wordmark uses the
+    // slate tokens, which flip with the theme — dark text in light mode,
+    // light text in Tokyo Night dark mode — so it stays legible on the
+    // header/sidebar whichever theme is active.
+    const mutedClass = variant === "light" ? "text-white/70" : "text-slate-600";
+    const boldClass = variant === "light" ? "text-white" : "text-slate-900";
 
     return (
         <span className={`group inline-flex items-center gap-2 ${className}`}>
@@ -107,8 +111,8 @@ export function Logo({
                         lineHeight: 1,
                     }}
                 >
-                    <span style={{ fontWeight: 500, color: mutedColor }}>Placement</span>
-                    <span style={{ fontWeight: 800, color: boldColor }}>Ranker</span>
+                    <span className={`font-medium ${mutedClass}`}>Placement</span>
+                    <span className={`font-extrabold ${boldClass}`}>Ranker</span>
                 </span>
             )}
         </span>

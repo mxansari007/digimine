@@ -327,7 +327,7 @@ export function ReviewSection({ productId, isPurchaser }: ReviewSectionProps) {
             {/* Empty State / Purchase Prompt */}
             {!loading && reviews.length === 0 && !showForm && (
                 <div className="bg-white rounded-[2.5rem] p-16 text-center border border-gray-100 shadow-xl shadow-gray-200/50">
-                    <div className="w-24 h-24 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce delay-700">
+                    <div className="w-24 h-24 bg-yellow-50 dark:bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce delay-700">
                         <svg className="w-12 h-12 text-yellow-400 fill-yellow-400" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
@@ -347,7 +347,7 @@ export function ReviewSection({ productId, isPurchaser }: ReviewSectionProps) {
                         </Button>
                     )}
                     {isAuthenticated && !hasPurchased && (
-                        <div className="inline-flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-700 rounded-full font-bold text-sm">
+                        <div className="inline-flex items-center gap-2 px-6 py-3 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 rounded-full font-bold text-sm">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             Purchase this product to leave a review
                         </div>
@@ -362,14 +362,14 @@ export function ReviewSection({ productId, isPurchaser }: ReviewSectionProps) {
                         <div key={review.id} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group">
                             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">
+                                    <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-500/15 flex items-center justify-center font-bold text-primary-700 dark:text-primary-300">
                                         {review.authorName.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold text-gray-900 text-sm">{review.authorName}</span>
                                             {review.isVerifiedPurchase && (
-                                                <div className="bg-green-100 text-green-700 p-0.5 rounded-full" title="Verified Purchase">
+                                                <div className="bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 p-0.5 rounded-full" title="Verified Purchase">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                                 </div>
                                             )}

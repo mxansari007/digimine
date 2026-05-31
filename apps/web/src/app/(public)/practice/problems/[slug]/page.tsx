@@ -69,16 +69,16 @@ const MONACO_LANG: Record<string, string> = {
 };
 
 function verdictTone(v: string) {
-    if (v === "accepted") return "text-emerald-700 bg-emerald-50 border-emerald-200";
+    if (v === "accepted") return "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/25";
     if (v === "pending") return "text-slate-700 bg-slate-50 border-slate-200";
-    return "text-rose-700 bg-rose-50 border-rose-200";
+    return "text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/25";
 }
 
 function difficultyPill(d: string) {
     const map: Record<string, string> = {
-        easy: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
-        medium: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
-        hard: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20",
+        easy: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-600/20",
+        medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-600/20",
+        hard: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-600/20",
     };
     return map[d] || "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/20";
 }
@@ -481,13 +481,13 @@ export default function SolveProblemPage() {
                                     {problem.title}
                                 </h1>
                                 {solved && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-600/20">
                                         <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
                                         Solved
                                     </span>
                                 )}
                                 {problem.access === "premium" && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-200 dark:ring-amber-500/25">
                                         <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
                                         Premium
                                     </span>
@@ -541,7 +541,7 @@ export default function SolveProblemPage() {
                     <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
                         {/* Revision banner (always shown when due) */}
                         {solved && progress?.dueAt && (
-                            <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs text-sky-800">
+                            <div className="rounded-xl border border-sky-200 dark:border-sky-500/25 bg-sky-50 dark:bg-sky-500/10 px-3 py-2.5 text-xs text-sky-800 dark:text-sky-300">
                                 <span className="font-semibold">Revision Radar:</span> next review on{" "}
                                 {new Date(progress.dueAt).toLocaleDateString("en-IN")} (in {progress.intervalDays} day
                                 {progress.intervalDays === 1 ? "" : "s"}).
@@ -561,7 +561,7 @@ export default function SolveProblemPage() {
                                             statement text above stays selectable. */}
                                         <div
                                             aria-hidden="true"
-                                            className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-white/80 to-white"
+                                            className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-white/80 dark:via-surface/80 to-white dark:to-surface"
                                         />
                                     </div>
                                 ) : (
@@ -570,9 +570,9 @@ export default function SolveProblemPage() {
 
                                 {/* Lock card right after the statement. */}
                                 {problemLocked && (
-                                    <div className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 shadow-md">
+                                    <div className="overflow-hidden rounded-2xl border-2 border-amber-300 dark:border-amber-500/25 bg-gradient-to-br from-amber-50 dark:from-amber-500/10 via-orange-50 dark:via-orange-500/10 to-amber-50 dark:to-amber-500/10 shadow-md">
                                         <div className="p-6 text-center">
-                                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 ring-1 ring-amber-200">
+                                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/15 ring-1 ring-amber-200 dark:ring-amber-500/25">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-amber-700">
                                                     <rect x="5" y="11" width="14" height="9" rx="2" />
                                                     <path d="M8 11V8a4 4 0 0 1 8 0v3" />
@@ -607,7 +607,7 @@ export default function SolveProblemPage() {
                                 {problem.kind === "sql" && problem.sql && (
                                     <div>
                                         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Schema</p>
-                                        <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-950 p-3 font-mono text-xs leading-relaxed text-slate-100">{problem.sql.schemaSql}</pre>
+                                        <pre className="on-dark mt-2 overflow-x-auto rounded-xl bg-[#020617] p-3 font-mono text-xs leading-relaxed text-slate-100">{problem.sql.schemaSql}</pre>
                                     </div>
                                 )}
 
@@ -640,11 +640,11 @@ export default function SolveProblemPage() {
 
                                 {/* Pattern Lens — USP. Hidden when locked. */}
                                 {!problemLocked && (
-                                <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
-                                    <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-900">
-                                        <ScanSearch className="h-4 w-4 text-violet-600" aria-hidden /> Pattern Lens
+                                <div className="rounded-xl border border-violet-200 dark:border-violet-500/25 bg-violet-50/50 dark:bg-violet-500/10 p-4">
+                                    <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-900 dark:text-violet-300">
+                                        <ScanSearch className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden /> Pattern Lens
                                     </p>
-                                    <p className="mt-0.5 text-xs text-violet-700/80">
+                                    <p className="mt-0.5 text-xs text-violet-700/80 dark:text-violet-300/80">
                                         Before the editorial — which pattern is this? Recognising patterns is the real interview skill.
                                     </p>
                                     {!lensResult ? (
@@ -667,7 +667,7 @@ export default function SolveProblemPage() {
                                             </Button>
                                         </div>
                                     ) : (
-                                        <div className={`mt-3 flex items-start gap-2 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
+                                        <div className={`mt-3 flex items-start gap-2 rounded-lg border p-3 text-sm ${lensResult.correct ? "border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" : "border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-300"}`}>
                                             {lensResult.correct ? (
                                                 <Check className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden />
                                             ) : (
@@ -696,7 +696,7 @@ export default function SolveProblemPage() {
                                 ) : (
                                     <>
                                         {problem.hints.slice(0, revealedHints).map((h, i) => (
-                                            <div key={h.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                            <div key={h.id} className="rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-300">
                                                 <span className="font-semibold">Hint {i + 1}.</span> {h.text}
                                             </div>
                                         ))}
@@ -842,7 +842,7 @@ export default function SolveProblemPage() {
                 >
                     {/* Editor */}
                     <div
-                        className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#1e1e1e] shadow-sm"
+                        className="on-dark flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#1e1e1e] shadow-sm"
                         style={{ flexBasis: `${editorPaneSize}%`, flexGrow: 0, flexShrink: 1 }}
                     >
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
@@ -1044,7 +1044,7 @@ export default function SolveProblemPage() {
                     tabIndex={0}
                     onClick={dismissCelebrate}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " " || e.key === "Escape") dismissCelebrate(); }}
-                    className={`fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-slate-900/30 backdrop-blur-[2px] ${celebrateOut ? "practice-fade-out" : "practice-fade-in"}`}
+                    className={`fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-black/50 backdrop-blur-[2px] ${celebrateOut ? "practice-fade-out" : "practice-fade-in"}`}
                 >
                     {/* Confetti */}
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -1074,10 +1074,10 @@ export default function SolveProblemPage() {
                     </div>
 
                     {/* Badge */}
-                    <div className={`relative rounded-3xl border border-emerald-200 bg-white/95 px-10 py-8 text-center shadow-2xl ${celebrateOut ? "practice-badge-out" : "practice-pop"}`}>
+                    <div className={`relative rounded-3xl border border-emerald-200 dark:border-emerald-500/25 bg-white/95 px-10 py-8 text-center shadow-2xl ${celebrateOut ? "practice-badge-out" : "practice-pop"}`}>
                         <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
                             <span className="practice-ring absolute inset-0 rounded-full bg-emerald-400/40" />
-                            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15">
                                 <svg viewBox="0 0 24 24" className="practice-check h-9 w-9 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M20 6 9 17l-5-5" />
                                 </svg>

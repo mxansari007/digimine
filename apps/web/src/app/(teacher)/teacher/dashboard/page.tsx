@@ -169,7 +169,7 @@ export default function TeacherDashboardPage() {
                 return (
                   <span
                     key={k}
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300" : "bg-slate-100 text-slate-500"}`}
                   >
                     {on ? <Check className="h-3 w-3" aria-hidden /> : <X className="h-3 w-3" aria-hidden />} {labels[k]}
                   </span>
@@ -194,7 +194,7 @@ export default function TeacherDashboardPage() {
             </Link>
             <Link
               href="/teacher/subscribe"
-              className="rounded-xl border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+              className="rounded-xl border border-primary-200 dark:border-primary-500/25 bg-white px-4 py-2 text-sm font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/10"
             >
               {teaching.planName && !teaching.planName.toLowerCase().includes("free") ? "Manage plan" : "Upgrade"}
             </Link>
@@ -203,12 +203,12 @@ export default function TeacherDashboardPage() {
       </Card>
 
       {isTrial && (
-        <div className="rounded-2xl border border-primary-200/80 bg-primary-50/80 p-5 flex items-start justify-between flex-wrap gap-4">
+        <div className="rounded-2xl border border-primary-200/80 dark:border-primary-500/25 bg-primary-50/80 dark:bg-primary-500/10 p-5 flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-primary-900 font-semibold text-lg">
+            <p className="text-primary-900 dark:text-primary-300 font-semibold text-lg">
               {trialDays} {trialDays === 1 ? "day" : "days"} left in free trial
             </p>
-            <p className="text-primary-700 text-sm mt-1">
+            <p className="text-primary-700 dark:text-primary-300 text-sm mt-1">
               Subscribe for ₹50/month to keep your classroom active.
             </p>
           </div>
@@ -222,10 +222,10 @@ export default function TeacherDashboardPage() {
       )}
 
       {isExpired && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start justify-between flex-wrap gap-4">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-2xl p-5 flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-red-800 font-semibold text-lg">Trial expired</p>
-            <p className="text-red-600 text-sm mt-1">
+            <p className="text-red-800 dark:text-red-300 font-semibold text-lg">Trial expired</p>
+            <p className="text-red-600 dark:text-red-300 text-sm mt-1">
               Students can view past content. Pay ₹50 to create new material.
             </p>
           </div>
@@ -287,7 +287,7 @@ export default function TeacherDashboardPage() {
           ].map((a) => (
             <Link key={a.href} href={a.href}>
               <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer h-full">
-                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300">
                   <a.Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
                 </div>
                 <div className="text-sm font-medium text-gray-700">

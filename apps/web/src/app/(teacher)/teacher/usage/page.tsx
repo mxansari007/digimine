@@ -48,10 +48,10 @@ function formatDate(d: Date | null): string {
 }
 
 const STATUS_LABELS: Record<string, { text: string; chip: string }> = {
-    trial: { text: "Trial", chip: "bg-primary-50 text-primary-700" },
-    active: { text: "Active", chip: "bg-emerald-50 text-emerald-700" },
-    grace_period: { text: "Grace period", chip: "bg-amber-50 text-amber-700" },
-    expired: { text: "Expired", chip: "bg-red-50 text-red-700" },
+    trial: { text: "Trial", chip: "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300" },
+    active: { text: "Active", chip: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+    grace_period: { text: "Grace period", chip: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+    expired: { text: "Expired", chip: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" },
     cancelled: { text: "Cancelled", chip: "bg-slate-100 text-slate-600" },
 };
 
@@ -169,7 +169,7 @@ export default function TeacherUsagePage() {
                     </div>
                     <Link
                         href={teaching.upgradeHref}
-                        className="rounded-xl border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+                        className="rounded-xl border border-primary-200 dark:border-primary-500/25 bg-white px-4 py-2 text-sm font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/10"
                     >
                         {status === "expired" || status === "cancelled"
                             ? "Renew"

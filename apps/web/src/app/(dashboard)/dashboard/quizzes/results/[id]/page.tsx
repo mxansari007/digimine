@@ -102,8 +102,8 @@ function formatDuration(seconds: number) {
 }
 
 function statusTone(status?: QuestionResult["status"]) {
-    if (status === "correct") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    if (status === "wrong") return "border-red-200 bg-red-50 text-red-700";
+    if (status === "correct") return "border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    if (status === "wrong") return "border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300";
     return "border-slate-200 bg-slate-50 text-slate-500";
 }
 
@@ -223,7 +223,7 @@ export default function QuizResultPage() {
             </div>
 
             <section className="surface-panel overflow-hidden">
-                <div className={`grid gap-6 p-6 lg:grid-cols-[1fr_320px] lg:p-8 ${isPassed ? "bg-gradient-to-r from-slate-950 to-emerald-950" : "bg-gradient-to-r from-slate-950 to-red-950"} text-white`}>
+                <div className={`on-dark grid gap-6 p-6 lg:grid-cols-[1fr_320px] lg:p-8 ${isPassed ? "bg-gradient-to-r from-[#020617] to-emerald-950" : "bg-gradient-to-r from-[#020617] to-red-950"} text-white`}>
                     <div>
                         <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] ${isPassed ? "bg-emerald-400/15 text-emerald-100" : "bg-red-400/15 text-red-100"}`}>
                             {isPassed ? <CheckIcon className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
@@ -265,7 +265,7 @@ export default function QuizResultPage() {
                     </div>
 
                     {rankingError ? (
-                        <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                        <div className="mt-6 rounded-2xl border border-red-100 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 p-4 text-sm font-semibold text-red-700 dark:text-red-300">
                             {rankingError}
                         </div>
                     ) : !rankingData ? (
@@ -281,7 +281,7 @@ export default function QuizResultPage() {
                     )}
 
                     {rankingData && !rankedAttemptIsSelected ? (
-                        <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+                        <div className="mt-4 rounded-2xl border border-amber-100 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
                             This is an older attempt. The rank above is from your latest finalized attempt for this quiz.
                         </div>
                     ) : null}
@@ -381,7 +381,7 @@ function ReviewQuestion({
             </div>
 
             {question.passage ? (
-                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4">
                     <FormattedContent html={question.passage} />
                 </div>
             ) : null}
@@ -398,9 +398,9 @@ function ReviewQuestion({
                                 key={option.id}
                                 className={`flex items-start gap-3 rounded-2xl border p-4 ${
                                     isCorrect
-                                        ? "border-emerald-300 bg-emerald-50"
+                                        ? "border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10"
                                         : isSelected
-                                            ? "border-red-300 bg-red-50"
+                                            ? "border-red-300 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10"
                                             : "border-slate-200 bg-white"
                                 }`}
                             >
@@ -424,16 +424,16 @@ function ReviewQuestion({
                         <p className="text-xs font-black uppercase tracking-wide text-slate-400">Your answer</p>
                         <p className="mt-1 font-bold text-slate-950">{result?.selectedAnswer || "Skipped"}</p>
                     </div>
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                        <p className="text-xs font-black uppercase tracking-wide text-emerald-600">Correct answer</p>
+                    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 p-4">
+                        <p className="text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Correct answer</p>
                         <p className="mt-1 font-bold text-emerald-950">{result?.correctAnswer || "Not provided"}</p>
                     </div>
                 </div>
             ) : null}
 
             {showExplanation && result?.explanation ? (
-                <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-primary-700">Explanation</p>
+                <div className="mt-5 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4">
+                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">Explanation</p>
                     <FormattedContent html={result.explanation} size="sm" />
                 </div>
             ) : null}

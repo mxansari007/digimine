@@ -7,7 +7,7 @@ export default function AuthLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 dark:from-primary-500/10 via-white dark:via-surface to-accent-50 dark:to-accent-500/10 flex flex-col">
             {/* Minimal Header */}
             <header className="py-6">
                 <div className="container-page">

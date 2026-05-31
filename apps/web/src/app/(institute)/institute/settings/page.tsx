@@ -116,7 +116,7 @@ export default function InstituteSettingsPage() {
                 <p className="mt-1 text-gray-500">Institute identity, contact info, branding.</p>
             </div>
 
-            {error && <Card className="p-4 text-sm text-rose-700 border-rose-200 bg-rose-50">{error}</Card>}
+            {error && <Card className="p-4 text-sm text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10">{error}</Card>}
 
             <Card className="p-6">
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">Identity</h3>

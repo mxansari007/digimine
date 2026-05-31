@@ -3,7 +3,7 @@ import { Skeleton } from "@digimine/ui";
 export default function Loading() {
     return (
         <div className="min-h-screen bg-slate-50">
-            <section className="bg-slate-950 py-14 lg:py-20">
+            <section className="bg-[#020617] py-14 lg:py-20">
                 <div className="container-page">
                     <Skeleton className="h-8 w-44 rounded-full bg-white/10" />
                     <Skeleton className="mt-6 h-12 w-full max-w-3xl bg-white/10" />

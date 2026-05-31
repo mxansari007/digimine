@@ -321,6 +321,30 @@ export function buildConversationalSystem(config: AIInterviewConfig): string {
     ].join("\n");
 }
 
+/**
+ * A bracketed time-awareness note appended to the interviewer's context each
+ * turn so the model actually KNOWS how much of the interview remains and can
+ * pace itself — and, in the final minutes, wind down warmly on its own rather
+ * than being cut off mid-thought. `null`/`undefined` → no note (back-compat).
+ *
+ * Tiers escalate as the clock runs down; the last tier is an explicit
+ * instruction to deliver a warm closing and emit [[END_INTERVIEW]] this turn.
+ */
+export function timeAwarenessNote(timeRemainingMin: number | null | undefined): string | null {
+    if (timeRemainingMin === null || timeRemainingMin === undefined) return null;
+    const m = Math.max(0, Math.round(timeRemainingMin));
+    if (timeRemainingMin <= 1.5) {
+        return "[Time check: the interview is essentially OUT OF TIME. Wrap up in THIS reply — give a brief, warm closing: thank the candidate, name one genuine strength you noticed, and add a line of encouragement. Do NOT start a new question or topic. End the message with the tag [[END_INTERVIEW]] on its own line.]";
+    }
+    if (timeRemainingMin <= 3) {
+        return `[Time check: only about ${m} minute${m === 1 ? "" : "s"} left. Start steering toward a close now — at most one more short, focused question, then begin wrapping up warmly.]`;
+    }
+    if (timeRemainingMin <= 6) {
+        return `[Time check: about ${m} minutes remain. Keep an eye on the clock — keep things moving and prioritise what matters most.]`;
+    }
+    return `[Time check: about ${m} minutes remain in this interview. Keep a natural, unhurried pace.]`;
+}
+
 /** Map stored turns → chat messages for the interviewer call (bounded, type-aware). */
 export function buildInterviewerMessages(opts: {
     interviewType: InterviewType;
@@ -331,6 +355,10 @@ export function buildInterviewerMessages(opts: {
     /** The candidate's currently-selected editor language, so the code block
      *  the interviewer sees is labelled with the real language. */
     language?: InterviewLanguage;
+    /** Minutes left in the interview (from startedAt + the type's budget). When
+     *  provided, a time-awareness note is appended so the model paces itself and
+     *  wraps up gracefully near the end. */
+    timeRemainingMin?: number | null;
 }): ChatMessage[] {
     const { interviewType, config, problem, transcript, latestCode, language } = opts;
     const recent = transcript.slice(-MAX_CONTEXT_TURNS);
@@ -371,6 +399,10 @@ export function buildInterviewerMessages(opts: {
             content: `${directive}${label} (${codeLang}) — this is a live snapshot of exactly what's in my editor right now:\n\`\`\`${codeLang}\n${latestCode.slice(0, 6000)}\n\`\`\``,
         });
     }
+    // Final instruction the model sees: how much time is left + how to pace /
+    // close. Kept last so it's the freshest directive before it answers.
+    const timeNote = timeAwarenessNote(opts.timeRemainingMin);
+    if (timeNote) messages.push({ role: "system", content: timeNote });
     return messages;
 }
 

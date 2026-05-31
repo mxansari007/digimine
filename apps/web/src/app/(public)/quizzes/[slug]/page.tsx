@@ -196,10 +196,10 @@ function formatTime(seconds: number): string {
 }
 
 function progressClass(status?: QuestionResult["status"], answered?: boolean) {
-    if (status === "correct") return "border-emerald-300 bg-emerald-50 text-emerald-700";
-    if (status === "wrong") return "border-red-300 bg-red-50 text-red-700";
+    if (status === "correct") return "border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    if (status === "wrong") return "border-red-300 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300";
     if (status === "skipped") return "border-slate-200 bg-slate-50 text-slate-400";
-    if (answered) return "border-primary-300 bg-primary-50 text-primary-700";
+    if (answered) return "border-primary-300 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300";
     return "border-slate-200 bg-white text-slate-500";
 }
 
@@ -213,16 +213,16 @@ type QuizQuestionStatus =
     | "answered_and_marked";
 
 function quizStatusClass(status: QuizQuestionStatus, isCurrent: boolean): string {
-    if (isCurrent) return "border-slate-950 bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]";
+    if (isCurrent) return "on-dark border-[#020617] bg-[#020617] text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]";
     switch (status) {
         case "answered_and_marked":
-            return "border-purple-400 bg-emerald-50 text-emerald-700 ring-2 ring-purple-300";
+            return "border-purple-400 dark:border-purple-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-2 ring-purple-300 dark:ring-purple-500/25";
         case "marked_for_review":
-            return "border-purple-300 bg-purple-50 text-purple-700 ring-2 ring-purple-200";
+            return "border-purple-300 dark:border-purple-500/25 bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 ring-2 ring-purple-200 dark:ring-purple-500/25";
         case "answered":
-            return "border-emerald-300 bg-emerald-50 text-emerald-700";
+            return "border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
         case "visited":
-            return "border-blue-200 bg-blue-50 text-blue-600";
+            return "border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300";
         default:
             return "border-slate-200 bg-white text-slate-500";
     }
@@ -740,7 +740,7 @@ export default function QuizDetailPage() {
     return (
         <div className="min-h-screen bg-slate-50">
             {mode !== "attempt" ? (
-                <section className="border-b border-white/70 bg-slate-950 text-white">
+                <section className="on-dark border-b border-white/70 bg-[#020617] text-white">
                     <div className="container-page py-10 lg:py-14">
                         <Link href="/quizzes" className="inline-flex items-center text-sm font-bold text-primary-200 hover:text-white">
                             <span aria-hidden="true">←</span>
@@ -874,7 +874,7 @@ export default function QuizDetailPage() {
 
                         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
                             <div className="surface-panel overflow-hidden">
-                                <div className="border-b border-slate-100 bg-slate-950 p-5 text-white">
+                                <div className="on-dark border-b border-slate-100 bg-[#020617] p-5 text-white">
                                     <p className="text-xs font-black uppercase tracking-[0.14em] text-primary-200">Progress</p>
                                     <div className="mt-2 flex items-end justify-between gap-3">
                                         <p className="text-3xl font-black text-white">{answeredCount}<span className="text-lg text-slate-400">/{questions.length}</span></p>
@@ -897,7 +897,7 @@ export default function QuizDetailPage() {
                                     <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                         <InlineAutoSaveStatus status={saveStatus} lastSavedAt={lastSavedAt} />
                                         {quiz.timeLimitMinutes ? (
-                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ${timeLeft <= 60 ? "bg-red-100 text-red-700" : "bg-primary-100 text-primary-700"}`}>
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ${timeLeft <= 60 ? "bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300" : "bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300"}`}>
                                                 <ClockIcon className="h-3.5 w-3.5" />
                                                 {formatTime(timeLeft)}
                                             </span>
@@ -931,19 +931,19 @@ export default function QuizDetailPage() {
                                     {/* Legend */}
                                     <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-slate-600">
                                         <div className="flex items-center gap-2">
-                                            <span className="h-3 w-3 rounded border border-emerald-300 bg-emerald-50" />
+                                            <span className="h-3 w-3 rounded border border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10" />
                                             <span>Answered ({questions.filter((q) => Boolean(answers[q.id]) && !markedForReview.has(q.id)).length})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="h-3 w-3 rounded border border-purple-300 bg-purple-50 ring-1 ring-purple-200" />
+                                            <span className="h-3 w-3 rounded border border-purple-300 dark:border-purple-500/25 bg-purple-50 dark:bg-purple-500/10 ring-1 ring-purple-200 dark:ring-purple-500/25" />
                                             <span>Marked ({Array.from(markedForReview).filter((id) => !answers[id]).length})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="h-3 w-3 rounded border border-purple-400 bg-emerald-50 ring-1 ring-purple-300" />
+                                            <span className="h-3 w-3 rounded border border-purple-400 dark:border-purple-500/25 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-purple-300 dark:ring-purple-500/25" />
                                             <span>Marked & Answered ({Array.from(markedForReview).filter((id) => Boolean(answers[id])).length})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="h-3 w-3 rounded border border-blue-200 bg-blue-50" />
+                                            <span className="h-3 w-3 rounded border border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10" />
                                             <span>Visited</span>
                                         </div>
                                     </div>
@@ -954,7 +954,7 @@ export default function QuizDetailPage() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className={`mb-2 w-full ${markedForReview.has(currentQuestion.id) ? "!border-purple-300 !bg-purple-50 !text-purple-700" : ""}`}
+                                    className={`mb-2 w-full ${markedForReview.has(currentQuestion.id) ? "!border-purple-300 dark:!border-purple-500/25 !bg-purple-50 dark:!bg-purple-500/10 !text-purple-700 dark:!text-purple-300" : ""}`}
                                     onClick={() => toggleMarkForReview(currentQuestion.id)}
                                 >
                                     {markedForReview.has(currentQuestion.id) ? (
@@ -998,7 +998,7 @@ export default function QuizDetailPage() {
                                     type="button"
                                     onClick={() => submitQuiz(false)}
                                     disabled={submitting}
-                                    className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:border-primary-200 dark:hover:border-primary-500/25 hover:bg-primary-50 dark:hover:bg-primary-500/10 hover:text-primary-700 dark:hover:text-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     Submit now
                                 </button>
@@ -1054,7 +1054,7 @@ function AttemptTopBar({
                         Quizzes
                     </button>
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] text-primary-700">
+                        <span className="rounded-full bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] text-primary-700 dark:text-primary-300">
                             {quiz.category || "Quiz"}
                         </span>
                         <h1 className="truncate text-xl font-black tracking-tight text-slate-950 md:text-2xl">
@@ -1069,7 +1069,7 @@ function AttemptTopBar({
                         {answeredCount}/{totalQuestions}
                     </span>
                     {quiz.timeLimitMinutes ? (
-                        <span className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black ${timeLeft <= 60 ? "bg-red-50 text-red-700" : "bg-slate-950 text-white"}`}>
+                        <span className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black ${timeLeft <= 60 ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" : "on-dark bg-[#020617] text-white"}`}>
                             <ClockIcon className="h-4 w-4" />
                             {formatTime(timeLeft)}
                         </span>
@@ -1104,7 +1104,7 @@ function LockedQuizCard({
 }) {
     return (
         <div className="surface-panel mx-auto max-w-3xl p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">
                 <LockIcon className="h-8 w-8" />
             </div>
             <h2 className="mt-5 text-2xl font-black text-slate-950">Course access required</h2>
@@ -1115,7 +1115,7 @@ function LockedQuizCard({
                         <Link
                             key={course.id}
                             href={course.slug ? `/courses/${course.slug}` : "/courses"}
-                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-primary-200 hover:bg-primary-50"
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-primary-200 dark:hover:border-primary-500/25 hover:bg-primary-50 dark:hover:bg-primary-500/10"
                         >
                             <p className="font-black text-slate-950">{course.title || "Linked course"}</p>
                             <p className="text-sm text-slate-500">
@@ -1178,10 +1178,10 @@ function InlineAutoSaveStatus({ status, lastSavedAt }: { status: "idle" | "savin
         <div
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
                 status === "error"
-                    ? "bg-red-50 text-red-700"
+                    ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300"
                     : status === "saving"
-                        ? "bg-primary-50 text-primary-700"
-                        : "bg-emerald-50 text-emerald-700"
+                        ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300"
+                        : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             }`}
             aria-live="polite"
             aria-atomic="true"
@@ -1243,10 +1243,10 @@ function QuestionCard({
 }) {
     return (
         <article className="surface-panel overflow-hidden">
-            <header className="border-b border-slate-100 bg-gradient-to-r from-white via-primary-50/40 to-white p-5 lg:p-6">
+            <header className="border-b border-slate-100 bg-gradient-to-r from-white dark:from-surface via-primary-50/40 dark:via-primary-500/10 to-white dark:to-surface p-5 lg:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-lg font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]">
+                        <span className="on-dark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#020617] text-lg font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)]">
                             {index + 1}
                         </span>
                         <div>
@@ -1263,7 +1263,7 @@ function QuestionCard({
                             {question.marks} marks
                         </span>
                         {question.negativeMarks ? (
-                            <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-black text-red-700">
+                            <span className="rounded-full border border-red-100 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-3 py-1 text-xs font-black text-red-700 dark:text-red-300">
                                 -{question.negativeMarks}
                             </span>
                         ) : null}
@@ -1273,7 +1273,7 @@ function QuestionCard({
 
             <div className="p-5 lg:p-8">
                 {question.passage && (
-                    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 shadow-inner">
+                    <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-500/25 bg-amber-50/80 dark:bg-amber-500/10 p-4 shadow-inner">
                         <FormattedContent html={question.passage} />
                     </div>
                 )}
@@ -1294,12 +1294,12 @@ function QuestionCard({
                                     aria-pressed={isSelected}
                                     className={`group flex items-start gap-3 rounded-2xl border p-4 text-left transition duration-200 ${
                                         isSelected
-                                            ? "border-slate-950 bg-slate-950 text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)]"
-                                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50/50 hover:shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
+                                            ? "border-[#020617] bg-[#020617] text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)]"
+                                            : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50/50 dark:hover:bg-primary-500/10 hover:shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
                                     }`}
                                 >
                                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black transition ${
-                                        isSelected ? "bg-white text-slate-950" : "bg-slate-100 text-slate-600 group-hover:bg-primary-100 group-hover:text-primary-700"
+                                        isSelected ? "bg-white text-slate-950" : "bg-slate-100 text-slate-600 group-hover:bg-primary-100 dark:group-hover:bg-primary-500/15 group-hover:text-primary-700 dark:group-hover:text-primary-300"
                                     }`}>
                                         {String.fromCharCode(65 + optionIndex)}
                                     </span>
@@ -1353,9 +1353,9 @@ function ResultView({
     return (
         <div className="space-y-6">
             {isPreviewAttempt && (
-                <div className="rounded-2xl border border-info-200 bg-info-50 p-4 text-sm">
-                    <p className="font-semibold text-info-700">Preview attempt</p>
-                    <p className="text-info-700/80 mt-0.5">
+                <div className="rounded-2xl border border-info-200 dark:border-info-500/25 bg-info-50 dark:bg-info-500/10 p-4 text-sm">
+                    <p className="font-semibold text-info-700 dark:text-info-300">Preview attempt</p>
+                    <p className="text-info-700/80 dark:text-info-300/80 mt-0.5">
                         You attempted this as a non-student (teacher / institute admin). Your score is visible here for
                         review but is excluded from public leaderboards and content analytics.
                     </p>
@@ -1365,7 +1365,7 @@ function ResultView({
                 <div className="grid gap-6 p-6 lg:grid-cols-[1fr_280px] lg:p-8">
                     <div>
                         <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] ${
-                            result.passed === false ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                            result.passed === false ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                         }`}>
                             {result.passed === false ? <XIcon className="h-4 w-4" /> : <CheckIcon className="h-4 w-4" />}
                             {result.passed === null ? "Quiz completed" : result.passed ? "Passed" : "Needs revision"}
@@ -1373,7 +1373,7 @@ function ResultView({
                         <h2 className="mt-4 text-3xl font-black text-slate-950">Your quiz result</h2>
                         <p className="mt-2 text-slate-600">{quiz.showExplanations ? "Review every question below with the answer key and explanations." : "Your score is ready."}</p>
                     </div>
-                    <div className="rounded-3xl bg-slate-950 p-5 text-white">
+                    <div className="on-dark rounded-3xl bg-[#020617] p-5 text-white">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Score</p>
                         <p className="mt-2 text-4xl font-black">{result.score} / {result.maxScore}</p>
                         <p className="mt-1 text-primary-200">{result.percentage}%</p>
@@ -1442,7 +1442,7 @@ function SubmittedRankingPanel({
                     </p>
                 </div>
                 {rankingData?.userRank ? (
-                    <div className="rounded-2xl bg-slate-950 px-5 py-4 text-right text-white">
+                    <div className="on-dark rounded-2xl bg-[#020617] px-5 py-4 text-right text-white">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Your Rank</p>
                         <p className="mt-1 text-4xl font-black">
                             #{rankingData.userRank}
@@ -1454,12 +1454,12 @@ function SubmittedRankingPanel({
 
             <div className="p-6">
                 {rankingLoading ? (
-                    <div className="flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50 p-4 text-sm font-bold text-primary-700">
+                    <div className="flex items-center gap-3 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4 text-sm font-bold text-primary-700 dark:text-primary-300">
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-200 border-t-primary-700" aria-hidden="true" />
                         Calculating your ranking...
                     </div>
                 ) : rankingError ? (
-                    <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                    <div className="rounded-2xl border border-red-100 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 p-4 text-sm font-semibold text-red-700 dark:text-red-300">
                         {rankingError}
                     </div>
                 ) : !rankingData || !rankingData.userRank ? (
@@ -1476,7 +1476,7 @@ function SubmittedRankingPanel({
                         </div>
 
                         {rankingData.selectedAttemptIsRanked ? null : (
-                            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+                            <div className="mt-4 rounded-2xl border border-amber-100 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
                                 Your displayed rank uses your latest finalized attempt for this quiz.
                             </div>
                         )}
@@ -1536,7 +1536,7 @@ function ReviewQuestion({
             </div>
 
             {question.passage && (
-                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4">
                     <FormattedContent html={question.passage} />
                 </div>
             )}
@@ -1553,9 +1553,9 @@ function ReviewQuestion({
                                 key={option.id}
                                 className={`flex items-start gap-3 rounded-2xl border p-4 ${
                                     isCorrect
-                                        ? "border-emerald-300 bg-emerald-50"
+                                        ? "border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10"
                                         : isSelected
-                                            ? "border-red-300 bg-red-50"
+                                            ? "border-red-300 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10"
                                             : "border-slate-200 bg-white"
                                 }`}
                             >
@@ -1579,16 +1579,16 @@ function ReviewQuestion({
                         <p className="text-xs font-black uppercase tracking-wide text-slate-400">Your answer</p>
                         <p className="mt-1 font-bold text-slate-950">{selectedAnswer || "Skipped"}</p>
                     </div>
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                        <p className="text-xs font-black uppercase tracking-wide text-emerald-600">Correct answer</p>
+                    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 p-4">
+                        <p className="text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Correct answer</p>
                         <p className="mt-1 font-bold text-emerald-950">{result?.correctAnswer || "Not provided"}</p>
                     </div>
                 </div>
             )}
 
             {showExplanation && result?.explanation && (
-                <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-primary-700">Explanation</p>
+                <div className="mt-5 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4">
+                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">Explanation</p>
                     <FormattedContent html={result.explanation} size="sm" />
                 </div>
             )}

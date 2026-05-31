@@ -179,7 +179,7 @@ export function QuestionBankPicker({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <Card className="max-h-[92vh] w-full max-w-6xl overflow-hidden">
         <div className="flex flex-col border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -312,7 +312,7 @@ export function QuestionBankPicker({
                         onClick={() => toggleQuestion(question.id)}
                         className={`w-full rounded-2xl border p-4 text-left transition ${
                           selected
-                            ? "border-primary-400 bg-primary-50 ring-2 ring-primary-100"
+                            ? "border-primary-400 bg-primary-50 dark:bg-primary-500/10 ring-2 ring-primary-100 dark:ring-primary-500/25"
                             : "border-slate-200 bg-white hover:border-slate-300"
                         }`}
                       >
@@ -325,10 +325,10 @@ export function QuestionBankPicker({
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
                                 {optionLabel(question.type)}
                               </span>
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                              <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                 {question.marks} marks
                               </span>
-                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                              <span className="rounded-full bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-300">
                                 {question.difficulty}
                               </span>
                             </div>

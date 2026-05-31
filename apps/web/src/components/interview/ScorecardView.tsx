@@ -101,14 +101,14 @@ export function ScorecardView({ scorecard }: { scorecard: BehaviourScorecard }) 
 
             {scorecard.notes && (
                 <Card intent="primary" padding="lg">
-                    <p className="text-sm font-semibold text-primary-800 mb-1">Coach&apos;s summary</p>
+                    <p className="text-sm font-semibold text-primary-800 dark:text-primary-300 mb-1">Coach&apos;s summary</p>
                     <p className="text-sm text-slate-700">{scorecard.notes}</p>
                 </Card>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card intent="success" padding="lg">
-                    <p className="text-sm font-semibold text-success-800 mb-2">What went well</p>
+                    <p className="text-sm font-semibold text-success-800 dark:text-success-300 mb-2">What went well</p>
                     {scorecard.strengths.length > 0 ? (
                         <ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">
                             {scorecard.strengths.map((s, i) => (
@@ -120,7 +120,7 @@ export function ScorecardView({ scorecard }: { scorecard: BehaviourScorecard }) 
                     )}
                 </Card>
                 <Card intent="warning" padding="lg">
-                    <p className="text-sm font-semibold text-warning-800 mb-2">Work on this next</p>
+                    <p className="text-sm font-semibold text-warning-800 dark:text-warning-300 mb-2">Work on this next</p>
                     {scorecard.improvements.length > 0 ? (
                         <ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">
                             {scorecard.improvements.map((s, i) => (

@@ -2,6 +2,126 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Design tokens — light (:root) + Tokyo Night dark (.dark)
+   ──────────────────────────────────────────────────────────────────────────
+   The neutral ramps (slate / gray) and the semantic surface tokens are driven
+   by these CSS variables (consumed by packages/ui/tailwind.config.ts). The
+   light values are the EXACT current Tailwind hexes, so light mode is
+   pixel-identical; `.dark` swaps in a curated Tokyo Night palette. Toggling
+   `.dark` on <html> flips every slate/gray/surface utility across the whole
+   app at once. Channels are space-separated RGB so Tailwind's `<alpha-value>`
+   opacity modifiers (e.g. bg-slate-200/40) keep working.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+
+  /* Neutral — slate (light = real Tailwind slate) */
+  --c-slate-50: 248 250 252;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;
+  --c-slate-700: 51 65 85;
+  --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;
+  --c-slate-950: 2 6 23;
+
+  /* Neutral — gray (light = real Tailwind gray) */
+  --c-gray-50: 249 250 251;
+  --c-gray-100: 243 244 246;
+  --c-gray-200: 229 231 235;
+  --c-gray-300: 209 213 219;
+  --c-gray-400: 156 163 175;
+  --c-gray-500: 107 114 128;
+  --c-gray-600: 75 85 99;
+  --c-gray-700: 55 65 81;
+  --c-gray-800: 31 41 55;
+  --c-gray-900: 17 24 39;
+  --c-gray-950: 3 7 18;
+
+  /* Semantic surface tokens */
+  --background: 248 250 252;       /* slate-50  — page canvas       */
+  --surface: 255 255 255;          /* white     — cards / panels    */
+  --surface-muted: 248 250 252;    /* slate-50  — recessed wells    */
+  --popover: 255 255 255;          /* white     — menus / dropdowns */
+  --overlay: 15 23 42;             /* slate-900 — scrims (w/ alpha) */
+  --foreground: 15 23 42;          /* slate-900 — body / headings   */
+  --muted-foreground: 100 116 139; /* slate-500 — secondary text    */
+  --border-token: 226 232 240;     /* slate-200 — hairlines         */
+  --input-token: 226 232 240;      /* slate-200 — input borders     */
+  --ring-token: 20 184 166;        /* teal-500  — focus ring        */
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Neutral — slate, inverted into Tokyo Night (dark → light as index ↑) */
+  --c-slate-50: 22 22 30;          /* #16161e */
+  --c-slate-100: 31 33 48;         /* #1f2130 */
+  --c-slate-200: 42 46 66;         /* #2a2e42 */
+  --c-slate-300: 59 66 97;         /* #3b4261 */
+  --c-slate-400: 124 133 168;      /* #7c85a8 — muted text, WCAG-AA legible */
+  --c-slate-500: 145 154 188;      /* #919abc — secondary text */
+  --c-slate-600: 169 179 214;      /* #a9b3d6 — body text */
+  --c-slate-700: 190 199 230;      /* #bec7e6 */
+  --c-slate-800: 192 202 245;      /* #c0caf5 */
+  --c-slate-900: 205 214 244;      /* #cdd6f4 */
+  --c-slate-950: 224 228 250;      /* #e0e4fa */
+
+  /* Neutral — gray shares the same Tokyo Night ramp so neutrals unify */
+  --c-gray-50: 22 22 30;
+  --c-gray-100: 31 33 48;
+  --c-gray-200: 42 46 66;
+  --c-gray-300: 59 66 97;
+  --c-gray-400: 124 133 168;
+  --c-gray-500: 145 154 188;
+  --c-gray-600: 169 179 214;
+  --c-gray-700: 190 199 230;
+  --c-gray-800: 192 202 245;
+  --c-gray-900: 205 214 244;
+  --c-gray-950: 224 228 250;
+
+  /* Semantic surface tokens — Tokyo Night */
+  --background: 22 22 30;          /* #16161e — deepest page canvas */
+  --surface: 26 27 38;             /* #1a1b26 — card (sits above bg) */
+  --surface-muted: 31 33 48;       /* #1f2130 — recessed wells      */
+  --popover: 36 40 59;             /* #24283b — elevated menus      */
+  --overlay: 0 0 0;                /* black   — scrims (w/ alpha)   */
+  --foreground: 192 202 245;       /* #c0caf5 — body / headings     */
+  --muted-foreground: 145 154 188; /* #919abc — secondary text      */
+  --border-token: 42 46 66;        /* #2a2e42 — hairlines           */
+  --input-token: 49 54 78;         /* #31364e — input borders       */
+  --ring-token: 45 212 191;        /* teal-400 — focus ring on dark */
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   `.on-dark` — for surfaces that are dark BY DESIGN in both themes (consoles,
+   code blocks, dark heroes, the testimonials band, terminal previews). Add it
+   to the SAME element that carries the frozen `bg-[#…]`/`bg-black`. It pins the
+   slate/gray ramps + surface tokens to their LIGHT-palette values inside that
+   subtree, so `text-slate-200`, `border-slate-700`, etc. render as light-on-dark
+   (exactly as they did in light mode) instead of inverting and vanishing on the
+   Tokyo Night canvas. A no-op in light mode (the values already match).
+   ────────────────────────────────────────────────────────────────────────── */
+.on-dark {
+  --c-slate-50: 248 250 252;  --c-slate-100: 241 245 249; --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225; --c-slate-400: 148 163 184; --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;   --c-slate-700: 51 65 85;    --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;    --c-slate-950: 2 6 23;
+  --c-gray-50: 249 250 251;   --c-gray-100: 243 244 246;  --c-gray-200: 229 231 235;
+  --c-gray-300: 209 213 219;  --c-gray-400: 156 163 175;  --c-gray-500: 107 114 128;
+  --c-gray-600: 75 85 99;     --c-gray-700: 55 65 81;     --c-gray-800: 31 41 55;
+  --c-gray-900: 17 24 39;     --c-gray-950: 3 7 18;
+  --surface: 30 41 59;             /* slate-800 — raised panels on the dark surface */
+  --surface-muted: 15 23 42;       /* slate-900 — recessed wells              */
+  --border-token: 51 65 85;        /* slate-700 — hairlines on dark           */
+  --muted-foreground: 148 163 184; /* slate-400                               */
+  --foreground: 248 250 252;       /* near-white body text                    */
+}
+
 /* Base styles */
 @layer base {
   html {
@@ -127,6 +247,15 @@
   /* Subtle code blocks */
   code {
     @apply font-mono text-sm bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-md;
+  }
+
+  /* Form controls inherit the themed text colour by default, so a
+     custom-styled input/textarea (e.g. bg-transparent) never renders
+     invisible dark text on a dark surface in Tokyo Night mode. Any explicit
+     `text-*` utility still wins (it's generated in the later utilities layer). */
+  input,
+  textarea {
+    color: inherit;
   }
 }
 
@@ -270,7 +399,7 @@ body.test-attempt-mode > div > footer {
   }
 
   .surface-panel {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-soft-sm;
+    @apply rounded-2xl border border-slate-200 bg-surface shadow-soft-sm;
   }
 
   /* ─── New utility palette ──────────────────────────────────────────────
@@ -403,7 +532,7 @@ body.test-attempt-mode > div > footer {
   /* Form input — drop-in styling for raw <input>/<textarea> when not using
      a shared component. */
   .field-input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft-sm transition-[border-color,box-shadow] focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200;
+    @apply w-full rounded-xl border border-slate-200 bg-surface px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft-sm transition-[border-color,box-shadow] focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200;
   }
 
   /* Inline live indicator — a small dot used in chips like "TEST IN PROGRESS". */
@@ -413,7 +542,7 @@ body.test-attempt-mode > div > footer {
 
   /* Card with a coloured top accent border. Use with `intent` colours. */
   .accent-card {
-    @apply relative rounded-2xl border border-slate-200 bg-white shadow-soft-sm overflow-hidden;
+    @apply relative rounded-2xl border border-slate-200 bg-surface shadow-soft-sm overflow-hidden;
   }
   .accent-card::before {
     content: "";
@@ -1115,3 +1244,97 @@ body.test-attempt-mode > div > footer {
   .md-table th,
   .md-table td { padding: 0.45rem 0.6rem; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Dark-mode (Tokyo Night) overrides for the bounded set of hardcoded light
+   values that the slate/gray token inversion can't reach: raw hex fills, the
+   `white` literal used for surfaces, brand-tinted chips, and decorative
+   gradients. Everything else (slate/gray text, borders, light surfaces) flips
+   automatically via the CSS variables above.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Page canvas */
+.dark body {
+  background: rgb(var(--background));
+}
+
+/* `bg-white` is the app's card/panel surface — flip it (and its common
+   opacity variants) to the Tokyo Night surface. Only touches background-color,
+   so `text-white` on coloured buttons is never affected. */
+.dark .bg-white { background-color: rgb(var(--surface)); }
+.dark .bg-white\/98 { background-color: rgb(var(--surface) / 0.98); }
+.dark .bg-white\/95 { background-color: rgb(var(--surface) / 0.95); }
+.dark .bg-white\/90 { background-color: rgb(var(--surface) / 0.90); }
+.dark .bg-white\/85 { background-color: rgb(var(--surface) / 0.85); }
+.dark .bg-white\/80 { background-color: rgb(var(--surface) / 0.80); }
+.dark .bg-white\/75 { background-color: rgb(var(--surface) / 0.75); }
+.dark .bg-white\/70 { background-color: rgb(var(--surface) / 0.70); }
+.dark .bg-white\/60 { background-color: rgb(var(--surface) / 0.60); }
+.dark .bg-white\/50 { background-color: rgb(var(--surface) / 0.50); }
+.dark .bg-white\/40 { background-color: rgb(var(--surface) / 0.40); }
+.dark .bg-white\/30 { background-color: rgb(var(--surface) / 0.30); }
+.dark .bg-white\/20 { background-color: rgb(var(--surface) / 0.20); }
+.dark .bg-white\/10 { background-color: rgb(var(--surface) / 0.10); }
+.dark .bg-white\/5  { background-color: rgb(var(--surface) / 0.05); }
+.dark .hover\:bg-white:hover { background-color: rgb(var(--surface)); }
+
+/* Dashboard / marketing canvases — recompose the soft radial washes on a
+   deep Tokyo Night base instead of the light slate gradient. */
+.dark .dashboard-professional-theme,
+.dark .dashboard-professional-theme[data-role="teacher"],
+.dark .dashboard-professional-theme[data-role="student"],
+.dark .app-canvas {
+  background:
+    radial-gradient(circle at 14% 8%, rgba(45, 212, 191, 0.06), transparent 32rem),
+    radial-gradient(circle at 88% 2%, rgba(122, 162, 247, 0.06), transparent 36rem),
+    linear-gradient(180deg, rgb(var(--background)) 0%, #121219 100%);
+}
+
+.dark .bg-gradient-cool {
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.10) 0%, rgba(20, 184, 166, 0.03) 100%);
+}
+
+.dark .bg-noise {
+  background-image: radial-gradient(circle at 1px 1px, rgba(192, 202, 245, 0.05) 1px, transparent 0);
+}
+
+/* Brand-tinted chips — swap the bright -50/-200/-700 trio for translucent
+   dark-friendly tints in the same hue. */
+.dark .chip-primary { background-color: rgba(20, 184, 166, 0.14); border-color: rgba(20, 184, 166, 0.30); color: rgb(94 234 212); }
+.dark .chip-success { background-color: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.30); color: rgb(110 231 183); }
+.dark .chip-warning { background-color: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.30); color: rgb(252 211 77); }
+.dark .chip-danger  { background-color: rgba(244, 63, 94, 0.15);  border-color: rgba(244, 63, 94, 0.32);  color: rgb(253 164 175); }
+.dark .chip-info    { background-color: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.32); color: rgb(147 197 253); }
+.dark .chip-accent  { background-color: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.30); color: rgb(252 211 77); }
+.dark .chip-neutral { background-color: rgb(var(--surface-muted)); border-color: rgb(var(--border-token)); color: rgb(var(--muted-foreground)); }
+
+/* Markdown / RTE tables */
+.dark .prose .md-table,
+.dark .prose .rte-table,
+.dark .md-table {
+  border-color: rgb(var(--border-token));
+  background: rgb(var(--surface));
+  box-shadow: none;
+}
+.dark .prose .md-table thead,
+.dark .md-table thead {
+  background: linear-gradient(180deg, rgb(var(--surface-muted)), rgb(var(--surface)));
+}
+.dark .prose .md-table th,
+.dark .md-table th { color: rgb(var(--foreground)); border-bottom-color: rgb(var(--border-token)); }
+.dark .prose .md-table td,
+.dark .md-table td { color: rgb(var(--c-slate-600)); border-bottom-color: rgb(var(--border-token)); }
+.dark .prose .md-table tbody tr:nth-child(even),
+.dark .md-table tbody tr:nth-child(even) { background: rgb(var(--surface-muted) / 0.45); }
+.dark .prose .md-table tbody tr:hover,
+.dark .md-table tbody tr:hover { background: rgba(45, 212, 191, 0.08); }
+
+/* Marketing hero cloud-rail mist puffs */
+.dark .cloud-rail::before { background: radial-gradient(ellipse 60% 80% at 30% 50%, rgb(var(--background) / 0.85), transparent 70%); }
+.dark .cloud-rail::after  { background: radial-gradient(ellipse 60% 80% at 70% 50%, rgb(var(--background) / 0.85), transparent 70%); }
+
+/* Unified phone input */
+.dark .phone-input-unified .react-international-phone-country-selector-button { border-right-color: rgb(var(--border-token)) !important; }
+.dark .phone-input-unified .react-international-phone-input { color: rgb(var(--foreground)) !important; }
+.dark .phone-input-unified .react-international-phone-input::placeholder { color: rgb(var(--muted-foreground)) !important; }
+.dark .phone-input-unified .react-international-phone-country-selector-button:hover { background-color: rgb(var(--surface-muted) / 0.8) !important; }

@@ -35,7 +35,7 @@ export default function NotFound() {
             {/* Soft background flourish — same teal palette as the logo. */}
             <div
                 aria-hidden
-                className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-100/60 via-white to-white"
+                className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-100/60 dark:from-teal-500/15 via-white dark:via-surface to-white dark:to-surface"
             />
             <div
                 aria-hidden

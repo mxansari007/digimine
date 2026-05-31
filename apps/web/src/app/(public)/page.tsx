@@ -60,12 +60,12 @@ export default async function HomePage() {
             <HomeMotion />
 
             {/* Tiny announcement strip — kept tight so it doesn't crowd the hero. */}
-            <div className="border-b border-slate-200 bg-slate-950 text-slate-100">
+            <div className="border-b border-slate-200 bg-[#020617] text-white/85">
                 <div className="container-page flex flex-wrap items-center justify-center gap-3 py-2 text-center text-xs">
                     <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
                         New
                     </span>
-                    <span className="font-medium text-slate-200">
+                    <span className="font-medium text-white/80">
                         Free DSA &amp; SQL practice — solve in Python, Java, C++, or JS with instant judging.
                     </span>
                     <Link
@@ -105,7 +105,7 @@ export default async function HomePage() {
                         {workflowSteps.map((step) => (
                             <div
                                 key={step.step}
-                                className="landing-motion landing-lift-card relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6"
+                                className="landing-motion landing-lift-card relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white dark:from-surface to-slate-50 p-6"
                                 data-motion
                             >
                                 <p className="font-display text-5xl font-black text-primary-100">
@@ -166,7 +166,7 @@ export default async function HomePage() {
             <TeachersInstitutesBand />
 
             {/* Testimonials */}
-            <section className="border-b border-slate-200 bg-slate-950 py-16 text-white sm:py-20">
+            <section className="border-b border-slate-200 bg-[#020617] py-16 text-white sm:py-20">
                 <div className="container-page">
                     <div className="landing-motion max-w-3xl" data-motion>
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-200">
@@ -191,9 +191,9 @@ export default async function HomePage() {
                                 >
                                     <path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.571-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z" />
                                 </svg>
-                                <p className="mt-4 text-sm leading-7 text-slate-200">“{t.quote}”</p>
+                                <p className="mt-4 text-sm leading-7 text-white/80">“{t.quote}”</p>
                                 <p className="mt-5 text-sm font-bold text-white">{t.author}</p>
-                                <p className="text-xs text-slate-400">{t.role}</p>
+                                <p className="text-xs text-white/55">{t.role}</p>
                             </div>
                         ))}
                     </div>
@@ -201,7 +201,7 @@ export default async function HomePage() {
             </section>
 
             {/* Final CTA — student-first, with a quiet teacher / institute fallback */}
-            <section className="bg-gradient-to-br from-slate-50 via-white to-slate-50">
+            <section className="bg-gradient-to-br from-slate-50 via-white dark:via-surface to-slate-50">
                 <div className="container-page py-16 sm:py-24">
                     <div
                         className="landing-motion mx-auto max-w-3xl text-center"

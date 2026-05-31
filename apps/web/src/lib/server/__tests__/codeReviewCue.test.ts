@@ -6,7 +6,7 @@ vi.mock("@/lib/firebase/admin", () => ({ adminDb: { collection: vi.fn() } }));
 vi.mock("@/lib/server/practice", () => ({ PROBLEMS: "practiceProblems", loadProblemById: vi.fn(), serializeProblemPublic: vi.fn() }));
 vi.mock("@/lib/server/aiProvider", () => ({}));
 
-import { detectCodeReviewCue } from "../aiInterview";
+import { detectCodeReviewCue, timeAwarenessNote } from "../aiInterview";
 
 describe("detectCodeReviewCue", () => {
     it("fires when the candidate explains what they implemented", () => {
@@ -42,6 +42,36 @@ describe("detectCodeReviewCue", () => {
             "",
         ]) {
             expect(detectCodeReviewCue(s), s).toBe(false);
+        }
+    });
+});
+
+describe("timeAwarenessNote", () => {
+    it("returns null when time is unknown (back-compat)", () => {
+        expect(timeAwarenessNote(null)).toBeNull();
+        expect(timeAwarenessNote(undefined)).toBeNull();
+    });
+
+    it("gives a gentle, unhurried note with lots of time left", () => {
+        const note = timeAwarenessNote(12)!;
+        expect(note).toContain("12 minutes remain");
+        expect(note).toMatch(/natural/i);
+        // Must NOT prematurely ask the model to close.
+        expect(note).not.toContain("END_INTERVIEW");
+    });
+
+    it("nudges toward a close in the mid window", () => {
+        expect(timeAwarenessNote(5)!).toMatch(/eye on the clock/i);
+        expect(timeAwarenessNote(2)!).toMatch(/steering toward a close/i);
+        expect(timeAwarenessNote(2)!).not.toContain("END_INTERVIEW");
+    });
+
+    it("forces a warm close + end tag in the final 90 seconds and in overtime", () => {
+        for (const m of [1.5, 1, 0.5, 0, -2]) {
+            const note = timeAwarenessNote(m)!;
+            expect(note, `min=${m}`).toMatch(/OUT OF TIME/);
+            expect(note, `min=${m}`).toContain("[[END_INTERVIEW]]");
+            expect(note, `min=${m}`).toMatch(/thank|encourage/i);
         }
     });
 });

@@ -138,7 +138,7 @@ export default function ProductsBrowser({
 
             <div className="fixed bottom-6 right-6 z-40 lg:hidden">
                 <Button
-                    className="flex items-center gap-2 rounded-full bg-gray-900 px-6 py-3 text-white shadow-xl hover:bg-gray-800"
+                    className="flex items-center gap-2 rounded-full bg-[#111827] px-6 py-3 text-white shadow-xl hover:bg-[#1f2937]"
                     onClick={() => setIsFilterDrawerOpen(true)}
                 >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

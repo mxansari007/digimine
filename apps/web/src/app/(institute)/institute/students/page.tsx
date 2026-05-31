@@ -176,7 +176,7 @@ export default function InstituteStudentsPage() {
             </div>
 
             {error && (
-                <Card className="border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                <Card className="border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300">
                     {error}
                 </Card>
             )}
@@ -324,9 +324,9 @@ function InsightCard({
     accent: "emerald" | "amber" | "blue" | "slate";
 }) {
     const tones: Record<typeof accent, string> = {
-        emerald: "bg-emerald-50 text-emerald-600",
-        amber: "bg-amber-50 text-amber-600",
-        blue: "bg-blue-50 text-blue-600",
+        emerald: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+        amber: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300",
+        blue: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300",
         slate: "bg-slate-100 text-slate-500",
     };
     return (
@@ -384,11 +384,11 @@ function ResultSummary({
                 {results.map((r, i) => (
                     <li key={`${r.email}-${i}`} className="flex items-center gap-3 px-4 py-2.5">
                         {r.outcome === "attached" ? (
-                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                 <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                             </span>
                         ) : r.outcome === "invited" ? (
-                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
                                 <Mail className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                             </span>
                         ) : (
@@ -425,15 +425,15 @@ function RosterRow({
 }) {
     const statusTone =
         row.status === "active"
-            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-500/25"
             : row.status === "invited"
-              ? "bg-amber-50 text-amber-700 ring-amber-200"
+              ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-500/25"
               : "bg-slate-100 text-slate-600 ring-slate-200";
     return (
         <tr className="border-b border-slate-100 hover:bg-slate-50/40">
             <td className="px-6 py-3">
                 <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-700 ring-1 ring-primary-100">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10 text-xs font-semibold text-primary-700 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-500/25">
                         {initialsOf(row.name || row.email)}
                     </span>
                     <div className="min-w-0">

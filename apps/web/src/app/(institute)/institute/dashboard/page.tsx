@@ -102,7 +102,7 @@ export default function InstituteDashboardPage() {
             </div>
 
             {nextStep && (
-                <Card className="border-primary-200 bg-gradient-to-br from-primary-50/80 to-white p-6">
+                <Card className="border-primary-200 bg-gradient-to-br from-primary-50/80 dark:from-primary-500/10 to-white dark:to-surface p-6">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">
                         Next step
                     </p>
@@ -174,7 +174,7 @@ export default function InstituteDashboardPage() {
                             return (
                                 <span
                                     key={k}
-                                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${on ? "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300" : "bg-slate-100 text-slate-500"}`}
                                 >
                                     {on ? <Check className="h-2.5 w-2.5" aria-hidden /> : <X className="h-2.5 w-2.5" aria-hidden />} {labels[k]}
                                 </span>

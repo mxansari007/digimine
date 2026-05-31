@@ -252,7 +252,7 @@ export default function ProfileOnboardingPage() {
                                     className="h-9 w-9 flex-shrink-0 rounded-full object-cover ring-1 ring-slate-200"
                                 />
                             ) : (
-                                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold uppercase text-primary-700">
+                                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 text-sm font-semibold uppercase text-primary-700 dark:text-primary-300">
                                     {derivedName
                                         .split(" ")
                                         .map((s) => s[0])
@@ -348,7 +348,7 @@ export default function ProfileOnboardingPage() {
                         showing it here was just confusing noise. */}
 
                     {error && (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                        <div className="rounded-xl border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">
                             {error}
                         </div>
                     )}

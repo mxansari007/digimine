@@ -166,7 +166,7 @@ export default function MyPlanPage() {
                                         <p className="text-[11px] text-slate-400">{resetLabel(q.key)}</p>
                                     </div>
                                     {unlimited ? (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 ring-1 ring-inset ring-primary-200">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-500/10 px-2 py-0.5 text-[11px] font-semibold text-primary-700 dark:text-primary-300 ring-1 ring-inset ring-primary-200 dark:ring-primary-500/25">
                                             <InfinityIcon className="h-3 w-3" aria-hidden /> Unlimited
                                         </span>
                                     ) : limit === 0 ? (
@@ -220,7 +220,7 @@ export default function MyPlanPage() {
                                     <p className="text-xs text-slate-500">{f.blurb}</p>
                                 </div>
                                 {on ? (
-                                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                         <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                                     </span>
                                 ) : (
@@ -233,7 +233,7 @@ export default function MyPlanPage() {
                     })}
                 </Card>
                 {enforced && !isPremium && (
-                    <div className="mt-4 rounded-2xl border border-primary-200 bg-primary-50/60 p-4 text-center sm:flex sm:items-center sm:justify-between sm:text-left">
+                    <div className="mt-4 rounded-2xl border border-primary-200 dark:border-primary-500/25 bg-primary-50/60 dark:bg-primary-500/10 p-4 text-center sm:flex sm:items-center sm:justify-between sm:text-left">
                         <p className="text-sm text-slate-700">
                             Want everything unlocked and the caps lifted?
                         </p>

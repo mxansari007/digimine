@@ -226,7 +226,7 @@ export default function SuccessPage() {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <Card padding="lg" className="max-w-md w-full text-center">
                     <div className="mb-6">
-                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11.5 14.5a10.5 10.5 0 01-9 9H3v-4l4.757-4.757a6 6 0 112.586-2.586z" />
                             </svg>
@@ -238,7 +238,7 @@ export default function SuccessPage() {
                     </div>
 
                     <form onSubmit={handleKeySubmit} className="space-y-4">
-                        {accessKeyError && <div className="text-red-600 text-sm bg-red-50 p-2 rounded">{accessKeyError}</div>}
+                        {accessKeyError && <div className="text-red-600 dark:text-red-300 text-sm bg-red-50 dark:bg-red-500/10 p-2 rounded">{accessKeyError}</div>}
                         <div className="text-left">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Access Key</label>
                             <input
@@ -381,7 +381,7 @@ export default function SuccessPage() {
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="container-page max-w-2xl">
                 <Card padding="lg" className="text-center">
-                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-500/15 text-green-600 dark:text-green-300 rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
@@ -426,24 +426,24 @@ export default function SuccessPage() {
 
                     {/* Access Key Display */}
                     {searchParams.get("accessKey") && !firebaseUser && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-8 text-left">
+                        <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/25 rounded-xl p-5 mb-8 text-left">
                             <div className="flex items-start gap-3">
-                                <svg className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-300 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 <div className="flex-1">
-                                    <h4 className="font-semibold text-yellow-900 mb-1">Save your Access Key</h4>
-                                    <p className="text-sm text-yellow-800 mb-3">
+                                    <h4 className="font-semibold text-yellow-900 dark:text-yellow-300 mb-1">Save your Access Key</h4>
+                                    <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-3">
                                         Please save this key in a safe place. You will need it to access these files in the future if you don&apos;t create an account.
                                     </p>
                                     <div className="flex items-center gap-2">
-                                        <code className="bg-white px-3 py-2 rounded-lg border border-yellow-300 text-sm font-mono text-yellow-900 flex-1 break-all">
+                                        <code className="bg-white px-3 py-2 rounded-lg border border-yellow-300 dark:border-yellow-500/25 text-sm font-mono text-yellow-900 dark:text-yellow-300 flex-1 break-all">
                                             {searchParams.get("accessKey")}
                                         </code>
                                         <Button 
                                             size="sm" 
                                             variant="outline" 
-                                            className="bg-white border-yellow-300 text-yellow-800 hover:bg-yellow-50"
+                                            className="bg-white border-yellow-300 dark:border-yellow-500/25 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-500/10"
                                             onClick={() => {
                                                 navigator.clipboard.writeText(searchParams.get("accessKey") || "");
                                                 toast.success("Access key copied", {
@@ -467,7 +467,7 @@ export default function SuccessPage() {
                                 files.map((file) => (
                                     <div key={file.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 bg-primary-100 rounded flex items-center justify-center text-primary-600">
+                                            <div className="w-8 h-8 bg-primary-100 dark:bg-primary-500/15 rounded flex items-center justify-center text-primary-600 dark:text-primary-300">
                                                 <DownloadIcon className="h-4 w-4" />
                                             </div>
                                             <div>
@@ -522,7 +522,7 @@ export default function SuccessPage() {
                             ) : (
                                 <form onSubmit={handleCreateAccount} className="space-y-4 text-left">
                                     {accountError && (
-                                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                                             {accountError}
                                         </div>
                                     )}

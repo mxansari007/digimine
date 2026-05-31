@@ -124,6 +124,12 @@ export interface AppSidebarProps {
   collapsed?: boolean;
   /** Toggle the collapsed state. Used by the rail toggle button. */
   onToggleCollapsed?: () => void;
+  /**
+   * Optional control rendered in the sidebar footer (above sign-out) — used
+   * by the web app to mount the theme switcher. Left undefined elsewhere
+   * (e.g. admin) so the package takes no dependency on app-level components.
+   */
+  footerExtra?: ReactNode;
 }
 
 const ROLE_LABEL: Record<AppSidebarRole, string> = {
@@ -214,8 +220,8 @@ function NavLeaf({
         aria-label={item.name}
         className={
           (isActive
-            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700 shadow-sm shadow-primary-900/5"
-            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 hover:text-primary-800") +
+            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/15 text-primary-700 dark:text-primary-200 shadow-sm shadow-primary-900/5"
+            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200") +
           " mx-auto"
         }
       >
@@ -233,8 +239,8 @@ function NavLeaf({
       onClick={onClose}
       className={
         (isActive
-          ? "relative flex items-center gap-3 rounded-xl border border-primary-200/80 bg-primary-50/80 text-sm font-semibold text-primary-800 shadow-sm shadow-primary-950/5"
-          : "relative flex items-center gap-3 rounded-xl border border-transparent text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 hover:text-primary-900") +
+          ? "relative flex items-center gap-3 rounded-xl border border-primary-200/80 dark:border-primary-500/30 bg-primary-50/80 dark:bg-primary-500/15 text-sm font-semibold text-primary-800 dark:text-primary-200 shadow-sm shadow-primary-950/5"
+          : "relative flex items-center gap-3 rounded-xl border border-transparent text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 dark:hover:bg-primary-500/10 hover:text-primary-900 dark:hover:text-primary-200") +
         (indented ? " pl-10 pr-4 py-2" : " px-4 py-2.5")
       }
     >
@@ -295,8 +301,8 @@ function NavGroup({
         }}
         className={
           (parentActive
-            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700 shadow-sm shadow-primary-900/5"
-            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 hover:text-primary-800") +
+            ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/15 text-primary-700 dark:text-primary-200 shadow-sm shadow-primary-900/5"
+            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200") +
           " mx-auto"
         }
       >
@@ -316,8 +322,8 @@ function NavGroup({
         aria-expanded={open}
         className={
           parentActive
-            ? "relative flex w-full items-center gap-3 rounded-xl border border-primary-200/80 bg-primary-50/40 px-4 py-2.5 text-sm font-semibold text-primary-800"
-            : "relative flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 hover:text-primary-900"
+            ? "relative flex w-full items-center gap-3 rounded-xl border border-primary-200/80 dark:border-primary-500/30 bg-primary-50/40 dark:bg-primary-500/10 px-4 py-2.5 text-sm font-semibold text-primary-800 dark:text-primary-200"
+            : "relative flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 dark:hover:bg-primary-500/10 hover:text-primary-900 dark:hover:text-primary-200"
         }
       >
         <Icon className="w-5 h-5" />
@@ -406,6 +412,7 @@ export function AppSidebar({
   onClose,
   collapsed = false,
   onToggleCollapsed,
+  footerExtra,
 }: AppSidebarProps) {
   const initial = user?.displayName?.[0]?.toUpperCase() || ROLE_LABEL[role][0];
   // Mobile drawer always renders the full expanded layout; collapsed
@@ -417,7 +424,7 @@ export function AppSidebar({
     <>
       {isOpen ? (
         <div
-          className="fixed inset-0 z-30 bg-slate-950/20 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden"
+          className="fixed inset-0 z-30 bg-overlay/40 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden"
           onClick={onClose}
         />
       ) : null}
@@ -441,7 +448,7 @@ export function AppSidebar({
             with the divider line regardless of role-chip width. */}
         <div
           className={
-            "relative flex h-[68px] items-center overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-white/95 to-slate-50/80 " +
+            "relative flex h-[68px] items-center overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-surface to-surface-muted " +
             (isRailCollapsed ? "justify-center px-3" : "justify-between px-4")
           }
         >
@@ -486,7 +493,7 @@ export function AppSidebar({
             <button
               type="button"
               onClick={onClose}
-              className="relative z-10 rounded-lg p-2 text-slate-500 transition-colors hover:bg-primary-50 hover:text-primary-800 lg:hidden"
+              className="relative z-10 rounded-lg p-2 text-slate-500 transition-colors hover:bg-primary-50 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200 lg:hidden"
               aria-label="Close sidebar"
             >
               <svg
@@ -544,8 +551,11 @@ export function AppSidebar({
         >
           {isRailCollapsed ? (
             <div className="flex flex-col items-center gap-2">
+              {footerExtra ? (
+                <div className="flex justify-center">{footerExtra}</div>
+              ) : null}
               <div
-                className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80"
+                className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 dark:bg-primary-500/20 p-[2px] ring-1 ring-primary-200/80 dark:ring-primary-500/30"
                 title={user?.displayName || user?.email || ROLE_LABEL[role]}
               >
                 <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
@@ -556,7 +566,7 @@ export function AppSidebar({
                   onClick={() => void onSignOut()}
                   aria-label="Sign out"
                   title="Sign out"
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200/80 dark:border-red-500/30 bg-red-50/70 dark:bg-red-500/15 text-red-700 dark:text-red-300 transition-colors hover:border-red-300 dark:hover:border-red-500/40 hover:bg-red-50 dark:hover:bg-red-500/25"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -578,7 +588,7 @@ export function AppSidebar({
           ) : (
             <>
               <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 shadow-sm shadow-slate-900/5">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 p-[2px] ring-1 ring-primary-200/80">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-primary-100/90 dark:bg-primary-500/20 p-[2px] ring-1 ring-primary-200/80 dark:ring-primary-500/30">
                   <AvatarFigure photoURL={user?.photoURL} fallback={initial} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -589,11 +599,17 @@ export function AppSidebar({
                   <p className="truncate text-xs text-slate-500">{user?.email}</p>
                 </div>
               </div>
+              {footerExtra ? (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-surface/60 px-3 py-2">
+                  <span className="text-xs font-medium text-slate-500">Appearance</span>
+                  {footerExtra}
+                </div>
+              ) : null}
               {onSignOut ? (
                 <button
                   type="button"
                   onClick={() => void onSignOut()}
-                  className="flex w-full items-center justify-center rounded-xl border border-red-200/80 bg-red-50/70 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-50"
+                  className="flex w-full items-center justify-center rounded-xl border border-red-200/80 dark:border-red-500/30 bg-red-50/70 dark:bg-red-500/15 px-4 py-2.5 text-sm font-semibold text-red-700 dark:text-red-300 transition-colors hover:border-red-300 dark:hover:border-red-500/40 hover:bg-red-50 dark:hover:bg-red-500/25"
                 >
                   Sign Out
                 </button>

@@ -204,7 +204,7 @@ export default function ForTeachersPage() {
     return (
         <main className="bg-white">
             {/* Hero */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-white">
+            <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 dark:from-amber-500/10 via-orange-50 dark:via-orange-500/10 to-white dark:to-surface">
                 <div className="container-page py-16 sm:py-24">
                     <div className="max-w-3xl">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">
@@ -270,7 +270,7 @@ export default function ForTeachersPage() {
                     <ol className="mt-10 grid gap-5 md:grid-cols-4">
                         {STEPS.map((s) => (
                             <li key={s.n} className="rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-soft">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-700 ring-1 ring-inset ring-primary-200">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 font-bold text-primary-700 dark:text-primary-300 ring-1 ring-inset ring-primary-200 dark:ring-primary-500/25">
                                     {s.n}
                                 </div>
                                 <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
@@ -357,7 +357,7 @@ export default function ForTeachersPage() {
             </section>
 
             {/* CTA */}
-            <section className="border-t border-slate-200 bg-slate-950 text-white">
+            <section className="on-dark border-t border-slate-200 bg-[#020617] text-white">
                 <div className="container-page py-16 sm:py-20">
                     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-center">
                         <div>

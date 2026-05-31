@@ -187,15 +187,15 @@ export default function TeacherContentPage() {
 
     const classroomStatusStyles: Record<string, string> = {
         draft: "bg-slate-100 text-slate-600 border-slate-200",
-        published: "bg-blue-50 text-blue-700 border-blue-200",
+        published: "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/25",
         archived: "bg-gray-100 text-gray-500 border-gray-200",
     };
 
     const reviewStatusStyles: Record<string, string> = {
         draft: "hidden",
-        pending_review: "bg-amber-50 text-amber-700 border-amber-200",
-        approved: "bg-green-50 text-green-700 border-green-200",
-        rejected: "bg-red-50 text-red-700 border-red-200",
+        pending_review: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/25",
+        approved: "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/25",
+        rejected: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/25",
     };
 
     const reviewStatusLabel = (rs: ReviewStatus) => {
@@ -214,7 +214,7 @@ export default function TeacherContentPage() {
                     return (
                         <span
                             key={id}
-                            className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700"
+                            className="rounded-full bg-primary-50 dark:bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-300"
                         >
                             {cls?.name || id.slice(0, 6)}
                         </span>
@@ -285,7 +285,7 @@ export default function TeacherContentPage() {
                             onClick={() => setFilter(f.id)}
                             className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                                 filter === f.id
-                                    ? "bg-primary-100 text-primary-800 font-semibold"
+                                    ? "bg-primary-100 dark:bg-primary-500/15 text-primary-800 dark:text-primary-300 font-semibold"
                                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                         >
@@ -296,13 +296,13 @@ export default function TeacherContentPage() {
             </div>
 
             {actionError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <div className="rounded-lg border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
                     {actionError}
                 </div>
             )}
 
             {classes.length === 0 && (
-                <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <Card className="border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-300">
                     You don&apos;t have any classes yet.{" "}
                     <Link href="/teacher/classes" className="font-semibold underline">
                         Create one
@@ -424,12 +424,12 @@ export default function TeacherContentPage() {
                                         </Button>
                                     )}
                                     {reviewStatus === "pending_review" && (
-                                        <span className="px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-lg border border-amber-200">
+                                        <span className="px-3 py-1.5 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-500/25">
                                             Under Review
                                         </span>
                                     )}
                                     {reviewStatus === "approved" && (
-                                        <span className="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg border border-green-200">
+                                        <span className="px-3 py-1.5 text-xs bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 rounded-lg border border-green-200 dark:border-green-500/25">
                                             Public
                                         </span>
                                     )}

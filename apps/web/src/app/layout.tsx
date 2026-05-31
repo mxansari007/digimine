@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { FacebookPixel } from "@/components/common";
 import { ToastProvider } from "@digimine/ui";
+import { ThemeProvider, themeInitScript } from "@/components/theme";
 import {
     DEFAULT_OG_IMAGE,
     SITE_LOCALE,
@@ -29,8 +30,11 @@ const outfit = Outfit({
 });
 
 export const viewport: Viewport = {
-    themeColor: "#0d9488",
-    colorScheme: "light",
+    themeColor: [
+        { media: "(prefers-color-scheme: light)", color: "#0d9488" },
+        { media: "(prefers-color-scheme: dark)", color: "#16161e" },
+    ],
+    colorScheme: "light dark",
     width: "device-width",
     initialScale: 1,
 };
@@ -109,8 +113,19 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en-IN" className={`${inter.variable} ${outfit.variable}`}>
+        <html
+            lang="en-IN"
+            className={`${inter.variable} ${outfit.variable}`}
+            suppressHydrationWarning
+        >
             <head>
+                {/* Resolve + apply the persisted theme before first paint to
+                    avoid a flash of the wrong theme. Must run synchronously in
+                    <head>, before the body renders. */}
+                <script
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: themeInitScript }}
+                />
                 {/* Site-wide JSON-LD: Organization + WebSite (sitelinks search box) */}
                 <script
                     type="application/ld+json"
@@ -124,14 +139,16 @@ export default function RootLayout({
                 />
             </head>
             <body className="font-sans antialiased">
-                <FacebookPixel />
-                <ToastProvider>
-                    <AuthProvider>
-                        <EntitlementsProvider>
-                            {children}
-                        </EntitlementsProvider>
-                    </AuthProvider>
-                </ToastProvider>
+                <ThemeProvider>
+                    <FacebookPixel />
+                    <ToastProvider>
+                        <AuthProvider>
+                            <EntitlementsProvider>
+                                {children}
+                            </EntitlementsProvider>
+                        </AuthProvider>
+                    </ToastProvider>
+                </ThemeProvider>
             </body>
         </html>
     );

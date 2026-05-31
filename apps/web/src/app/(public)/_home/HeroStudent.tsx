@@ -28,13 +28,16 @@ export default function HeroStudent() {
         <section className="relative isolate overflow-hidden border-b border-slate-200 bg-slate-50">
             {/* Aurora layer — slow conic sweep, heavy blur, subtle. */}
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-                <div className="home-aurora absolute -top-1/4 left-1/2 h-[120%] w-[140%] -translate-x-1/2 opacity-60" />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.6)_0%,rgba(255,255,255,0.85)_60%,white_100%)]" />
+                <div className="home-aurora absolute -top-1/4 left-1/2 h-[120%] w-[140%] -translate-x-1/2 opacity-60 dark:opacity-40" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.6)_0%,rgba(255,255,255,0.85)_60%,white_100%)] dark:bg-[linear-gradient(180deg,rgba(22,22,30,0.55)_0%,rgba(22,22,30,0.82)_60%,#16161e_100%)]" />
                 <div
-                    className="absolute inset-0 opacity-[0.04]"
+                    className="absolute inset-0 opacity-[0.04] dark:opacity-[0.06]"
                     style={{
+                        // `--c-slate-900` is a dark ink in light mode and a light
+                        // tint in dark mode, so the grid stays faintly visible in
+                        // both themes instead of vanishing on the dark canvas.
                         backgroundImage:
-                            "linear-gradient(rgba(15,23,42,1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)",
+                            "linear-gradient(rgb(var(--c-slate-900)) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--c-slate-900)) 1px, transparent 1px)",
                         backgroundSize: "48px 48px",
                     }}
                 />
@@ -43,7 +46,7 @@ export default function HeroStudent() {
             <div className="container-page relative pt-16 sm:pt-24 lg:pt-28">
                 <div className="mx-auto max-w-3xl text-center">
                     <span
-                        className="home-hero-fade inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-700 backdrop-blur"
+                        className="home-hero-fade inline-flex items-center gap-2 rounded-full border border-primary-200 dark:border-primary-500/25 bg-primary-50/80 dark:bg-primary-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-700 dark:text-primary-300 backdrop-blur"
                         style={{ animationDelay: "60ms" }}
                     >
                         <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
@@ -166,7 +169,7 @@ function CardSet() {
 function ArticleCard() {
     return (
         <div className="cloud-card flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <div className="cloud-card-shimmer aspect-[16/9] shrink-0 rounded-lg bg-gradient-to-br from-primary-100 to-amber-100" />
+            <div className="cloud-card-shimmer aspect-[16/9] shrink-0 rounded-lg bg-gradient-to-br from-primary-100 dark:from-primary-500/10 to-amber-100 dark:to-amber-500/10" />
             <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-primary-700">
                 Article · 6 min read
             </p>
@@ -183,7 +186,7 @@ function ArticleCard() {
 
 function ProblemCard() {
     return (
-        <div className="cloud-card flex flex-col rounded-2xl border border-slate-700 bg-slate-950 p-5 text-white shadow-xl">
+        <div className="cloud-card flex flex-col rounded-2xl border border-[#334155] bg-[#020617] p-5 text-white shadow-xl">
             <div className="flex items-center justify-between">
                 <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
                     DSA
@@ -212,7 +215,7 @@ function LeaderboardCard() {
                 <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700">
                     Live contest
                 </p>
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
                     LIVE
                 </span>
@@ -230,7 +233,7 @@ function LeaderboardCard() {
                         key={r.rank}
                         className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-xs ${
                             r.highlight
-                                ? "bg-primary-50 font-bold text-primary-700"
+                                ? "bg-primary-50 dark:bg-primary-500/10 font-bold text-primary-700 dark:text-primary-300"
                                 : "text-slate-600"
                         }`}
                     >
@@ -247,9 +250,9 @@ function LeaderboardCard() {
 
 function QuizCard() {
     return (
-        <div className="cloud-card flex flex-col rounded-2xl border border-violet-200 bg-white p-5 shadow-lg">
+        <div className="cloud-card flex flex-col rounded-2xl border border-violet-200 dark:border-violet-500/25 bg-white p-5 shadow-lg">
             <div className="flex items-center justify-between">
-                <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-violet-700">
+                <span className="rounded-full bg-violet-50 dark:bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-300">
                     Quiz
                 </span>
                 <span className="text-[10px] text-slate-400">10 questions</span>
@@ -265,7 +268,7 @@ function QuizCard() {
                         key={opt}
                         className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 ${
                             i === 1
-                                ? "border-emerald-300 bg-emerald-50 font-semibold text-emerald-700"
+                                ? "border-emerald-300 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 font-semibold text-emerald-700 dark:text-emerald-300"
                                 : "border-slate-200 text-slate-600"
                         }`}
                     >

@@ -30,8 +30,8 @@ function formatDateTime(ms: number) {
 
 function PhaseBadge({ phase }: { phase: Phase }) {
     const styles: Record<Phase, string> = {
-        scheduled: "bg-blue-50 text-blue-700 ring-blue-100",
-        live: "bg-red-50 text-red-700 ring-red-100",
+        scheduled: "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-blue-100 dark:ring-blue-500/25",
+        live: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-red-100 dark:ring-red-500/25",
         ended: "bg-slate-100 text-slate-700 ring-slate-200",
     };
     const label = phase === "scheduled" ? "Upcoming" : phase === "live" ? "Live now" : "Ended";
@@ -43,12 +43,12 @@ function ContestCardView({ contest, phase }: { contest: ContestCard; phase: Phas
         <Card className="group overflow-hidden border-slate-200/80 bg-white transition-all hover:-translate-y-0.5 hover:shadow-xl">
             <Link href={`/contests/${contest.slug}`} className="block">
                 <div className="grid gap-0 sm:grid-cols-[220px_1fr]">
-                    <div className="relative h-48 bg-slate-900 sm:h-full">
+                    <div className="relative h-48 bg-[#0f172a] sm:h-full">
                         {contest.thumbnailURL ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={contest.thumbnailURL} alt={contest.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                         ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white/40">
+                            <div className="on-dark flex h-full w-full items-center justify-center bg-gradient-to-br from-[#020617] via-[#0f172a] to-blue-950 text-white/40">
                                 <TrophyIcon className="h-16 w-16" />
                             </div>
                         )}
@@ -89,7 +89,7 @@ export default async function ContestsPage() {
     return (
         <div className="min-h-screen bg-slate-50 py-12">
             <div className="container-page space-y-10">
-                <section className="rounded-[2rem] bg-slate-950 px-6 py-10 text-white shadow-2xl sm:px-10">
+                <section className="on-dark rounded-[2rem] bg-[#020617] px-6 py-10 text-white shadow-2xl sm:px-10">
                     <div className="max-w-3xl">
                         <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-100 ring-1 ring-white/10">
                             Live ranked practice

@@ -297,7 +297,7 @@ export default function InstituteClassesPage() {
             </div>
 
             {error && (
-                <Card className="border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                <Card className="border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300">
                     {error}
                 </Card>
             )}
@@ -486,7 +486,7 @@ function ClassCard({
                                 key={s.id}
                                 className="flex items-center gap-2 px-3 py-2"
                             >
-                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary-600">
+                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300">
                                     <BookOpen className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                                 </span>
                                 <div className="min-w-0 flex-1">
@@ -510,7 +510,7 @@ function ClassCard({
                                     <button
                                         type="button"
                                         onClick={() => onDeleteSubject(s)}
-                                        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600"
                                         title="Remove subject"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
@@ -524,7 +524,7 @@ function ClassCard({
                 {!cls.isArchived && (
                     <div className="mt-2">
                         {teacherDisabled ? (
-                            <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-700">
+                            <p className="rounded-lg border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
                                 Add at least one active teacher (Teachers → bulk add)
                                 before assigning subjects.
                             </p>

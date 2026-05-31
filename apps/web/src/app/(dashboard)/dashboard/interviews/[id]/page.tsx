@@ -140,7 +140,25 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     // Auto-end + hands-free (VAD)
     const startedAtRef = useRef<number | null>(null);
     const endedRef = useRef(false);
+    // Set once a graceful wrap-up has been initiated (by the timer, the AI's own
+    // end-signal, or the close button) so the closing can't fire twice.
+    const wrapUpRef = useRef(false);
     const blockedRef = useRef(false);
+    // Live mirrors of volatile state. The countdown interval (and its timer-driven
+    // wrap-up) is set up once when the candidate joins, so a plain closure would
+    // capture the join-time code/language/voice. Reading these refs instead means
+    // the wrap-up POSTs the candidate's CURRENT code and respects the CURRENT
+    // voice/sending state — same pattern as blockedRef in the VAD loop.
+    const currentCodeRef = useRef("");
+    const languageRef = useRef<InterviewLanguage>("python");
+    const voiceOnRef = useRef(true);
+    const sendingRef = useRef(false);
+    useEffect(() => {
+        currentCodeRef.current = codeByLang[language] ?? "";
+        languageRef.current = language;
+        voiceOnRef.current = voiceOn;
+        sendingRef.current = sending;
+    });
     const recStartRef = useRef(0);
 
     const micSupported =
@@ -359,21 +377,37 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     useEffect(() => {
         if (!pendingEnd) return;
         if (sending || kokoro.generating || kokoro.speaking) return;
-        const t = setTimeout(() => endInterview(), 600);
+        // A spoken closing finishes promptly once speech ends. With voice off,
+        // hold the closing remark on screen long enough to read before routing
+        // to results, so the wrap-up doesn't feel abrupt.
+        const delay = voiceOnRef.current ? 600 : 4000;
+        const t = setTimeout(() => endInterview(), delay);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pendingEnd, sending, kokoro.generating, kokoro.speaking]);
 
-    // Auto-end #2: a hard time cap per interview type, with a live countdown.
+    // Time cap per interview type, with a live countdown. Instead of cutting off
+    // at zero, the interviewer is asked to wrap up warmly ~70s before the cap;
+    // a hard fallback a little past zero guarantees the room never hangs open.
     useEffect(() => {
         if (!joined) return;
         const durationMs = interviewTypeMeta(interviewType).durationMin * 60_000;
+        const WRAP_UP_AT_MS = 70_000; // ask the AI to close ~70s before the cap
+        const HARD_STOP_MS = 25_000;  // absolute fallback past the cap
         const id = setInterval(() => {
             const start = startedAtRef.current;
             if (!start) return;
             const left = start + durationMs - Date.now();
             setRemainingMs(Math.max(0, left));
-            if (left <= 0 && !endedRef.current) endInterview();
+            if (endedRef.current) return;
+            // Graceful close: have the interviewer sign off warmly as time runs
+            // low. Skip while a candidate turn is in flight so the closing can't
+            // collide with that reply into a duplicate exchange.
+            if (left <= WRAP_UP_AT_MS && !wrapUpRef.current && !sendingRef.current) {
+                requestWrapUp();
+            }
+            // Absolute safety net: if the wrap-up never completed, end the room.
+            if (left <= -HARD_STOP_MS) endInterview();
         }, 1000);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -593,7 +627,9 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     // flow so talking to the interviewer feels like a real conversation.
     async function sendMessageText(text: string): Promise<boolean> {
         const clean = text.trim();
-        if (!clean || !firebaseUser || sending) return false;
+        // Once the interview is wrapping up / ending, stop accepting new turns so
+        // a late message can't race the closing into a duplicate exchange.
+        if (!clean || !firebaseUser || sending || wrapUpRef.current || endedRef.current) return false;
         if (recording) {
             try {
                 mediaRecorderRef.current?.stop();
@@ -633,7 +669,11 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             if (voiceOn) kokoro.speak(turn.content);
             // The interviewer signalled the interview is over — finish once the
             // closing line has finished speaking (see the pendingEnd effect).
-            if (data.ended) setPendingEnd(true);
+            // Mark wrapUpRef so the countdown timer doesn't also fire a wrap-up.
+            if (data.ended) {
+                wrapUpRef.current = true;
+                setPendingEnd(true);
+            }
             return true;
         } catch {
             setTranscript((t) => t.filter((x) => x !== candidateTurn));
@@ -685,6 +725,40 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             toast.error("Network error while running code");
         } finally {
             setRunning(false);
+        }
+    }
+
+    // As the clock runs out, ask the interviewer to deliver a warm closing
+    // (a system-initiated "wrapup" turn) instead of the room cutting off — this
+    // also covers a candidate who's gone quiet near the end. The closing is
+    // shown + spoken, then the pendingEnd effect finishes the room.
+    async function requestWrapUp() {
+        if (!firebaseUser || endedRef.current || wrapUpRef.current) return;
+        wrapUpRef.current = true;
+        try {
+            const res = await teacherFetch(firebaseUser, "/api/ai-interview/turn", {
+                method: "POST",
+                body: JSON.stringify({
+                    sessionId,
+                    action: "wrapup",
+                    // Read from refs (not the join-time closure) so the final
+                    // judge sees the candidate's CURRENT code, not the starter.
+                    code: currentCodeRef.current,
+                    language: languageRef.current,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.turn) {
+                const turn = data.turn as AIInterviewTurn;
+                setTranscript((t) => [...t, turn]);
+                if (voiceOnRef.current) kokoro.speak(turn.content);
+                setPendingEnd(true);
+            } else {
+                // Couldn't generate a closing — finish the room directly.
+                endInterview();
+            }
+        } catch {
+            endInterview();
         }
     }
 
@@ -805,7 +879,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
 
     // Candidate self-view — small floating thumbnail (Meet PiP).
     const selfPiP = () => (
-        <div className="absolute bottom-3 right-3 z-10 w-28 overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-xl sm:w-44">
+        <div className="on-dark absolute bottom-3 right-3 z-10 w-28 overflow-hidden rounded-xl border border-white/10 bg-[#0f172a] shadow-xl sm:w-44">
             <div className="relative aspect-video">
                 <video
                     ref={attachVideo}
@@ -817,7 +891,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                 />
                 {!(cameraOn && videoOn) && (
                     <div className="flex h-full w-full items-center justify-center">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-slate-200">
+                        <div className="on-dark flex h-10 w-10 items-center justify-center rounded-full bg-[#334155] text-sm font-bold text-slate-200">
                             You
                         </div>
                     </div>
@@ -899,7 +973,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         {isSql && problem.sql?.schemaSql && (
                             <div className="mt-2">
                                 <p className="font-semibold text-slate-700">Schema</p>
-                                <pre className="mt-1 overflow-auto rounded-md bg-slate-900 p-2 text-[11px] leading-relaxed text-slate-100">
+                                <pre className="on-dark mt-1 overflow-auto rounded-md bg-[#0f172a] p-2 text-[11px] leading-relaxed text-slate-100">
                                     {problem.sql.schemaSql}
                                 </pre>
                             </div>
@@ -923,8 +997,8 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                             <div
                                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
                                     isInterviewer
-                                        ? "bg-primary-50 text-slate-800 border border-primary-100"
-                                        : "bg-slate-800 text-white"
+                                        ? "bg-primary-50 dark:bg-primary-500/10 text-slate-800 border border-primary-100 dark:border-primary-500/25"
+                                        : "on-dark bg-[#1e293b] text-white"
                                 }`}
                             >
                                 {isInterviewer && (
@@ -939,7 +1013,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                 })}
                 {sending && (
                     <div className="flex justify-start">
-                        <div className="rounded-2xl bg-primary-50 border border-primary-100 px-3.5 py-2.5 text-sm text-slate-400">
+                        <div className="rounded-2xl bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/25 px-3.5 py-2.5 text-sm text-slate-400">
                             Interviewer is thinking…
                         </div>
                     </div>
@@ -1069,7 +1143,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             {isSql && problem?.sql?.schemaSql && (
                 <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" open>
                     <summary className="cursor-pointer font-semibold text-slate-700">Table schema</summary>
-                    <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-slate-900 p-2 text-[11px] leading-relaxed text-slate-100">
+                    <pre className="on-dark mt-2 max-h-40 overflow-auto rounded-md bg-[#0f172a] p-2 text-[11px] leading-relaxed text-slate-100">
                         {problem.sql.schemaSql}
                     </pre>
                 </details>
@@ -1083,7 +1157,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     onChange={(v) => setCodeByLang((m) => ({ ...m, [language]: v ?? "" }))}
                     theme="vs-dark"
                     loading={
-                        <div className="flex h-[440px] items-center justify-center bg-slate-900 text-sm text-slate-400">
+                        <div className="on-dark flex h-[440px] items-center justify-center bg-[#0f172a] text-sm text-slate-400">
                             Loading editor…
                         </div>
                     }
@@ -1112,7 +1186,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         const verdictLabel = (v || "").replace(/_/g, " ") || "—";
         const visibleFails = (lastRun?.results || []).filter((r) => !r.passed && !r.isHidden);
         return (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-900 text-slate-100">
+            <div className="on-dark overflow-hidden rounded-xl border border-slate-200 bg-[#0f172a] text-slate-100">
                 <button
                     type="button"
                     onClick={() => setConsoleOpen((o) => !o)}
@@ -1220,7 +1294,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     {isSql && problem.sql?.schemaSql && (
                         <div className="mt-2">
                             <p className="font-semibold text-slate-700">Schema</p>
-                            <pre className="mt-1 max-h-44 overflow-auto rounded-md bg-slate-900 p-2 text-[11px] leading-relaxed text-slate-100">
+                            <pre className="on-dark mt-1 max-h-44 overflow-auto rounded-md bg-[#0f172a] p-2 text-[11px] leading-relaxed text-slate-100">
                                 {problem.sql.schemaSql}
                             </pre>
                         </div>
@@ -1249,7 +1323,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     You&apos;ll discuss <span className="font-medium">{interviewTitle}</span> with your AI interviewer.
                 </p>
                 <Card padding="lg" elevated className="mt-5">
-                    <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-900">
+                    <div className="on-dark relative aspect-video overflow-hidden rounded-2xl bg-[#0f172a]">
                         <video
                             ref={attachVideo}
                             autoPlay
@@ -1260,7 +1334,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         />
                         {!cameraOn && (
                             <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-400">
-                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-700 text-xl font-bold text-slate-200">
+                                <div className="on-dark flex h-16 w-16 items-center justify-center rounded-full bg-[#334155] text-xl font-bold text-slate-200">
                                     You
                                 </div>
                                 <p className="text-xs">Camera off — you can still join</p>
@@ -1305,7 +1379,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         <span
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${
                                 (remainingMs ?? 0) < 60000
-                                    ? "bg-rose-50 text-rose-600"
+                                    ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300"
                                     : "bg-slate-100 text-slate-600"
                             }`}
                             title="Time remaining"
@@ -1315,7 +1389,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     )}
                     <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
-                            phase.live ? "bg-primary-50 text-primary-700" : "bg-slate-100 text-slate-600"
+                            phase.live ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300" : "bg-slate-100 text-slate-600"
                         }`}
                     >
                         {phase.spin ? (
@@ -1335,7 +1409,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             {!(codingUnlocked && isCoding) ? (
                 // ── Conversation: a real 1:1 video-call stage ──
                 <>
-                    <div className="relative h-[58vh] min-h-[440px] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 ring-1 ring-white/5">
+                    <div className="on-dark relative h-[58vh] min-h-[440px] overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] to-[#020617] ring-1 ring-white/5">
                         {interviewerStage(false)}
                         {selfPiP()}
                         {captionsOn && captionsOverlay()}
@@ -1346,7 +1420,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                 // ── Coding: editor + a smaller call stage beside it ──
                 <div className="grid gap-3 lg:grid-cols-2">
                     <div>{editorPanel()}</div>
-                    <div className="relative min-h-[340px] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 ring-1 ring-white/5">
+                    <div className="on-dark relative min-h-[340px] overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#020617] ring-1 ring-white/5">
                         {interviewerStage(true)}
                         {selfPiP()}
                         {captionsOn && captionsOverlay()}

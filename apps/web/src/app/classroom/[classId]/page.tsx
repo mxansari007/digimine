@@ -208,7 +208,7 @@ export default function ClassroomPage() {
                         <div className="mt-6 space-y-3">
                             {!showLeaveConfirm ? (
                                 <div className="flex flex-wrap items-center justify-center gap-3">
-                                    <div className="inline-flex items-center gap-2 px-5 py-2 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+                                    <div className="inline-flex items-center gap-2 px-5 py-2 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/25 rounded-xl text-green-700 dark:text-green-300 text-sm">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
@@ -217,15 +217,15 @@ export default function ClassroomPage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="text-red-600 hover:bg-red-50 border-red-200"
+                                        className="text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 border-red-200 dark:border-red-500/25"
                                         onClick={() => setShowLeaveConfirm(true)}
                                     >
                                         Leave Class
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="inline-flex flex-col items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-                                    <p className="text-sm text-red-700">
+                                <div className="inline-flex flex-col items-center gap-3 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-xl">
+                                    <p className="text-sm text-red-700 dark:text-red-300">
                                         Are you sure you want to leave this class? You will lose access to all content.
                                     </p>
                                     <div className="flex gap-3">
@@ -263,7 +263,7 @@ export default function ClassroomPage() {
                                 <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer h-full">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                                                 <item.Icon className="h-6 w-6" strokeWidth={2} aria-hidden />
                                             </div>
                                             <h3 className="text-lg font-semibold text-gray-900">{item.label}</h3>

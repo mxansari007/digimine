@@ -211,7 +211,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                             <span className="text-xl text-gray-400 line-through font-medium">
                                                 {formatCurrency(product.compareAtPrice!)}
                                             </span>
-                                            <span className="text-sm font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">
+                                            <span className="text-sm font-bold text-red-600 dark:text-red-300 bg-red-100 dark:bg-red-500/15 px-2 py-0.5 rounded">
                                                 SAVE {savingsPercent}%
                                             </span>
                                         </div>
@@ -221,11 +221,11 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                                 <div ref={ctaRef} className="w-full max-w-md space-y-3">
                                     {hasAccess ? (
                                         <div className="space-y-3">
-                                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg justify-center lg:justify-start">
-                                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/25 rounded-lg justify-center lg:justify-start">
+                                                <svg className="w-5 h-5 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                 </svg>
-                                                <span className="text-green-800 font-bold">You own this product</span>
+                                                <span className="text-green-800 dark:text-green-300 font-bold">You own this product</span>
                                             </div>
                                             <Link href="/dashboard/downloads" className="inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary-600 text-white hover:bg-primary-700 w-full text-xl py-6 shadow-xl shadow-primary-500/30">
                                                 Access Content
@@ -293,7 +293,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             {/* Floating Elements/Decorations */}
                             {product.deliveryFormat && (
                                 <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float delay-1000">
-                                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                                    <div className="p-2 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-300">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                                         </svg>
@@ -307,7 +307,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
                             {product.moneyBackGuarantee > 0 && (
                                 <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float">
-                                    <div className="p-2 bg-green-50 rounded-lg text-green-600">
+                                    <div className="p-2 bg-green-50 dark:bg-green-500/10 rounded-lg text-green-600 dark:text-green-300">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -361,7 +361,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {product.highlights.map((highlight, index) => (
                                     <div key={index} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-lg shadow-gray-200/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                        <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mb-6">
+                                        <div className="w-12 h-12 bg-primary-100 dark:bg-primary-500/15 text-primary-600 dark:text-primary-300 rounded-2xl flex items-center justify-center mb-6">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                             </svg>
@@ -380,17 +380,17 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             {/* SECTION 4: CONTENT PREVIEW - Full Width Dark Section */}
             {
                 product.contentPreview && product.contentPreview.length > 0 && (
-                    <section className="py-20 lg:py-32 bg-gray-900 text-white relative overflow-hidden">
+                    <section className="on-dark py-20 lg:py-32 bg-[#111827] text-white relative overflow-hidden">
                         {/* Background effects */}
-                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
+                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#374151] to-transparent" />
                         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
                         <div className="absolute -top-[300px] -right-[300px] w-[600px] h-[600px] bg-primary-500/20 rounded-full blur-[150px]" />
 
                         <div className="container-page relative z-10">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
                                 <div className="order-2 lg:order-1">
-                                    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 lg:p-8 border border-gray-700 shadow-2xl">
-                                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-700">
+                                    <div className="bg-[#1f2937]/50 backdrop-blur-sm rounded-2xl p-6 lg:p-8 border border-[#374151] shadow-2xl">
+                                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#374151]">
                                             <div className="flex gap-2">
                                                 <div className="w-3 h-3 rounded-full bg-red-500" />
                                                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -663,7 +663,7 @@ function ContentTreeItem({ item, depth, theme }: { item: ContentPreviewItem; dep
                 </svg>
             </div>
             {item.type === "folder" && item.children && item.children.length > 0 && (
-                <div className={`border-l-2 ml-2 ${isDark ? "border-gray-700" : "border-gray-200"}`}>
+                <div className={`border-l-2 ml-2 ${isDark ? "border-[#374151]" : "border-gray-200"}`}>
                     <ContentTreeView items={item.children} depth={depth + 1} theme={theme} />
                 </div>
             )}

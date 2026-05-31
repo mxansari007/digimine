@@ -38,7 +38,7 @@ function Avatar({ a }: { a: Author }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={a.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
             ) : (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 text-[11px] font-bold text-primary-700 dark:text-primary-300">
                     {(a.name || "?").slice(0, 1).toUpperCase()}
                 </span>
             )}
@@ -55,7 +55,7 @@ function VoteButton({
             onClick={onClick}
             disabled={disabled}
             className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition disabled:opacity-50 ${
-                voted ? "border-primary-300 bg-primary-50 text-primary-700" : "border-slate-200 text-slate-500 hover:border-primary-300 hover:text-primary-700"
+                voted ? "border-primary-300 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300" : "border-slate-200 text-slate-500 hover:border-primary-300 hover:text-primary-700"
             }`}
             title="Upvote"
         >

@@ -85,7 +85,7 @@ export default function TeacherSeriesTestsPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-7 h-7 bg-primary-100/80 text-primary-700 rounded-full flex items-center justify-center text-sm font-medium">
+                  <span className="flex-shrink-0 w-7 h-7 bg-primary-100/80 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300 rounded-full flex items-center justify-center text-sm font-medium">
                     {index + 1}
                   </span>
                   <div>
@@ -116,7 +116,7 @@ export default function TeacherSeriesTestsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-red-200 text-red-700 hover:bg-red-50"
+                    className="border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10"
                     onClick={() => handleDeleteTest(test.id)}
                   >
                     Delete

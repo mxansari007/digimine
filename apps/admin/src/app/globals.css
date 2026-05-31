@@ -5,6 +5,26 @@
 /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
+/* Design tokens (light only — admin has no dark toggle). These must exist
+   because the shared Tailwind config (packages/ui) backs the slate/gray ramps
+   and the surface/border tokens with these CSS variables. Values are the exact
+   Tailwind hexes so admin renders identically to before. */
+:root {
+  color-scheme: light;
+  --c-slate-50: 248 250 252;  --c-slate-100: 241 245 249; --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225; --c-slate-400: 148 163 184; --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;   --c-slate-700: 51 65 85;    --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;    --c-slate-950: 2 6 23;
+  --c-gray-50: 249 250 251;   --c-gray-100: 243 244 246;  --c-gray-200: 229 231 235;
+  --c-gray-300: 209 213 219;  --c-gray-400: 156 163 175;  --c-gray-500: 107 114 128;
+  --c-gray-600: 75 85 99;     --c-gray-700: 55 65 81;     --c-gray-800: 31 41 55;
+  --c-gray-900: 17 24 39;     --c-gray-950: 3 7 18;
+  --background: 248 250 252;       --surface: 255 255 255;       --surface-muted: 248 250 252;
+  --popover: 255 255 255;          --overlay: 15 23 42;          --foreground: 15 23 42;
+  --muted-foreground: 100 116 139; --border-token: 226 232 240;  --input-token: 226 232 240;
+  --ring-token: 20 184 166;
+}
+
 /* Base styles for admin */
 @layer base {
     html {

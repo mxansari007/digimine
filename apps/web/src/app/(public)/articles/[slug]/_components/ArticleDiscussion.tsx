@@ -189,7 +189,7 @@ export default function ArticleDiscussion({ articleId }: { articleId: string }) 
                                 className="h-9 w-9 shrink-0 rounded-full object-cover"
                             />
                         ) : (
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-700">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 font-bold text-primary-700 dark:text-primary-300">
                                 {(user?.displayName || firebaseUser.email || "U")[0]?.toUpperCase()}
                             </div>
                         )}

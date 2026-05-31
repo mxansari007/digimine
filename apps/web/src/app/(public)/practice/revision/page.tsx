@@ -57,7 +57,7 @@ export default function RevisionPage() {
                     <Card className="p-4"><SkeletonList rows={6} /></Card>
                 ) : items.length === 0 ? (
                     <Card className="p-12 text-center">
-                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
                             <CheckCircle2 className="h-7 w-7" strokeWidth={1.75} aria-hidden />
                         </div>
                         <p className="font-medium text-slate-700">Nothing due right now.</p>
@@ -81,7 +81,7 @@ export default function RevisionPage() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {it.overdueDays > 0 && (
-                                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+                                        <span className="rounded-full bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-rose-700 dark:text-rose-300">
                                             {it.overdueDays}d overdue
                                         </span>
                                     )}

@@ -46,7 +46,7 @@ export function ReadinessRing({ value, size = 140, label, sublabel }: Props) {
                     </filter>
                 </defs>
                 {/* track */}
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef2f6" strokeWidth={stroke} />
+                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--c-slate-200))" strokeWidth={stroke} />
                 {/* value arc */}
                 <circle
                     cx={size / 2}
@@ -68,11 +68,11 @@ export function ReadinessRing({ value, size = 140, label, sublabel }: Props) {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="font-display font-black"
-                    style={{ fontSize: size * 0.27, fill: "#0f172a" }}
+                    style={{ fontSize: size * 0.27, fill: "rgb(var(--c-slate-900))" }}
                 >
                     {v}
                 </text>
-                <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size * 0.085, fill: "#94a3b8" }}>
+                <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size * 0.085, fill: "rgb(var(--c-slate-400))" }}>
                     / 100
                 </text>
                 <text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size * 0.082, fontWeight: 700, fill: to }}>

@@ -128,7 +128,7 @@ export default function PhoneOnboardingPage() {
                     </div>
 
                     {otp.isDevMode && (
-                        <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-700">
+                        <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-700 dark:text-amber-300">
                             <Wrench className="h-3.5 w-3.5" aria-hidden />
                             Dev mode — OTP verification is mocked. Any 6-digit code will work.
                         </div>
@@ -207,7 +207,7 @@ export default function PhoneOnboardingPage() {
                 </div>
 
                 {otp.error && (
-                    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    <div className="mt-4 rounded-xl border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">
                         {otp.error}
                     </div>
                 )}

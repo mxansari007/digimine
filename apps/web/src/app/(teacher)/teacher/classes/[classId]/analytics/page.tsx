@@ -67,9 +67,9 @@ function formatPct(n: number | null | undefined) {
 }
 
 const riskBg: Record<RiskBand, string> = {
-    low: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-    medium: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
-    high: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25",
+    medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25",
+    high: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25",
 };
 
 export default function ClassAnalyticsPage() {
@@ -283,7 +283,7 @@ export default function ClassAnalyticsPage() {
                             {data.topPerformers.map((p, i) => (
                                 <li key={p.studentId} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
                                     <div className="flex items-center gap-3">
-                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700">
+                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                             {i + 1}
                                         </span>
                                         <Link href={`/teacher/students/${p.studentId}`} className="hover:text-primary-700">
@@ -308,7 +308,7 @@ export default function ClassAnalyticsPage() {
                             {data.bottomPerformers.map((p, i) => (
                                 <li key={p.studentId} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
                                     <div className="flex items-center gap-3">
-                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 text-xs font-bold text-rose-700">
+                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10 text-xs font-bold text-rose-700 dark:text-rose-300">
                                             {i + 1}
                                         </span>
                                         <Link href={`/teacher/students/${p.studentId}`} className="hover:text-primary-700">
@@ -397,7 +397,7 @@ export default function ClassAnalyticsPage() {
                                     <li key={q.questionId} className="py-2.5">
                                         <div className="flex items-center justify-between">
                                             <span className="truncate font-medium text-gray-900">{q.contentTitle}</span>
-                                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
+                                            <span className="rounded-full bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-300">
                                                 {q.wrongRate}% wrong
                                             </span>
                                         </div>
@@ -423,7 +423,7 @@ export default function ClassAnalyticsPage() {
                                     <Link
                                         key={s.studentId}
                                         href={`/teacher/students/${s.studentId}`}
-                                        className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800 hover:bg-amber-100"
+                                        className="rounded-full border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs text-amber-800 dark:text-amber-300 hover:bg-amber-100"
                                     >
                                         {s.studentName} ({s.inProgressAttempts})
                                     </Link>
@@ -442,7 +442,7 @@ export default function ClassAnalyticsPage() {
                                     <Link
                                         key={s.studentId}
                                         href={`/teacher/students/${s.studentId}`}
-                                        className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 hover:border-primary-300 hover:bg-primary-50"
+                                        className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/10"
                                         title={s.studentEmail}
                                     >
                                         {s.studentName}

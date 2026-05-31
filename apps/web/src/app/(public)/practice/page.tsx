@@ -57,9 +57,9 @@ type Dashboard = {
 };
 
 function diffChip(d: string) {
-    if (d === "easy") return "text-emerald-700 bg-emerald-50";
-    if (d === "medium") return "text-amber-700 bg-amber-50";
-    return "text-rose-700 bg-rose-50";
+    if (d === "easy") return "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10";
+    if (d === "medium") return "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10";
+    return "text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10";
 }
 
 function verdictDot(v: string) {
@@ -186,7 +186,7 @@ export default function PracticeHubPage() {
     return (
         <main className="bg-slate-50 min-h-screen">
             {/* Hero / pitch */}
-            <section className="border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
+            <section className="on-dark border-b border-slate-200 bg-gradient-to-br from-[#0f172a] to-[#020617] text-white">
                 <div className="container-page py-12 sm:py-16">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-300">Practice</p>
                     <h1 className="font-display mt-2 text-3xl font-bold text-white sm:text-4xl">
@@ -481,7 +481,7 @@ export default function PracticeHubPage() {
                                                         <Link
                                                             key={s.pattern}
                                                             href={`/practice/problems?pattern=${encodeURIComponent(s.pattern)}`}
-                                                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/15 hover:bg-emerald-100"
+                                                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-600/15 hover:bg-emerald-100 dark:hover:bg-emerald-500/15"
                                                         >
                                                             {s.label}
                                                             <span className="text-emerald-500">{s.strength}%</span>

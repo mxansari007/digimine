@@ -112,8 +112,8 @@ export default function InterviewResultsPage({ params }: { params: { id: string 
                                     <div
                                         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
                                             isInterviewer
-                                                ? "bg-primary-50 text-slate-800 border border-primary-100"
-                                                : "bg-slate-800 text-white"
+                                                ? "bg-primary-50 dark:bg-primary-500/10 text-slate-800 border border-primary-100 dark:border-primary-500/25"
+                                                : "bg-[#1e293b] text-white"
                                         }`}
                                     >
                                         {t.content}

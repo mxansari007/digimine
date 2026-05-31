@@ -21,9 +21,9 @@ function siteOrigin(): string {
 }
 
 function diffChipClass(d: string): string {
-    if (d === "easy") return "bg-emerald-50 text-emerald-700";
-    if (d === "medium") return "bg-amber-50 text-amber-700";
-    return "bg-rose-50 text-rose-700";
+    if (d === "easy") return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    if (d === "medium") return "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    return "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300";
 }
 
 function kindLabel(k: string): string {
@@ -35,10 +35,10 @@ function kindLabel(k: string): string {
 
 function difficultyChip(d: string | null): { label: string; cls: string } | null {
     if (!d) return null;
-    if (d === "beginner") return { label: "Beginner", cls: "bg-emerald-50 text-emerald-700" };
+    if (d === "beginner") return { label: "Beginner", cls: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
     if (d === "intermediate")
-        return { label: "Intermediate", cls: "bg-amber-50 text-amber-700" };
-    return { label: "Advanced", cls: "bg-rose-50 text-rose-700" };
+        return { label: "Intermediate", cls: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300" };
+    return { label: "Advanced", cls: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300" };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -108,16 +108,16 @@ export default async function PracticeSheetPage({ params }: Props) {
                     <div className="mt-3 grid items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
                         <div>
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
-                                <span className="rounded-full bg-primary-100 px-2.5 py-1 text-primary-700">
+                                <span className="rounded-full bg-primary-100 dark:bg-primary-500/15 px-2.5 py-1 text-primary-700 dark:text-primary-300">
                                     {kindLabel(sheet.kind)}
                                 </span>
                                 {sheet.isOfficial && (
-                                    <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
+                                    <span className="rounded-full bg-[#0f172a] px-2.5 py-1 text-white">
                                         Official
                                     </span>
                                 )}
                                 {sheet.isFeatured && (
-                                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                                    <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-amber-700 dark:text-amber-300">
                                         Featured
                                     </span>
                                 )}

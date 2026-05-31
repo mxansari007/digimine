@@ -58,9 +58,9 @@ type Analytics = {
 };
 
 const riskBg: Record<RiskBand, string> = {
-    low: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-    medium: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
-    high: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25",
+    medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25",
+    high: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25",
 };
 
 function formatPct(n: number | null | undefined) {
@@ -183,9 +183,9 @@ export default function TeacherStudentDetailPage() {
                     <span
                         className={`rounded-full px-3 py-1 text-xs font-medium ${
                             student.status === "active"
-                                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                                ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 ring-1 ring-green-200 dark:ring-green-500/25"
                                 : student.status === "banned"
-                                ? "bg-red-50 text-red-700 ring-1 ring-red-200"
+                                ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25"
                                 : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
                         }`}
                     >
@@ -466,11 +466,11 @@ export default function TeacherStudentDetailPage() {
                                             <span
                                                 className={`rounded-full px-2 py-0.5 text-xs ${
                                                     r.status === "completed"
-                                                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25"
                                                         : r.status === "timed_out"
-                                                        ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                                                        ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25"
                                                         : r.status === "in_progress"
-                                                        ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                                        ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-500/25"
                                                         : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
                                                 }`}
                                             >

@@ -13,7 +13,7 @@ export default async function TestsPage() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-10 text-center">
-                    <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                    <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
                         Mock Tests &amp; Practice
                     </span>

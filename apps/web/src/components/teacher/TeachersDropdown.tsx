@@ -127,9 +127,9 @@ export function TeachersDropdown() {
                                     key={teacher.teacherId}
                                     href={`/classroom/${teacher.teacherId}`}
                                     onClick={() => setIsOpen(false)}
-                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-primary-50/70"
+                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-primary-50/70 dark:hover:bg-primary-500/10"
                                 >
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 ring-1 ring-primary-200">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 text-xs font-bold text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-500/25">
                                         {teacher.teacherName[0]?.toUpperCase() || "T"}
                                     </div>
                                     <div className="min-w-0">

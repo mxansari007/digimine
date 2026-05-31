@@ -1462,16 +1462,16 @@ export default function TestAttemptPage() {
     };
 
     const getStatusColor = (status: QuestionStatus, isCurrent: boolean) => {
-        if (isCurrent) return "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100";
+        if (isCurrent) return "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100 dark:ring-indigo-500/25";
         switch (status) {
-            case "answered": return "bg-green-100 text-green-700 hover:bg-green-200";
+            case "answered": return "bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-500/25";
             // Flagged but no answer: purple (the standard "I'll come back" colour).
-            case "marked_for_review": return "bg-purple-100 text-purple-700 hover:bg-purple-200 ring-2 ring-purple-300";
+            case "marked_for_review": return "bg-purple-100 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/25 ring-2 ring-purple-300 dark:ring-purple-500/25";
             // Flagged AND answered: green with a purple ring so both signals
             // read at a glance — answered = good, ring = come back to review.
-            case "answered_and_marked": return "bg-green-100 text-green-700 hover:bg-green-200 ring-2 ring-purple-400";
-            case "code_unrun": return "bg-orange-100 text-orange-700 hover:bg-orange-200 ring-2 ring-orange-300";
-            case "visited": return "bg-blue-50 text-blue-600 hover:bg-blue-100";
+            case "answered_and_marked": return "bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-500/25 ring-2 ring-purple-400 dark:ring-purple-500/25";
+            case "code_unrun": return "bg-orange-100 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-500/25 ring-2 ring-orange-300 dark:ring-orange-500/25";
+            case "visited": return "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/20";
             default: return "bg-gray-50 text-gray-400 hover:bg-gray-100";
         }
     };
@@ -1491,9 +1491,9 @@ export default function TestAttemptPage() {
     };
 
     const getTimerBg = () => {
-        if (timeLeft < 60) return "bg-red-50 border-red-200";
-        if (timeLeft < 300) return "bg-orange-50 border-orange-200";
-        if (timeLeft < 600) return "bg-yellow-50 border-yellow-200";
+        if (timeLeft < 60) return "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25";
+        if (timeLeft < 300) return "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/25";
+        if (timeLeft < 600) return "bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/25";
         return "bg-gray-50 border-gray-200";
     };
 
@@ -1545,10 +1545,10 @@ export default function TestAttemptPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <div className="min-h-screen bg-[#111827] flex items-center justify-center text-white">
                 <div className="text-center max-w-md px-6">
                     <div className="relative w-20 h-20 mx-auto mb-6">
-                        <div className="absolute inset-0 rounded-full border-4 border-gray-700"></div>
+                        <div className="absolute inset-0 rounded-full border-4 border-[#374151]"></div>
                         <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <svg className="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1571,7 +1571,7 @@ export default function TestAttemptPage() {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <Card className="max-w-md w-full p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300 flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                         </svg>
@@ -1629,7 +1629,7 @@ export default function TestAttemptPage() {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <Card className="max-w-2xl w-full p-8 shadow-2xl border-none">
                     <div className="text-center mb-8">
-                        <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+                        <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
                             {Object.keys(answers).length > 0 ? (
                                 <RefreshIcon className="h-9 w-9" />
                             ) : (
@@ -1681,7 +1681,7 @@ export default function TestAttemptPage() {
                         {testSections.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {testSections.map((section) => (
-                                    <span key={section.id} className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                                    <span key={section.id} className="inline-flex rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                                         {section.title}
                                         {section.cutoffMarks !== undefined ? ` · Cutoff ${section.cutoffMarks}` : ""}
                                     </span>
@@ -1756,7 +1756,7 @@ export default function TestAttemptPage() {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                     <Card className={`relative max-w-md w-full p-6 shadow-2xl border-2 ${tabSwitchCount >= 3 ? 'border-red-500' : 'border-amber-400'}`}>
                         <div className="text-center">
-                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${tabSwitchCount >= 3 ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${tabSwitchCount >= 3 ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300'}`}>
                                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
@@ -1767,13 +1767,13 @@ export default function TestAttemptPage() {
                             <p className="text-sm text-gray-600 mb-4">
                                 Switching tabs or leaving the test window is not allowed during a test. This activity is being recorded.
                             </p>
-                            <div className={`rounded-lg p-3 mb-5 ${tabSwitchCount >= 3 ? 'bg-red-50' : 'bg-amber-50'}`}>
+                            <div className={`rounded-lg p-3 mb-5 ${tabSwitchCount >= 3 ? 'bg-red-50 dark:bg-red-500/10' : 'bg-amber-50 dark:bg-amber-500/10'}`}>
                                 <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Tab switch count</p>
-                                <p className={`text-3xl font-bold ${tabSwitchCount >= 3 ? 'text-red-600' : 'text-amber-600'}`}>
+                                <p className={`text-3xl font-bold ${tabSwitchCount >= 3 ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300'}`}>
                                     {tabSwitchCount}
                                 </p>
                                 {tabSwitchCount >= 3 && (
-                                    <p className="text-xs text-red-600 font-semibold mt-1">
+                                    <p className="text-xs text-red-600 dark:text-red-300 font-semibold mt-1">
                                         Repeated violations may lead to test cancellation.
                                     </p>
                                 )}
@@ -1802,7 +1802,7 @@ export default function TestAttemptPage() {
                         </svg>
                     </button>
                     <h1 className="hidden sm:block text-base sm:text-lg font-bold text-gray-900 truncate max-w-[180px] sm:max-w-[260px]">{test.title}</h1>
-                    <span className="inline-flex bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap">
+                    <span className="inline-flex bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap">
                         Q {currentQuestionIndex + 1}<span className="opacity-60">/{questions.length}</span>
                     </span>
                 </div>
@@ -1873,15 +1873,15 @@ export default function TestAttemptPage() {
                     <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
                         {/* Shared Passage (reading comprehension / logical set) */}
                         {currentQuestion.passage && currentQuestion.passageGroup && (
-                            <div className="bg-amber-50/60 rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-sm">
+                            <div className="bg-amber-50/60 dark:bg-amber-500/10 rounded-2xl p-5 sm:p-6 border border-amber-200/80 dark:border-amber-500/25 shadow-sm">
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 uppercase tracking-wider">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                         </svg>
                                         Reading Passage · Set {setNumberById.get(currentQuestion.passageGroup) || ''}
                                     </span>
-                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
                                         Q {setPositionByIdx.get(currentQuestionIndex) || 1} of {setSizeById.get(currentQuestion.passageGroup) || 1} in this set
                                     </span>
                                 </div>
@@ -1899,17 +1899,17 @@ export default function TestAttemptPage() {
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider">Question {currentQuestionIndex + 1}</span>
                                     {currentSection && (
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full">
                                             {currentSection.title}
                                         </span>
                                     )}
                                     {currentQuestion.passageGroup && (
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
                                             Set {setNumberById.get(currentQuestion.passageGroup) || ''}
                                         </span>
                                     )}
                                     {markedForReview.has(currentQuestion.id) && (
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full">
+                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-500/10 px-2 py-0.5 rounded-full">
                                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                             </svg>
@@ -1938,7 +1938,7 @@ export default function TestAttemptPage() {
                                         onClick={() => handleOptionSelect(option.id)}
                                         className={`flex items-center gap-4 p-4 sm:p-5 rounded-xl border-2 transition-all text-left group ${
                                             answers[currentQuestion.id] === option.id
-                                                ? "border-indigo-600 bg-indigo-50 shadow-md translate-x-1"
+                                                ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 shadow-md translate-x-1"
                                                 : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
                                         }`}
                                     >
@@ -2041,7 +2041,7 @@ export default function TestAttemptPage() {
                                         <button
                                             type="button"
                                             onClick={() => setEditorSize('fullscreen')}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-xs font-bold"
                                             title="Maximize editor (fullscreen)"
                                             aria-label="Maximize code editor"
                                         >
@@ -2091,7 +2091,7 @@ export default function TestAttemptPage() {
                                             {currentQuestion.testCases.filter(tc => !tc.isHidden).map((tc, idx) => (
                                                 <div key={idx} className="px-4 py-2.5 text-xs font-mono space-y-1">
                                                     <div className="flex items-start gap-2">
-                                                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0 mt-0.5">Case {idx + 1}</span>
+                                                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">Case {idx + 1}</span>
                                                     </div>
                                                     <div className="pl-1 border-l-2 border-gray-200 space-y-0.5">
                                                         <div><span className="text-gray-400">Input:</span> <span className="text-gray-700 whitespace-pre-wrap">{tc.input || '(empty)'}</span></div>
@@ -2109,7 +2109,7 @@ export default function TestAttemptPage() {
                                         onClick={() => runCode(currentQuestion)}
                                         disabled={runningCode || !(editorDrafts[currentQuestion.id]?.code?.trim())}
                                         variant="outline"
-                                        className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                        className="border-indigo-200 dark:border-indigo-500/25 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
                                     >
                                         {runningCode ? (
                                             <span className="flex items-center gap-2">
@@ -2133,7 +2133,7 @@ export default function TestAttemptPage() {
                                         {currentQuestion.testCases?.filter(tc => !tc.isHidden).length || 0} visible test case(s)
                                     </span>
                                     {!codeExecutedQuestions.has(currentQuestion.id) && (
-                                        <span className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-bold border border-orange-200" role="status">
+                                        <span className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 text-xs font-bold border border-orange-200 dark:border-orange-500/25" role="status">
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
@@ -2146,7 +2146,7 @@ export default function TestAttemptPage() {
                                 {testCaseResults[currentQuestion.id] && (
                                     <div className="space-y-3">
                                         {testCaseResults[currentQuestion.id].map((result, idx) => (
-                                            <div key={idx} className={`p-4 rounded-xl border ${result.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div key={idx} className={`p-4 rounded-xl border ${result.passed ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'}`}>
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-sm font-bold">
                                                         {result.isHidden ? 'Hidden Test Case' : `Test Case ${idx + 1}`}
@@ -2175,7 +2175,7 @@ export default function TestAttemptPage() {
                                 onClick={() => toggleMarkForReview(currentQuestion.id)}
                                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                     markedForReview.has(currentQuestion.id)
-                                        ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                                        ? "bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-200 dark:hover:bg-yellow-500/25"
                                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                                 title="Press M to toggle"
@@ -2188,7 +2188,7 @@ export default function TestAttemptPage() {
                             {(answers[currentQuestion.id] || codeAnswers[currentQuestion.id] || (currentQuestion.type === 'code' && editorDrafts[currentQuestion.id]?.code?.trim())) && (
                                 <button
                                     onClick={() => clearAnswer(currentQuestion.id)}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
                                     title="Press C to clear"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2222,7 +2222,7 @@ export default function TestAttemptPage() {
                                         setShowSubmitConfirm(true);
                                     }
                                 }}
-                                className="bg-gray-900 hover:bg-black text-white px-6 sm:px-8"
+                                className="bg-[#111827] hover:bg-black text-white px-6 sm:px-8"
                                 rightIcon={
                                     currentQuestionIndex < questions.length - 1 ? (
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2346,23 +2346,23 @@ export default function TestAttemptPage() {
                             return (
                                 <div className="mt-8 space-y-3">
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
+                                        <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-500/15 border border-green-200 dark:border-green-500/25"></div>
                                         <span>Answered ({answeredTotal})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-purple-100 border border-purple-200 ring-1 ring-purple-300"></div>
+                                        <div className="w-4 h-4 rounded bg-purple-100 dark:bg-purple-500/15 border border-purple-200 dark:border-purple-500/25 ring-1 ring-purple-300 dark:ring-purple-500/25"></div>
                                         <span>Marked for Review ({markedForReview.size})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-green-100 border border-green-200 ring-1 ring-purple-400"></div>
+                                        <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-500/15 border border-green-200 dark:border-green-500/25 ring-1 ring-purple-400 dark:ring-purple-500/25"></div>
                                         <span>Answered & Marked ({questions.filter((q, i) => getQuestionStatus(q.id, i) === 'answered_and_marked').length})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-orange-100 border border-orange-200 ring-1 ring-orange-300"></div>
+                                        <div className="w-4 h-4 rounded bg-orange-100 dark:bg-orange-500/15 border border-orange-200 dark:border-orange-500/25 ring-1 ring-orange-300 dark:ring-orange-500/25"></div>
                                         <span>Code not run yet ({codeUnrunCount})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                        <div className="w-4 h-4 rounded bg-blue-50 border border-blue-100"></div>
+                                        <div className="w-4 h-4 rounded bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/25"></div>
                                         <span>Visited ({visitedQuestions.size})</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -2477,11 +2477,11 @@ export default function TestAttemptPage() {
 
                             <div className="mt-6 space-y-3">
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                                    <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
+                                    <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-500/15 border border-green-200 dark:border-green-500/25"></div>
                                     <span>Answered</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                                    <div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-200 ring-1 ring-yellow-300"></div>
+                                    <div className="w-4 h-4 rounded bg-yellow-100 dark:bg-yellow-500/15 border border-yellow-200 dark:border-yellow-500/25 ring-1 ring-yellow-300 dark:ring-yellow-500/25"></div>
                                     <span>Marked for Review</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -2512,7 +2512,7 @@ export default function TestAttemptPage() {
                             <h2 className="text-sm font-bold text-gray-900 truncate">
                                 Q{currentQuestionIndex + 1}: Code Editor
                             </h2>
-                            <span className="hidden sm:inline-flex bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                            <span className="hidden sm:inline-flex bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-full text-xs font-medium">
                                 {currentQuestion.marks} Marks
                             </span>
                             <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium`} aria-live="polite">
@@ -2573,7 +2573,7 @@ export default function TestAttemptPage() {
                             </Button>
                             <button
                                 onClick={() => setEditorSize('normal')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-xs font-bold"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#111827] text-white hover:bg-[#1f2937] text-xs font-bold"
                                 title="Exit fullscreen (Esc)"
                                 aria-label="Exit fullscreen"
                             >
@@ -2673,7 +2673,7 @@ export default function TestAttemptPage() {
                                 )}
                                 <button
                                     onClick={() => setIsRightPanelOpen(v => !v)}
-                                    className={`p-2.5 text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 ${isRightPanelOpen ? '' : 'w-full flex items-center justify-center'}`}
+                                    className={`p-2.5 text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 shrink-0 ${isRightPanelOpen ? '' : 'w-full flex items-center justify-center'}`}
                                     title={isRightPanelOpen ? 'Collapse panel' : 'Expand panel'}
                                 >
                                     {isRightPanelOpen ? (
@@ -2695,7 +2695,7 @@ export default function TestAttemptPage() {
                                                 {currentQuestion.testCases.filter(tc => !tc.isHidden).map((tc, idx) => (
                                                     <div key={idx} className="bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[11px] font-mono space-y-1">
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">Case {idx + 1}</span>
+                                                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-1 py-0.5 rounded">Case {idx + 1}</span>
                                                         </div>
                                                         <div><span className="text-gray-400">In:</span> <span className="text-gray-700 whitespace-pre-wrap">{tc.input || '(empty)'}</span></div>
                                                         <div><span className="text-gray-400">Exp:</span> <span className="text-gray-700 whitespace-pre-wrap">{tc.expectedOutput || '(empty)'}</span></div>
@@ -2709,7 +2709,7 @@ export default function TestAttemptPage() {
                                     {codeConsoleOutput[currentQuestion.id] && (
                                         <div>
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Console</span>
-                                            <div className="mt-2 bg-gray-900 rounded-lg p-3 text-[11px] font-mono space-y-2">
+                                            <div className="mt-2 bg-[#111827] rounded-lg p-3 text-[11px] font-mono space-y-2">
                                                 {codeConsoleOutput[currentQuestion.id].compileOutput && (
                                                     <div className="text-amber-400 whitespace-pre-wrap">{codeConsoleOutput[currentQuestion.id].compileOutput}</div>
                                                 )}
@@ -2732,7 +2732,7 @@ export default function TestAttemptPage() {
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Results</span>
                                             <div className="mt-2 space-y-2">
                                                 {testCaseResults[currentQuestion.id].map((result, idx) => (
-                                                    <div key={idx} className={`p-2.5 rounded-lg border text-[11px] ${result.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                                    <div key={idx} className={`p-2.5 rounded-lg border text-[11px] ${result.passed ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'}`}>
                                                         <div className="flex items-center justify-between mb-1">
                                                             <span className="font-bold">{result.isHidden ? 'Hidden' : `Case ${idx + 1}`}</span>
                                                             <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${result.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
@@ -2769,7 +2769,7 @@ export default function TestAttemptPage() {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitConfirm(false)} />
                     <Card className="relative max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
                         <div className="p-6 border-b border-gray-100 flex items-start gap-4">
-                            <div className="w-12 h-12 shrink-0 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 shrink-0 bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -2786,21 +2786,21 @@ export default function TestAttemptPage() {
                         <div className="p-6 overflow-y-auto space-y-5">
                             {/* Summary tiles */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Answered</div>
-                                    <div className="text-2xl font-bold text-emerald-900 mt-0.5">{answeredCount}</div>
+                                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Answered</div>
+                                    <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-300 mt-0.5">{answeredCount}</div>
                                 </div>
-                                <div className={`p-3 rounded-lg border ${unansweredIndexes.length ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${unansweredIndexes.length ? 'text-orange-700' : 'text-gray-500'}`}>Unanswered</div>
-                                    <div className={`text-2xl font-bold mt-0.5 ${unansweredIndexes.length ? 'text-orange-900' : 'text-gray-700'}`}>{unansweredIndexes.length}</div>
+                                <div className={`p-3 rounded-lg border ${unansweredIndexes.length ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/25' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${unansweredIndexes.length ? 'text-orange-700 dark:text-orange-300' : 'text-gray-500'}`}>Unanswered</div>
+                                    <div className={`text-2xl font-bold mt-0.5 ${unansweredIndexes.length ? 'text-orange-900 dark:text-orange-300' : 'text-gray-700'}`}>{unansweredIndexes.length}</div>
                                 </div>
-                                <div className={`p-3 rounded-lg border ${flaggedIndexes.length ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'}`}>
-                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${flaggedIndexes.length ? 'text-yellow-700' : 'text-gray-500'}`}>Flagged</div>
-                                    <div className={`text-2xl font-bold mt-0.5 ${flaggedIndexes.length ? 'text-yellow-800' : 'text-gray-700'}`}>{flaggedIndexes.length}</div>
+                                <div className={`p-3 rounded-lg border ${flaggedIndexes.length ? 'bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/25' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${flaggedIndexes.length ? 'text-yellow-700 dark:text-yellow-300' : 'text-gray-500'}`}>Flagged</div>
+                                    <div className={`text-2xl font-bold mt-0.5 ${flaggedIndexes.length ? 'text-yellow-800 dark:text-yellow-300' : 'text-gray-700'}`}>{flaggedIndexes.length}</div>
                                 </div>
-                                <div className={`p-3 rounded-lg border ${timeLeft < 300 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
-                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${timeLeft < 300 ? 'text-red-700' : 'text-gray-500'}`}>Time Left</div>
-                                    <div className={`text-2xl font-bold mt-0.5 font-mono tabular-nums ${timeLeft < 300 ? 'text-red-900' : 'text-gray-700'}`}>{formatTime(timeLeft)}</div>
+                                <div className={`p-3 rounded-lg border ${timeLeft < 300 ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${timeLeft < 300 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>Time Left</div>
+                                    <div className={`text-2xl font-bold mt-0.5 font-mono tabular-nums ${timeLeft < 300 ? 'text-red-900 dark:text-red-300' : 'text-gray-700'}`}>{formatTime(timeLeft)}</div>
                                 </div>
                             </div>
 
@@ -2819,7 +2819,7 @@ export default function TestAttemptPage() {
                                                 key={i}
                                                 type="button"
                                                 onClick={() => { setShowSubmitConfirm(false); goToQuestion(i); }}
-                                                className="w-9 h-9 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-sm font-bold transition-colors"
+                                                className="w-9 h-9 rounded-lg bg-orange-50 dark:bg-orange-500/10 hover:bg-orange-100 dark:hover:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/25 text-sm font-bold transition-colors"
                                                 title={`Jump to Q${i + 1}`}
                                             >
                                                 {i + 1}
@@ -2842,7 +2842,7 @@ export default function TestAttemptPage() {
                                                 key={i}
                                                 type="button"
                                                 onClick={() => { setShowSubmitConfirm(false); goToQuestion(i); }}
-                                                className="w-9 h-9 rounded-lg bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 text-sm font-bold transition-colors"
+                                                className="w-9 h-9 rounded-lg bg-yellow-50 dark:bg-yellow-500/10 hover:bg-yellow-100 dark:hover:bg-yellow-500/20 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-500/25 text-sm font-bold transition-colors"
                                                 title={`Jump to Q${i + 1}`}
                                             >
                                                 {i + 1}
@@ -2854,11 +2854,11 @@ export default function TestAttemptPage() {
 
                             {/* All-clear message */}
                             {unansweredIndexes.length === 0 && flaggedIndexes.length === 0 && (
-                                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-                                    <svg className="w-6 h-6 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 flex items-center gap-3">
+                                    <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                     </svg>
-                                    <div className="text-sm text-emerald-800">
+                                    <div className="text-sm text-emerald-800 dark:text-emerald-300">
                                         <span className="font-bold">All set.</span> You&apos;ve answered every question and have nothing flagged for review.
                                     </div>
                                 </div>
@@ -2888,9 +2888,9 @@ export default function TestAttemptPage() {
 
             {submitError && !submitting && (
                 <div className="fixed left-4 right-4 bottom-4 z-[110] sm:left-auto sm:right-6 sm:max-w-md">
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg" role="alert">
+                    <div className="rounded-lg border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-300 shadow-lg" role="alert">
                         <div className="flex items-start gap-3">
-                            <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                             </svg>
                             <div>
@@ -2904,7 +2904,7 @@ export default function TestAttemptPage() {
 
             {/* Submitting overlay — blocks all interaction while finishing the attempt */}
             {submitting && (
-                <div className="fixed inset-0 z-[120] bg-gray-900/85 backdrop-blur-sm flex items-center justify-center p-6" role="status" aria-live="polite">
+                <div className="fixed inset-0 z-[120] bg-[#111827]/85 backdrop-blur-sm flex items-center justify-center p-6" role="status" aria-live="polite">
                     <div className="text-center text-white max-w-md">
                         <div className="relative w-20 h-20 mx-auto mb-6">
                             <div className="absolute inset-0 rounded-full border-4 border-white/20"></div>

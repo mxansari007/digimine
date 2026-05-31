@@ -47,7 +47,7 @@ export default function NotFoundSearch({ className = "" }: { className?: string 
             </div>
             <button
                 type="submit"
-                className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                className="rounded-lg bg-[#0f172a] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1e293b]"
             >
                 Search
             </button>

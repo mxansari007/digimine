@@ -10,11 +10,61 @@ import type { Config } from "tailwindcss";
  *
  * Primary = teal (educational, confident, growth). Accent = amber (energy,
  * call to action).
+ *
+ * ── Theming (light / Tokyo-Night dark) ───────────────────────────────────
+ * The neutral ramps (`slate`, `gray`) and the semantic surface tokens
+ * (`background` / `surface` / `popover` / `border` / `ring` / `foreground`)
+ * are backed by CSS custom properties rather than fixed hex values. The web
+ * app defines those properties twice — once on `:root` (the exact current
+ * light values, so light mode is pixel-identical) and once on `.dark` (a
+ * curated Tokyo Night palette). Toggling the `.dark` class on <html> then
+ * flips ~every slate/gray/surface utility across the whole app at once,
+ * with no per-component edits. Brand colours (white / black / primary /
+ * accent / success / warning / danger / info) stay literal so `text-white`
+ * on a teal button never inverts. See apps/web/src/app/globals.css.
  */
+
+/** A CSS-variable-backed colour ramp. `<alpha-value>` keeps opacity
+ *  modifiers (e.g. `bg-slate-200/40`) working. */
+const varRamp = (name: string): Record<string, string> =>
+    Object.fromEntries(
+        [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((s) => [
+            s,
+            `rgb(var(--c-${name}-${s}) / <alpha-value>)`,
+        ])
+    );
+/** A single CSS-variable-backed semantic colour token. */
+const varToken = (v: string) => `rgb(var(--${v}) / <alpha-value>)`;
+
 const config: Partial<Config> = {
+    darkMode: ["class"],
     theme: {
         extend: {
             colors: {
+                // Neutral ramps — backed by CSS variables so they flip
+                // between the light palette and Tokyo Night on `.dark`.
+                slate: varRamp("slate"),
+                gray: varRamp("gray"),
+                // Semantic surface tokens (shadcn / lovable pattern). Reach
+                // for these in new code so theming stays automatic:
+                //   bg-background  — the page canvas
+                //   bg-surface     — a card / panel (the dark-mode `bg-white`)
+                //   bg-popover     — elevated menus & dropdowns
+                //   border-border  — hairline dividers
+                //   text-foreground / text-muted-foreground — body / secondary
+                background: varToken("background"),
+                surface: {
+                    DEFAULT: varToken("surface"),
+                    muted: varToken("surface-muted"),
+                },
+                card: varToken("surface"),
+                popover: varToken("popover"),
+                overlay: varToken("overlay"),
+                foreground: varToken("foreground"),
+                "muted-foreground": varToken("muted-foreground"),
+                border: varToken("border-token"),
+                input: varToken("input-token"),
+                ring: varToken("ring-token"),
                 // Primary — teal. Replaces the muted sage. Same class names
                 // as before so existing markup continues to work.
                 primary: {

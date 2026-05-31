@@ -10,6 +10,7 @@ import { PageLoading } from "@/components/common";
 import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 import { studentNav } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
+import { ThemeToggle } from "@/components/theme";
 
 /**
  * Results pages (test / quiz / contest) are user-scoped — anyone whose
@@ -123,6 +124,7 @@ function DashboardLayoutInner({
           onClose={onClose}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
+          footerExtra={<ThemeToggle side="top" align="start" />}
         />
       )}
     >

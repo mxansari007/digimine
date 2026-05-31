@@ -31,12 +31,12 @@ const paddingClasses: Record<NonNullable<CardProps["padding"]>, string> = {
 
 const intentClasses: Record<NonNullable<CardProps["intent"]>, string> = {
     default: "border-slate-200 bg-white",
-    primary: "border-primary-200 bg-primary-50/60",
-    success: "border-success-200 bg-success-50/60",
-    warning: "border-warning-200 bg-warning-50/60",
-    danger: "border-danger-200 bg-danger-50/60",
-    info: "border-info-200 bg-info-50/60",
-    accent: "border-accent-200 bg-accent-50/60",
+    primary: "border-primary-200 dark:border-primary-500/30 bg-primary-50/60 dark:bg-primary-500/10",
+    success: "border-success-200 dark:border-success-500/30 bg-success-50/60 dark:bg-success-500/10",
+    warning: "border-warning-200 dark:border-warning-500/30 bg-warning-50/60 dark:bg-warning-500/10",
+    danger: "border-danger-200 dark:border-danger-500/30 bg-danger-50/60 dark:bg-danger-500/10",
+    info: "border-info-200 dark:border-info-500/30 bg-info-50/60 dark:bg-info-500/10",
+    accent: "border-accent-200 dark:border-accent-500/30 bg-accent-50/60 dark:bg-accent-500/10",
 };
 
 /**

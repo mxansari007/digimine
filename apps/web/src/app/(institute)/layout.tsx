@@ -9,6 +9,7 @@ import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { instituteNav } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
+import { ThemeToggle } from "@/components/theme";
 
 /**
  * Institute admin layout. Mirrors the teacher layout shape but resolves the
@@ -137,6 +138,7 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                     onClose={onClose}
                     collapsed={collapsed}
                     onToggleCollapsed={onToggleCollapsed}
+                    footerExtra={<ThemeToggle side="top" align="start" />}
                 />
             )}
         >

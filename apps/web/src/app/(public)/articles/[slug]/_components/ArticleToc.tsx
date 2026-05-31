@@ -112,7 +112,7 @@ export default function ArticleToc({ bodyId = "article-body" }: { bodyId?: strin
                                 }}
                                 className={`block rounded-md border-l-2 py-1 pl-3 pr-2 transition ${
                                     isActive
-                                        ? "border-primary-600 bg-primary-50/60 font-semibold text-primary-700"
+                                        ? "border-primary-600 bg-primary-50/60 dark:bg-primary-500/10 font-semibold text-primary-700 dark:text-primary-300"
                                         : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                                 }`}
                             >

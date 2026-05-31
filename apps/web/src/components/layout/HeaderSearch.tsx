@@ -45,12 +45,12 @@ const TYPE_LABEL: Record<Hit["type"], string> = {
 };
 
 const TYPE_ACCENT: Record<Hit["type"], string> = {
-    article: "bg-emerald-50 text-emerald-700",
-    problem: "bg-primary-50 text-primary-700",
-    test: "bg-indigo-50 text-indigo-700",
-    quiz: "bg-amber-50 text-amber-700",
-    contest: "bg-rose-50 text-rose-700",
-    course: "bg-violet-50 text-violet-700",
+    article: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    problem: "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300",
+    test: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+    quiz: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    contest: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
+    course: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300",
     product: "bg-slate-100 text-slate-700",
 };
 
@@ -100,7 +100,7 @@ export default function HeaderSearch() {
             >
                 <SearchIcon className="h-4 w-4" />
                 <span className="hidden text-xs font-medium xl:inline">Search</span>
-                <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 group-hover:border-primary-200 group-hover:bg-white xl:inline-block">
+                <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 group-hover:border-primary-200 dark:group-hover:border-primary-500/25 group-hover:bg-white xl:inline-block">
                     /
                 </kbd>
             </button>
@@ -223,11 +223,11 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                 type="button"
                 aria-label="Close search"
                 onClick={onClose}
-                className="search-fade-in absolute inset-0 -z-10 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+                className="search-fade-in absolute inset-0 -z-10 bg-black/50 backdrop-blur-sm transition-opacity"
             />
 
             {/* Modal */}
-            <div className="search-pop-in w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
+            <div className="search-pop-in w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:ring-white/10">
                 {/* Input row */}
                 <div className="flex items-center gap-3 border-b border-slate-100 px-4">
                     <SearchIcon className="h-5 w-5 shrink-0 text-slate-400" />
@@ -238,7 +238,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                         onChange={(e) => setQ(e.target.value)}
                         onKeyDown={onKeyDown}
                         placeholder="Search articles, problems, tests, quizzes…"
-                        className="flex-1 bg-transparent py-4 text-base outline-none placeholder:text-slate-400"
+                        className="flex-1 bg-transparent py-4 text-base text-slate-900 caret-primary-500 outline-none placeholder:text-slate-400"
                         autoComplete="off"
                         spellCheck={false}
                     />
@@ -259,7 +259,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                                     <button
                                         key={l.href}
                                         onClick={() => goTo(l.href)}
-                                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
+                                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:border-primary-300 dark:hover:border-primary-500/25 hover:bg-primary-50 dark:hover:bg-primary-500/10 hover:text-primary-700 dark:hover:text-primary-300"
                                     >
                                         {l.label}
                                     </button>
@@ -297,7 +297,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                                             onClick={onClose}
                                             onMouseEnter={() => setActive(i)}
                                             className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                                                isActive ? "bg-primary-50" : "hover:bg-slate-50"
+                                                isActive ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-slate-50"
                                             }`}
                                         >
                                             <span
@@ -309,7 +309,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                                             </span>
                                             <div className="min-w-0 flex-1">
                                                 <p
-                                                    className="truncate text-sm font-semibold text-slate-900 [&_mark]:bg-amber-100 [&_mark]:px-0.5 [&_mark]:text-slate-900"
+                                                    className="truncate text-sm font-semibold text-slate-900 [&_mark]:bg-amber-100 dark:[&_mark]:bg-amber-500/15 [&_mark]:px-0.5 [&_mark]:text-slate-900"
                                                     // eslint-disable-next-line react/no-danger
                                                     dangerouslySetInnerHTML={{
                                                         __html: h._formatted?.title || h.title,
@@ -317,7 +317,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                                                 />
                                                 {h.description && (
                                                     <p
-                                                        className="mt-0.5 line-clamp-1 text-xs text-slate-500 [&_mark]:bg-amber-100 [&_mark]:px-0.5 [&_mark]:text-slate-700"
+                                                        className="mt-0.5 line-clamp-1 text-xs text-slate-500 [&_mark]:bg-amber-100 dark:[&_mark]:bg-amber-500/15 [&_mark]:px-0.5 [&_mark]:text-slate-700"
                                                         // eslint-disable-next-line react/no-danger
                                                         dangerouslySetInnerHTML={{
                                                             __html:
@@ -328,7 +328,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                                                 )}
                                             </div>
                                             {h.isFree && (
-                                                <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                                <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
                                                     Free
                                                 </span>
                                             )}

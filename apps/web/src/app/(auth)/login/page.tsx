@@ -126,7 +126,7 @@ export default function LoginPage() {
             </div>
 
             {resume && (
-                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
                     Sign in to continue your onboarding.
                 </div>
             )}
@@ -147,7 +147,7 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+                {error && <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">{error}</div>}
                 <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                     <input id="email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }} className={`w-full px-4 py-3 rounded-lg border ${fieldErrors.email ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-primary-500 focus:ring-primary-200"} focus:ring-2 outline-none transition-all`} placeholder="you@example.com" />

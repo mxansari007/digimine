@@ -21,9 +21,9 @@ function siteOrigin(): string {
 }
 
 function diffChipClass(d: string): string {
-    if (d === "easy") return "bg-emerald-50 text-emerald-700";
-    if (d === "medium") return "bg-amber-50 text-amber-700";
-    return "bg-rose-50 text-rose-700";
+    if (d === "easy") return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    if (d === "medium") return "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    return "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -93,14 +93,14 @@ export default async function PracticeTopicPage({ params }: Props) {
                     <div className="mt-3 grid items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
                         <div>
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
-                                <span className="rounded-full bg-primary-100 px-2.5 py-1 text-primary-700">
+                                <span className="rounded-full bg-primary-100 dark:bg-primary-500/15 px-2.5 py-1 text-primary-700 dark:text-primary-300">
                                     {topic.kind}
                                 </span>
                                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
                                     {patternLabel}
                                 </span>
                                 {topic.isFeatured && (
-                                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                                    <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-amber-700 dark:text-amber-300">
                                         Featured
                                     </span>
                                 )}
@@ -225,7 +225,7 @@ export default async function PracticeTopicPage({ params }: Props) {
                                                     {p.isPinned && (
                                                         <span
                                                             title="Editor's pick"
-                                                            className="mr-2 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-amber-700"
+                                                            className="mr-2 inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-300"
                                                         >
                                                             <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden />
                                                         </span>
@@ -325,8 +325,8 @@ export default async function PracticeTopicPage({ params }: Props) {
                             )}
                         </Card>
                         {topic.warmupQuizSlug && (
-                            <Card className="bg-amber-50 p-5 ring-1 ring-amber-200">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                            <Card className="bg-amber-50 dark:bg-amber-500/10 p-5 ring-1 ring-amber-200 dark:ring-amber-500/25">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
                                     Warm up first
                                 </p>
                                 <p className="mt-2 text-sm text-slate-700">
@@ -334,7 +334,7 @@ export default async function PracticeTopicPage({ params }: Props) {
                                 </p>
                                 <Link
                                     href={`/quizzes/${topic.warmupQuizSlug}`}
-                                    className="mt-3 inline-block text-sm font-semibold text-amber-700 hover:underline"
+                                    className="mt-3 inline-block text-sm font-semibold text-amber-700 dark:text-amber-300 hover:underline"
                                 >
                                     Take the quiz →
                                 </Link>

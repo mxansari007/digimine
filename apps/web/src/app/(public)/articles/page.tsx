@@ -72,7 +72,7 @@ export default function ArticlesIndexPage() {
 
     return (
         <main className="bg-white">
-            <section className="border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white">
+            <section className="border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white dark:to-surface">
                 <div className="container-page py-12 sm:py-16">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-700">Articles</p>
                     <h1 className="font-display mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
@@ -141,7 +141,7 @@ export default function ArticlesIndexPage() {
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
-                                        <div className="bg-gradient-to-br from-primary-100 to-amber-100" />
+                                        <div className="bg-gradient-to-br from-primary-100 dark:from-primary-500/15 to-amber-100 dark:to-amber-500/15" />
                                     )}
                                     <div className="p-6 lg:p-8">
                                         <span className="chip-info">
@@ -183,7 +183,7 @@ export default function ArticlesIndexPage() {
                                                 className="aspect-[16/9] w-full object-cover"
                                             />
                                         ) : (
-                                            <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary-100 to-amber-100" />
+                                            <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary-100 dark:from-primary-500/15 to-amber-100 dark:to-amber-500/15" />
                                         )}
                                         <div className="p-5 flex flex-col flex-1">
                                             <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider">

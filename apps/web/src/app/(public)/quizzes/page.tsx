@@ -13,7 +13,7 @@ export default async function QuizzesPage() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <section className="relative overflow-hidden bg-slate-950 text-white">
+            <section className="on-dark relative overflow-hidden bg-[#020617] text-white">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:48px_48px]" />
                 <div className="container-page relative grid gap-10 py-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:py-20">
                     <div>
@@ -35,7 +35,7 @@ export default async function QuizzesPage() {
                     </div>
 
                     <div className="rounded-[2rem] border border-white/10 bg-white/[0.08] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.28)] backdrop-blur">
-                        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+                        <div className="rounded-3xl border border-white/10 bg-[#020617]/70 p-5">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-[0.16em] text-primary-200">Today&apos;s practice</p>

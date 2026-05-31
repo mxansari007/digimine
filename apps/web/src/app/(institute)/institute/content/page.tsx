@@ -138,7 +138,7 @@ export default function InstituteContentPage() {
                 ))}
             </div>
 
-            {error && <Card className="p-4 text-sm text-rose-700 border-rose-200 bg-rose-50">{error}</Card>}
+            {error && <Card className="p-4 text-sm text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10">{error}</Card>}
 
             {loading ? (
                 <Card className="p-12 text-center text-sm text-gray-500">Loading…</Card>

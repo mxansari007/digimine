@@ -55,7 +55,7 @@ export function InfoTip({
             </button>
             <span
                 role="tooltip"
-                className={`pointer-events-none absolute z-50 w-56 rounded-lg bg-slate-900 px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-slate-100 opacity-0 shadow-lg ring-1 ring-black/5 transition-opacity duration-150 invisible group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${SIDE_POSITION[side]}`}
+                className={`pointer-events-none absolute z-50 w-56 rounded-lg bg-[#0f172a] px-3 py-2 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-[#e2e8f0] opacity-0 shadow-lg ring-1 ring-black/5 transition-opacity duration-150 invisible group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${SIDE_POSITION[side]}`}
             >
                 {children}
             </span>

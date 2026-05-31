@@ -148,8 +148,8 @@ export default function ProfilePage() {
                             {message && (
                                 <div
                                     className={`px-4 py-3 rounded-lg text-sm ${message.type === "success"
-                                        ? "bg-green-50 border border-green-200 text-green-700"
-                                        : "bg-red-50 border border-red-200 text-red-700"
+                                        ? "bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/25 text-green-700 dark:text-green-300"
+                                        : "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300"
                                         }`}
                                 >
                                     {message.text}
@@ -277,8 +277,8 @@ export default function ProfilePage() {
                                                 </p>
                                             </div>
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === 'completed'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-yellow-100 text-yellow-700'
+                                                ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300'
+                                                : 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700 dark:text-yellow-300'
                                                 }`}>
                                                 {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                             </span>
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                                                         </p>
                                                     </div>
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${purchase.status === 'active'
-                                                        ? 'bg-green-100 text-green-700'
+                                                        ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300'
                                                         : 'bg-gray-100 text-gray-600'
                                                         }`}>
                                                         {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}

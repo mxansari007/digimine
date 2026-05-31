@@ -181,7 +181,7 @@ export function DataTable<T>({
                     key={keyExtractor(row, index)}
                     onClick={clickable ? () => onRowClick?.(row, index) : undefined}
                     className={[
-                      "group transition-colors even:bg-slate-50/40 hover:bg-primary-50/50",
+                      "group transition-colors even:bg-slate-50/40 hover:bg-primary-50/50 dark:hover:bg-primary-500/10",
                       clickable ? "cursor-pointer" : "",
                       rowClassName?.(row, index) || "",
                     ]
@@ -285,7 +285,7 @@ export function PaginationControls({
                 className={`h-9 min-w-9 rounded-lg px-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
                   item === safePage
                     ? "border border-primary-700 bg-primary-700 text-white shadow-sm shadow-primary-950/10"
-                    : "border border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50/80 hover:text-primary-800"
+                    : "border border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50/80 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200"
                 }`}
               >
                 {item}

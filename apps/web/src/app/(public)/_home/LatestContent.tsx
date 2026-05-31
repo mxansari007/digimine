@@ -138,7 +138,7 @@ export default function LatestContent({
                                                     className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                                                 />
                                             ) : (
-                                                <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary-100 to-amber-100" />
+                                                <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary-100 dark:from-primary-500/10 to-amber-100 dark:to-amber-500/10" />
                                             )}
                                             <div className="flex flex-1 flex-col p-4">
                                                 <p className="text-[10px] font-bold uppercase tracking-widest text-primary-700">
@@ -206,8 +206,8 @@ export default function LatestContent({
                                                 <div
                                                     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
                                                         isLive
-                                                            ? "bg-rose-50 text-rose-700"
-                                                            : "bg-primary-50 text-primary-700"
+                                                            ? "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                                                            : "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300"
                                                     }`}
                                                 >
                                                     <svg
@@ -225,12 +225,12 @@ export default function LatestContent({
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-2">
                                                         {isLive ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
                                                                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
                                                                 LIVE
                                                             </span>
                                                         ) : (
-                                                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                                            <span className="rounded-full bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
                                                                 Upcoming
                                                             </span>
                                                         )}

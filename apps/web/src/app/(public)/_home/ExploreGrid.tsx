@@ -44,8 +44,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "DSA + SQL. Solve in 4 languages, instant judging, daily streak.",
             href: "/practice",
             accent: "from-primary-500 to-teal-500",
-            chipClass: "bg-primary-50 text-primary-700",
-            iconBg: "bg-primary-100 text-primary-700",
+            chipClass: "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300",
+            iconBg: "bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300",
             countLabel: num(counts.practice) && `${num(counts.practice)} problems`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -59,8 +59,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "Full-length, timed, sectional cutoffs — like the real placement paper.",
             href: "/tests",
             accent: "from-indigo-500 to-blue-500",
-            chipClass: "bg-indigo-50 text-indigo-700",
-            iconBg: "bg-indigo-100 text-indigo-700",
+            chipClass: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+            iconBg: "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
             countLabel: num(counts.tests) && `${num(counts.tests)} series`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -74,8 +74,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "Quick 5–10 minute topic checks. Concept recall, code output, aptitude.",
             href: "/quizzes",
             accent: "from-amber-500 to-orange-500",
-            chipClass: "bg-amber-50 text-amber-700",
-            iconBg: "bg-amber-100 text-amber-700",
+            chipClass: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300",
+            iconBg: "bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300",
             countLabel: num(counts.quizzes) && `${num(counts.quizzes)} quizzes`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -90,8 +90,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "Scheduled sprints, shared clock, ranks lock when the contest ends.",
             href: "/contests",
             accent: "from-rose-500 to-pink-500",
-            chipClass: "bg-rose-50 text-rose-700",
-            iconBg: "bg-rose-100 text-rose-700",
+            chipClass: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
+            iconBg: "bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300",
             countLabel: num(counts.contests) && `${num(counts.contests)} contests`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -105,8 +105,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "Tutorials, deep-dives, placement news — read what you actually need.",
             href: "/articles",
             accent: "from-emerald-500 to-teal-500",
-            chipClass: "bg-emerald-50 text-emerald-700",
-            iconBg: "bg-emerald-100 text-emerald-700",
+            chipClass: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+            iconBg: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
             countLabel: num(counts.articles) && `${num(counts.articles)} articles`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -122,8 +122,8 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
             blurb: "Structured learning paths — chapter notes, embedded quizzes, certificates.",
             href: "/courses",
             accent: "from-violet-500 to-purple-500",
-            chipClass: "bg-violet-50 text-violet-700",
-            iconBg: "bg-violet-100 text-violet-700",
+            chipClass: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300",
+            iconBg: "bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300",
             countLabel: num(counts.courses) && `${num(counts.courses)} courses`,
             icon: (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">

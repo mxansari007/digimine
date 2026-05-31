@@ -261,10 +261,10 @@ export default function InstituteBillingPage() {
             </div>
 
             {error && (
-                <Card className="p-4 text-sm text-rose-700 border-rose-200 bg-rose-50">{error}</Card>
+                <Card className="p-4 text-sm text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10">{error}</Card>
             )}
             {message && (
-                <Card className="p-4 text-sm text-emerald-700 border-emerald-200 bg-emerald-50">{message}</Card>
+                <Card className="p-4 text-sm text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10">{message}</Card>
             )}
 
             {/* Current plan + usage */}

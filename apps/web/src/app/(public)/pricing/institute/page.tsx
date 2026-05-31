@@ -65,7 +65,7 @@ export default function InstitutePricingPage() {
     return (
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
             <header className="mx-auto max-w-2xl text-center">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-700">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 dark:bg-primary-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">
                     <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                     For institutes
                 </span>
@@ -216,9 +216,9 @@ function PlanCard({ plan, cadence }: { plan: Plan; cadence: Cadence }) {
         <Card
             className={`relative flex flex-col p-6 ${
                 isCurrent
-                    ? "border-emerald-300 bg-gradient-to-br from-emerald-50/70 to-white ring-2 ring-emerald-200/60"
+                    ? "border-emerald-300 dark:border-emerald-500/25 bg-gradient-to-br from-emerald-50/70 dark:from-emerald-500/10 to-white dark:to-surface ring-2 ring-emerald-200/60 dark:ring-emerald-500/25"
                     : accent
-                    ? "border-primary-300 bg-gradient-to-br from-primary-50/60 to-white"
+                    ? "border-primary-300 dark:border-primary-500/25 bg-gradient-to-br from-primary-50/60 dark:from-primary-500/10 to-white dark:to-surface"
                     : ""
             }`}
         >

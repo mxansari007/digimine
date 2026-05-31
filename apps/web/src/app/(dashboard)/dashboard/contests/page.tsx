@@ -56,13 +56,13 @@ function getAttemptMillis(row: ContestAttemptRow) {
 
 function statusBadge(row: ContestAttemptRow) {
     if (row.status === "completed") {
-        return <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Completed</span>;
+        return <span className="inline-flex rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">Completed</span>;
     }
     if (row.status === "timed_out") {
-        return <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Timed out</span>;
+        return <span className="inline-flex rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">Timed out</span>;
     }
     if (row.status === "in_progress") {
-        return <span className="inline-flex rounded-full bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700">In progress</span>;
+        return <span className="inline-flex rounded-full bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">In progress</span>;
     }
     return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">Closed</span>;
 }
@@ -71,10 +71,10 @@ function phaseBadge(contest: Contest | null) {
     if (!contest) return <span className="text-xs font-semibold text-slate-400">Contest unavailable</span>;
     const phase = getContestPhase(contest);
     if (phase === "live") {
-        return <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Live</span>;
+        return <span className="inline-flex rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">Live</span>;
     }
     if (phase === "scheduled") {
-        return <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">Scheduled</span>;
+        return <span className="inline-flex rounded-full bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1 text-xs font-bold text-blue-700 dark:text-blue-300">Scheduled</span>;
     }
     return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Ended</span>;
 }
@@ -341,7 +341,7 @@ export default function MyContestsPage() {
 
             {rows.length === 0 ? (
                 <Card className="flex flex-col items-center justify-center border-2 border-dashed p-12 text-center">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-50 text-3xl font-black text-primary-700">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-50 dark:bg-primary-500/10 text-3xl font-black text-primary-700 dark:text-primary-300">
                         C
                     </div>
                     <h2 className="mt-5 text-2xl font-black text-slate-950">No contest attempts yet</h2>

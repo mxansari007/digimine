@@ -37,15 +37,15 @@ const MAX_WIDTH: Record<NonNullable<OnboardingShellProps["maxWidth"]>, string> =
 
 export const OnboardingShell: FC<OnboardingShellProps> = ({ children, maxWidth = "xl" }) => {
     return (
-        <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50">
+        <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white dark:via-surface to-blue-50 dark:to-blue-500/10">
             {/* Decorative blobs — softly anchor the eye without distracting */}
             <div
                 aria-hidden
-                className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary-100 opacity-50 blur-3xl"
+                className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary-100 dark:bg-primary-500/15 opacity-50 blur-3xl"
             />
             <div
                 aria-hidden
-                className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-indigo-100 opacity-40 blur-3xl"
+                className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-indigo-100 dark:bg-indigo-500/15 opacity-40 blur-3xl"
             />
 
             <div className="relative flex min-h-screen flex-col">

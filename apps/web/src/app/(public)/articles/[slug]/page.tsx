@@ -208,7 +208,7 @@ export default async function ArticleDetailPage({ params }: Props) {
                         </div>
 
                         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider">
-                            <span className="rounded-full bg-primary-100 px-2.5 py-1 font-semibold text-primary-700">
+                            <span className="rounded-full bg-primary-100 dark:bg-primary-500/15 px-2.5 py-1 font-semibold text-primary-700 dark:text-primary-300">
                                 {categoryLabel}
                             </span>
                             {article.subject && (

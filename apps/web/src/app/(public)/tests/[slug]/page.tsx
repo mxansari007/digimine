@@ -238,14 +238,14 @@ export default function TestSeriesDetailPage() {
             >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-4">
-                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${notYetReleased ? "bg-slate-100 text-slate-500" : "bg-indigo-100 text-indigo-700"}`}>
+                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${notYetReleased ? "bg-slate-100 text-slate-500" : "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"}`}>
                             {index + 1}
                         </span>
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
                                 {notYetReleased && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25">
                                         <LockIcon className="h-3 w-3" /> Releases on {releaseAt!.label}
                                     </span>
                                 )}
@@ -295,7 +295,7 @@ export default function TestSeriesDetailPage() {
                         </div>
                     ) : !user ? (
                         <Link href="/login">
-                            <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                            <Button variant="outline" size="sm" className="border-indigo-200 dark:border-indigo-500/25 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
                                 Login to Access
                             </Button>
                         </Link>
@@ -371,7 +371,7 @@ export default function TestSeriesDetailPage() {
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <h1 className="text-3xl font-bold text-gray-900">{series.title}</h1>
                                     {isUnlocked && (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-sm font-bold text-green-700">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-500/15 px-3 py-1 text-sm font-bold text-green-700 dark:text-green-300">
                                             <span className="w-2 h-2 rounded-full bg-green-500"></span>
                                             Enrolled
                                         </span>
@@ -384,7 +384,7 @@ export default function TestSeriesDetailPage() {
                         {/* Tests List */}
                         <div className="space-y-4">
                             {wasSubmitted && (
-                                <Card className="border-green-100 bg-green-50 p-4 text-green-800">
+                                <Card className="border-green-100 dark:border-green-500/25 bg-green-50 dark:bg-green-500/10 p-4 text-green-800 dark:text-green-300">
                                     Your test was submitted successfully. Results will be available when the admin enables instant results for this test.
                                 </Card>
                             )}
@@ -397,7 +397,7 @@ export default function TestSeriesDetailPage() {
                                     {upcomingTests.length > 0 && (
                                         <div className="pt-4">
                                             <div className="mb-3 flex items-center gap-3">
-                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25">
                                                     <LockIcon className="h-3 w-3" /> Coming Soon
                                                 </span>
                                                 <h3 className="text-lg font-bold text-gray-900">
@@ -423,14 +423,14 @@ export default function TestSeriesDetailPage() {
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 space-y-4">
                             {isUnlocked ? (
-                                <Card className="p-6 text-center border-green-100 bg-green-50">
-                                    <div className="w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-4">
+                                <Card className="p-6 text-center border-green-100 dark:border-green-500/25 bg-green-50 dark:bg-green-500/10">
+                                    <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 flex items-center justify-center mx-auto mb-4">
                                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <h3 className="text-lg font-bold text-green-900">You are enrolled</h3>
-                                    <p className="mt-2 text-sm text-green-700">
+                                    <h3 className="text-lg font-bold text-green-900 dark:text-green-300">You are enrolled</h3>
+                                    <p className="mt-2 text-sm text-green-700 dark:text-green-300">
                                         Your access is active. Start any test from this series whenever you are ready.
                                     </p>
                                     {firstAvailableTest && (

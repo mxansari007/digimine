@@ -46,9 +46,9 @@ function formatDuration(sec: number | null | undefined) {
 }
 
 const riskBg: Record<string, string> = {
-    low: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-    medium: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
-    high: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25",
+    medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25",
+    high: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25",
 };
 
 function StatColumn({
@@ -197,7 +197,7 @@ export default function CompareStudentsPage() {
                 </div>
             </Card>
 
-            {error && <Card className="p-4 text-sm text-red-700 border-red-200 bg-red-50">{error}</Card>}
+            {error && <Card className="p-4 text-sm text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10">{error}</Card>}
 
             {data && (
                 <>

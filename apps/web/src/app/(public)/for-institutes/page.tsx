@@ -169,7 +169,7 @@ export default function ForInstitutesPage() {
     return (
         <main className="bg-white">
             {/* Hero */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-teal-50 to-white">
+            <section className="relative overflow-hidden bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 via-teal-50 dark:via-teal-500/10 to-white dark:to-surface">
                 <div className="container-page py-16 sm:py-24">
                     <div className="max-w-3xl">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
@@ -252,7 +252,7 @@ export default function ForInstitutesPage() {
                                 key={s.n}
                                 className="rounded-2xl border border-slate-200 bg-white p-6"
                             >
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300 font-bold">
                                     {s.n}
                                 </div>
                                 <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
@@ -312,7 +312,7 @@ export default function ForInstitutesPage() {
             </section>
 
             {/* CTA */}
-            <section className="border-t border-slate-200 bg-slate-950 text-white">
+            <section className="on-dark border-t border-slate-200 bg-[#020617] text-white">
                 <div className="container-page py-16 sm:py-20">
                     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-center">
                         <div>

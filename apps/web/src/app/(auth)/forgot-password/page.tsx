@@ -52,9 +52,9 @@ export default function ForgotPasswordPage() {
     return (
         <Card padding="lg" className="w-full max-w-md">
             <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-primary-100 dark:bg-primary-500/15 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg
-                        className="w-8 h-8 text-primary-600"
+                        className="w-8 h-8 text-primary-600 dark:text-primary-300"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -77,9 +77,9 @@ export default function ForgotPasswordPage() {
 
             {success ? (
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-green-100 dark:bg-green-500/15 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg
-                            className="w-8 h-8 text-green-600"
+                            className="w-8 h-8 text-green-600 dark:text-green-300"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                             {error}
                         </div>
                     )}

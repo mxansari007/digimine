@@ -41,9 +41,9 @@ const variantClasses: Record<ButtonVariant, string> = {
     secondary:
         "border border-slate-200 bg-white text-slate-800 shadow-soft-sm hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-200 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none",
     outline:
-        "border border-slate-200 bg-white text-slate-700 shadow-soft-sm hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus-visible:ring-primary-200 disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
+        "border border-slate-200 bg-white text-slate-700 shadow-soft-sm hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200 focus-visible:ring-primary-200 disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
     ghost:
-        "border border-transparent text-slate-600 hover:bg-primary-50 hover:text-primary-800 focus-visible:ring-primary-200 disabled:text-slate-300",
+        "border border-transparent text-slate-600 hover:bg-primary-50 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200 focus-visible:ring-primary-200 disabled:text-slate-300",
     danger:
         "border border-danger-600 bg-danger-600 text-white shadow-soft-sm hover:bg-danger-700 hover:border-danger-700 focus-visible:ring-danger-200 disabled:border-danger-200 disabled:bg-danger-200 disabled:shadow-none",
     success:
@@ -79,7 +79,7 @@ export function Button({
 }: ButtonProps): React.JSX.Element {
     const baseClasses =
         "relative inline-flex items-center justify-center font-semibold rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out " +
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white " +
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#16161e] " +
         "active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 select-none";
 
     return (

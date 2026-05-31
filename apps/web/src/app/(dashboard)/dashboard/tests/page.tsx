@@ -127,16 +127,16 @@ export default function MyTestSeriesPage() {
             render: (attempt) => (
                 attempt.status === "completed" ? (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        attempt.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        attempt.passed ? 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300'
                     }`}>
                         {attempt.passed ? 'Passed' : 'Failed'}
                     </span>
                 ) : attempt.status === "timed_out" ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300">
                         Timed Out
                     </span>
                 ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300">
                         {resumableAttemptIds.has(attempt.id) ? 'In Progress' : 'Closed'}
                     </span>
                 )
@@ -217,7 +217,7 @@ export default function MyTestSeriesPage() {
                                     <div className="w-2/3 p-6 flex flex-col justify-between bg-white">
                                         <div>
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-500/10 px-2 py-0.5 rounded">
                                                     {series.category || "General"}
                                                 </span>
                                             </div>

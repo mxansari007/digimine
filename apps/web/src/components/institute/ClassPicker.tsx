@@ -78,8 +78,8 @@ export function ClassPicker({
                         onClick={() => toggle(c.id)}
                         className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
                             active
-                                ? "border-primary-400 bg-primary-50 text-primary-900"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-primary-200 hover:bg-primary-50/40"
+                                ? "border-primary-400 bg-primary-50 dark:bg-primary-500/10 text-primary-900 dark:text-primary-300"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-primary-200 dark:hover:border-primary-500/25 hover:bg-primary-50/40 dark:hover:bg-primary-500/10"
                         }`}
                     >
                         <span

@@ -130,7 +130,7 @@ export default function StudentClassroomsPage() {
                     {classes.map((c) => (
                         <Card key={c.classId} className="p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-sm">
                                     {(c.className?.[0] || "C").toUpperCase()}
                                 </div>
                                 <div className="min-w-0">

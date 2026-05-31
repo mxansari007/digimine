@@ -54,7 +54,7 @@ function ContestCardView({ contest }: { contest: ContestCardLite }) {
         <Card className="group overflow-hidden border-slate-200/80 bg-white transition-all hover:-translate-y-0.5 hover:shadow-xl">
             <Link href={`/contests/${contest.slug}`} className="block">
                 <div className="grid gap-0 sm:grid-cols-[220px_1fr]">
-                    <div className="relative h-48 bg-slate-900 sm:h-full">
+                    <div className="relative h-48 bg-[#0f172a] sm:h-full">
                         {contest.thumbnailURL ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -63,7 +63,7 @@ function ContestCardView({ contest }: { contest: ContestCardLite }) {
                                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                         ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white/40">
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#020617] via-[#0f172a] to-blue-950 text-white/40">
                                 <TrophyIcon className="h-16 w-16" />
                             </div>
                         )}

@@ -36,12 +36,12 @@ export const StepHeader: FC<StepHeaderProps> = ({
     return (
         <div className={`flex flex-col ${alignment} ${className ?? ""}`}>
             {icon && (
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 ring-1 ring-primary-100">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-500/25">
                     {icon}
                 </div>
             )}
             {eyebrow && (
-                <p className="mb-2 inline-flex rounded-full bg-primary-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 ring-1 ring-primary-100">
+                <p className="mb-2 inline-flex rounded-full bg-primary-50 dark:bg-primary-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-500/25">
                     {eyebrow}
                 </p>
             )}

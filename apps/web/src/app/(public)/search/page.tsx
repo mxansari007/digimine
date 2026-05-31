@@ -43,12 +43,12 @@ const TYPES: Hit["type"][] = [
 ];
 
 const TYPE_ACCENT: Record<Hit["type"], string> = {
-    article: "bg-emerald-50 text-emerald-700",
-    problem: "bg-primary-50 text-primary-700",
-    test: "bg-indigo-50 text-indigo-700",
-    quiz: "bg-amber-50 text-amber-700",
-    contest: "bg-rose-50 text-rose-700",
-    course: "bg-violet-50 text-violet-700",
+    article: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    problem: "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300",
+    test: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+    quiz: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    contest: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
+    course: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300",
     product: "bg-slate-100 text-slate-700",
 };
 
@@ -150,7 +150,7 @@ export default function SearchPage() {
                             onClick={() => setType("")}
                             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                                 type === ""
-                                    ? "bg-slate-900 text-white"
+                                    ? "bg-[#0f172a] text-white"
                                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                             }`}
                         >
@@ -162,7 +162,7 @@ export default function SearchPage() {
                                 onClick={() => setType(t)}
                                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                                     type === t
-                                        ? "bg-slate-900 text-white"
+                                        ? "bg-[#0f172a] text-white"
                                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                                 }`}
                             >
@@ -214,7 +214,7 @@ export default function SearchPage() {
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <h3
-                                            className="text-base font-semibold text-slate-900 [&_mark]:bg-amber-100 [&_mark]:px-0.5 [&_mark]:text-slate-900"
+                                            className="text-base font-semibold text-slate-900 [&_mark]:bg-amber-100 dark:[&_mark]:bg-amber-500/15 [&_mark]:px-0.5 [&_mark]:text-slate-900"
                                             // eslint-disable-next-line react/no-danger
                                             dangerouslySetInnerHTML={{
                                                 __html: h._formatted?.title || h.title,
@@ -222,7 +222,7 @@ export default function SearchPage() {
                                         />
                                         {h.description && (
                                             <p
-                                                className="mt-1 text-sm text-slate-600 [&_mark]:bg-amber-100 [&_mark]:px-0.5 [&_mark]:text-slate-700"
+                                                className="mt-1 text-sm text-slate-600 [&_mark]:bg-amber-100 dark:[&_mark]:bg-amber-500/15 [&_mark]:px-0.5 [&_mark]:text-slate-700"
                                                 // eslint-disable-next-line react/no-danger
                                                 dangerouslySetInnerHTML={{
                                                     __html:
@@ -233,7 +233,7 @@ export default function SearchPage() {
                                         )}
                                     </div>
                                     {h.isFree && (
-                                        <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                                        <span className="mt-0.5 shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                             Free
                                         </span>
                                     )}

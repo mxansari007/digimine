@@ -30,6 +30,7 @@ import {
     makeTurn,
     summarizeJudgeForChat,
 } from "@/lib/server/aiInterview";
+import { interviewTypeMeta } from "@digimine/types";
 import type {
     AIInterviewSession,
     AIInterviewTurn,
@@ -60,7 +61,12 @@ export async function POST(req: Request) {
 
         const body = await req.json().catch(() => ({}));
         const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
-        const action = body.action === "run" ? "run" : "message";
+        const action =
+            body.action === "run"
+                ? "run"
+                : body.action === "wrapup"
+                    ? "wrapup"
+                    : "message";
         if (!sessionId) {
             return NextResponse.json({ error: "sessionId required" }, { status: 400 });
         }
@@ -87,6 +93,13 @@ export async function POST(req: Request) {
         const interviewType = session.interviewType || "dsa";
         const isSql = interviewType === "sql";
         const isCoding = interviewType === "dsa" || isSql;
+
+        // Minutes left against this interview type's time budget (the room shows
+        // the same countdown). Drives the interviewer's pacing + graceful close.
+        const startedMs = Date.parse(session.startedAt) || 0;
+        const budgetMin = interviewTypeMeta(interviewType).durationMin;
+        const timeRemainingMin =
+            startedMs > 0 ? budgetMin - (Date.now() - startedMs) / 60_000 : null;
         const problem = isCoding ? await loadProblemById(session.problemId) : null;
         if (isCoding && !problem) {
             return NextResponse.json({ error: "Problem missing" }, { status: 404 });
@@ -138,9 +151,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ turn: runTurn, judge });
         }
 
-        // action === "message"
-        const text = typeof body.message === "string" ? body.message.trim() : "";
-        if (!text) {
+        // action === "message" | "wrapup"
+        // A "wrapup" is a system-initiated turn (no candidate message) fired
+        // when the clock runs out, so the interviewer delivers a warm closing
+        // rather than the room cutting off mid-conversation.
+        const isWrapUp = action === "wrapup";
+        const text = isWrapUp
+            ? ""
+            : typeof body.message === "string"
+                ? body.message.trim()
+                : "";
+        if (!isWrapUp && !text) {
             return NextResponse.json({ error: "message required" }, { status: 400 });
         }
 
@@ -152,10 +173,10 @@ export async function POST(req: Request) {
             );
         }
 
-        const candidateTurn = makeTurn("candidate", "message", text);
-        // Local copy (incl. this turn) only to build the interviewer prompt;
-        // persistence below uses an atomic arrayUnion, not this array.
-        transcript.push(candidateTurn);
+        // The candidate's message (none on a wrap-up). Local push only feeds the
+        // prompt; persistence below uses an atomic arrayUnion, not this array.
+        const candidateTurn = isWrapUp ? null : makeTurn("candidate", "message", text);
+        if (candidateTurn) transcript.push(candidateTurn);
 
         const messages = buildInterviewerMessages({
             interviewType,
@@ -164,6 +185,9 @@ export async function POST(req: Request) {
             transcript,
             latestCode: incomingCode,
             language: incomingLang,
+            // A wrap-up forces the "out of time, close now" directive regardless
+            // of the exact clock; otherwise pass the real remaining minutes.
+            timeRemainingMin: isWrapUp ? 0 : timeRemainingMin,
         });
 
         let reply = "";
@@ -195,13 +219,21 @@ export async function POST(req: Request) {
         }
         const endSig = extractEndSignal(cleaned);
         cleaned = endSig.cleaned;
-        const ended = endSig.ended;
+        // End when the model tagged it, when this was an explicit wrap-up, or
+        // when we've reached/passed the time budget — a graceful safety net so
+        // an interview never runs past its slot even if the model drops the tag.
+        const ended =
+            endSig.ended ||
+            isWrapUp ||
+            (timeRemainingMin !== null && timeRemainingMin <= 0);
 
         const interviewerTurn = makeTurn("interviewer", "message", cleaned);
         const unlockNow = isCoding && openEditor && !session.codingUnlocked;
 
         const update: Record<string, unknown> = {
-            transcript: FieldValue.arrayUnion(candidateTurn, interviewerTurn),
+            transcript: candidateTurn
+                ? FieldValue.arrayUnion(candidateTurn, interviewerTurn)
+                : FieldValue.arrayUnion(interviewerTurn),
             latestCode: incomingCode,
             language: incomingLang,
             updatedAt: new Date().toISOString(),

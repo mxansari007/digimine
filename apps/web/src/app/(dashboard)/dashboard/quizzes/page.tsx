@@ -36,16 +36,16 @@ function statusBadge(attempt: QuizAttempt) {
     if (attempt.status === "completed") {
         const passed = attempt.passed !== false;
         return (
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${passed ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${passed ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300"}`}>
                 {passed ? "Completed" : "Needs revision"}
             </span>
         );
     }
     if (attempt.status === "timed_out") {
-        return <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Timed out</span>;
+        return <span className="inline-flex rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">Timed out</span>;
     }
     if (attempt.status === "in_progress") {
-        return <span className="inline-flex rounded-full bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700">In progress</span>;
+        return <span className="inline-flex rounded-full bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">In progress</span>;
     }
     return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">Closed</span>;
 }
@@ -302,7 +302,7 @@ export default function MyQuizzesPage() {
 
             {attempts.length === 0 ? (
                 <div className="surface-panel flex flex-col items-center justify-center border-dashed p-12 text-center">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-50 text-primary-700">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300">
                         <span className="text-3xl font-black">Q</span>
                     </div>
                     <h2 className="mt-5 text-2xl font-black text-slate-950">No quiz attempts yet</h2>
@@ -318,7 +318,7 @@ export default function MyQuizzesPage() {
                             const ranking = rankings[quizId];
                             return (
                                 <div key={quizId} className="surface-panel overflow-hidden">
-                                    <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 p-5 text-white">
+                                    <div className="border-b border-slate-100 bg-gradient-to-r from-[#020617] to-[#1e293b] p-5 text-white">
                                         <p className="text-xs font-black uppercase tracking-[0.14em] text-primary-200">{quiz?.category || "Quiz"}</p>
                                         <h2 className="mt-2 line-clamp-2 text-xl font-black text-white">{quiz?.title || "Quiz"}</h2>
                                     </div>

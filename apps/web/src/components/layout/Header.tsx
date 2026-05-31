@@ -14,6 +14,7 @@ import UserMenu from "@/components/layout/UserMenu";
 import Avatar from "@/components/common/Avatar";
 import MegaNav from "@/components/layout/MegaNav";
 import HeaderSearch from "@/components/layout/HeaderSearch";
+import { ThemeToggle } from "@/components/theme";
 import type { MegaItem } from "@/components/layout/megaNavData";
 
 export interface HeaderProps {
@@ -100,6 +101,8 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             {/* Search icon → opens centered modal. Backed by
                                 Meilisearch (see infra/meilisearch/README.md). */}
                             <HeaderSearch />
+                            {/* Light / Dark / System theme switcher */}
+                            <ThemeToggle />
                             {/* Desktop Auth buttons */}
                             <div className="hidden md:flex items-center gap-1.5">
                                 {loading ? (
@@ -144,7 +147,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
 
             {/* Mobile Menu Overlay */}
             <div
-                className={`fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={() => setIsMobileMenuOpen(false)}
             />
@@ -176,7 +179,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             key={`${link.href}-${link.label}`}
                             href={link.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 hover:text-primary-700 active:bg-primary-100"
+                            className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 dark:hover:bg-primary-500/10 hover:text-primary-700 dark:hover:text-primary-300 active:bg-primary-100"
                         >
                             {link.label}
                         </Link>

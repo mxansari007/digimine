@@ -108,12 +108,12 @@ export default function AuthActionPage() {
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-red-50 text-red-800 p-6 rounded-lg max-w-md text-center">
+                <div className="bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-300 p-6 rounded-lg max-w-md text-center">
                     <h2 className="font-bold text-lg mb-2">Authentication Failed</h2>
                     <p>{error}</p>
                     <button
                         onClick={() => router.push("/login")}
-                        className="mt-4 px-4 py-2 bg-red-100 rounded hover:bg-red-200 transition-colors"
+                        className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-500/15 rounded hover:bg-red-200 dark:hover:bg-red-500/25 transition-colors"
                     >
                         Go to Login
                     </button>

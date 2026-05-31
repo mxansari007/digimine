@@ -104,18 +104,18 @@ const ROLE_OPTIONS: RoleOption[] = [
 
 const ACCENT_STYLES: Record<RoleOption["accent"], { ring: string; chip: string; icon: string }> = {
     primary: {
-        ring: "hover:border-primary-300 hover:shadow-primary-100/50",
-        chip: "bg-primary-50 text-primary-700",
+        ring: "hover:border-primary-300 dark:hover:border-primary-500/25 hover:shadow-primary-100/50",
+        chip: "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300",
         icon: "text-primary-600",
     },
     amber: {
-        ring: "hover:border-amber-300 hover:shadow-amber-100/50",
-        chip: "bg-amber-50 text-amber-700",
+        ring: "hover:border-amber-300 dark:hover:border-amber-500/25 hover:shadow-amber-100/50",
+        chip: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300",
         icon: "text-amber-600",
     },
     emerald: {
-        ring: "hover:border-emerald-300 hover:shadow-emerald-100/50",
-        chip: "bg-emerald-50 text-emerald-700",
+        ring: "hover:border-emerald-300 dark:hover:border-emerald-500/25 hover:shadow-emerald-100/50",
+        chip: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
         icon: "text-emerald-600",
     },
 };
@@ -263,7 +263,7 @@ export default function RoleSelectPage() {
             {error && (
                 <div
                     role="alert"
-                    className="mx-auto mt-6 max-w-md rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700"
+                    className="mx-auto mt-6 max-w-md rounded-xl border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-700 dark:text-rose-300"
                 >
                     {error}
                 </div>

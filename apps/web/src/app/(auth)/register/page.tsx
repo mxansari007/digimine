@@ -253,11 +253,11 @@ export default function RegisterPage() {
             </div>
 
             {existingAccountEmail && (
-                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm font-semibold text-amber-900">
+                <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 p-4">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
                         You already have an account.
                     </p>
-                    <p className="mt-1 text-sm text-amber-800">
+                    <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
                         Sign in to complete your onboarding — we&apos;ll pick up right where you left off.
                     </p>
                     <Link
@@ -310,7 +310,7 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                         {error}
                     </div>
                 )}
@@ -438,7 +438,7 @@ export default function RegisterPage() {
                                 onClick={() => setRole(opt.id)}
                                 className={`flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
                                     role === opt.id
-                                        ? "border-primary-500 bg-primary-50 text-primary-700"
+                                        ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300"
                                         : "border-gray-300 text-gray-700 hover:border-gray-400"
                                 }`}
                             >

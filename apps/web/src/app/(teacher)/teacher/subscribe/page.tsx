@@ -217,7 +217,7 @@ export default function SubscribePage() {
             </div>
 
             {error && (
-                <Card className="p-4 bg-red-50 border-red-200 text-red-700 text-sm text-center">{error}</Card>
+                <Card className="p-4 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25 text-red-700 dark:text-red-300 text-sm text-center">{error}</Card>
             )}
 
             {plans.some((p) => p.annualPriceINR != null) && (

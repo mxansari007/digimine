@@ -381,9 +381,9 @@ export default function MembershipPage() {
         <main className="min-h-screen bg-white">
             {/* ───────────── Success modal ───────────── */}
             {success && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <Card className="w-full max-w-md p-8 text-center">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
                             <PartyPopper className="h-7 w-7" strokeWidth={2} aria-hidden />
                         </div>
                         <h3 className="mt-4 font-display text-xl font-bold text-slate-900 sm:text-2xl">
@@ -403,7 +403,7 @@ export default function MembershipPage() {
             )}
 
             {/* ───────────── Hero ───────────── */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-primary-950 text-white">
+            <section className="on-dark relative overflow-hidden bg-gradient-to-br from-[#020617] via-[#0f172a] to-primary-950 text-white">
                 <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-0 opacity-30"
@@ -561,7 +561,7 @@ export default function MembershipPage() {
                                 }`}
                             >
                                 Annual
-                                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                                <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
                                     Save more
                                 </span>
                             </button>
@@ -653,7 +653,7 @@ export default function MembershipPage() {
                                                         </span>
                                                     )}
                                                     {savePct != null && (
-                                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                                        <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 font-bold text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-500/25">
                                                             Save {savePct}% vs monthly
                                                         </span>
                                                     )}
@@ -666,7 +666,7 @@ export default function MembershipPage() {
                                                         </span>
                                                     )}
                                                     {monthlyOff && (
-                                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                                        <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 font-bold text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-500/25">
                                                             Save {monthlyOff}%
                                                         </span>
                                                     )}
@@ -730,7 +730,7 @@ export default function MembershipPage() {
                                         </p>
                                     </div>
                                     {currentPlan === freePlan.code ? (
-                                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                        <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-500/25">
                                             You&apos;re on Free
                                         </span>
                                     ) : (
@@ -785,7 +785,7 @@ export default function MembershipPage() {
                                                     <td className="px-5 py-3 text-center text-slate-400">—</td>
                                                     <td className="px-5 py-3 text-center">
                                                         {onPremium ? (
-                                                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                                                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                                                 <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                                                             </span>
                                                         ) : (
@@ -837,7 +837,7 @@ export default function MembershipPage() {
                 <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {FEATURE_GROUPS.map((g) => (
                         <Card key={g.title} className="flex flex-col p-6">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 text-primary-600">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 dark:from-primary-500/10 to-primary-100 dark:to-primary-500/15 text-primary-600 dark:text-primary-300">
                                 <g.Icon className="h-6 w-6" strokeWidth={2} aria-hidden />
                             </div>
                             <h3 className="mt-4 font-display text-lg font-bold text-slate-900">

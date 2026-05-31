@@ -72,8 +72,8 @@ export default function QuizzesBrowser({ quizzes }: { quizzes: QuizItem[] }) {
                             onClick={() => setCategoryFilter(category)}
                             className={`shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition ${
                                 categoryFilter === category
-                                    ? "border-slate-950 bg-slate-950 text-white"
-                                    : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                                    ? "border-[#020617] bg-[#020617] text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50 dark:hover:bg-primary-500/10 hover:text-primary-700"
                             }`}
                         >
                             {category === "all" ? "All topics" : category}
@@ -112,7 +112,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
             type="button"
             onClick={onClick}
             className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
-                active ? "border-primary-500 bg-primary-50 text-primary-700" : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50"
+                active ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50 dark:hover:bg-primary-500/10"
             }`}
         >
             {children}
@@ -135,7 +135,7 @@ function QuizCard({ quiz }: { quiz: QuizItem }) {
                     )}
                     <div className="absolute left-4 top-4 flex gap-2">
                         <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-950 shadow-sm">{quiz.category || "General"}</span>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black shadow-sm ${quiz.accessType === "free" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black shadow-sm ${quiz.accessType === "free" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>
                             {quiz.accessType === "free" ? <BookOpenIcon className="h-3.5 w-3.5" /> : <LockIcon className="h-3.5 w-3.5" />}
                             {quiz.accessType === "free" ? "Free" : "Course"}
                         </span>
@@ -143,7 +143,7 @@ function QuizCard({ quiz }: { quiz: QuizItem }) {
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-black text-primary-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-black text-primary-700 dark:text-primary-300">
                             <TargetIcon className="h-3.5 w-3.5" />
                             {quiz.totalQuestions || 0} questions
                         </span>

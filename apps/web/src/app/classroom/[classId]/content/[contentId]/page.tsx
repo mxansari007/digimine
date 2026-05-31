@@ -88,7 +88,7 @@ export default function ClassroomContentPage() {
                 <Card className="p-6 mb-6">
                     <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
                         <span className="px-2 py-0.5 bg-gray-100 rounded-full capitalize">{contentType}</span>
-                        {content.accessType === "free" && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-xs">Free</span>}
+                        {content.accessType === "free" && <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 rounded-full text-xs">Free</span>}
                     </div>
                     <p className="text-gray-600 whitespace-pre-wrap">{content.description || content.shortDescription || ""}</p>
                 </Card>

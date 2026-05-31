@@ -10,6 +10,7 @@ import { userHomePath } from "@/lib/auth/redirects";
 import { PageLoading } from "@/components/common";
 import { teacherNav } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
+import { ThemeToggle } from "@/components/theme";
 
 export default function TeacherLayout({
   children,
@@ -96,6 +97,7 @@ function TeacherLayoutInner({
           onClose={onClose}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
+          footerExtra={<ThemeToggle side="top" align="start" />}
         />
       )}
     >

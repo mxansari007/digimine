@@ -225,7 +225,7 @@ function ResultsContent() {
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
                             <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                                isCorrect ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
                             }`}>
                                 {isCorrect ? (
                                     <CheckIcon className="h-4 w-4" />
@@ -243,7 +243,7 @@ function ResultsContent() {
                             </div>
                         </div>
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                            isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
+                            isCorrect ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
                         }`}>
                             {isCorrect ? `+${answer?.marksObtained || q.marks}` : `${answer?.marksObtained || 0}`} Marks
                         </span>
@@ -260,7 +260,7 @@ function ResultsContent() {
                                         <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
                                             <span>Your Solution ({codeData.language})</span>
                                         </div>
-                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
+                                        <pre className="on-dark p-3 bg-[#111827] text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-gray-500 italic">No code submitted</p>
@@ -271,7 +271,7 @@ function ResultsContent() {
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
                                     {(answer as any).testCaseResults.map((tc: any, tcIdx: number) => (
-                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'}`}>
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
@@ -300,9 +300,9 @@ function ResultsContent() {
                                         key={opt.id}
                                         className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
                                             isOptCorrect
-                                                ? 'bg-green-50 border-green-200 text-green-800'
+                                                ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25 text-green-800 dark:text-green-300'
                                                 : isSelected && !isOptCorrect
-                                                    ? 'bg-red-50 border-red-200 text-red-800'
+                                                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25 text-red-800 dark:text-red-300'
                                                     : 'bg-gray-50 border-gray-100 text-gray-600'
                                         }`}
                                     >
@@ -338,9 +338,9 @@ function ResultsContent() {
                                 {expandedExplanation === q.id ? 'Hide Explanation' : 'Show Explanation'}
                             </button>
                             {expandedExplanation === q.id && (
-                                <div className="mt-3 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                    <h4 className="text-xs font-bold text-indigo-700 uppercase mb-1">Explanation</h4>
-                                    <FormattedContent html={q.explanation} size="sm" className="text-indigo-900" />
+                                <div className="mt-3 p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/25">
+                                    <h4 className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase mb-1">Explanation</h4>
+                                    <FormattedContent html={q.explanation} size="sm" className="text-indigo-900 dark:text-indigo-300" />
                                 </div>
                             )}
                         </div>
@@ -376,21 +376,21 @@ function ResultsContent() {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                        <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                        <div className="p-4 bg-green-50 dark:bg-green-500/10 rounded-xl border border-green-100 dark:border-green-500/25">
                             <div className="text-2xl font-bold text-green-600">{attempt.correctAnswers}</div>
-                            <div className="text-xs text-green-700 font-medium uppercase tracking-wider">Correct</div>
+                            <div className="text-xs text-green-700 dark:text-green-300 font-medium uppercase tracking-wider">Correct</div>
                         </div>
-                        <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                        <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded-xl border border-red-100 dark:border-red-500/25">
                             <div className="text-2xl font-bold text-red-600">{attempt.wrongAnswers}</div>
-                            <div className="text-xs text-red-700 font-medium uppercase tracking-wider">Wrong</div>
+                            <div className="text-xs text-red-700 dark:text-red-300 font-medium uppercase tracking-wider">Wrong</div>
                         </div>
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                             <div className="text-2xl font-bold text-gray-600">{attempt.unattempted}</div>
                             <div className="text-xs text-gray-700 font-medium uppercase tracking-wider">Skipped</div>
                         </div>
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/25">
                             <div className="text-2xl font-bold text-blue-600">{Math.floor(timeTaken / 60)}m</div>
-                            <div className="text-xs text-blue-700 font-medium uppercase tracking-wider">Time Taken</div>
+                            <div className="text-xs text-blue-700 dark:text-blue-300 font-medium uppercase tracking-wider">Time Taken</div>
                         </div>
                     </div>
 
@@ -460,7 +460,7 @@ function ResultsContent() {
                                         onClick={() => setSelectedSectionId('all')}
                                         className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                             effectiveSectionId === 'all'
-                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-900 dark:text-indigo-300'
                                                 : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                                         }`}
                                     >
@@ -476,7 +476,7 @@ function ResultsContent() {
                                                 onClick={() => setSelectedSectionId(section.id)}
                                                 className={`min-w-[180px] shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                                     effectiveSectionId === section.id
-                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                                                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-900 dark:text-indigo-300'
                                                         : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                                                 }`}
                                             >

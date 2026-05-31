@@ -16,7 +16,7 @@ export default function TeachersInstitutesBand() {
     const i = audiencePanels.institute;
 
     return (
-        <section className="border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        <section className="border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white dark:via-surface to-slate-50">
             <div className="container-page py-16 sm:py-20">
                 <div className="landing-motion mx-auto max-w-2xl text-center" data-motion>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -42,7 +42,7 @@ export default function TeachersInstitutesBand() {
                             className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500"
                         />
                         <div className="flex items-center justify-between">
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                            <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
                                 For teachers
                             </span>
                             <span className="text-xs font-bold text-amber-700">
@@ -59,7 +59,7 @@ export default function TeachersInstitutesBand() {
                         <ul className="mt-5 space-y-2.5 text-sm">
                             {t.bullets.slice(0, 3).map((b) => (
                                 <li key={b.title} className="flex items-start gap-2.5">
-                                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
                                         <svg
                                             viewBox="0 0 24 24"
                                             fill="none"
@@ -98,7 +98,7 @@ export default function TeachersInstitutesBand() {
 
                     {/* Institutes card */}
                     <div
-                        className="landing-motion landing-lift-card home-shine relative overflow-hidden rounded-3xl border border-emerald-200 bg-white p-7 shadow-sm"
+                        className="landing-motion landing-lift-card home-shine relative overflow-hidden rounded-3xl border border-emerald-200 dark:border-emerald-500/25 bg-white p-7 shadow-sm"
                         data-motion
                     >
                         <div
@@ -106,7 +106,7 @@ export default function TeachersInstitutesBand() {
                             className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"
                         />
                         <div className="flex items-center justify-between">
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                            <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
                                 For institutes
                             </span>
                             <span className="text-xs font-bold text-emerald-700">
@@ -123,7 +123,7 @@ export default function TeachersInstitutesBand() {
                         <ul className="mt-5 space-y-2.5 text-sm">
                             {i.bullets.slice(0, 3).map((b) => (
                                 <li key={b.title} className="flex items-start gap-2.5">
-                                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                         <svg
                                             viewBox="0 0 24 24"
                                             fill="none"

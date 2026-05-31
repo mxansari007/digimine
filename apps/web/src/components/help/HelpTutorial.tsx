@@ -217,7 +217,7 @@ export function HelpTutorial({
                 onClick={openTour}
                 aria-label={label}
                 title={label}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-primary-500 transition-colors hover:bg-primary-50 hover:text-primary-700"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-primary-500 transition-colors hover:bg-primary-50 dark:hover:bg-primary-500/10 hover:text-primary-700 dark:hover:text-primary-300"
             >
                 <HelpCircle className="h-4 w-4" strokeWidth={2} aria-hidden />
             </button>

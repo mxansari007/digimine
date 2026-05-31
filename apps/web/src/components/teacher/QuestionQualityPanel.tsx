@@ -28,9 +28,9 @@ type QuestionRow = {
 };
 
 function difficultyBadge(d: QuestionRow["difficulty"]) {
-    if (d === "easy") return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
-    if (d === "moderate") return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
-    if (d === "hard") return "bg-red-50 text-red-700 ring-1 ring-red-200";
+    if (d === "easy") return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25";
+    if (d === "moderate") return "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25";
+    if (d === "hard") return "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25";
     return "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
 }
 
@@ -101,7 +101,7 @@ export function QuestionQualityPanel({
         );
     }
     if (error) {
-        return <Card className="p-6 text-sm text-red-700 border-red-200 bg-red-50">{error}</Card>;
+        return <Card className="p-6 text-sm text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10">{error}</Card>;
     }
     if (total === 0) {
         return (
@@ -182,11 +182,11 @@ export function QuestionQualityPanel({
                             </div>
 
                             {q.commonWrong && (
-                                <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs ring-1 ring-rose-100">
-                                    <p className="font-semibold text-rose-900">
+                                <div className="rounded-lg bg-rose-50 dark:bg-rose-500/10 px-3 py-2 text-xs ring-1 ring-rose-100 dark:ring-rose-500/25">
+                                    <p className="font-semibold text-rose-900 dark:text-rose-300">
                                         Common misconception ({q.commonWrong.pickedPercent}% of wrong answers picked this)
                                     </p>
-                                    <p className="mt-1 line-clamp-2 text-rose-700">
+                                    <p className="mt-1 line-clamp-2 text-rose-700 dark:text-rose-300">
                                         {stripHtml(q.commonWrong.optionText)}
                                     </p>
                                 </div>

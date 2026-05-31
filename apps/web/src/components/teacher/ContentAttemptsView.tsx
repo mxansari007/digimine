@@ -80,9 +80,9 @@ function formatDuration(seconds: number) {
 }
 
 function statusBadge(status: string) {
-    if (status === "completed") return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
-    if (status === "timed_out") return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
-    if (status === "in_progress") return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
+    if (status === "completed") return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25";
+    if (status === "timed_out") return "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25";
+    if (status === "in_progress") return "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-500/25";
     return "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
 }
 
@@ -407,7 +407,7 @@ export function ContentAttemptsView({
                             <Link
                                 key={s.id}
                                 href={`/teacher/students/${encodeURIComponent(s.studentId)}`}
-                                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 hover:border-primary-300 hover:bg-primary-50"
+                                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 hover:border-primary-300 dark:hover:border-primary-500/25 hover:bg-primary-50 dark:hover:bg-primary-500/10"
                                 title={s.studentEmail}
                             >
                                 {s.studentName}

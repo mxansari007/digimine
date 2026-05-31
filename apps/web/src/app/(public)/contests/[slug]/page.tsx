@@ -351,15 +351,15 @@ export default function ContestDetailPage() {
                 <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
                     <div className="space-y-6">
                         <Card className="overflow-hidden">
-                            <div className="relative h-72 bg-slate-950">
+                            <div className="relative h-72 bg-[#020617]">
                                 {contest.thumbnailURL ? (
                                     <img src={contest.thumbnailURL} alt={contest.title} className="h-full w-full object-cover" />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white/30">
+                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#020617] via-[#0f172a] to-blue-950 text-white/30">
                                         <TrophyIcon className="h-20 w-20" />
                                     </div>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/80 via-[#020617]/20 to-transparent" />
                                 <div className="absolute bottom-6 left-6 right-6 text-white">
                                     <div className="mb-3 flex flex-wrap gap-2">
                                         <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wider backdrop-blur">
@@ -422,7 +422,7 @@ export default function ContestDetailPage() {
                                     </div>
                                 </div>
                                 <div className={`mt-4 rounded-xl px-3 py-2 text-sm font-bold ${
-                                    isLive ? "bg-red-50 text-red-700" : isUpcoming ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"
+                                    isLive ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" : isUpcoming ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-slate-100 text-slate-600"
                                 }`}>
                                     {contestStatusText}
                                 </div>

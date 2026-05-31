@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, Card, Badge, useToast } from "@digimine/ui";
+import { Button, Card, Badge, DataTable, PaginationControls, usePaginatedTable, useToast, type DataTableColumn } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/contexts/EntitlementsContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -69,6 +69,93 @@ function barColor(v: number): string {
     return "bg-danger-500";
 }
 
+/** Short date for the recent-interviews table. */
+function sessionWhen(s: AIInterviewSessionSummary): string {
+    const iso = s.completedAt || s.startedAt || s.scheduledAt;
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Where a row navigates + its action label, or null for terminal/cancelled rows. */
+function sessionNav(s: AIInterviewSessionSummary): { href: string; label: string } | null {
+    if (s.status === "completed") return { href: `/dashboard/interviews/${s.id}/results`, label: "View" };
+    if (s.status === "in_progress") return { href: `/dashboard/interviews/${s.id}`, label: "Resume" };
+    if (s.status === "scheduled") return { href: `/dashboard/interviews/${s.id}`, label: "Join" };
+    if (s.status === "abandoned") return { href: `/dashboard/interviews/${s.id}`, label: "View" };
+    return null; // cancelled / expired — no action
+}
+
+function SessionStatusBadge({ s }: { s: AIInterviewSessionSummary }) {
+    switch (s.status) {
+        case "completed":
+            return <Badge variant="success" size="sm">Completed</Badge>;
+        case "in_progress":
+            return <Badge variant="info" size="sm">In progress</Badge>;
+        case "scheduled":
+            return <Badge variant="accent" size="sm">Scheduled</Badge>;
+        case "expired":
+            return <Badge variant="warning" size="sm">Expired</Badge>;
+        case "cancelled":
+            return <Badge variant="secondary" size="sm">Cancelled</Badge>;
+        default:
+            return <Badge variant="secondary" size="sm">Incomplete</Badge>;
+    }
+}
+
+const SESSION_COLUMNS: DataTableColumn<AIInterviewSessionSummary>[] = [
+    {
+        key: "interview",
+        header: "Interview",
+        render: (s) => (
+            <div className="flex min-w-[200px] items-center gap-3">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <InterviewTypeIcon type={s.interviewType} className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                    <p className="max-w-[280px] truncate font-semibold text-slate-900">{s.problemTitle}</p>
+                    <p className="truncate text-xs capitalize text-slate-500">
+                        {s.primaryPattern ? s.primaryPattern.replace(/-/g, " ") : interviewTypeMeta(s.interviewType).label} · {s.difficulty}
+                    </p>
+                </div>
+            </div>
+        ),
+    },
+    {
+        key: "type",
+        header: "Type",
+        render: (s) => <span className="text-slate-600">{interviewTypeMeta(s.interviewType).label}</span>,
+    },
+    { key: "status", header: "Status", render: (s) => <SessionStatusBadge s={s} /> },
+    {
+        key: "readiness",
+        header: "Readiness",
+        align: "right",
+        numeric: true,
+        render: (s) =>
+            s.status === "completed" ? (
+                <span className={`font-bold tabular-nums ${(s.readiness ?? 0) >= 70 ? "text-emerald-600" : "text-slate-900"}`}>
+                    {s.readiness ?? 0}
+                </span>
+            ) : (
+                <span className="text-slate-300">—</span>
+            ),
+    },
+    { key: "date", header: "Date", align: "right", render: (s) => <span className="whitespace-nowrap text-slate-500">{sessionWhen(s)}</span> },
+    {
+        key: "action",
+        header: "",
+        align: "right",
+        render: (s) => {
+            const nav = sessionNav(s);
+            return nav ? (
+                <Link href={nav.href} className="font-semibold text-primary-600 hover:text-primary-700">
+                    {nav.label} →
+                </Link>
+            ) : null;
+        },
+    },
+];
+
 export default function InterviewsDashboardPage() {
     const router = useRouter();
     const toast = useToast();
@@ -76,8 +163,6 @@ export default function InterviewsDashboardPage() {
     const { hasFeature, ready: entReady } = useEntitlements();
     const canInterview = hasFeature("ai_interview");
 
-    const [loading, setLoading] = useState(true);
-    const [sessions, setSessions] = useState<AIInterviewSessionSummary[]>([]);
     const [readiness, setReadiness] = useState<AIInterviewReadiness | null>(null);
 
     const [showConfig, setShowConfig] = useState(false);
@@ -95,22 +180,38 @@ export default function InterviewsDashboardPage() {
     const [scheduling, setScheduling] = useState(false);
     const [cancelling, setCancelling] = useState(false);
 
-    const load = useCallback(async () => {
-        if (!firebaseUser) return;
-        setLoading(true);
-        try {
-            const res = await teacherFetch(firebaseUser, "/api/ai-interview/sessions");
+    // Recent interviews — server-paginated. Each page fetch returns just that
+    // page of sessions + the (cheap) readiness rollup that powers the graphs,
+    // so the table never pulls the whole history at once.
+    const sessionsLoad = useCallback(
+        async ({ page, pageSize, signal }: { page: number; pageSize: number; signal: AbortSignal }) => {
+            if (!firebaseUser) return { items: [] as AIInterviewSessionSummary[], total: 0 };
+            const res = await teacherFetch(
+                firebaseUser,
+                `/api/ai-interview/sessions?page=${page}&pageSize=${pageSize}`,
+                { signal }
+            );
             const data = await res.json();
-            if (res.ok) {
-                setSessions(Array.isArray(data.sessions) ? data.sessions : []);
-                setReadiness(data.readiness || null);
-            }
-        } catch {
-            /* fail soft — empty state renders */
-        } finally {
-            setLoading(false);
-        }
-    }, [firebaseUser]);
+            if (!res.ok) throw new Error(data?.error || "Failed to load interviews");
+            setReadiness(data.readiness || null);
+            return { items: (data.items as AIInterviewSessionSummary[]) || [], total: (data.total as number) || 0 };
+        },
+        [firebaseUser]
+    );
+    const {
+        items: sessionRows,
+        total: sessionsTotal,
+        page: sessionsPage,
+        pageSize: sessionsPageSize,
+        loading: sessionsLoading,
+        setPage: setSessionsPage,
+        setPageSize: setSessionsPageSize,
+        reload: reloadSessions,
+    } = usePaginatedTable<AIInterviewSessionSummary>({
+        load: sessionsLoad,
+        initialPageSize: 10,
+        deps: [firebaseUser?.uid ?? ""],
+    });
 
     const loadSlots = useCallback(async () => {
         if (!firebaseUser) return;
@@ -124,11 +225,8 @@ export default function InterviewsDashboardPage() {
     }, [firebaseUser]);
 
     useEffect(() => {
-        if (!authLoading && firebaseUser) {
-            load();
-            loadSlots();
-        } else if (!authLoading && !firebaseUser) setLoading(false);
-    }, [authLoading, firebaseUser, load, loadSlots]);
+        if (!authLoading && firebaseUser) loadSlots();
+    }, [authLoading, firebaseUser, loadSlots]);
 
     /** Shared interview-config payload for both instant start and booking. */
     const configPayload = useCallback(
@@ -210,7 +308,8 @@ export default function InterviewsDashboardPage() {
             setShowConfig(false);
             setShowSlots(false);
             setSelectedSlot("");
-            await Promise.all([load(), loadSlots()]);
+            reloadSessions();
+            await loadSlots();
         } catch {
             toast.error("Couldn't book that slot. Please try again.");
         } finally {
@@ -228,7 +327,8 @@ export default function InterviewsDashboardPage() {
             });
             if (res.ok) {
                 toast.success("Booking cancelled — your weekly credit is back.");
-                await Promise.all([load(), loadSlots()]);
+                reloadSessions();
+            await loadSlots();
             } else {
                 const d = await res.json().catch(() => ({}));
                 toast.error(d.error || "Couldn't cancel the booking.");
@@ -242,7 +342,7 @@ export default function InterviewsDashboardPage() {
     }
 
     // ── Loading ──
-    if (authLoading || loading || !entReady) {
+    if (authLoading || !entReady) {
         return (
             <div className="flex items-center justify-center py-32">
                 <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-200 border-t-primary-600" />
@@ -287,6 +387,12 @@ export default function InterviewsDashboardPage() {
         label: `#${i + 1}`,
         value: h.readiness,
     }));
+    // Derived trend stats for the analytics header.
+    const histVals = history.map((h) => h.value);
+    const bestReadiness = histVals.length ? Math.max(...histVals) : 0;
+    const lastReadiness = readiness?.lastReadiness ?? 0;
+    const prevReadiness = histVals.length >= 2 ? histVals[histVals.length - 2] : null;
+    const readinessDelta = prevReadiness != null ? lastReadiness - prevReadiness : null;
 
     // ── Derived scheduling state ──
     const active = slotInfo?.activeSession ?? null;
@@ -299,13 +405,6 @@ export default function InterviewsDashboardPage() {
         !!active.scheduledAt &&
         Date.now() >= new Date(active.scheduledAt).getTime() - grace * 60_000;
     const openSlots = slotInfo?.openSlots ?? [];
-    // History = completed + anything still live or left incomplete; hide the
-    // booking-lifecycle states (scheduled is in the banner; cancelled/expired
-    // are just freed reservations).
-    const pastSessions = sessions.filter(
-        (s) => s.status === "completed" || s.status === "in_progress" || s.status === "abandoned"
-    );
-
     // ── Premium dashboard ──
     return (
         <div className="space-y-8">
@@ -400,13 +499,13 @@ export default function InterviewsDashboardPage() {
                                     }}
                                     className={`rounded-xl border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
                                         active
-                                            ? "border-primary-500 bg-primary-50 ring-1 ring-primary-200 shadow-soft-sm"
+                                            ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 ring-1 ring-primary-200 dark:ring-primary-500/25 shadow-soft-sm"
                                             : "border-slate-200 hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-soft-sm"
                                     }`}
                                 >
                                     <span
                                         className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-                                            active ? "bg-primary-100 text-primary-700" : "bg-slate-100 text-slate-500"
+                                            active ? "bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300" : "bg-slate-100 text-slate-500"
                                         }`}
                                     >
                                         <InterviewTypeIcon type={t.key} className="h-5 w-5" />
@@ -518,7 +617,7 @@ export default function InterviewsDashboardPage() {
                         otherwise reserve a future slot to protect capacity. ── */}
                     <div className="mt-6 border-t border-slate-100 pt-5">
                         {slotInfo && !slotInfo.canStartNow && (
-                            <p className="mb-3 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+                            <p className="mb-3 inline-flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25">
                                 <CalendarClock className="h-4 w-4 shrink-0" aria-hidden />
                                 All interview slots are busy right now. Reserve the next available time below.
                             </p>
@@ -566,7 +665,7 @@ export default function InterviewsDashboardPage() {
                                                         onClick={() => setSelectedSlot(s.slotKey)}
                                                         className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                                                             sel
-                                                                ? "border-primary-500 bg-primary-50 text-primary-800 ring-1 ring-primary-200"
+                                                                ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-800 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-500/25"
                                                                 : "border-slate-200 text-slate-700 hover:border-primary-300 hover:bg-primary-50/50"
                                                         }`}
                                                     >
@@ -597,27 +696,51 @@ export default function InterviewsDashboardPage() {
                 </Card>
             )}
 
-            {/* Readiness summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card padding="lg" elevated className="flex flex-col items-center justify-center">
-                    <ReadinessRing
-                        value={readiness?.avgReadiness ?? 0}
-                        label="Avg readiness"
-                        sublabel={readiness ? `${readiness.completedSessions} interview${readiness.completedSessions === 1 ? "" : "s"}` : "No interviews yet"}
-                    />
-                </Card>
+            {/* ── Interview analytics ── */}
+            <div>
+                <span className="section-eyebrow">Your interview analytics</span>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <Card padding="lg" elevated className="flex flex-col items-center justify-center text-center">
+                        <ReadinessRing value={readiness?.avgReadiness ?? 0} label="Average readiness" />
+                        {/* mini-stats row for context */}
+                        <div className="mt-4 grid w-full grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 pt-4">
+                            <div>
+                                <p className="text-base font-black tabular-nums text-slate-900">{bestReadiness}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Best</p>
+                            </div>
+                            <div>
+                                <p className="text-base font-black tabular-nums text-slate-900">{lastReadiness}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Last</p>
+                            </div>
+                            <div>
+                                <p className="text-base font-black tabular-nums text-slate-900">{readiness?.completedSessions ?? 0}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Done</p>
+                            </div>
+                        </div>
+                    </Card>
 
-                <Card padding="lg" elevated className="lg:col-span-2">
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-bold">Readiness trend</h2>
-                        {readiness && (
-                            <Badge variant={readiness.lastReadiness >= 70 ? "success" : "warning"} size="sm">
-                                Last: {readiness.lastReadiness}
-                            </Badge>
+                    <Card padding="lg" elevated className="lg:col-span-2">
+                        <div className="mb-3 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900">Readiness trend</h2>
+                                <p className="text-xs text-slate-500">Score from each completed interview</p>
+                            </div>
+                            {readiness && readinessDelta != null && (
+                                <Badge variant={readinessDelta >= 0 ? "success" : "destructive"} size="sm">
+                                    {readinessDelta >= 0 ? "▲" : "▼"} {Math.abs(readinessDelta)} vs last
+                                </Badge>
+                            )}
+                        </div>
+                        {history.length > 0 ? (
+                            <TrendLine points={history} height={190} yMax={100} yLabel="" accent="#0d9488" />
+                        ) : (
+                            <div className="flex h-44 flex-col items-center justify-center gap-1 text-sm text-slate-400">
+                                <CalendarClock className="h-6 w-6 text-slate-300" aria-hidden />
+                                Finish an interview to start your trend.
+                            </div>
                         )}
-                    </div>
-                    <TrendLine points={history} height={180} yMax={100} yLabel="" accent="#0d9488" />
-                </Card>
+                    </Card>
+                </div>
             </div>
 
             {/* Dimension averages + weak areas */}
@@ -649,7 +772,7 @@ export default function InterviewsDashboardPage() {
                                                 <span className="font-medium text-slate-700">
                                                     {row.label}{" "}
                                                     {weak && (
-                                                        <span className="ml-1 rounded-full bg-danger-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-danger-600 ring-1 ring-inset ring-danger-200">
+                                                        <span className="ml-1 rounded-full bg-danger-50 dark:bg-danger-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-danger-600 dark:text-danger-300 ring-1 ring-inset ring-danger-200 dark:ring-danger-500/25">
                                                             focus
                                                         </span>
                                                     )}
@@ -679,56 +802,45 @@ export default function InterviewsDashboardPage() {
                 );
             })()}
 
-            {/* Recent sessions — completed history + anything still live. Booking
-                lifecycle states (scheduled/cancelled/expired) are surfaced in the
-                banner above, not as history noise here. */}
+            {/* Recent interviews — server-paginated history table. */}
             <div>
-                <h2 className="text-xl font-bold mb-4">Recent interviews</h2>
-                {pastSessions.length === 0 ? (
-                    <Card padding="lg" elevated className="text-center py-16 border-dashed">
-                        <p className="font-semibold">No interviews yet</p>
-                        <p className="text-sm text-slate-500 mt-2">Start your first AI mock interview to build your readiness score.</p>
-                        {!active && (
-                            <Button variant="primary" className="mt-4" onClick={() => setShowConfig(true)}>Start interview</Button>
-                        )}
-                    </Card>
-                ) : (
-                    <div className="space-y-3">
-                        {pastSessions.map((s) => {
-                            const href =
-                                s.status === "completed"
-                                    ? `/dashboard/interviews/${s.id}/results`
-                                    : `/dashboard/interviews/${s.id}`;
-                            return (
-                                <Link key={s.id} href={href} className="block">
-                                    <Card padding="md" hoverable className="flex items-center justify-between">
-                                        <div className="min-w-0">
-                                            <p className="font-semibold truncate">{s.problemTitle}</p>
-                                            <p className="text-xs text-slate-500 capitalize">
-                                                {s.primaryPattern
-                                                    ? s.primaryPattern.replace(/-/g, " ")
-                                                    : interviewTypeMeta(s.interviewType).label}{" "}
-                                                · {s.difficulty}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            {s.status === "completed" ? (
-                                                <Badge variant={(s.readiness ?? 0) >= 70 ? "success" : "warning"} size="sm">
-                                                    {s.readiness ?? 0} ready
-                                                </Badge>
-                                            ) : s.status === "in_progress" ? (
-                                                <Badge variant="info" size="sm">In progress</Badge>
-                                            ) : (
-                                                <Badge variant="secondary" size="sm">Incomplete</Badge>
-                                            )}
-                                            <span className="text-slate-400">→</span>
-                                        </div>
-                                    </Card>
-                                </Link>
-                            );
-                        })}
-                    </div>
-                )}
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-xl font-bold text-slate-900">Recent interviews</h2>
+                    {sessionsTotal > 0 && (
+                        <span className="text-sm text-slate-500">{sessionsTotal.toLocaleString()} total</span>
+                    )}
+                </div>
+                <DataTable
+                    columns={SESSION_COLUMNS}
+                    data={sessionRows}
+                    keyExtractor={(s) => s.id}
+                    isLoading={sessionsLoading}
+                    skeletonRows={5}
+                    emptyState={
+                        <div className="flex flex-col items-center gap-2">
+                            <p className="font-semibold text-slate-700">No interviews yet</p>
+                            <p className="text-sm text-slate-500">Start your first AI mock interview to build your readiness score.</p>
+                            {!active && (
+                                <Button variant="primary" size="sm" className="mt-1" onClick={() => setShowConfig(true)}>
+                                    Start interview
+                                </Button>
+                            )}
+                        </div>
+                    }
+                    footer={
+                        sessionsTotal > 0 ? (
+                            <PaginationControls
+                                page={sessionsPage}
+                                pageSize={sessionsPageSize}
+                                totalItems={sessionsTotal}
+                                onPageChange={setSessionsPage}
+                                onPageSizeChange={setSessionsPageSize}
+                                itemLabel="interviews"
+                                disabled={sessionsLoading}
+                            />
+                        ) : undefined
+                    }
+                />
             </div>
         </div>
     );

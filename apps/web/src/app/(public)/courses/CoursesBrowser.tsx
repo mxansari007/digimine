@@ -68,7 +68,7 @@ export default function CoursesBrowser({ courses }: { courses: CourseCard[] }) {
                                     {course.thumbnailURL ? (
                                         <Image src={course.thumbnailURL} alt={course.title} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                                     ) : (
-                                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-950 to-primary-900 text-white">
+                                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#020617] to-primary-900 text-white">
                                             <span className="text-5xl font-black">{course.title.slice(0, 1).toUpperCase()}</span>
                                         </div>
                                     )}
@@ -78,14 +78,14 @@ export default function CoursesBrowser({ courses }: { courses: CourseCard[] }) {
                                 </div>
                                 <div className="p-5">
                                     <div className="mb-3 flex flex-wrap gap-2">
-                                        <span className="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700">
+                                        <span className="rounded-full bg-primary-50 dark:bg-primary-500/10 px-2.5 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">
                                             {course.category || "Course"}
                                         </span>
                                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold capitalize text-slate-600">
                                             {course.difficulty}
                                         </span>
                                         {course.accessType === "enrollment_required" && (
-                                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                                            <span className="rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                                                 Paid enrollment
                                             </span>
                                         )}

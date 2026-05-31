@@ -309,8 +309,8 @@ export default function TestResultPage() {
         }
     };
     const accentClasses = isPassed
-        ? { ring: 'ring-emerald-200', icon: 'bg-emerald-50 text-emerald-700', text: 'text-emerald-700', heroBg: 'from-slate-900 via-slate-800 to-emerald-900', accentColor: '#34d399' }
-        : { ring: 'ring-rose-200', icon: 'bg-rose-50 text-rose-700', text: 'text-rose-700', heroBg: 'from-slate-900 via-slate-800 to-rose-900', accentColor: '#fb7185' };
+        ? { ring: 'ring-emerald-200', icon: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', text: 'text-emerald-700', heroBg: 'from-[#0f172a] via-[#1e293b] to-emerald-900', accentColor: '#34d399' }
+        : { ring: 'ring-rose-200', icon: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300', text: 'text-rose-700', heroBg: 'from-[#0f172a] via-[#1e293b] to-rose-900', accentColor: '#fb7185' };
 
     const rankingEntries = rankingData?.entries || [];
     const totalParticipants = rankingData?.totalParticipants || 0;
@@ -480,7 +480,7 @@ export default function TestResultPage() {
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
                             <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                                isCorrect ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' : isSkipped ? 'bg-gray-100 text-gray-500' : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
                             }`}>
                                 {isCorrect ? (
                                     <CheckIcon className="h-4 w-4" />
@@ -499,7 +499,7 @@ export default function TestResultPage() {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                                isCorrect ? 'bg-green-100 text-green-700' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'
+                                isCorrect ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' : isSkipped ? 'bg-gray-100 text-gray-600' : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
                             }`}>
                                 {isCorrect ? `+${userAnswer.marksObtained || question.marks}` : `${userAnswer.marksObtained || 0}`} Marks
                             </span>
@@ -517,7 +517,7 @@ export default function TestResultPage() {
                                         <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 flex justify-between">
                                             <span>Your Solution ({codeData.language})</span>
                                         </div>
-                                        <pre className="p-3 bg-gray-900 text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
+                                        <pre className="on-dark p-3 bg-[#111827] text-gray-100 text-xs font-mono overflow-x-auto">{codeData.code}</pre>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-gray-500 italic">No code submitted</p>
@@ -528,7 +528,7 @@ export default function TestResultPage() {
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-bold text-gray-700">Test Case Results</h4>
                                     {userAnswer.testCaseResults.map((tc: any, tcIdx: number) => (
-                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                        <div key={tcIdx} className={`p-3 rounded-lg border text-sm ${tc.passed ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'}`}>
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium">{tc.isHidden ? 'Hidden Test Case' : `Test Case ${tcIdx + 1}`}</span>
                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.passed ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
@@ -557,9 +557,9 @@ export default function TestResultPage() {
                                         key={option.id}
                                         className={`p-3 rounded-lg text-sm flex items-center justify-between border ${
                                             isOptCorrect
-                                                ? 'bg-green-50 border-green-200 text-green-800'
+                                                ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/25 text-green-800 dark:text-green-300'
                                                 : isSelected && !isOptCorrect
-                                                    ? 'bg-red-50 border-red-200 text-red-800'
+                                                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25 text-red-800 dark:text-red-300'
                                                     : 'bg-gray-50 border-gray-100 text-gray-600'
                                         }`}
                                     >
@@ -595,8 +595,8 @@ export default function TestResultPage() {
                                 {expandedExplanation === question.id ? 'Hide Explanation' : 'Show Explanation'}
                             </button>
                             {expandedExplanation === question.id && (
-                                <div className="mt-3 p-4 bg-primary-50 rounded-lg border border-primary-100">
-                                    <h4 className="text-xs font-bold text-primary-800 uppercase mb-1">Explanation</h4>
+                                <div className="mt-3 p-4 bg-primary-50 dark:bg-primary-500/10 rounded-lg border border-primary-100 dark:border-primary-500/25">
+                                    <h4 className="text-xs font-bold text-primary-800 dark:text-primary-300 uppercase mb-1">Explanation</h4>
                                     <FormattedContent html={question.explanation} size="sm" className="text-primary-950" />
                                 </div>
                             )}
@@ -653,7 +653,7 @@ export default function TestResultPage() {
 
                 {/* Hero Card */}
                 <Card className="overflow-hidden border-none shadow-xl">
-                    <div className={`relative bg-gradient-to-br ${accentClasses.heroBg} text-white px-6 py-10 sm:px-12 sm:py-12`}>
+                    <div className={`on-dark relative bg-gradient-to-br ${accentClasses.heroBg} text-white px-6 py-10 sm:px-12 sm:py-12`}>
                         {/* Decorative blobs */}
                         <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-20 blur-3xl" style={{ background: accentClasses.accentColor }} />
                         <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full opacity-10 blur-3xl bg-white" />
@@ -887,13 +887,13 @@ export default function TestResultPage() {
                             <div className="relative h-64 sm:h-72 overflow-hidden rounded-lg bg-white animate-pulse">
                                 <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                                     {[25, 50, 75].map((x) => (
-                                        <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="#e2e8f0" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                        <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="rgb(var(--c-slate-200))" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
                                     ))}
                                     {[chart.top, chart.top + chartHeight / 3, chart.top + (chartHeight * 2) / 3, chart.bottom].map((y) => (
-                                        <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                        <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="rgb(var(--c-slate-100))" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
                                     ))}
                                     <path d={`M ${chart.left} ${chart.bottom - 12} C 25 20, 42 20, 58 ${chart.bottom - 28} S 82 ${chart.bottom - 18}, ${chart.right} ${chart.bottom - 34}`} fill="none" stroke="#c7d2fe" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-                                    <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="#cbd5e1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                                    <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="rgb(var(--c-slate-300))" strokeWidth="1" vectorEffect="non-scaling-stroke" />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm ring-1 ring-slate-100">
@@ -937,20 +937,20 @@ export default function TestResultPage() {
                                             </linearGradient>
                                         </defs>
                                         {[25, 50, 75].map((x) => (
-                                            <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="#e2e8f0" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                            <line key={x} x1={toChartX(x)} x2={toChartX(x)} y1={chart.top} y2={chart.bottom} stroke="rgb(var(--c-slate-200))" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
                                         ))}
                                         {[chart.top, chart.top + chartHeight / 3, chart.top + (chartHeight * 2) / 3, chart.bottom].map((y) => (
-                                            <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                                            <line key={y} x1={chart.left} x2={chart.right} y1={y} y2={y} stroke="rgb(var(--c-slate-100))" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
                                         ))}
                                         <line x1={averageLineX} x2={averageLineX} y1={chart.top} y2={chart.bottom} stroke="#10b981" strokeWidth="1" opacity="0.42" vectorEffect="non-scaling-stroke" />
                                         <line x1={cutoffLineX} x2={cutoffLineX} y1={chart.top} y2={chart.bottom} stroke="#d97706" strokeWidth="1.2" opacity="0.9" vectorEffect="non-scaling-stroke" />
                                         <line x1={currentLineX} x2={currentLineX} y1={chart.top} y2={chart.bottom} stroke="#4f46e5" strokeWidth="1.25" opacity="0.95" vectorEffect="non-scaling-stroke" />
                                         <path d={normalAreaPath} fill="url(#rankingNormalFill)" />
                                         <path d={normalPath} fill="none" stroke="#4f46e5" strokeWidth="1.7" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-                                        <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="#cbd5e1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                                        <line x1={chart.left} x2={chart.right} y1={chart.bottom} y2={chart.bottom} stroke="rgb(var(--c-slate-300))" strokeWidth="1" vectorEffect="non-scaling-stroke" />
                                         {distributionHover && (
                                             <>
-                                                <line x1={distributionHover.curveX} x2={distributionHover.curveX} y1={chart.top} y2={chart.bottom} stroke="#0f172a" strokeWidth="1" strokeDasharray="4 5" opacity="0.28" vectorEffect="non-scaling-stroke" />
+                                                <line x1={distributionHover.curveX} x2={distributionHover.curveX} y1={chart.top} y2={chart.bottom} stroke="rgb(var(--c-slate-900))" strokeWidth="1" strokeDasharray="4 5" opacity="0.28" vectorEffect="non-scaling-stroke" />
                                             </>
                                         )}
                                     </svg>
@@ -973,7 +973,7 @@ export default function TestResultPage() {
                                     </div>
 
                                     <div
-                                        className="absolute top-9 -translate-x-1/2 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200 whitespace-nowrap"
+                                        className="absolute top-9 -translate-x-1/2 rounded-md bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25 whitespace-nowrap"
                                         style={{ left: labelLeft(averageLineX) }}
                                     >
                                         Avg {Math.round(averagePercentage)}%
@@ -1000,7 +1000,7 @@ export default function TestResultPage() {
                                                     ? 'h-4 w-4 bg-primary-600'
                                                     : 'h-3 w-3 bg-slate-400'
                                             }`} />
-                                            <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-[10px] font-medium text-white shadow group-hover:block whitespace-nowrap">
+                                            <div className="on-dark absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded bg-[#0f172a] px-2 py-1 text-[10px] font-medium text-white shadow group-hover:block whitespace-nowrap">
                                                 {marker.isCurrentUser ? 'Your score' : 'Participant'}: {Math.round(marker.percentage)}%
                                             </div>
                                         </div>
@@ -1008,7 +1008,7 @@ export default function TestResultPage() {
 
                                     {distributionHover && (
                                         <div
-                                            className={`pointer-events-none absolute z-30 rounded-lg bg-slate-950 px-3 py-2 text-[11px] text-white shadow-xl ${
+                                            className={`on-dark pointer-events-none absolute z-30 rounded-lg bg-[#020617] px-3 py-2 text-[11px] text-white shadow-xl ${
                                                 distributionHover.left > 360 ? '-translate-x-full -ml-3' : 'translate-x-3'
                                             }`}
                                             style={{
@@ -1086,7 +1086,7 @@ export default function TestResultPage() {
                                             <p className="text-xs text-slate-500">Ranked by score, then completion time.</p>
                                         </div>
                                         <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${
-                                            contestLeaderboardFinal ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                                            contestLeaderboardFinal ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
                                         }`}>
                                             {contestLeaderboardFinal ? "Final" : "Live"}
                                         </span>
@@ -1104,7 +1104,7 @@ export default function TestResultPage() {
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {rankingEntries.map((entry) => (
-                                                    <tr key={entry.id} className={entry.isCurrentUser ? "bg-primary-50/70" : "bg-white"}>
+                                                    <tr key={entry.id} className={entry.isCurrentUser ? "bg-primary-50/70 dark:bg-primary-500/10" : "bg-white"}>
                                                         <td className="px-4 py-3 font-bold text-slate-900">#{entry.rank}</td>
                                                         <td className="px-4 py-3">
                                                             <div className="font-bold text-slate-900">
@@ -1151,7 +1151,7 @@ export default function TestResultPage() {
                                     onClick={() => setFilter(opt.key)}
                                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
                                         filter === opt.key
-                                            ? 'bg-slate-900 text-white shadow-sm'
+                                            ? 'on-dark bg-[#0f172a] text-white shadow-sm'
                                             : 'text-slate-500 hover:text-slate-900'
                                     }`}
                                 >
@@ -1178,7 +1178,7 @@ export default function TestResultPage() {
                                         onClick={() => setSelectedSectionId('all')}
                                         className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                             effectiveSectionId === 'all'
-                                                ? 'border-primary-500 bg-primary-50 text-primary-950'
+                                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-950'
                                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                         }`}
                                     >
@@ -1194,7 +1194,7 @@ export default function TestResultPage() {
                                                 onClick={() => setSelectedSectionId(section.id)}
                                                 className={`min-w-[180px] shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
                                                     effectiveSectionId === section.id
-                                                        ? 'border-primary-500 bg-primary-50 text-primary-950'
+                                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-950'
                                                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                                 }`}
                                             >
