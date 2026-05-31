@@ -102,7 +102,7 @@ export default function CourseSubtopicPage({
     if (missing || !course || !chapter || !subtopic) {
         return (
             <div className="container-page py-20 text-center">
-                <h1 className="text-2xl font-black text-slate-950">Topic not found</h1>
+                <h1 className="text-2xl font-extrabold text-slate-900">Topic not found</h1>
                 <p className="mt-2 text-slate-500">This topic doesn’t exist in the course.</p>
                 <Link
                     href={`/courses/${params.slug}/${params.chapter}`}
@@ -137,7 +137,7 @@ export default function CourseSubtopicPage({
                     <div className="rounded-3xl border border-slate-200 bg-white p-4">
                         <Link
                             href={`/courses/${course.slug}/${chapterSlug(chapter)}`}
-                            className="flex items-center gap-2 px-2 text-xs font-black uppercase tracking-[0.14em] text-slate-400 hover:text-primary-700"
+                            className="flex items-center gap-2 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 hover:text-primary-700"
                         >
                             <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M12.7 14.7a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4l4-4a1 1 0 011.4 1.4L9.4 10l3.3 3.3a1 1 0 010 1.4z" clipRule="evenodd" /></svg>
                             {chapter.title}
@@ -155,7 +155,7 @@ export default function CourseSubtopicPage({
                                                     : "text-slate-600 hover:bg-slate-50"
                                             }`}
                                         >
-                                            <span className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${active ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+                                            <span className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-500"}`}>
                                                 {i + 1}
                                             </span>
                                             <span className="min-w-0 leading-snug">{s.title}</span>
@@ -170,10 +170,10 @@ export default function CourseSubtopicPage({
                 {/* Main: subtopic content */}
                 <main className="min-w-0">
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 lg:p-10">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-primary-600">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-600">
                             {chapter.title} · Topic {subIndex + 1} of {(chapter.subtopics || []).length}
                         </p>
-                        <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{subtopic.title}</h1>
+                        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{subtopic.title}</h1>
                         {subtopic.summary && <p className="mt-3 max-w-3xl text-lg leading-8 text-slate-600">{subtopic.summary}</p>}
 
                         <div className="mt-8">
@@ -194,8 +194,8 @@ export default function CourseSubtopicPage({
                                 href={subUrl(chapterSlug(prev.ch), subtopicSlug(prev.s))}
                                 className="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50/40 dark:hover:bg-primary-500/10"
                             >
-                                <p className="text-xs font-black uppercase tracking-wide text-slate-400">← Previous</p>
-                                <p className="mt-1 font-bold text-slate-950 group-hover:text-primary-800">{prev.s.title}</p>
+                                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">← Previous</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-800 group-hover:text-primary-800">{prev.s.title}</p>
                                 {chapterSlug(prev.ch) !== chapterSlug(chapter) && (
                                     <p className="mt-0.5 text-xs text-slate-400">{prev.ch.title}</p>
                                 )}
@@ -208,8 +208,8 @@ export default function CourseSubtopicPage({
                                 href={subUrl(chapterSlug(next.ch), subtopicSlug(next.s))}
                                 className="group rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-primary-200 hover:bg-primary-50/40 dark:hover:bg-primary-500/10"
                             >
-                                <p className="text-xs font-black uppercase tracking-wide text-slate-400">Next →</p>
-                                <p className="mt-1 font-bold text-slate-950 group-hover:text-primary-800">{next.s.title}</p>
+                                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Next →</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-800 group-hover:text-primary-800">{next.s.title}</p>
                                 {chapterSlug(next.ch) !== chapterSlug(chapter) && (
                                     <p className="mt-0.5 text-xs text-slate-400">{next.ch.title}</p>
                                 )}
@@ -219,8 +219,8 @@ export default function CourseSubtopicPage({
                                 href={`/courses/${course.slug}`}
                                 className="group rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-primary-200 hover:bg-primary-50/40 dark:hover:bg-primary-500/10"
                             >
-                                <p className="text-xs font-black uppercase tracking-wide text-slate-400">Finish →</p>
-                                <p className="mt-1 font-bold text-slate-950 group-hover:text-primary-800">Back to course overview</p>
+                                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Finish →</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-800 group-hover:text-primary-800">Back to course overview</p>
                             </Link>
                         )}
                     </div>

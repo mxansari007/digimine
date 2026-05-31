@@ -259,7 +259,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 <div className="container-page grid gap-10 py-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:py-16">
                     <div>
                         <div className="mb-5 flex flex-wrap gap-2">
-                            <span className="rounded-full bg-primary-50 dark:bg-primary-500/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">
+                            <span className="rounded-full bg-primary-50 dark:bg-primary-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">
                                 {course.category || "Study Material"}
                             </span>
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-600">
@@ -269,7 +269,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                 {course.accessType === "free" ? "Free access" : `Paid access · ₹${course.price || 0}`}
                             </span>
                         </div>
-                        <h1 className="max-w-4xl text-4xl font-black tracking-tight text-slate-950 sm:text-6xl">
+                        <h1 className="max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
                             {course.title}
                         </h1>
                         <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
@@ -284,7 +284,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                 [linkedTests.length + (course.linkedQuizzes?.length || 0), "Practice"],
                             ].map(([value, label]) => (
                                 <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                    <p className="text-2xl font-black text-slate-950">{value}</p>
+                                    <p className="text-2xl font-extrabold text-slate-900">{value}</p>
                                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
                                 </div>
                             ))}
@@ -303,16 +303,16 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                 <Image src={course.thumbnailURL} alt={course.title} fill sizes="420px" className="object-cover" />
                             ) : (
                                 <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#020617] to-primary-900 text-white">
-                                    <span className="text-6xl font-black">{course.title.slice(0, 1).toUpperCase()}</span>
+                                    <span className="text-6xl font-extrabold">{course.title.slice(0, 1).toUpperCase()}</span>
                                 </div>
                             )}
                         </div>
                         <div className="p-6">
                             {isPaidCourse && !canReadNotes && (
                                 <div className="mb-5 rounded-2xl border border-indigo-100 dark:border-indigo-500/25 bg-indigo-50 dark:bg-indigo-500/10 p-4">
-                                    <p className="text-xs font-black uppercase tracking-wide text-indigo-500">Course price</p>
+                                    <p className="text-xs font-bold uppercase tracking-wide text-indigo-500">Course price</p>
                                     <div className="mt-1 flex items-end gap-2">
-                                        <p className="text-3xl font-black text-indigo-700 dark:text-indigo-300">₹{course.price || 0}</p>
+                                        <p className="text-3xl font-extrabold text-indigo-700 dark:text-indigo-300">₹{course.price || 0}</p>
                                         {course.compareAtPrice && course.compareAtPrice > (course.price || 0) && (
                                             <p className="pb-1 text-sm font-semibold text-slate-400 line-through">
                                                 ₹{course.compareAtPrice}
@@ -321,7 +321,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                     </div>
                                 </div>
                             )}
-                            <h2 className="text-xl font-black text-slate-950">
+                            <h2 className="text-lg font-bold text-slate-900">
                                 {canReadNotes ? "You can access this course" : isPaidCourse ? "Buy to unlock full notes" : "Enroll to unlock full notes"}
                             </h2>
                             <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -362,7 +362,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
             <section className="container-page grid gap-8 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div id="course-notes" className="space-y-5">
                     <div>
-                        <h2 className="text-2xl font-black text-slate-950">Chapters</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Chapters</h2>
                         <p className="mt-1 text-slate-500">
                             {canReadNotes
                                 ? "Open any chapter to read its notes, diagrams and videos on its own page."
@@ -376,11 +376,11 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                 const card = (
                                     <div className="rounded-2xl border border-slate-200 bg-white p-5 transition group-hover:border-primary-300 group-hover:shadow-sm">
                                         <div className="flex items-start gap-4">
-                                            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-black text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
+                                            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-bold text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
                                                 {index + 1}
                                             </span>
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="text-lg font-black text-slate-950">{chapter.title}</h3>
+                                                <h3 className="text-base font-semibold text-slate-900">{chapter.title}</h3>
                                                 {chapter.description && <p className="mt-1 text-sm text-slate-500">{chapter.description}</p>}
                                                 <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">
                                                     {(chapter.subtopics || []).length} subtopics
@@ -416,7 +416,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
 
                 <aside className="space-y-5">
                     <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                        <h2 className="text-lg font-black text-slate-950">Linked Test Series</h2>
+                        <h2 className="text-base font-bold text-slate-900">Linked Test Series</h2>
                         {linkedTests.length === 0 ? (
                             <p className="mt-3 text-sm text-slate-500">No test series attached yet.</p>
                         ) : (
@@ -434,7 +434,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                     </div>
 
                     <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                        <h2 className="text-lg font-black text-slate-950">Quizzes</h2>
+                        <h2 className="text-base font-bold text-slate-900">Quizzes</h2>
                         {(course.linkedQuizzes || []).length === 0 ? (
                             <p className="mt-3 text-sm text-slate-500">No quizzes attached yet.</p>
                         ) : (
@@ -445,7 +445,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                                         <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-primary-200 hover:bg-primary-50/40 dark:hover:bg-primary-500/10">
                                             <div className="flex items-start justify-between gap-3">
                                                 <p className="font-bold text-slate-950">{quiz.title}</p>
-                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase text-slate-500">
+                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">
                                                     {quiz.status || "planned"}
                                                 </span>
                                             </div>
