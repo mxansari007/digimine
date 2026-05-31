@@ -19,6 +19,23 @@
        Dashboards use `.app-canvas` / `.dashboard-professional-theme` for
        their richer backgrounds. */
     background: #f8fafc;
+    /* Kill the grey flash iOS/Android paint over tapped elements — it reads
+       as "cheap web page". We supply our own active states instead. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tappable controls: drop the legacy 300ms click delay (double-tap-zoom)
+     so taps register instantly, and remove the tap-highlight flash. This is
+     the single biggest "buttery on mobile" win across the whole app. */
+  button,
+  a,
+  [role="button"],
+  label,
+  summary,
+  input[type="checkbox"],
+  input[type="radio"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Responsive Typography System — Outfit for headings */

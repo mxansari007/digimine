@@ -186,7 +186,7 @@ export default function ExploreGrid({ counts }: { counts: Counts }) {
                             </div>
                             <div
                                 aria-hidden
-                                className={`absolute inset-x-0 bottom-0 h-1 origin-left scale-x-0 bg-gradient-to-r ${c.accent} transition-transform duration-500 group-hover:scale-x-100`}
+                                className={`absolute inset-x-0 bottom-0 h-1 origin-left scale-x-0 bg-gradient-to-r ${c.accent} transition-transform duration-300 ease-out group-hover:scale-x-100`}
                             />
                         </Link>
                     ))}

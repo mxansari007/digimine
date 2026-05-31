@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { Check, X } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -478,8 +479,15 @@ export default function TeacherStudentDetailPage() {
                                         </td>
                                         <td className="px-5 py-3 text-gray-700">
                                             <span className="font-semibold text-gray-900">{r.percentage}%</span>
-                                            <span className="ml-2 text-xs text-gray-500">
-                                                {r.correctAnswers}✓ {r.wrongAnswers}✗
+                                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-gray-500">
+                                                <span className="inline-flex items-center gap-0.5 text-emerald-600">
+                                                    <Check className="h-3 w-3" aria-hidden />
+                                                    {r.correctAnswers}
+                                                </span>
+                                                <span className="inline-flex items-center gap-0.5 text-rose-500">
+                                                    <X className="h-3 w-3" aria-hidden />
+                                                    {r.wrongAnswers}
+                                                </span>
                                             </span>
                                         </td>
                                         <td className="px-5 py-3 text-gray-600">{formatDuration(r.durationSeconds)}</td>

@@ -19,13 +19,17 @@ import type {
     AIInterviewTurn,
     BehaviourDimensionKey,
     BehaviourScorecard,
+    InterviewLanguage,
     InterviewType,
+    PracticeDifficulty,
+    PracticePattern,
     PracticeProblem,
 } from "@digimine/types";
 import {
     BEHAVIOUR_DIMENSIONS,
     computeReadiness,
     interviewTypeMeta,
+    normalizePatternSlug,
 } from "@digimine/types";
 import { adminDb } from "@/lib/firebase/admin";
 import type { AiProviderConfig } from "@digimine/types";
@@ -34,6 +38,8 @@ import { PROBLEMS } from "@/lib/server/practice";
 
 export const AI_INTERVIEW_SESSIONS = "aiInterviewSessions";
 export const AI_INTERVIEW_READINESS = "aiInterviewReadiness";
+/** One doc per scheduling slot — tracks booked-vs-capacity for the window. */
+export const AI_INTERVIEW_SLOTS = "aiInterviewSlots";
 /** Premium feature flag (strict `isPaid` is the real gate; this stays for admin UI). */
 export const AI_INTERVIEW_FEATURE = "ai_interview" as const;
 /** Weekly cost-control quota key. */
@@ -685,8 +691,123 @@ export function toSessionSummary(
         difficulty: s.difficulty,
         readiness: s.scorecard ? s.scorecard.readiness : null,
         verdict: s.scorecard ? s.scorecard.verdict : null,
+        scheduledAt: s.scheduledAt ?? null,
         startedAt: s.startedAt,
         completedAt: s.completedAt,
+    };
+}
+
+/**
+ * The session content that's identical whether an interview is started
+ * instantly or begun from a booking: the human title, the grounding problem
+ * fields (coding types), the editor language + starter, and the templated
+ * opening interviewer line. Extracted so `/start` (instant) and the scheduled
+ * "begin" path produce exactly the same opening without duplicating the copy.
+ */
+export interface InterviewOpening {
+    problemTitle: string;
+    primaryPattern: PracticePattern | null;
+    difficulty: PracticeDifficulty;
+    language: InterviewLanguage;
+    latestCode: string;
+    problemId: string;
+    problemSlug: string;
+    transcript: AIInterviewTurn[];
+}
+
+/**
+ * Parse + normalize the interview configuration from a request body. Shared by
+ * the instant-start and schedule routes so both validate identically.
+ */
+export function parseInterviewConfig(body: Record<string, unknown>): {
+    interviewType: InterviewType;
+    config: AIInterviewConfig;
+} {
+    const interviewType: InterviewType =
+        body.interviewType === "sql" ||
+        body.interviewType === "technical" ||
+        body.interviewType === "behavioral" ||
+        body.interviewType === "system_design"
+            ? (body.interviewType as InterviewType)
+            : "dsa";
+    const difficulty: PracticeDifficulty =
+        body.difficulty === "easy" || body.difficulty === "hard"
+            ? (body.difficulty as PracticeDifficulty)
+            : "medium";
+    const pattern = normalizePatternSlug(typeof body.pattern === "string" ? body.pattern : null);
+    const company =
+        typeof body.company === "string" && body.company.trim()
+            ? body.company.trim().toLowerCase()
+            : null;
+    const topic = typeof body.topic === "string" && body.topic.trim() ? body.topic.trim() : null;
+    return { interviewType, config: { interviewType, company, pattern, topic, difficulty } };
+}
+
+export function composeInterviewOpening(
+    interviewType: InterviewType,
+    config: AIInterviewConfig,
+    problem: (PracticeProblem & { id: string }) | null
+): InterviewOpening {
+    const isCoding = interviewType === "dsa" || interviewType === "sql";
+
+    if (isCoding && problem) {
+        const isSql = problem.kind === "sql";
+        const language: InterviewLanguage = isSql
+            ? "sql"
+            : (Array.isArray(problem.languages) && problem.languages[0]) || "python";
+        const starter = isSql
+            ? "-- Write your SQL query here\n"
+            : (Array.isArray(problem.starters) &&
+                  problem.starters.find((s) => s.language === language)?.code) ||
+              "";
+        const opening = makeTurn(
+            "interviewer",
+            "message",
+            isSql
+                ? `Hi! Thanks for joining. Today we'll work through "${problem.title}". Take a minute to read it and the table schema, then — before you write any SQL — walk me through your approach: which tables you'll touch, the joins, and how you'll filter and group.`
+                : `Hi! Thanks for joining. Today we'll work through "${problem.title}". Take a minute to read it, then — before you write any code — walk me through your high-level approach and the time/space complexity you're aiming for.`
+        );
+        return {
+            problemTitle: problem.title,
+            primaryPattern: problem.primaryPattern,
+            difficulty: problem.difficulty,
+            language,
+            latestCode: starter,
+            problemId: problem.id,
+            problemSlug: problem.slug,
+            transcript: [opening],
+        };
+    }
+
+    // Conversation-only interview (technical / behavioral / system design).
+    const { company, topic } = config;
+    const title =
+        interviewType === "behavioral"
+            ? company
+                ? `HR / Behavioral — ${company}`
+                : "HR / Behavioral"
+            : interviewType === "system_design"
+                ? topic
+                    ? `System Design — ${topic}`
+                    : "System Design"
+                : topic
+                    ? `Technical — ${topic}`
+                    : "Technical (CS Fundamentals)";
+    const openingText =
+        interviewType === "behavioral"
+            ? "Hi, great to meet you! Let's begin the way most interviews do — tell me a little about yourself and what you're looking for in your next role."
+            : interviewType === "system_design"
+                ? `Hi! Welcome to your system design round. Here's the prompt: design ${topic || "a URL shortener"}. Take a moment, then start by clarifying the requirements and the scale we should target.`
+                : `Hi! Welcome to your technical fundamentals round${topic ? ` on ${topic}` : ""}. To warm up, tell me which areas of CS you're most comfortable with and we'll go from there.`;
+    return {
+        problemTitle: title,
+        primaryPattern: null,
+        difficulty: config.difficulty,
+        language: "python",
+        latestCode: "",
+        problemId: "",
+        problemSlug: "",
+        transcript: [makeTurn("interviewer", "message", openingText)],
     };
 }
 

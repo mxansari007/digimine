@@ -11,6 +11,7 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
     DEFAULT_SUBSCRIPTION_CONFIG,
+    ENTITLEMENT_QUOTAS,
     isPlanActive,
     resolveEntitlements,
     type AppSubscriptionPlan,
@@ -140,6 +141,10 @@ export interface QuotaCheck {
  * Check (and optionally consume) a quota for a user. Returns whether the
  * action is allowed under the current plan. `consume` increments the
  * counter when allowed.
+ *
+ * When consuming, the read-check-increment runs inside a Firestore
+ * transaction so two concurrent requests (e.g. a double-clicked "Start")
+ * can't both pass `used < limit` and over-consume the allowance.
  */
 export async function checkQuota(
     userId: string,
@@ -155,25 +160,97 @@ export async function checkQuota(
     const now = new Date();
     const period = periodKey(quota, now);
     const ref = adminDb.collection("entitlementUsage").doc(`${userId}_${quota}_${period}`);
-    const snap = await ref.get();
-    const used = snap.exists ? snap.data()?.count ?? 0 : 0;
 
-    if (used >= limit) {
-        return { allowed: false, limit, used, remaining: 0 };
+    // Read-only check — no atomicity needed when we're not writing.
+    if (!options.consume) {
+        const snap = await ref.get();
+        const used = snap.exists ? snap.data()?.count ?? 0 : 0;
+        if (used >= limit) return { allowed: false, limit, used, remaining: 0 };
+        return { allowed: true, limit, used, remaining: limit - used };
     }
 
-    if (options.consume) {
-        await ref.set(
-            {
-                userId,
-                quota,
-                period,
-                count: FieldValue.increment(1),
-                updatedAt: Timestamp.now(),
-            },
+    // Atomic consume — re-read inside the transaction so the limit check and
+    // the increment are a single conflict-checked unit.
+    return adminDb.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const used = snap.exists ? snap.data()?.count ?? 0 : 0;
+        if (used >= limit) {
+            return { allowed: false, limit, used, remaining: 0 } as QuotaCheck;
+        }
+        tx.set(
+            ref,
+            { userId, quota, period, count: FieldValue.increment(1), updatedAt: Timestamp.now() },
             { merge: true }
         );
-    }
+        return { allowed: true, limit, used: used + 1, remaining: limit - used - 1 } as QuotaCheck;
+    });
+}
 
-    return { allowed: true, limit, used: used + (options.consume ? 1 : 0), remaining: limit - used - (options.consume ? 1 : 0) };
+/**
+ * Give back one unit of a previously-consumed quota — used when a committed
+ * action is undone (e.g. the student cancels a booked interview, or a booking
+ * expires unused). Floors at zero and never writes a negative counter.
+ */
+export async function refundQuota(
+    userId: string,
+    quota: EntitlementQuota,
+    /** When the unit was consumed — defaults to now. Pass the booking's
+     *  creation time so a refund near a period boundary credits the right
+     *  period (the one the unit was charged to). */
+    consumedAt: Date = new Date()
+): Promise<void> {
+    const period = periodKey(quota, consumedAt);
+    const ref = adminDb.collection("entitlementUsage").doc(`${userId}_${quota}_${period}`);
+    await adminDb.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        const used = snap.data()?.count ?? 0;
+        if (used <= 0) return;
+        tx.set(ref, { count: Math.max(0, used - 1), updatedAt: Timestamp.now() }, { merge: true });
+    });
+}
+
+export interface QuotaUsage {
+    key: EntitlementQuota;
+    /** Plan limit for the current period. -1 = unlimited. */
+    limit: number;
+    /** How much of this period's allowance is already used. */
+    used: number;
+    /** limit - used (>= 0). -1 when unlimited. */
+    remaining: number;
+    /** The period bucket the counter lives in (e.g. "2026-W22", "2026-05-31"). */
+    period: string;
+}
+
+/**
+ * Per-quota usage for a user this period — the limit from their plan plus the
+ * already-consumed count from `entitlementUsage`. Powers the student "My Plan"
+ * page so they can see "3 of 5 used this week". Reads all counters in one
+ * batched getAll.
+ */
+export async function getQuotaUsage(userId: string): Promise<QuotaUsage[]> {
+    const ent = await getEntitlements(userId);
+    const now = new Date();
+
+    // Build refs only for finite-limit quotas; unlimited ones need no read.
+    const finite = ENTITLEMENT_QUOTAS.map((q) => {
+        const limit = ent.quotas[q.key] ?? 0;
+        return { key: q.key, limit, period: limit < 0 ? "" : periodKey(q.key, now) };
+    });
+    const toRead = finite.filter((q) => q.limit >= 0);
+    const refs = toRead.map((q) =>
+        adminDb.collection("entitlementUsage").doc(`${userId}_${q.key}_${q.period}`)
+    );
+    const snaps = refs.length ? await adminDb.getAll(...refs) : [];
+    const usedByKey = new Map<string, number>();
+    toRead.forEach((q, i) => {
+        const s = snaps[i];
+        usedByKey.set(q.key, s && s.exists ? s.data()?.count ?? 0 : 0);
+    });
+
+    return finite.map((q) => {
+        if (q.limit < 0) return { key: q.key, limit: -1, used: 0, remaining: -1, period: "" };
+        const used = usedByKey.get(q.key) ?? 0;
+        return { key: q.key, limit: q.limit, used, remaining: Math.max(0, q.limit - used), period: q.period };
+    });
 }

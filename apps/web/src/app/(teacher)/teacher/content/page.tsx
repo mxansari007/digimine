@@ -259,10 +259,10 @@ export default function TeacherContentPage() {
                     <button
                         key={t.id}
                         onClick={() => setTab(t.id)}
-                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                        className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 ${
                             tab === t.id
-                                ? "text-primary-700 border-b-2 border-primary-700"
-                                : "text-gray-500 hover:text-gray-700"
+                                ? "border-primary-700 text-primary-700"
+                                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
                         }`}
                     >
                         {t.label}

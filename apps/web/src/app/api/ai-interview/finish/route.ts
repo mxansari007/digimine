@@ -28,6 +28,7 @@ import {
     safeParseJsonObject,
     updateReadinessRollup,
 } from "@/lib/server/aiInterview";
+import { releaseSlot } from "@/lib/server/aiInterviewScheduling";
 import type { AIInterviewSession } from "@digimine/types";
 
 export const dynamic = "force-dynamic";
@@ -135,10 +136,15 @@ export async function POST(req: Request) {
                 status: "completed",
                 scorecard,
                 completedAt,
+                expiresAt: null,
                 updatedAt: completedAt,
             },
             { merge: true }
         );
+
+        // Free the slot capacity this interview held the moment it completes,
+        // so the window can be reused (and global concurrency drops).
+        await releaseSlot(session.slotId);
 
         await updateReadinessRollup(
             userId,

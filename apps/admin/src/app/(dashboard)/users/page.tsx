@@ -1,38 +1,45 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getAllUsers, updateUserRole } from "@/lib/firestore/admin";
+import { useCallback, useState } from "react";
+import { updateUserRole } from "@/lib/firestore/admin";
 import { type User } from "@digimine/types";
 import { formatDate } from "@digimine/utils";
-import { Button, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
+import {
+    Button,
+    DataTable,
+    PaginationControls,
+    usePaginatedTable,
+    type DataTableColumn,
+} from "@digimine/ui";
+import { authedFetch } from "@/lib/api";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 export default function UsersPage() {
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
     const { isSuperAdmin } = useAdminAuth();
 
-    async function fetchUsers() {
-        try {
-            const data = await getAllUsers();
-            setUsers(data);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    useEffect(() => {
-        setPage(1);
-    }, [users.length, pageSize]);
+    // Server-paginated: each page fetch hits /api/admin/users?page=&pageSize=
+    // and returns only that page's rows + the total count — never the whole
+    // users collection.
+    const load = useCallback(
+        async ({ page, pageSize, signal }: { page: number; pageSize: number; signal: AbortSignal }) => {
+            const res = await authedFetch(`/api/admin/users?page=${page}&pageSize=${pageSize}`, { signal });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Failed to load users");
+            const data = await res.json();
+            return { items: (data.items as User[]) || [], total: (data.total as number) || 0 };
+        },
+        []
+    );
+    const {
+        items: users,
+        total,
+        page,
+        pageSize,
+        loading,
+        setPage,
+        setPageSize,
+        reload,
+    } = usePaginatedTable<User>({ load, initialPageSize: 20 });
 
     const handleToggleAdmin = async (user: User) => {
         if (!isSuperAdmin) return;
@@ -47,7 +54,7 @@ export default function UsersPage() {
         setUpdatingId(user.id);
         try {
             await updateUserRole(user.id, newRole);
-            await fetchUsers(); // Refresh list
+            reload(); // Refresh the current page
         } catch (error) {
             console.error("Error updating role:", error);
             alert("Failed to update user role.");
@@ -55,11 +62,6 @@ export default function UsersPage() {
             setUpdatingId(null);
         }
     };
-
-    const paginatedUsers = useMemo(
-        () => getPaginatedItems(users, page, pageSize),
-        [users, page, pageSize]
-    );
 
     const columns: DataTableColumn<User>[] = [
         {
@@ -124,30 +126,30 @@ export default function UsersPage() {
         });
     }
 
-    if (loading) return <div className="p-8">Loading users...</div>;
-
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
                 <div className="text-sm text-gray-500">
-                    Total Users: {users.length}
+                    Total Users: {total.toLocaleString()}
                 </div>
             </div>
 
             <DataTable
                 columns={columns}
-                data={paginatedUsers}
+                data={users}
                 keyExtractor={(user) => user.id}
+                isLoading={loading}
                 emptyState="No users found."
                 footer={
                     <PaginationControls
                         page={page}
                         pageSize={pageSize}
-                        totalItems={users.length}
+                        totalItems={total}
                         onPageChange={setPage}
                         onPageSizeChange={setPageSize}
                         itemLabel="users"
+                        disabled={loading}
                     />
                 }
             />

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Check, X } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
@@ -173,9 +174,9 @@ export default function InstituteDashboardPage() {
                             return (
                                 <span
                                     key={k}
-                                    className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
                                 >
-                                    {on ? "✓" : "✗"} {labels[k]}
+                                    {on ? <Check className="h-2.5 w-2.5" aria-hidden /> : <X className="h-2.5 w-2.5" aria-hidden />} {labels[k]}
                                 </span>
                             );
                         })}

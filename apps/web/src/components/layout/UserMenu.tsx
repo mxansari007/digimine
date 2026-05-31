@@ -17,6 +17,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Star } from "lucide-react";
 import type { User } from "@digimine/types";
 import Avatar from "@/components/common/Avatar";
 import { userHomePath } from "@/lib/auth/redirects";
@@ -91,9 +92,9 @@ export default function UserMenu({
                         <span
                             aria-label="Pro member"
                             title="Pro member"
-                            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[8px] font-bold text-amber-900 ring-2 ring-white"
+                            className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-amber-900 ring-2 ring-white"
                         >
-                            ★
+                            <Star className="h-2.5 w-2.5 fill-current" aria-hidden />
                         </span>
                     )}
                 </span>

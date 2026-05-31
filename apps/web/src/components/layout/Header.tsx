@@ -124,7 +124,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             {/* Mobile Menu Button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 md:hidden"
+                                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 md:hidden"
                                 aria-label="Toggle menu"
                             >
                                 {isMobileMenuOpen ? (
@@ -176,7 +176,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             key={`${link.href}-${link.label}`}
                             href={link.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 hover:text-primary-700"
+                            className="block rounded-xl px-4 py-3 font-semibold text-slate-700 transition-colors hover:bg-primary-50 hover:text-primary-700 active:bg-primary-100"
                         >
                             {link.label}
                         </Link>
@@ -206,7 +206,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             <Link
                                 href={dashboardHref}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full rounded-lg bg-primary-600 px-4 py-2 text-center font-medium text-white"
+                                className="block w-full rounded-lg bg-primary-600 px-4 py-2.5 text-center font-medium text-white shadow-soft-sm transition-all duration-200 hover:bg-primary-700 active:scale-[0.98]"
                             >
                                 My Dashboard
                             </Link>
@@ -222,7 +222,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                             <Link
                                 href="/register"
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full rounded-lg bg-primary-600 px-4 py-3 text-center font-medium text-white"
+                                className="block w-full rounded-lg bg-primary-600 px-4 py-3 text-center font-medium text-white shadow-soft-sm transition-all duration-200 hover:bg-primary-700 active:scale-[0.98]"
                             >
                                 Get Started
                             </Link>

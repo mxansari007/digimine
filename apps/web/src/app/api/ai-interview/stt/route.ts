@@ -12,6 +12,10 @@
 import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { getEntitlements } from "@/lib/server/entitlements";
+import { adminDb } from "@/lib/firebase/admin";
+import { rateLimit } from "@/lib/server/ratelimit";
+
+const AI_INTERVIEW_SESSIONS = "aiInterviewSessions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +60,26 @@ export async function POST(req: Request) {
         const ent = await getEntitlements(userId);
         if (!ent.features.ai_interview) {
             return NextResponse.json({ error: "Premium feature" }, { status: 402 });
+        }
+
+        // Bind transcription to the caller's own LIVE interview (sessionId via
+        // query string, since the POST body is raw audio bytes) + rate-limit,
+        // so the paid Whisper/Azure STT provider can't be abused.
+        const sessionId = new URL(req.url).searchParams.get("sessionId") || "";
+        if (!sessionId) {
+            return NextResponse.json({ error: "sessionId required" }, { status: 400 });
+        }
+        const rl = await rateLimit("aiStt", userId, { limit: 40, windowSeconds: 60 });
+        if (!rl.success) {
+            return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+        }
+        const sSnap = await adminDb.collection(AI_INTERVIEW_SESSIONS).doc(sessionId).get();
+        const sData = sSnap.exists ? (sSnap.data() as { userId?: string; status?: string }) : null;
+        if (!sData || sData.userId !== userId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (sData.status !== "in_progress") {
+            return NextResponse.json({ error: "Interview is not live." }, { status: 409 });
         }
 
         const audio = await req.arrayBuffer();

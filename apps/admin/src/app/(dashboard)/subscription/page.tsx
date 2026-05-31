@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card } from "@digimine/ui";
+import { Button, Card, InfoTip } from "@digimine/ui";
 import { X } from "lucide-react";
 import {
     ENTITLEMENT_FEATURES,
@@ -158,7 +158,15 @@ export default function SubscriptionManagerPage() {
             <Card className={`p-6 ${config?.enforced ? "" : "border-emerald-300 bg-emerald-50/40"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900">Paywall</h2>
+                        <h2 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
+                            Paywall
+                            <InfoTip label="What the paywall does">
+                                The master switch for monetisation. When <strong>ON</strong>, every student
+                                is limited to exactly what their plan grants. When <strong>OFF</strong> (launch
+                                mode), the plans you build here are ignored and everyone gets everything free —
+                                useful while you set things up.
+                            </InfoTip>
+                        </h2>
                         <p className="mt-1 text-sm text-slate-600 max-w-xl">
                             {config?.enforced ? (
                                 <>Enforcement is <strong>ON</strong> — students get only what their plan allows.</>
@@ -172,7 +180,13 @@ export default function SubscriptionManagerPage() {
                         </p>
                     </div>
                     <label className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-slate-700">Enforce plans</span>
+                        <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                            Enforce plans
+                            <InfoTip label="Enforce plans">
+                                Toggles the paywall. ON = charge for premium; OFF = everything free for
+                                everyone (launch mode). This is the same switch described on the left.
+                            </InfoTip>
+                        </span>
                         <button
                             type="button"
                             onClick={() => setConfig((c) => (c ? { ...c, enforced: !c.enforced } : c))}
@@ -184,18 +198,39 @@ export default function SubscriptionManagerPage() {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Free plan code</span>
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Free plan code
+                            <InfoTip label="What is the free plan code">
+                                The <strong>code</strong> of the plan a student lands on when they have no
+                                paid subscription (or it expired). It must exactly match the{" "}
+                                <span className="font-mono">Code</span> of one of the plans below that you ticked
+                                as <strong>&quot;Free plan&quot;</strong>. Default is <span className="font-mono">free</span>.
+                                Leave blank to use <span className="font-mono">free</span>.
+                            </InfoTip>
+                        </span>
+                        {/* Use ?? "" (not || "free") so the box can actually be cleared and
+                            retyped — the old fallback snapped an empty value back to "free",
+                            which made it feel locked. The placeholder still shows the default. */}
                         <input
-                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-                            value={config?.freePlanCode || "free"}
+                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+                            value={config?.freePlanCode ?? ""}
                             onChange={(e) => setConfig((c) => (c ? { ...c, freePlanCode: e.target.value } : c))}
                             placeholder="free"
                         />
+                        <span className="mt-1 block text-[11px] text-slate-400">
+                            Defaults to <span className="font-mono">free</span> when empty.
+                        </span>
                     </label>
                     <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Promo banner (optional)</span>
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Promo banner (optional)
+                            <InfoTip label="Promo banner">
+                                A short line shown across the top of the student membership page (e.g. a
+                                seasonal offer). Leave blank to hide the banner entirely.
+                            </InfoTip>
+                        </span>
                         <input
-                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                            className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
                             value={config?.promoBanner || ""}
                             onChange={(e) => setConfig((c) => (c ? { ...c, promoBanner: e.target.value } : c))}
                             placeholder="Launch offer — use code LAUNCH50"
@@ -211,8 +246,14 @@ export default function SubscriptionManagerPage() {
             <Card className={`p-6 ${aiConfig?.enabled ? "border-primary-200 bg-primary-50/30" : ""}`}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900">
+                        <h2 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
                             Question generation (AI)
+                            <InfoTip label="AI question generation">
+                                Lets teachers/institutes (whose plan includes the &quot;AI question
+                                generation&quot; teaching feature) draft quiz/test questions from a prompt.
+                                This card is the global kill-switch + API credentials — separate from the
+                                student paywall above.
+                            </InfoTip>
                         </h2>
                         <p className="mt-1 max-w-xl text-sm text-slate-600">
                             {aiConfig?.enabled ? (
@@ -252,8 +293,12 @@ export default function SubscriptionManagerPage() {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Provider
+                            <InfoTip label="Provider">
+                                Which LLM vendor powers generation. The key + model below must belong to this
+                                provider. (Student AI mock interviews also run through this provider.)
+                            </InfoTip>
                         </span>
                         <select
                             className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -270,8 +315,13 @@ export default function SubscriptionManagerPage() {
                         </select>
                     </label>
                     <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Model
+                            <InfoTip label="Model">
+                                The exact model id to call, e.g. <span className="font-mono">deepseek-chat</span>{" "}
+                                or <span className="font-mono">gpt-4o-mini</span>. Must be a model the selected
+                                provider + key can access.
+                            </InfoTip>
                         </span>
                         <input
                             className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
@@ -302,8 +352,12 @@ export default function SubscriptionManagerPage() {
                         </span>
                     </label>
                     <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Max questions per request
+                            <InfoTip label="Max questions per request">
+                                Caps how many questions a single generate call can produce — protects your
+                                token spend from one teacher requesting hundreds at once.
+                            </InfoTip>
                         </span>
                         <input
                             type="number"
@@ -553,7 +607,19 @@ function PlanEditor({
                             <option value="institute">Institute</option>
                         </select>
                     </Field>
-                    <Field label="Code (stable id)"><input className="field" value={draft.code || ""} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="pro" /></Field>
+                    <Field
+                        label="Code (stable id)"
+                        info={
+                            <>
+                                A permanent identifier for this plan (e.g. <span className="font-mono">pro</span>).
+                                Used in checkout, promos, and the <strong>Free plan code</strong> setting — so
+                                don&apos;t change it after launch. For your free tier, set this to match the
+                                Free-plan-code in the Paywall card.
+                            </>
+                        }
+                    >
+                        <input className="field" value={draft.code || ""} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="pro" />
+                    </Field>
                     <Field label="Name"><input className="field" value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Pro" /></Field>
                     <Field label="Tagline"><input className="field" value={draft.tagline || ""} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} /></Field>
                     <Field label="Monthly price (INR)">
@@ -580,7 +646,17 @@ function PlanEditor({
                             }
                         />
                     </Field>
-                    <Field label="Compare-at monthly (INR, optional)"><input type="number" className="field" value={draft.compareAtINR ?? ""} onChange={(e) => setDraft({ ...draft, compareAtINR: e.target.value ? Number(e.target.value) : null })} /></Field>
+                    <Field
+                        label="Compare-at monthly (INR, optional)"
+                        info={
+                            <>
+                                The &quot;was&quot; price shown struck-through next to the real price to signal a
+                                discount (e.g. show ₹999 crossed out above ₹499). Leave blank for no strike-through.
+                            </>
+                        }
+                    >
+                        <input type="number" className="field" value={draft.compareAtINR ?? ""} onChange={(e) => setDraft({ ...draft, compareAtINR: e.target.value ? Number(e.target.value) : null })} />
+                    </Field>
                     <Field label="Badge (optional)"><input className="field" value={draft.badge || ""} onChange={(e) => setDraft({ ...draft, badge: e.target.value || null })} placeholder="Best value" /></Field>
                     <Field label="Sort order"><input type="number" className="field" value={draft.sortOrder ?? 0} onChange={(e) => setDraft({ ...draft, sortOrder: Number(e.target.value) })} /></Field>
                     {(draft.roleScope || "student") === "institute" && (
@@ -601,20 +677,50 @@ function PlanEditor({
                     )}
                 </div>
 
-                <Field label="Highlights (one per line)">
+                <Field
+                    label="Highlights (one per line)"
+                    info={
+                        <>
+                            The bullet list shown on this plan&apos;s public pricing card. For student plans, if
+                            you leave this blank the card auto-lists the ticked features below instead. One line =
+                            one bullet.
+                        </>
+                    }
+                >
                     <textarea className="field" rows={3} value={(draft.highlights || []).join("\n")} onChange={(e) => setDraft({ ...draft, highlights: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })} />
                 </Field>
 
-                <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex flex-wrap items-center gap-4 text-sm">
                     <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(draft.isFree)} onChange={(e) => setDraft({ ...draft, isFree: e.target.checked })} /> Free plan</label>
+                    <InfoTip label="Free plan">
+                        Marks this as a ₹0 default tier. New users and anyone without an active paid
+                        subscription land here. Set the Paywall&apos;s <strong>Free plan code</strong> to this
+                        plan&apos;s <span className="font-mono">Code</span> so the fallback resolves correctly.
+                        You normally have exactly one free plan.
+                    </InfoTip>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={draft.isActive !== false} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} /> Active</label>
+                    <InfoTip label="Active">
+                        Only active plans appear on the membership page. Untick to retire a plan without
+                        deleting it (existing subscribers keep what they bought).
+                    </InfoTip>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(draft.recommended)} onChange={(e) => setDraft({ ...draft, recommended: e.target.checked })} /> Recommended</label>
+                    <InfoTip label="Recommended">
+                        Highlights this plan as the &quot;Most popular&quot; card and uses it as the
+                        &quot;Premium&quot; column in the Free-vs-Premium comparison table.
+                    </InfoTip>
                 </div>
 
                 {(draft.roleScope || "student") === "student" ? (
                     <>
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Features unlocked</p>
+                            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                Features unlocked
+                                <InfoTip label="Features unlocked">
+                                    On/off capabilities this plan grants (premium problems, mock tests, AI
+                                    interviews, etc.). Anything left unticked is locked for users on this plan.
+                                    Your free plan typically has all of these <strong>off</strong>.
+                                </InfoTip>
+                            </p>
                             <div className="grid gap-2 sm:grid-cols-2">
                                 {ENTITLEMENT_FEATURES.map((f) => (
                                     <label key={f.key} className="flex items-start gap-2 text-sm">
@@ -626,7 +732,15 @@ function PlanEditor({
                         </div>
 
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Quotas (−1 = unlimited)</p>
+                            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                Quotas (−1 = unlimited)
+                                <InfoTip label="Quotas">
+                                    Numeric caps per period for this plan — e.g. practice submissions per day,
+                                    AI interviews per week. <span className="font-mono">-1</span> means unlimited;{" "}
+                                    <span className="font-mono">0</span> blocks it entirely. These are what give the
+                                    free tier a limited taste (a few submissions, one AI interview a week, etc.).
+                                </InfoTip>
+                            </p>
                             <div className="grid gap-3 sm:grid-cols-2">
                                 {ENTITLEMENT_QUOTAS.map((q) => (
                                     <label key={q.key} className="block text-sm">
@@ -823,10 +937,21 @@ function PromoEditor({
     );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+    label,
+    info,
+    children,
+}: {
+    label: string;
+    info?: React.ReactNode;
+    children: React.ReactNode;
+}) {
     return (
         <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {label}
+                {info ? <InfoTip label={label}>{info}</InfoTip> : null}
+            </span>
             <div className="mt-1.5">{children}</div>
         </label>
     );

@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
+import { rateLimit } from "@/lib/server/ratelimit";
 import { getAiProviderConfig } from "@/lib/server/aiProvider";
 import { loadProblemById } from "@/lib/server/practice";
 import { judgeDsa, judgeSql } from "@/lib/server/practiceJudge";
@@ -45,6 +46,16 @@ export async function POST(req: Request) {
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        }
+
+        // Per-user rate limit — a live interview makes one LLM/judge call per
+        // turn; this caps a stuck client (or abuse) from hammering the provider.
+        const rl = await rateLimit("aiTurn", userId, { limit: 30, windowSeconds: 60 });
+        if (!rl.success) {
+            return NextResponse.json(
+                { error: "You're sending turns too quickly. Give the interviewer a moment." },
+                { status: 429 }
+            );
         }
 
         const body = await req.json().catch(() => ({}));

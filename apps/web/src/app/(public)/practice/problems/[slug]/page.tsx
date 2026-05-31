@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button, FormattedContent } from "@digimine/ui";
-import { Check, X, Lock, Hourglass, PartyPopper, Star } from "lucide-react";
+import { Check, X, Lock, Hourglass, PartyPopper, Star, ScanSearch, LifeBuoy, Maximize2, Minimize2 } from "lucide-react";
 import { patternMeta, type CodeLanguage } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/contexts/EntitlementsContext";
@@ -642,7 +642,7 @@ export default function SolveProblemPage() {
                                 {!problemLocked && (
                                 <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
                                     <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-900">
-                                        <span>🔍</span> Pattern Lens
+                                        <ScanSearch className="h-4 w-4 text-violet-600" aria-hidden /> Pattern Lens
                                     </p>
                                     <p className="mt-0.5 text-xs text-violet-700/80">
                                         Before the editorial — which pattern is this? Recognising patterns is the real interview skill.
@@ -795,9 +795,9 @@ export default function SolveProblemPage() {
                         ) : !rescueOpen ? (
                             <button
                                 onClick={() => (isAuthenticated ? setRescueOpen(true) : router.push(`/login?redirect=/practice/problems/${slug}`))}
-                                className="text-sm font-medium text-primary-700 hover:underline"
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:underline"
                             >
-                                🆘 Stuck? Ask a mentor for a targeted hint
+                                <LifeBuoy className="h-4 w-4" aria-hidden /> Stuck? Ask a mentor for a targeted hint
                             </button>
                         ) : (
                             <div className="space-y-2">
@@ -872,11 +872,12 @@ export default function SolveProblemPage() {
                                 </button>
                                 <button
                                     onClick={() => setMaximized((m) => !m)}
-                                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+                                    className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
                                     title={maximized ? "Exit fullscreen (Esc)" : "Maximize editor"}
                                     aria-label={maximized ? "Exit fullscreen" : "Maximize editor"}
                                 >
-                                    {maximized ? "⤡ Minimize" : "⤢ Maximize"}
+                                    {maximized ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+                                    {maximized ? "Minimize" : "Maximize"}
                                 </button>
                                 {problemLocked ? (
                                     <Link href={`/membership?redirect=/practice/problems/${slug}`}>

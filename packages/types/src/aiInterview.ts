@@ -23,7 +23,25 @@ import type {
     SubmissionVerdict,
 } from "./dsaPractice";
 
-export type AIInterviewStatus = "in_progress" | "completed" | "abandoned";
+/**
+ * Interview lifecycle status.
+ *   scheduled   — a future slot is booked; not yet begun.
+ *   in_progress — live (consuming infra).
+ *   completed   — finished, scorecard produced.
+ *   abandoned   — was in_progress but reaped (browser closed / ran past maxRuntime).
+ *   cancelled   — the student cancelled a booking before it began.
+ *   expired     — a booking that was never joined within its start window (no-show).
+ */
+export type AIInterviewStatus =
+    | "scheduled"
+    | "in_progress"
+    | "completed"
+    | "abandoned"
+    | "cancelled"
+    | "expired";
+
+/** Statuses that count as "the student is holding a live/reserved interview". */
+export const AI_INTERVIEW_ACTIVE_STATUSES: AIInterviewStatus[] = ["scheduled", "in_progress"];
 
 /**
  * The kind of interview being conducted. "dsa" and "sql" are the "coding"
@@ -50,7 +68,12 @@ export interface InterviewTypeMeta {
     needsProblem: boolean;
     /** Target interview length in minutes (hard cap auto-ends at this point). */
     durationMin: number;
-    emoji: string;
+    /**
+     * lucide-react icon name for this interview type. The web app maps this
+     * to the actual component (keeps this package React-free). Replaces the
+     * old `emoji` field — emojis read amateur in a video-call-style product.
+     */
+    iconName: string;
 }
 
 export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
@@ -61,7 +84,7 @@ export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
         needsEditor: true,
         needsProblem: true,
         durationMin: 20,
-        emoji: "💻",
+        iconName: "Code2",
     },
     {
         key: "sql",
@@ -70,7 +93,7 @@ export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
         needsEditor: true,
         needsProblem: true,
         durationMin: 15,
-        emoji: "🗄️",
+        iconName: "Database",
     },
     {
         key: "technical",
@@ -79,7 +102,7 @@ export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
         needsEditor: false,
         needsProblem: false,
         durationMin: 12,
-        emoji: "🧠",
+        iconName: "BrainCircuit",
     },
     {
         key: "behavioral",
@@ -88,7 +111,7 @@ export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
         needsEditor: false,
         needsProblem: false,
         durationMin: 8,
-        emoji: "🤝",
+        iconName: "Handshake",
     },
     {
         key: "system_design",
@@ -97,7 +120,7 @@ export const INTERVIEW_TYPES: InterviewTypeMeta[] = [
         needsEditor: false,
         needsProblem: false,
         durationMin: 20,
-        emoji: "🏗️",
+        iconName: "Network",
     },
 ];
 
@@ -117,6 +140,70 @@ export function interviewNeedsEditor(key: InterviewType): boolean {
 /** Whether this interview is grounded on a real practice problem + judge. */
 export function interviewNeedsProblem(key: InterviewType): boolean {
     return interviewTypeMeta(key).needsProblem;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Slot scheduling + concurrency protection
+//
+// Live interviews are expensive (an LLM call per message, a code-judge per
+// run, plus TTS/STT per spoken turn). To keep infrastructure solid when many
+// students want to interview at once we (a) cap how many interviews may run
+// concurrently via fixed-length time SLOTS with a capacity, and (b) allow at
+// most one active (scheduled OR in_progress) interview per student.
+// ─────────────────────────────────────────────────────────────────────
+
+export interface AIInterviewSchedulingConfig {
+    /** Slot length in minutes. Kept longer than the longest interview so a
+     *  session that starts in a slot finishes within it. */
+    slotMinutes: number;
+    /** Max interviews bookable per slot ≈ the concurrency ceiling. */
+    slotCapacity: number;
+    /** How far ahead a student may book. */
+    bookingHorizonHours: number;
+    /** A booked slot may be joined this many minutes before its start. */
+    joinGraceMin: number;
+    /** A booked slot must be begun within this many minutes after its start,
+     *  otherwise it is a no-show and expires (freeing capacity + refunding the
+     *  weekly quota). */
+    joinWindowMin: number;
+    /** Hard backstop on simultaneously-live interviews, independent of slot
+     *  accounting — protects infra even if a session overruns its slot. */
+    maxConcurrentGlobal: number;
+    /** An in_progress session older than this (no completion) is reaped as
+     *  abandoned so it stops occupying the student's one active slot. */
+    maxRuntimeMin: number;
+}
+
+export const DEFAULT_AI_INTERVIEW_SCHEDULING: AIInterviewSchedulingConfig = {
+    slotMinutes: 30,
+    slotCapacity: 5,
+    bookingHorizonHours: 72,
+    joinGraceMin: 5,
+    joinWindowMin: 20,
+    maxConcurrentGlobal: 5,
+    maxRuntimeMin: 45,
+};
+
+/**
+ * Deterministic slot key for the grid-aligned slot that contains `d`.
+ * UTC, e.g. `2026-05-31T1430` for a 30-minute grid. Same instant + same
+ * slotMinutes always yields the same key, so it doubles as the Firestore
+ * document id for `aiInterviewSlots` (one doc per window, no duplicates).
+ */
+export function interviewSlotKey(d: Date, slotMinutes: number): string {
+    const ms = slotMinutes * 60_000;
+    const aligned = new Date(Math.floor(d.getTime() / ms) * ms);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return (
+        `${aligned.getUTCFullYear()}-${p(aligned.getUTCMonth() + 1)}-${p(aligned.getUTCDate())}` +
+        `T${p(aligned.getUTCHours())}${p(aligned.getUTCMinutes())}`
+    );
+}
+
+/** Start Date of the grid-aligned slot that contains `d`. */
+export function interviewSlotStart(d: Date, slotMinutes: number): Date {
+    const ms = slotMinutes * 60_000;
+    return new Date(Math.floor(d.getTime() / ms) * ms);
 }
 
 export type InterviewTurnRole = "interviewer" | "candidate" | "system";
@@ -277,6 +364,18 @@ export interface AIInterviewSession {
 
     scorecard: BehaviourScorecard | null;
 
+    /** Reserved slot key (see `interviewSlotKey`). Null for legacy sessions
+     *  created before scheduling existed. */
+    slotId: string | null;
+    /** ISO start of the reserved slot — set for `scheduled` sessions. */
+    scheduledAt: string | null;
+    /** ISO deadline after which the reaper transitions this session:
+     *  for `scheduled` → `expired` (slot start + joinWindow); for `in_progress`
+     *  → `abandoned` (startedAt + maxRuntime). Null when not applicable. */
+    expiresAt: string | null;
+
+    /** For a `scheduled` session that hasn't begun, `startedAt` is "" until the
+     *  student joins (begins) it. */
     startedAt: string;
     completedAt: string | null;
     createdAt: string;
@@ -293,6 +392,8 @@ export interface AIInterviewSessionSummary {
     difficulty: PracticeDifficulty;
     readiness: number | null;
     verdict: SubmissionVerdict | null;
+    /** ISO slot start for `scheduled` rows (so the list can show "Scheduled for…"). */
+    scheduledAt: string | null;
     startedAt: string;
     completedAt: string | null;
 }

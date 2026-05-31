@@ -19,6 +19,7 @@
  */
 
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Button } from "@digimine/ui";
 import { platformStats } from "./data";
 
@@ -197,7 +198,7 @@ function ProblemCard() {
       return [seen[t-n], i]
     seen[n] = i`}</pre>
             <div className="mt-auto flex items-center justify-between pt-3 text-[11px]">
-                <span className="text-emerald-300">✓ accepted</span>
+                <span className="inline-flex items-center gap-1 text-emerald-300"><Check className="h-3 w-3" aria-hidden /> accepted</span>
                 <span className="text-slate-400">Runtime 24ms</span>
             </div>
         </div>
@@ -273,9 +274,7 @@ function QuizCard() {
                         </span>
                         <span>{opt}</span>
                         {i === 1 && (
-                            <span className="ml-auto text-[10px] font-bold text-emerald-700">
-                                ✓
-                            </span>
+                            <Check className="ml-auto h-3.5 w-3.5 text-emerald-700" aria-hidden />
                         )}
                     </div>
                 ))}

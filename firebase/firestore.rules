@@ -1103,6 +1103,14 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow create, update, delete: if isAdmin();
     }
+    // Interview scheduling slots — booked-vs-capacity per time window. Readable
+    // by any signed-in user (the scheduling UI gets availability via the API,
+    // but a direct read is harmless); all writes are server-side (admin SDK)
+    // and atomic so capacity can never be over-sold.
+    match /aiInterviewSlots/{slotKey} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
 
     // ─── Consumer subscription control plane ────────────────────────────
     // Plans + global config + promo codes are admin-authored and publicly

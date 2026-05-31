@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, Button } from "@digimine/ui";
-import { FileText, ClipboardList, Trophy, BookOpen, Users } from "lucide-react";
+import { FileText, ClipboardList, Trophy, BookOpen, Users, Check, X } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
@@ -169,9 +169,9 @@ export default function TeacherDashboardPage() {
                 return (
                   <span
                     key={k}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
                   >
-                    {on ? "✓" : "✗"} {labels[k]}
+                    {on ? <Check className="h-3 w-3" aria-hidden /> : <X className="h-3 w-3" aria-hidden />} {labels[k]}
                   </span>
                 );
               })}

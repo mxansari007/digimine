@@ -308,7 +308,7 @@ export default function MembershipPage() {
                 await onSubscribed(
                     plan.isFree
                         ? "You're on the Free plan."
-                        : "You're all set — Premium is active! 🎉"
+                        : "You're all set — Premium is active!"
                 );
                 return;
             }
@@ -346,7 +346,7 @@ export default function MembershipPage() {
                         });
                         const vd = await v.json();
                         if (vd.success) {
-                            await onSubscribed("Payment successful — you're Premium! 🎉");
+                            await onSubscribed("Payment successful — you're Premium!");
                         } else {
                             setPromoMsg({ ok: false, text: vd.error || "Verification failed" });
                             toast.error(vd.error || "Verification failed");
@@ -386,8 +386,8 @@ export default function MembershipPage() {
                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <PartyPopper className="h-7 w-7" strokeWidth={2} aria-hidden />
                         </div>
-                        <h3 className="mt-4 font-display text-2xl font-bold text-slate-900">
-                            You&apos;re Premium! 🎉
+                        <h3 className="mt-4 font-display text-xl font-bold text-slate-900 sm:text-2xl">
+                            You&apos;re Premium!
                         </h3>
                         <p className="mt-2 text-sm text-slate-600">{success}</p>
                         <div className="mt-6 flex flex-col gap-2">

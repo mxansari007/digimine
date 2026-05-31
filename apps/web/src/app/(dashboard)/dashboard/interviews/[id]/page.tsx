@@ -1,8 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import {
+    Mic,
+    Square,
+    Hand,
+    Video,
+    VideoOff,
+    Volume2,
+    VolumeX,
+    Captions,
+    MessageSquare,
+    PhoneOff,
+    Play,
+    Clock,
+    X,
+} from "lucide-react";
 import { Button, Card, Badge, FormattedContent, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -37,7 +52,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     const toast = useToast();
     const { firebaseUser, loading: authLoading } = useAuthContext();
     const sessionId = params.id;
-    const kokoro = useKokoroTts(firebaseUser);
+    const kokoro = useKokoroTts(firebaseUser, sessionId);
 
     const [loading, setLoading] = useState(true);
     const [sessionReady, setSessionReady] = useState(false);
@@ -174,10 +189,28 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                 router.push("/dashboard/interviews");
                 return;
             }
-            const session = data.session as AIInterviewSession;
+            let session = data.session as AIInterviewSession;
+            let problemData = data.problem;
             if (session.status === "completed") {
                 router.replace(`/dashboard/interviews/${sessionId}/results`);
                 return;
+            }
+            // A booked (scheduled) session is activated on entry — this flips it
+            // to in_progress, picks the grounding problem, and seeds the opening
+            // line. The /start route enforces the join window + global capacity.
+            if (session.status === "scheduled") {
+                const begin = await teacherFetch(firebaseUser, "/api/ai-interview/start", {
+                    method: "POST",
+                    body: JSON.stringify({ sessionId }),
+                });
+                const bd = await begin.json().catch(() => ({}));
+                if (!begin.ok) {
+                    toast.error(bd.error || "Couldn't start this interview yet.");
+                    router.push("/dashboard/interviews");
+                    return;
+                }
+                session = bd.session as AIInterviewSession;
+                problemData = bd.problem;
             }
             const itype = (session.interviewType || "dsa") as InterviewType;
             startedAtRef.current = Date.parse(session.startedAt) || Date.now();
@@ -188,7 +221,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     ? `${String(session.primaryPattern).replace(/-/g, " ")} · ${session.difficulty}`
                     : `${interviewTypeMeta(itype).label} · ${session.difficulty}`
             );
-            setProblem(data.problem);
+            setProblem(problemData);
             setTranscript(Array.isArray(session.transcript) ? session.transcript : []);
             setLanguage(session.language);
             setCodingUnlocked(Boolean(session.codingUnlocked));
@@ -198,12 +231,12 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             const langs: InterviewLanguage[] =
                 itype === "sql"
                     ? ["sql"]
-                    : (data.problem?.languages as InterviewLanguage[]) || [session.language];
+                    : (problemData?.languages as InterviewLanguage[]) || [session.language];
             setAvailableLangs(langs.length ? langs : [session.language]);
 
             const map: Record<string, string> = {};
-            if (Array.isArray(data.problem?.starters)) {
-                for (const s of data.problem.starters) map[s.language] = s.code;
+            if (Array.isArray(problemData?.starters)) {
+                for (const s of problemData.starters) map[s.language] = s.code;
             }
             map[session.language] = session.latestCode ?? map[session.language] ?? "";
             setCodeByLang(map);
@@ -438,7 +471,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         setTranscribing(true);
         try {
             const pcm = await blobToPcm16k(blob);
-            const res = await teacherFetch(firebaseUser, "/api/ai-interview/stt", {
+            const res = await teacherFetch(firebaseUser, `/api/ai-interview/stt?sessionId=${encodeURIComponent(sessionId)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/octet-stream" },
                 body: pcm.buffer.slice(
@@ -802,10 +835,10 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                 <h3 className="font-semibold">In-call messages</h3>
                 <button
                     onClick={() => setChatOpen(false)}
-                    className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100"
+                    className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 active:bg-slate-200"
                     aria-label="Close chat"
                 >
-                    ✕
+                    <X className="h-5 w-5" />
                 </button>
             </div>
             {isCoding && problem && (
@@ -874,56 +907,73 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
 
     // Google-Meet-style control bar.
     const controlBtn = (
-        icon: string,
+        icon: ReactNode,
         label: string,
         onClick: () => void,
         opts: { active?: boolean; danger?: boolean; busy?: boolean } = {}
     ) => (
-        <button onClick={onClick} title={label} className="flex flex-col items-center gap-1">
+        <button
+            onClick={onClick}
+            title={label}
+            aria-label={label}
+            aria-pressed={opts.active}
+            className="flex flex-col items-center gap-1.5"
+        >
             <span
-                className={`flex h-12 w-12 items-center justify-center rounded-full text-base transition ${
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition-all duration-200 active:scale-95 sm:h-12 sm:w-12 ${
                     opts.danger
-                        ? "bg-rose-600 text-white hover:bg-rose-700"
+                        ? "bg-rose-600 text-white shadow-soft hover:bg-rose-700"
                         : opts.active
-                            ? "bg-primary-600 text-white shadow"
-                            : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                            ? "bg-primary-600 text-white shadow-soft hover:bg-primary-700"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-200"
                 }`}
             >
                 {opts.busy ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-slate-700" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
                 ) : (
                     icon
                 )}
             </span>
-            <span className="text-[10px] text-slate-500">{label}</span>
+            <span className="text-[10px] font-medium text-slate-500">{label}</span>
         </button>
     );
 
     const controlBar = () => (
-        <div className="flex flex-wrap items-end justify-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex flex-wrap items-end justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-soft-sm sm:gap-4 sm:px-4">
             {micSupported &&
-                controlBtn(recording ? "■" : "🎤", recording ? "Stop" : "Speak", toggleMic, {
-                    active: recording,
-                    danger: recording,
-                    busy: transcribing,
-                })}
+                controlBtn(
+                    recording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />,
+                    recording ? "Stop" : "Speak",
+                    toggleMic,
+                    { active: recording, danger: recording, busy: transcribing }
+                )}
             {micSupported &&
-                controlBtn("🖐", handsFree ? "Auto-listen" : "Manual", () => setHandsFree((v) => !v), {
+                controlBtn(<Hand className="h-5 w-5" />, handsFree ? "Auto-listen" : "Manual", () => setHandsFree((v) => !v), {
                     active: handsFree,
                 })}
-            {controlBtn("🎥", videoOn ? "Camera" : "Cam off", toggleCamera, { active: videoOn })}
-            {controlBtn(voiceOn ? "🔊" : "🔇", "Voice", toggleVoice, { active: voiceOn })}
-            {controlBtn("CC", "Captions", () => setCaptionsOn((v) => !v), { active: captionsOn })}
-            {controlBtn("💬", "Chat", () => setChatOpen((v) => !v), { active: chatOpen })}
-            <button onClick={endInterview} disabled={ending} title="End interview" className="flex flex-col items-center gap-1">
-                <span className="flex h-12 w-16 items-center justify-center rounded-full bg-rose-600 text-sm font-semibold text-white hover:bg-rose-700">
+            {controlBtn(
+                videoOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />,
+                videoOn ? "Camera" : "Cam off",
+                toggleCamera,
+                { active: videoOn }
+            )}
+            {controlBtn(
+                voiceOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />,
+                "Voice",
+                toggleVoice,
+                { active: voiceOn }
+            )}
+            {controlBtn(<Captions className="h-5 w-5" />, "Captions", () => setCaptionsOn((v) => !v), { active: captionsOn })}
+            {controlBtn(<MessageSquare className="h-5 w-5" />, "Chat", () => setChatOpen((v) => !v), { active: chatOpen })}
+            <button onClick={endInterview} disabled={ending} title="End interview" aria-label="End interview" className="flex flex-col items-center gap-1.5">
+                <span className="flex h-11 w-16 items-center justify-center rounded-full bg-rose-600 text-white shadow-soft transition-all duration-200 hover:bg-rose-700 active:scale-95 disabled:opacity-70 sm:h-12">
                     {ending ? (
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                     ) : (
-                        "End"
+                        <PhoneOff className="h-5 w-5" />
                     )}
                 </span>
-                <span className="text-[10px] text-slate-500">Leave</span>
+                <span className="text-[10px] font-medium text-slate-500">Leave</span>
             </button>
         </div>
     );
@@ -940,8 +990,14 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         <option key={l} value={l}>{LANG_LABEL[l]}</option>
                     ))}
                 </select>
-                <Button variant="secondary" size="md" isLoading={running} onClick={runCode}>
-                    {isSql ? "▶ Run query" : "▶ Run"}
+                <Button
+                    variant="secondary"
+                    size="md"
+                    isLoading={running}
+                    onClick={runCode}
+                    leftIcon={<Play className="h-4 w-4 fill-current" />}
+                >
+                    {isSql ? "Run query" : "Run"}
                 </Button>
             </div>
             {isSql && problem?.sql?.schemaSql && (
@@ -1093,7 +1149,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                             }`}
                             title="Time remaining"
                         >
-                            ⏱ {remainingLabel}
+                            <Clock className="h-3.5 w-3.5" aria-hidden /> {remainingLabel}
                         </span>
                     )}
                     <span

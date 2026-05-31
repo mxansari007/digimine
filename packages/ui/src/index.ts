@@ -10,6 +10,7 @@ export {
     type SkeletonListProps,
 } from "./Skeleton";
 export { Badge, type BadgeProps } from "./Badge";
+export { InfoTip, type InfoTipProps } from "./InfoTip";
 export {
     DataTable,
     PaginationControls,
@@ -20,6 +21,13 @@ export {
     type DataTableProps,
     type PaginationControlsProps,
 } from "./DataTable";
+export {
+    usePaginatedTable,
+    type PaginatedLoadParams,
+    type PaginatedResult,
+    type UsePaginatedTableOptions,
+    type UsePaginatedTableState,
+} from "./usePaginatedTable";
 export {
     FormattedContent,
     normalizeFormattedHtml,

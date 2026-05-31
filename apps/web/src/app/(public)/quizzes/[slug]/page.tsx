@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Check } from "lucide-react";
 import { Button, FormattedContent, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useAttemptGate } from "@/hooks/useAttemptGate";
@@ -956,7 +957,13 @@ export default function QuizDetailPage() {
                                     className={`mb-2 w-full ${markedForReview.has(currentQuestion.id) ? "!border-purple-300 !bg-purple-50 !text-purple-700" : ""}`}
                                     onClick={() => toggleMarkForReview(currentQuestion.id)}
                                 >
-                                    {markedForReview.has(currentQuestion.id) ? "✓ Marked for Review" : "Mark for Review"}
+                                    {markedForReview.has(currentQuestion.id) ? (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Check className="h-4 w-4" aria-hidden /> Marked for Review
+                                        </span>
+                                    ) : (
+                                        "Mark for Review"
+                                    )}
                                 </Button>
                                 <div className="flex gap-2">
                                     <Button

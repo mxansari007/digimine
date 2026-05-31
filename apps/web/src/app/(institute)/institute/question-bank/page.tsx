@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -277,9 +278,9 @@ export default function InstituteQuestionBankPage() {
                                     {q.type === "mcq" && q.options && (
                                         <ul className="mt-2 space-y-1 text-xs text-gray-600">
                                             {q.options.map((o, i) => (
-                                                <li key={o.id || i} className={o.isCorrect ? "text-emerald-700 font-semibold" : ""}>
-                                                    {String.fromCharCode(65 + i)}. {o.text}
-                                                    {o.isCorrect && " ✓"}
+                                                <li key={o.id || i} className={o.isCorrect ? "flex items-center gap-1 text-emerald-700 font-semibold" : ""}>
+                                                    <span>{String.fromCharCode(65 + i)}. {o.text}</span>
+                                                    {o.isCorrect && <Check className="h-3 w-3 shrink-0" aria-hidden />}
                                                 </li>
                                             ))}
                                         </ul>

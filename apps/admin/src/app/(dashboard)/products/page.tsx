@@ -1,50 +1,42 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
-import { getAllProducts } from "@/lib/firestore/admin";
+import { Download } from "lucide-react";
 import { downloadProductTemplate } from "@/lib/import/productTemplates";
 import { type Product } from "@digimine/types";
 import { formatCurrency, formatDate } from "@digimine/utils";
-import { Button, Card, DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
+import {
+    Button,
+    Card,
+    DataTable,
+    PaginationControls,
+    usePaginatedTable,
+    type DataTableColumn,
+} from "@digimine/ui";
+import { authedFetch } from "@/lib/api";
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState<string>("");
     const [filterPurchaseType, setFilterPurchaseType] = useState<string>("");
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
 
-    useEffect(() => {
-        async function fetchProducts() {
-            setLoading(true);
-            try {
-                // Pass filters to the fetch function
-                // Explicitly send undefined if filter is empty string
-                const filters = {
-                    type: filterType || undefined,
-                    purchaseType: filterPurchaseType || undefined
-                };
-                const data = await getAllProducts(filters);
-                setProducts(data);
-            } catch (error) {
-                console.error("Error fetching products:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchProducts();
-    }, [filterType, filterPurchaseType]);
-
-    useEffect(() => {
-        setPage(1);
-    }, [products.length, filterType, filterPurchaseType, pageSize]);
-
-    const paginatedProducts = useMemo(
-        () => getPaginatedItems(products, page, pageSize),
-        [products, page, pageSize]
+    const load = useCallback(
+        async ({ page, pageSize, signal }: { page: number; pageSize: number; signal: AbortSignal }) => {
+            const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+            if (filterType) qs.set("type", filterType);
+            if (filterPurchaseType) qs.set("purchaseType", filterPurchaseType);
+            const res = await authedFetch(`/api/admin/products?${qs.toString()}`, { signal });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Failed to load products");
+            const data = await res.json();
+            return { items: (data.items as Product[]) || [], total: (data.total as number) || 0 };
+        },
+        [filterType, filterPurchaseType]
     );
+    const { items: products, total, page, pageSize, loading, setPage, setPageSize } = usePaginatedTable<Product>({
+        load,
+        initialPageSize: 20,
+        deps: [filterType, filterPurchaseType],
+    });
 
     const columns: DataTableColumn<Product>[] = [
         {
@@ -87,6 +79,8 @@ export default function ProductsPage() {
         {
             key: "price",
             header: "Price",
+            align: "right",
+            numeric: true,
             render: (product) => product.price === 0 ? (
                 <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">Free</span>
             ) : (
@@ -129,8 +123,8 @@ export default function ProductsPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">Products</h1>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" onClick={() => downloadProductTemplate()} title="Download product-template.json">
-                        ⬇ Template
+                    <Button variant="ghost" onClick={() => downloadProductTemplate()} title="Download product-template.json" leftIcon={<Download className="h-4 w-4" />}>
+                        Template
                     </Button>
                     <Link href="/products/create">
                         <Button variant="primary" className="flex items-center gap-2">
@@ -195,21 +189,21 @@ export default function ProductsPage() {
 
             <DataTable
                 columns={columns}
-                data={paginatedProducts}
+                data={products}
                 keyExtractor={(product) => product.id}
                 isLoading={loading}
-                loadingState="Loading products..."
                 emptyState="No products found matching filters."
-                footer={!loading && (
+                footer={
                     <PaginationControls
                         page={page}
                         pageSize={pageSize}
-                        totalItems={products.length}
+                        totalItems={total}
                         onPageChange={setPage}
                         onPageSizeChange={setPageSize}
                         itemLabel="products"
+                        disabled={loading}
                     />
-                )}
+                }
             />
         </div>
     );

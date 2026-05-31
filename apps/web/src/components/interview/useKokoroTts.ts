@@ -15,7 +15,7 @@ import { teacherFetch } from "@/lib/api/teacherFetch";
 
 const DEFAULT_VOICE = "af_heart";
 
-export function useKokoroTts(user: User | null | undefined) {
+export function useKokoroTts(user: User | null | undefined, sessionId?: string) {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const ctxRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
@@ -95,7 +95,7 @@ export function useKokoroTts(user: User | null | undefined) {
             try {
                 const res = await teacherFetch(user, "/api/ai-interview/tts", {
                     method: "POST",
-                    body: JSON.stringify({ text: clean, voice }),
+                    body: JSON.stringify({ text: clean, voice, sessionId }),
                 });
                 if (!res.ok) throw new Error(`tts ${res.status}`);
                 const blob = await res.blob();
@@ -148,7 +148,7 @@ export function useKokoroTts(user: User | null | undefined) {
                 speakFallback(clean);
             }
         },
-        [user, stop, speakFallback]
+        [user, sessionId, stop, speakFallback]
     );
 
     return { speak, stop, speaking, generating, usingFallback, analyserRef };

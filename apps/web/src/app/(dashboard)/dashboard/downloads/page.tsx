@@ -182,7 +182,7 @@ export default function DownloadsPage() {
                                             <a
                                                 href={file.url}
                                                 download
-                                                className="flex-shrink-0 p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
+                                                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:bg-primary-50 hover:text-primary-600 active:scale-95"
                                                 title="Download File"
                                                 target="_blank"
                                                 rel="noopener noreferrer"

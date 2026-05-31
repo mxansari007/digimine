@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
 import {
     TEACHER_BILLING_PLANS,
@@ -179,7 +180,7 @@ function planCard(plan: TeacherBillingPlan, cadence: Cadence) {
             <ul className="mt-5 space-y-1.5 border-t border-slate-100 pt-4 text-sm text-slate-700">
                 {plan.features.map((f) => (
                     <li key={f} className="flex gap-2">
-                        <span className="text-primary-600">✓</span>
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" aria-hidden />
                         <span>{f}</span>
                     </li>
                 ))}
@@ -268,8 +269,8 @@ export default function ForTeachersPage() {
                     </div>
                     <ol className="mt-10 grid gap-5 md:grid-cols-4">
                         {STEPS.map((s) => (
-                            <li key={s.n} className="rounded-2xl border border-slate-200 bg-white p-6">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold">
+                            <li key={s.n} className="rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-soft">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-700 ring-1 ring-inset ring-primary-200">
                                     {s.n}
                                 </div>
                                 <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
@@ -296,9 +297,9 @@ export default function ForTeachersPage() {
                         <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
                             <button
                                 onClick={() => setCadence("monthly")}
-                                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                                className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                                     cadence === "monthly"
-                                        ? "bg-primary-600 text-white"
+                                        ? "bg-primary-600 text-white shadow-soft-sm"
                                         : "text-slate-600 hover:text-slate-900"
                                 }`}
                             >
@@ -306,9 +307,9 @@ export default function ForTeachersPage() {
                             </button>
                             <button
                                 onClick={() => setCadence("annual")}
-                                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                                className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                                     cadence === "annual"
-                                        ? "bg-primary-600 text-white"
+                                        ? "bg-primary-600 text-white shadow-soft-sm"
                                         : "text-slate-600 hover:text-slate-900"
                                 }`}
                             >

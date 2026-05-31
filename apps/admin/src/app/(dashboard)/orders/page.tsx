@@ -1,39 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getAllOrders } from "@/lib/firestore/admin";
+import { useCallback } from "react";
 import { type Order } from "@digimine/types";
 import { formatDate, formatCurrency } from "@digimine/utils";
-import { DataTable, PaginationControls, getPaginatedItems, type DataTableColumn } from "@digimine/ui";
+import {
+    DataTable,
+    PaginationControls,
+    usePaginatedTable,
+    type DataTableColumn,
+} from "@digimine/ui";
+import { authedFetch } from "@/lib/api";
 
 export default function OrdersPage() {
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-
-    useEffect(() => {
-        async function fetchOrders() {
-            try {
-                const data = await getAllOrders();
-                setOrders(data);
-            } catch (error) {
-                console.error("Error fetching orders:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchOrders();
-    }, []);
-
-    useEffect(() => {
-        setPage(1);
-    }, [orders.length, pageSize]);
-
-    const paginatedOrders = useMemo(
-        () => getPaginatedItems(orders, page, pageSize),
-        [orders, page, pageSize]
+    const load = useCallback(
+        async ({ page, pageSize, signal }: { page: number; pageSize: number; signal: AbortSignal }) => {
+            const res = await authedFetch(`/api/admin/orders?page=${page}&pageSize=${pageSize}`, { signal });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Failed to load orders");
+            const data = await res.json();
+            return { items: (data.items as Order[]) || [], total: (data.total as number) || 0 };
+        },
+        []
     );
+    const { items: orders, total, page, pageSize, loading, setPage, setPageSize } =
+        usePaginatedTable<Order>({ load, initialPageSize: 20 });
 
     const columns: DataTableColumn<Order>[] = [
         {
@@ -58,6 +47,8 @@ export default function OrdersPage() {
         {
             key: "amount",
             header: "Amount",
+            align: "right",
+            numeric: true,
             render: (order) => (
                 <span className="font-bold text-slate-900">{formatCurrency(order.total)}</span>
             ),
@@ -86,30 +77,30 @@ export default function OrdersPage() {
         },
     ];
 
-    if (loading) return <div className="p-8">Loading orders...</div>;
-
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
                 <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
                 <div className="text-sm text-gray-500">
-                    Total Orders: {orders.length}
+                    Total Orders: {total.toLocaleString()}
                 </div>
             </div>
 
             <DataTable
                 columns={columns}
-                data={paginatedOrders}
+                data={orders}
                 keyExtractor={(order) => order.id}
+                isLoading={loading}
                 emptyState="No orders found."
                 footer={
                     <PaginationControls
                         page={page}
                         pageSize={pageSize}
-                        totalItems={orders.length}
+                        totalItems={total}
                         onPageChange={setPage}
                         onPageSizeChange={setPageSize}
                         itemLabel="orders"
+                        disabled={loading}
                     />
                 }
             />

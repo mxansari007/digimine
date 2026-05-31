@@ -1,42 +1,55 @@
 /**
  * POST /api/ai-interview/start
  *
- * Starts an AI coding interview. Gating, strongest-first:
- *   1. Auth (401)
- *   2. Feature gate `ent.features.ai_interview` (402) — the free plan grants a
- *      small weekly taste; paid plans grant more.
- *   3. AI provider configured + enabled (503) — fail early so the user never
- *      starts an interview they can't continue.
- *   4. A matching published problem exists (404).
- *   5. Weekly interview quota (429) — consumed only once the above pass.
+ * Two modes:
+ *   • Begin a booking — body `{ sessionId }`: activate a `scheduled` session
+ *     once its join window is open. Quota was already spent at booking time.
+ *   • Instant start — body `{ interviewType, difficulty, … }`: start now,
+ *     adaptively booking the CURRENT slot if it still has capacity.
  *
- * The opening interviewer line is templated (no LLM call) so starting is fast
- * and can't fail on the model; the LLM kicks in on the first candidate turn.
+ * Gating (strongest-first), shared where possible with /schedule:
+ *   1. Auth (401) + a short per-user rate-limit (kills double-submits).
+ *   2. Feature gate `ent.features.ai_interview` (402).
+ *   3. Reap the caller's stale sessions, then enforce ONE active interview.
+ *   4. AI provider configured (503) + a matching problem for coding types (404/402).
+ *   5. Capacity: global concurrency backstop + per-slot capacity (instant only).
+ *   6. Weekly quota (429) — consumed on instant start (bookings consumed it already).
  */
 import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
-import { getEntitlements, checkQuota } from "@/lib/server/entitlements";
+import { getEntitlements, checkQuota, refundQuota } from "@/lib/server/entitlements";
 import { getAiProviderConfig } from "@/lib/server/aiProvider";
 import { serializeProblemPublic } from "@/lib/server/practice";
+import { rateLimit } from "@/lib/server/ratelimit";
 import {
     AI_INTERVIEW_SESSIONS,
     AI_INTERVIEW_QUOTA,
     pickInterviewProblem,
     providerEndpoint,
-    makeTurn,
+    composeInterviewOpening,
+    parseInterviewConfig,
 } from "@/lib/server/aiInterview";
 import {
-    normalizePatternSlug,
-    type AIInterviewConfig,
-    type AIInterviewSession,
-    type InterviewLanguage,
-    type InterviewType,
-    type PracticeDifficulty,
-} from "@digimine/types";
+    getSchedulingConfig,
+    reapStaleSessions,
+    getActiveSession,
+    countActiveGlobal,
+    currentSlot,
+    reserveSlot,
+    releaseSlot,
+    computeOpenSlots,
+} from "@/lib/server/aiInterviewScheduling";
+import type { AIInterviewSession, AIInterviewSchedulingConfig } from "@digimine/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+/** Suggest the soonest bookable slot so the client can offer "schedule instead". */
+async function nextOpenSlot(now: Date, cfg: AIInterviewSchedulingConfig) {
+    const open = await computeOpenSlots(now, cfg, 1);
+    return open[0] ?? null;
+}
 
 export async function POST(req: Request) {
     try {
@@ -45,9 +58,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
 
-        // Feature gate — does the user's plan grant AI interviews at all? The
-        // free plan includes a small weekly taste (see the per-week quota
-        // below); paid plans grant more. (In launch mode every plan grants it.)
+        // Cheap guard against double-clicked starts racing each other.
+        const rl = await rateLimit("aiStart", userId, { limit: 3, windowSeconds: 10 });
+        if (!rl.success) {
+            return NextResponse.json(
+                { error: "You're going too fast — give it a second." },
+                { status: 429 }
+            );
+        }
+
         const ent = await getEntitlements(userId);
         if (!ent.features.ai_interview) {
             return NextResponse.json(
@@ -60,61 +79,159 @@ export async function POST(req: Request) {
             );
         }
 
-        // Provider must be live so the interview can actually run its turns.
+        const cfg = await getSchedulingConfig();
+        const now = new Date();
+        const nowIso = now.toISOString();
+
+        // Always reap the caller's stale sessions first so an abandoned/no-show
+        // interview doesn't falsely count against "one active at a time".
+        await reapStaleSessions(userId, cfg, now);
+
         const aiCfg = await getAiProviderConfig();
-        if (!aiCfg.enabled || !aiCfg.apiKey) {
+        const providerLive = aiCfg.enabled && aiCfg.apiKey && providerEndpoint(aiCfg);
+
+        const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+        const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+
+        // ─────────────────────────────────────────────────────────────────
+        // MODE A — begin a booked (scheduled) session.
+        // ─────────────────────────────────────────────────────────────────
+        if (sessionId) {
+            const ref = adminDb.collection(AI_INTERVIEW_SESSIONS).doc(sessionId);
+            const snap = await ref.get();
+            if (!snap.exists) {
+                return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+            }
+            const session = snap.data() as AIInterviewSession;
+            if (session.userId !== userId) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            if (session.status === "in_progress") {
+                // Already live (e.g. the join button was double-tapped) — just
+                // hand the room back so the client can resume.
+                const problem = session.problemId
+                    ? await pickInterviewProblemForResume(session)
+                    : null;
+                return NextResponse.json({ session, problem });
+            }
+            if (session.status !== "scheduled") {
+                return NextResponse.json(
+                    { error: "This booking can no longer be started.", code: "not_scheduled" },
+                    { status: 409 }
+                );
+            }
+
+            // Join window: [start − grace, start + window].
+            const start = new Date(session.scheduledAt || session.createdAt);
+            const opensAt = new Date(start.getTime() - cfg.joinGraceMin * 60_000);
+            const closesAt = new Date(start.getTime() + cfg.joinWindowMin * 60_000);
+            if (now < opensAt) {
+                return NextResponse.json(
+                    {
+                        error: `Your interview starts at ${start.toLocaleString()}. You can join a few minutes before.`,
+                        code: "too_early",
+                        scheduledAt: session.scheduledAt,
+                    },
+                    { status: 425 }
+                );
+            }
+            if (now > closesAt) {
+                // Missed the window — expire it (reaper will also catch this).
+                await ref.set(
+                    { status: "expired", expiresAt: null, updatedAt: nowIso },
+                    { merge: true }
+                );
+                await releaseSlot(session.slotId);
+                return NextResponse.json(
+                    { error: "This booking's join window has passed.", code: "expired" },
+                    { status: 410 }
+                );
+            }
+
+            if (!providerLive) {
+                return NextResponse.json(
+                    { error: "AI interviews are temporarily unavailable. Try again shortly." },
+                    { status: 503 }
+                );
+            }
+
+            // Pick the grounding problem now (coding types). We intentionally
+            // don't lock a problem at booking time — content may change over the
+            // 72h horizon, and free vs paid eligibility is evaluated at begin.
+            const isCoding =
+                session.interviewType === "dsa" || session.interviewType === "sql";
+            let problem: Awaited<ReturnType<typeof pickInterviewProblem>> = null;
+            if (isCoding) {
+                problem = await pickInterviewProblem(session.config, { allowPremium: ent.isPaid });
+                if (!problem) {
+                    return NextResponse.json(
+                        {
+                            error: "No interview problem is available right now. Please try again in a moment.",
+                            code: "no_problem",
+                        },
+                        { status: 503 }
+                    );
+                }
+            }
+
+            const opening = composeInterviewOpening(session.interviewType, session.config, problem);
+            const updated: AIInterviewSession = {
+                ...session,
+                status: "in_progress",
+                problemId: opening.problemId,
+                problemSlug: opening.problemSlug,
+                problemTitle: opening.problemTitle,
+                primaryPattern: opening.primaryPattern,
+                difficulty: opening.difficulty,
+                language: opening.language,
+                transcript: opening.transcript,
+                latestCode: opening.latestCode,
+                codingUnlocked: false,
+                startedAt: nowIso,
+                expiresAt: new Date(now.getTime() + cfg.maxRuntimeMin * 60_000).toISOString(),
+                updatedAt: nowIso,
+            };
+            await ref.set(updated);
+            const publicProblem = problem ? serializeProblemPublic(problem.id, problem) : null;
+            return NextResponse.json({ session: updated, problem: publicProblem });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // MODE B — instant start (adaptive: book the current slot).
+        // ─────────────────────────────────────────────────────────────────
+
+        // One active interview at a time (any type). Blocks a second interview
+        // — including the same category — while one is scheduled or live.
+        const active = await getActiveSession(userId);
+        if (active) {
+            const live = active.status === "in_progress";
+            return NextResponse.json(
+                {
+                    error: live
+                        ? "You already have an interview in progress. Finish or leave it before starting another."
+                        : "You already have an interview scheduled. Cancel it or join it before starting another.",
+                    code: live ? "interview_in_progress" : "interview_scheduled",
+                    activeSessionId: active.id,
+                    activeStatus: active.status,
+                },
+                { status: 409 }
+            );
+        }
+
+        if (!providerLive) {
             return NextResponse.json(
                 { error: "AI interviews are temporarily unavailable. Try again later." },
                 { status: 503 }
             );
         }
-        // Fail before starting if the configured provider has no chat endpoint
-        // here (e.g. anthropic) — otherwise turns would fail mid-interview.
-        if (!providerEndpoint(aiCfg)) {
-            return NextResponse.json(
-                { error: `The configured AI provider (${aiCfg.provider}) isn't supported for interviews yet.` },
-                { status: 503 }
-            );
-        }
 
-        const body = await req.json().catch(() => ({}));
-        const interviewType: InterviewType =
-            body.interviewType === "sql" ||
-            body.interviewType === "technical" ||
-            body.interviewType === "behavioral" ||
-            body.interviewType === "system_design"
-                ? body.interviewType
-                : "dsa";
-        const difficulty: PracticeDifficulty =
-            body.difficulty === "easy" || body.difficulty === "hard"
-                ? body.difficulty
-                : "medium";
-        const pattern = normalizePatternSlug(
-            typeof body.pattern === "string" ? body.pattern : null
-        );
-        const company =
-            typeof body.company === "string" && body.company.trim()
-                ? body.company.trim().toLowerCase()
-                : null;
-        const topic =
-            typeof body.topic === "string" && body.topic.trim() ? body.topic.trim() : null;
-
-        const config: AIInterviewConfig = { interviewType, company, pattern, topic, difficulty };
-
-        // DSA + SQL ground on a real problem + reveal an editor; other types are
-        // conversation-only (no problem, no editor, no judge).
+        const { interviewType, config } = parseInterviewConfig(body);
         const isCoding = interviewType === "dsa" || interviewType === "sql";
         let problem: Awaited<ReturnType<typeof pickInterviewProblem>> = null;
         if (isCoding) {
-            // Free users only get non-premium problems (the interview exposes the
-            // problem's full paid content); paid users get the whole library.
             problem = await pickInterviewProblem(config, { allowPremium: ent.isPaid });
             if (!problem) {
                 const kindLabel = interviewType === "sql" ? "SQL" : "coding";
-                // For a free user, "no problem" usually means the only matching
-                // problems are premium (which they can't be served) — point them
-                // to upgrade rather than a dead-end. A paid user seeing this means
-                // the bank genuinely has none of this kind yet.
                 if (!ent.isPaid) {
                     return NextResponse.json(
                         {
@@ -132,9 +249,47 @@ export async function POST(req: Request) {
             }
         }
 
-        // Daily quota — consumed only once we know we can start the session.
-        const quota = await checkQuota(userId, AI_INTERVIEW_QUOTA, { consume: true });
+        // Global concurrency backstop — protects the providers even when the
+        // current slot still shows capacity (e.g. long-runners overlapping from
+        // the previous slot). Point the user at the next bookable slot.
+        const liveCount = await countActiveGlobal();
+        if (liveCount >= cfg.maxConcurrentGlobal) {
+            return NextResponse.json(
+                {
+                    error: "All interview slots are busy right now. Please schedule one for a little later.",
+                    code: "capacity_full",
+                    nextSlot: await nextOpenSlot(now, cfg),
+                },
+                { status: 503 }
+            );
+        }
+
+        // Reserve a unit of the CURRENT slot (adaptive instant start).
+        const slot = currentSlot(now, cfg);
+        const reserved = await reserveSlot(slot, cfg);
+        if (!reserved) {
+            return NextResponse.json(
+                {
+                    error: "This time window is fully booked. Please schedule an interview for a little later.",
+                    code: "slot_full",
+                    nextSlot: await nextOpenSlot(now, cfg),
+                },
+                { status: 409 }
+            );
+        }
+
+        // Weekly quota — consumed only once capacity is secured. Release the
+        // slot we just reserved if the user is out of allowance (or the consume
+        // itself errors) so a failed start never leaks a slot unit.
+        let quota;
+        try {
+            quota = await checkQuota(userId, AI_INTERVIEW_QUOTA, { consume: true });
+        } catch (err) {
+            await releaseSlot(slot.slotKey);
+            throw err;
+        }
         if (!quota.allowed) {
+            await releaseSlot(slot.slotKey);
             return NextResponse.json(
                 {
                     error:
@@ -148,97 +303,41 @@ export async function POST(req: Request) {
             );
         }
 
-        const nowIso = new Date().toISOString();
+        const opening = composeInterviewOpening(interviewType, config, problem);
         const id = crypto.randomUUID();
-        let session: AIInterviewSession;
-        let publicProblem: any = null;
-
-        if (isCoding && problem) {
-            const isSql = problem.kind === "sql";
-            // SQL interviews use the single "sql" editor mode; DSA picks the
-            // problem's first executable language.
-            const language: InterviewLanguage = isSql
-                ? "sql"
-                : (Array.isArray(problem.languages) && problem.languages[0]) || "python";
-            const starter = isSql
-                ? "-- Write your SQL query here\n"
-                : (Array.isArray(problem.starters) &&
-                      problem.starters.find((s) => s.language === language)?.code) ||
-                  "";
-            const opening = makeTurn(
-                "interviewer",
-                "message",
-                isSql
-                    ? `Hi! Thanks for joining. Today we'll work through "${problem.title}". Take a minute to read it and the table schema, then — before you write any SQL — walk me through your approach: which tables you'll touch, the joins, and how you'll filter and group.`
-                    : `Hi! Thanks for joining. Today we'll work through "${problem.title}". Take a minute to read it, then — before you write any code — walk me through your high-level approach and the time/space complexity you're aiming for.`
-            );
-            session = {
-                id,
-                userId,
-                status: "in_progress",
-                interviewType,
-                config,
-                problemId: problem.id,
-                problemSlug: problem.slug,
-                problemTitle: problem.title,
-                primaryPattern: problem.primaryPattern,
-                difficulty: problem.difficulty,
-                language,
-                transcript: [opening],
-                latestCode: starter,
-                codingUnlocked: false,
-                scorecard: null,
-                startedAt: nowIso,
-                completedAt: null,
-                createdAt: nowIso,
-                updatedAt: nowIso,
-            };
-            publicProblem = serializeProblemPublic(problem.id, problem);
-        } else {
-            // Conversation-only interview (technical / behavioral / system design).
-            const title =
-                interviewType === "behavioral"
-                    ? company
-                        ? `HR / Behavioral — ${company}`
-                        : "HR / Behavioral"
-                    : interviewType === "system_design"
-                        ? topic
-                            ? `System Design — ${topic}`
-                            : "System Design"
-                        : topic
-                            ? `Technical — ${topic}`
-                            : "Technical (CS Fundamentals)";
-            const openingText =
-                interviewType === "behavioral"
-                    ? "Hi, great to meet you! Let's begin the way most interviews do — tell me a little about yourself and what you're looking for in your next role."
-                    : interviewType === "system_design"
-                        ? `Hi! Welcome to your system design round. Here's the prompt: design ${topic || "a URL shortener"}. Take a moment, then start by clarifying the requirements and the scale we should target.`
-                        : `Hi! Welcome to your technical fundamentals round${topic ? ` on ${topic}` : ""}. To warm up, tell me which areas of CS you're most comfortable with and we'll go from there.`;
-            const opening = makeTurn("interviewer", "message", openingText);
-            session = {
-                id,
-                userId,
-                status: "in_progress",
-                interviewType,
-                config,
-                problemId: "",
-                problemSlug: "",
-                problemTitle: title,
-                primaryPattern: null,
-                difficulty,
-                language: "python",
-                transcript: [opening],
-                latestCode: "",
-                codingUnlocked: false,
-                scorecard: null,
-                startedAt: nowIso,
-                completedAt: null,
-                createdAt: nowIso,
-                updatedAt: nowIso,
-            };
+        const session: AIInterviewSession = {
+            id,
+            userId,
+            status: "in_progress",
+            interviewType,
+            config,
+            problemId: opening.problemId,
+            problemSlug: opening.problemSlug,
+            problemTitle: opening.problemTitle,
+            primaryPattern: opening.primaryPattern,
+            difficulty: opening.difficulty,
+            language: opening.language,
+            transcript: opening.transcript,
+            latestCode: opening.latestCode,
+            codingUnlocked: false,
+            scorecard: null,
+            slotId: slot.slotKey,
+            scheduledAt: null,
+            expiresAt: new Date(now.getTime() + cfg.maxRuntimeMin * 60_000).toISOString(),
+            startedAt: nowIso,
+            completedAt: null,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        try {
+            await adminDb.collection(AI_INTERVIEW_SESSIONS).doc(id).set(session);
+        } catch (err) {
+            // Couldn't persist after reserving + charging — undo both.
+            await releaseSlot(slot.slotKey);
+            await refundQuota(userId, AI_INTERVIEW_QUOTA, now);
+            throw err;
         }
-
-        await adminDb.collection(AI_INTERVIEW_SESSIONS).doc(id).set(session);
+        const publicProblem = problem ? serializeProblemPublic(problem.id, problem) : null;
         return NextResponse.json({ session, problem: publicProblem });
     } catch (error) {
         const e = error as Error;
@@ -248,4 +347,11 @@ export async function POST(req: Request) {
             { status: 500 }
         );
     }
+}
+
+/** Re-serialize the grounding problem for a session being resumed mid-flight. */
+async function pickInterviewProblemForResume(session: AIInterviewSession) {
+    const { loadProblemById } = await import("@/lib/server/practice");
+    const p = await loadProblemById(session.problemId);
+    return p ? serializeProblemPublic(p.id, p) : null;
 }

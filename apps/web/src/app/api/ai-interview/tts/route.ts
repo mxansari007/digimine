@@ -11,6 +11,11 @@
 import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { getEntitlements } from "@/lib/server/entitlements";
+import { adminDb } from "@/lib/firebase/admin";
+import { rateLimit } from "@/lib/server/ratelimit";
+// Collection name inlined (not imported from aiInterview.ts) to keep this
+// onnx-size-sensitive function's module trace minimal — see the note below.
+const AI_INTERVIEW_SESSIONS = "aiInterviewSessions";
 // NOTE: do NOT import "@/lib/server/kokoroTts" (in-process Kokoro) here. It
 // pulls in kokoro-js → onnxruntime-node (~405 MB of GPU/CUDA/TensorRT .so
 // files), which Next's file-tracer would bundle into this serverless function
@@ -35,7 +40,27 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Premium feature" }, { status: 402 });
         }
 
+        // Bind synthesis to the caller's own LIVE interview — otherwise any
+        // premium user could pipe arbitrary text through the paid Azure/Kokoro
+        // TTS provider. Plus a per-user rate limit to bound cost per session.
         const body = await req.json().catch(() => ({}));
+        const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+        if (!sessionId) {
+            return NextResponse.json({ error: "sessionId required" }, { status: 400 });
+        }
+        const rl = await rateLimit("aiTts", userId, { limit: 40, windowSeconds: 60 });
+        if (!rl.success) {
+            return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+        }
+        const sSnap = await adminDb.collection(AI_INTERVIEW_SESSIONS).doc(sessionId).get();
+        const sData = sSnap.exists ? (sSnap.data() as { userId?: string; status?: string }) : null;
+        if (!sData || sData.userId !== userId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (sData.status !== "in_progress") {
+            return NextResponse.json({ error: "Interview is not live." }, { status: 409 });
+        }
+
         const text =
             typeof body.text === "string" ? body.text.replace(/\s+/g, " ").trim().slice(0, 1200) : "";
         const voice = typeof body.voice === "string" ? body.voice : "af_heart";

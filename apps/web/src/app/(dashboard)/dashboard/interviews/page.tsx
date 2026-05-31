@@ -7,8 +7,10 @@ import { Button, Card, Badge, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/contexts/EntitlementsContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
+import { CalendarClock } from "lucide-react";
 import { TrendLine } from "@/components/teacher/TrendLine";
 import { ReadinessRing } from "@/components/interview/ReadinessRing";
+import { InterviewTypeIcon } from "@/components/interview/InterviewTypeIcon";
 import {
     DSA_PATTERNS,
     SQL_PATTERNS,
@@ -25,6 +27,40 @@ const COMPANIES = ["amazon", "google", "microsoft", "meta", "apple", "bloomberg"
 const DIFFICULTIES: PracticeDifficulty[] = ["easy", "medium", "hard"];
 const TECH_TOPICS = ["OOP", "DBMS / SQL", "Operating Systems", "Computer Networks", "Mixed CS fundamentals"];
 const DESIGN_TOPICS = ["URL shortener", "Rate limiter", "Chat / messaging app", "News feed", "Notification system"];
+
+interface OpenSlot {
+    slotKey: string;
+    startsAt: string;
+    remaining: number;
+}
+interface SlotInfo {
+    scheduling: {
+        slotMinutes: number;
+        slotCapacity: number;
+        bookingHorizonHours: number;
+        joinGraceMin: number;
+        joinWindowMin: number;
+    };
+    activeSession: AIInterviewSessionSummary | null;
+    canStartNow: boolean;
+    currentRemaining: number;
+    currentSlotEndsAt: string;
+    openSlots: OpenSlot[];
+}
+
+/** Compact, friendly slot label: "Today 2:30 PM", "Tomorrow 9:00 AM", "Mon 14 Jun, 3:00 PM". */
+function formatSlot(iso: string): string {
+    const d = new Date(iso);
+    const now = new Date();
+    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const sameDay = (a: Date, b: Date) =>
+        a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    if (sameDay(d, now)) return `Today ${time}`;
+    if (sameDay(d, tomorrow)) return `Tomorrow ${time}`;
+    return `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${time}`;
+}
 
 function barColor(v: number): string {
     if (v >= 75) return "bg-primary-500";
@@ -51,6 +87,13 @@ export default function InterviewsDashboardPage() {
     const [topic, setTopic] = useState<string>("");
     const [starting, setStarting] = useState(false);
 
+    // Slot scheduling state — drives the "start now vs book a slot" UI.
+    const [slotInfo, setSlotInfo] = useState<SlotInfo | null>(null);
+    const [selectedSlot, setSelectedSlot] = useState<string>("");
+    const [showSlots, setShowSlots] = useState(false);
+    const [scheduling, setScheduling] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
     const load = useCallback(async () => {
         if (!firebaseUser) return;
         setLoading(true);
@@ -68,10 +111,39 @@ export default function InterviewsDashboardPage() {
         }
     }, [firebaseUser]);
 
+    const loadSlots = useCallback(async () => {
+        if (!firebaseUser) return;
+        try {
+            const res = await teacherFetch(firebaseUser, "/api/ai-interview/slots");
+            const data = await res.json();
+            if (res.ok) setSlotInfo(data as SlotInfo);
+        } catch {
+            /* soft — start button falls back to instant POST */
+        }
+    }, [firebaseUser]);
+
     useEffect(() => {
-        if (!authLoading && firebaseUser) load();
-        else if (!authLoading && !firebaseUser) setLoading(false);
-    }, [authLoading, firebaseUser, load]);
+        if (!authLoading && firebaseUser) {
+            load();
+            loadSlots();
+        } else if (!authLoading && !firebaseUser) setLoading(false);
+    }, [authLoading, firebaseUser, load, loadSlots]);
+
+    /** Shared interview-config payload for both instant start and booking. */
+    const configPayload = useCallback(
+        () => ({
+            interviewType,
+            difficulty,
+            pattern:
+                interviewType === "dsa" || interviewType === "sql" ? pattern || undefined : undefined,
+            topic:
+                interviewType === "technical" || interviewType === "system_design"
+                    ? topic || undefined
+                    : undefined,
+            company: company || undefined,
+        }),
+        [interviewType, difficulty, pattern, topic, company]
+    );
 
     async function startInterview() {
         if (!firebaseUser) return;
@@ -79,27 +151,31 @@ export default function InterviewsDashboardPage() {
         try {
             const res = await teacherFetch(firebaseUser, "/api/ai-interview/start", {
                 method: "POST",
-                body: JSON.stringify({
-                    interviewType,
-                    difficulty,
-                    pattern:
-                        interviewType === "dsa" || interviewType === "sql"
-                            ? pattern || undefined
-                            : undefined,
-                    topic: interviewType === "technical" || interviewType === "system_design"
-                        ? topic || undefined
-                        : undefined,
-                    company: company || undefined,
-                }),
+                body: JSON.stringify(configPayload()),
             });
             const data = await res.json();
             if (!res.ok) {
+                // Current window is full (or the global cap is hit) — pivot the
+                // user to booking a future slot instead of a dead-end error.
+                if (data.code === "slot_full" || data.code === "capacity_full") {
+                    await loadSlots();
+                    setShowSlots(true);
+                    if (data.nextSlot?.slotKey) setSelectedSlot(data.nextSlot.slotKey);
+                    toast.info(
+                        "All interview slots are busy right now — reserve the next available time below."
+                    );
+                    return;
+                }
                 toast.error(data.error || "Couldn't start the interview", {
                     action:
                         data.code === "premium_required" || data.code === "quota_exceeded"
                             ? { label: "Upgrade", onClick: () => router.push("/membership") }
                             : undefined,
                 });
+                // Reflect any concurrency block (e.g. an interview already live).
+                if (data.code === "interview_in_progress" || data.code === "interview_scheduled") {
+                    await loadSlots();
+                }
                 return;
             }
             router.push(`/dashboard/interviews/${data.session.id}`);
@@ -107,6 +183,60 @@ export default function InterviewsDashboardPage() {
             toast.error("Couldn't start the interview. Please try again.");
         } finally {
             setStarting(false);
+        }
+    }
+
+    async function scheduleInterview() {
+        if (!firebaseUser || !selectedSlot) return;
+        setScheduling(true);
+        try {
+            const res = await teacherFetch(firebaseUser, "/api/ai-interview/schedule", {
+                method: "POST",
+                body: JSON.stringify({ ...configPayload(), slotKey: selectedSlot }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Couldn't book that slot", {
+                    action:
+                        data.code === "premium_required" || data.code === "quota_exceeded"
+                            ? { label: "Upgrade", onClick: () => router.push("/membership") }
+                            : undefined,
+                });
+                await loadSlots();
+                return;
+            }
+            toast.success("Interview booked — we'll hold your slot.");
+            setShowConfig(false);
+            setShowSlots(false);
+            setSelectedSlot("");
+            await Promise.all([load(), loadSlots()]);
+        } catch {
+            toast.error("Couldn't book that slot. Please try again.");
+        } finally {
+            setScheduling(false);
+        }
+    }
+
+    async function cancelScheduled(id: string) {
+        if (!firebaseUser) return;
+        setCancelling(true);
+        try {
+            const res = await teacherFetch(firebaseUser, "/api/ai-interview/cancel", {
+                method: "POST",
+                body: JSON.stringify({ sessionId: id }),
+            });
+            if (res.ok) {
+                toast.success("Booking cancelled — your weekly credit is back.");
+                await Promise.all([load(), loadSlots()]);
+            } else {
+                const d = await res.json().catch(() => ({}));
+                toast.error(d.error || "Couldn't cancel the booking.");
+                await loadSlots();
+            }
+        } catch {
+            toast.error("Couldn't cancel the booking.");
+        } finally {
+            setCancelling(false);
         }
     }
 
@@ -157,6 +287,24 @@ export default function InterviewsDashboardPage() {
         value: h.readiness,
     }));
 
+    // ── Derived scheduling state ──
+    const active = slotInfo?.activeSession ?? null;
+    const grace = slotInfo?.scheduling.joinGraceMin ?? 5;
+    // A booked interview can be joined once we're within the grace window of
+    // its start time; before that the Join button stays disabled.
+    const canJoinScheduled =
+        !!active &&
+        active.status === "scheduled" &&
+        !!active.scheduledAt &&
+        Date.now() >= new Date(active.scheduledAt).getTime() - grace * 60_000;
+    const openSlots = slotInfo?.openSlots ?? [];
+    // History = completed + anything still live or left incomplete; hide the
+    // booking-lifecycle states (scheduled is in the banner; cancelled/expired
+    // are just freed reservations).
+    const pastSessions = sessions.filter(
+        (s) => s.status === "completed" || s.status === "in_progress" || s.status === "abandoned"
+    );
+
     // ── Premium dashboard ──
     return (
         <div className="space-y-8">
@@ -165,12 +313,68 @@ export default function InterviewsDashboardPage() {
                     <h1 className="text-4xl font-bold">AI Mock Interviews</h1>
                     <p className="mt-2 text-slate-500">Practise, get a scorecard, and watch your readiness climb.</p>
                 </div>
-                <Button variant="primary" size="lg" onClick={() => setShowConfig((s) => !s)}>
-                    {showConfig ? "Close" : "Start interview"}
-                </Button>
+                {!active && (
+                    <Button variant="primary" size="lg" onClick={() => setShowConfig((s) => !s)}>
+                        {showConfig ? "Close" : "Start interview"}
+                    </Button>
+                )}
             </div>
 
-            {showConfig && (
+            {/* One active interview at a time — show its status + the next action
+                instead of letting the student queue up a second one. */}
+            {active && (
+                <Card padding="lg" elevated intent={active.status === "in_progress" ? "primary" : "accent"}>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <Badge variant={active.status === "in_progress" ? "success" : "accent"} size="sm">
+                                    {active.status === "in_progress" ? "In progress" : "Scheduled"}
+                                </Badge>
+                                <span className="text-sm font-semibold text-slate-900">
+                                    {interviewTypeMeta(active.interviewType).label}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                                {active.status === "in_progress"
+                                    ? "You have an interview in progress. Jump back in to finish it."
+                                    : active.scheduledAt
+                                        ? `Booked for ${formatSlot(active.scheduledAt)}. You can join a few minutes before it starts.`
+                                        : "You have an interview booked."}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {active.status === "in_progress" ? (
+                                <Button
+                                    variant="primary"
+                                    onClick={() => router.push(`/dashboard/interviews/${active.id}`)}
+                                >
+                                    Resume interview
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="secondary"
+                                        isLoading={cancelling}
+                                        onClick={() => cancelScheduled(active.id)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        disabled={!canJoinScheduled}
+                                        title={canJoinScheduled ? undefined : "You can join a few minutes before the start time"}
+                                        onClick={() => router.push(`/dashboard/interviews/${active.id}`)}
+                                    >
+                                        {canJoinScheduled ? "Join now" : "Join at start time"}
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+            )}
+
+            {!active && showConfig && (
                 <Card padding="lg" elevated>
                     <h2 className="text-lg font-bold mb-1">Choose your interview</h2>
                     <p className="text-sm text-slate-500 mb-4">Pick a round — each runs like a real video interview.</p>
@@ -193,14 +397,20 @@ export default function InterviewsDashboardPage() {
                                         setTopic("");
                                         setDifficulty("medium");
                                     }}
-                                    className={`rounded-xl border p-3 text-left transition ${
+                                    className={`rounded-xl border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
                                         active
-                                            ? "border-primary-500 bg-primary-50 ring-1 ring-primary-200"
-                                            : "border-slate-200 hover:border-slate-300"
+                                            ? "border-primary-500 bg-primary-50 ring-1 ring-primary-200 shadow-soft-sm"
+                                            : "border-slate-200 hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-soft-sm"
                                     }`}
                                 >
-                                    <div className="text-xl">{t.emoji}</div>
-                                    <div className="mt-1 text-sm font-semibold text-slate-800">{t.label}</div>
+                                    <span
+                                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                                            active ? "bg-primary-100 text-primary-700" : "bg-slate-100 text-slate-500"
+                                        }`}
+                                    >
+                                        <InterviewTypeIcon type={t.key} className="h-5 w-5" />
+                                    </span>
+                                    <div className="mt-2 text-sm font-semibold text-slate-800">{t.label}</div>
                                     <div className="mt-0.5 text-xs text-slate-500">{t.blurb}</div>
                                 </button>
                             );
@@ -303,10 +513,85 @@ export default function InterviewsDashboardPage() {
                         </label>
                     </div>
 
-                    <div className="mt-5 flex justify-end">
-                        <Button variant="primary" size="md" isLoading={starting} onClick={startInterview}>
-                            Begin {INTERVIEW_TYPES.find((t) => t.key === interviewType)?.label} interview
-                        </Button>
+                    {/* ── Adaptive start: instant when the current window has room,
+                        otherwise reserve a future slot to protect capacity. ── */}
+                    <div className="mt-6 border-t border-slate-100 pt-5">
+                        {slotInfo && !slotInfo.canStartNow && (
+                            <p className="mb-3 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+                                <CalendarClock className="h-4 w-4 shrink-0" aria-hidden />
+                                All interview slots are busy right now. Reserve the next available time below.
+                            </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="text-xs text-slate-500">
+                                {slotInfo?.canStartNow
+                                    ? `${slotInfo.currentRemaining} of ${slotInfo.scheduling.slotCapacity} live spots open right now.`
+                                    : "Pick a time and we'll hold a spot for you."}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {slotInfo?.canStartNow && (
+                                    <Button variant="primary" size="md" isLoading={starting} onClick={startInterview}>
+                                        Start now
+                                    </Button>
+                                )}
+                                <Button
+                                    variant={slotInfo?.canStartNow ? "secondary" : "primary"}
+                                    size="md"
+                                    onClick={() => setShowSlots((s) => !s)}
+                                >
+                                    {showSlots ? "Hide times" : "Schedule for later"}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {showSlots && (
+                            <div className="mt-4">
+                                {openSlots.length === 0 ? (
+                                    <p className="text-sm text-slate-500">
+                                        No open slots in the next{" "}
+                                        {Math.round((slotInfo?.scheduling.bookingHorizonHours ?? 72) / 24)} days. Try
+                                        again shortly.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="flex flex-wrap gap-2">
+                                            {openSlots.map((s) => {
+                                                const sel = selectedSlot === s.slotKey;
+                                                return (
+                                                    <button
+                                                        key={s.slotKey}
+                                                        type="button"
+                                                        onClick={() => setSelectedSlot(s.slotKey)}
+                                                        className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
+                                                            sel
+                                                                ? "border-primary-500 bg-primary-50 text-primary-800 ring-1 ring-primary-200"
+                                                                : "border-slate-200 text-slate-700 hover:border-primary-300 hover:bg-primary-50/50"
+                                                        }`}
+                                                    >
+                                                        {formatSlot(s.startsAt)}
+                                                        <span className="ml-1.5 text-[10px] text-slate-400">
+                                                            {s.remaining} left
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-4 flex justify-end">
+                                            <Button
+                                                variant="primary"
+                                                size="md"
+                                                isLoading={scheduling}
+                                                disabled={!selectedSlot}
+                                                onClick={scheduleInterview}
+                                            >
+                                                Book slot
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </Card>
             )}
@@ -378,18 +663,22 @@ export default function InterviewsDashboardPage() {
                 </Card>
             )}
 
-            {/* Recent sessions */}
+            {/* Recent sessions — completed history + anything still live. Booking
+                lifecycle states (scheduled/cancelled/expired) are surfaced in the
+                banner above, not as history noise here. */}
             <div>
                 <h2 className="text-xl font-bold mb-4">Recent interviews</h2>
-                {sessions.length === 0 ? (
+                {pastSessions.length === 0 ? (
                     <Card padding="lg" elevated className="text-center py-16 border-dashed">
                         <p className="font-semibold">No interviews yet</p>
                         <p className="text-sm text-slate-500 mt-2">Start your first AI mock interview to build your readiness score.</p>
-                        <Button variant="primary" className="mt-4" onClick={() => setShowConfig(true)}>Start interview</Button>
+                        {!active && (
+                            <Button variant="primary" className="mt-4" onClick={() => setShowConfig(true)}>Start interview</Button>
+                        )}
                     </Card>
                 ) : (
                     <div className="space-y-3">
-                        {sessions.map((s) => {
+                        {pastSessions.map((s) => {
                             const href =
                                 s.status === "completed"
                                     ? `/dashboard/interviews/${s.id}/results`
@@ -411,8 +700,10 @@ export default function InterviewsDashboardPage() {
                                                 <Badge variant={(s.readiness ?? 0) >= 70 ? "success" : "warning"} size="sm">
                                                     {s.readiness ?? 0} ready
                                                 </Badge>
-                                            ) : (
+                                            ) : s.status === "in_progress" ? (
                                                 <Badge variant="info" size="sm">In progress</Badge>
+                                            ) : (
+                                                <Badge variant="secondary" size="sm">Incomplete</Badge>
                                             )}
                                             <span className="text-slate-400">→</span>
                                         </div>

@@ -1,26 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { useCallback, useState } from "react";
+import {
+    Button,
+    DataTable,
+    PaginationControls,
+    usePaginatedTable,
+    type DataTableColumn,
+} from "@digimine/ui";
 import { authedFetch } from "@/lib/api";
 
+interface PayoutRow {
+    id: string;
+    teacherId?: string;
+    amount?: number;
+    method?: string;
+    status?: string;
+}
+
 export default function PayoutsPage() {
-    const [payouts, setPayouts] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadPayouts();
-    }, []);
-
-    const loadPayouts = async () => {
-        setLoading(true);
-        const q = query(collection(db, "payouts"), orderBy("initiatedAt", "desc"));
-        const snapshot = await getDocs(q);
-        setPayouts(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-    };
+    const load = useCallback(
+        async ({ page, pageSize, signal }: { page: number; pageSize: number; signal: AbortSignal }) => {
+            const res = await authedFetch(`/api/admin/payouts?page=${page}&pageSize=${pageSize}`, { signal });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Failed to load payouts");
+            const data = await res.json();
+            return { items: (data.items as PayoutRow[]) || [], total: (data.total as number) || 0 };
+        },
+        []
+    );
+    const { items: payouts, total, page, pageSize, loading, setPage, setPageSize, reload } =
+        usePaginatedTable<PayoutRow>({ load, initialPageSize: 20 });
 
     const handleProcess = async (payoutId: string, status: "processing" | "completed" | "failed") => {
         setError(null);
@@ -33,84 +44,91 @@ export default function PayoutsPage() {
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body.error || `Failed (${res.status})`);
             }
-            await loadPayouts();
-        } catch (e: any) {
-            setError(e.message || "Failed to update payout");
+            reload();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to update payout");
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-400" />
-            </div>
-        );
-    }
+    const columns: DataTableColumn<PayoutRow>[] = [
+        {
+            key: "teacher",
+            header: "Teacher",
+            render: (p) => <span className="font-medium text-slate-800">{p.teacherId}</span>,
+        },
+        {
+            key: "amount",
+            header: "Amount",
+            align: "right",
+            numeric: true,
+            render: (p) => `₹${(p.amount || 0).toLocaleString()}`,
+        },
+        {
+            key: "method",
+            header: "Method",
+            render: (p) => <span className="uppercase text-slate-600">{p.method}</span>,
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (p) => (
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${getStatusStyle(p.status)}`}>
+                    {p.status}
+                </span>
+            ),
+        },
+        {
+            key: "actions",
+            header: "",
+            align: "right",
+            render: (p) =>
+                p.status === "pending" ? (
+                    <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="success" onClick={() => handleProcess(p.id, "completed")}>
+                            Complete
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleProcess(p.id, "failed")}>
+                            Fail
+                        </Button>
+                    </div>
+                ) : null,
+        },
+    ];
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-slate-950">Payouts</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h1 className="text-2xl font-bold text-slate-950">Payouts</h1>
+                <div className="text-sm text-slate-500">Total: {total.toLocaleString()}</div>
+            </div>
 
             {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-                    {error}
-                </div>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
             )}
 
-            {payouts.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-slate-500 shadow-sm">No payout requests yet.</div>
-            ) : (
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
-                            <tr className="border-b border-slate-100">
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Teacher</th>
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Amount</th>
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Method</th>
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Status</th>
-                                <th className="px-5 py-3 text-left font-medium text-slate-500">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {payouts.map((payout) => (
-                                <tr key={payout.id} className="border-b border-slate-100 hover:bg-primary-50/30">
-                                    <td className="px-5 py-3 font-medium text-slate-800">{payout.teacherId}</td>
-                                    <td className="px-5 py-3 text-slate-600">₹{payout.amount}</td>
-                                    <td className="px-5 py-3 uppercase text-slate-600">{payout.method}</td>
-                                    <td className="px-5 py-3">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusStyle(payout.status)}`}>
-                                            {payout.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-3">
-                                        {payout.status === "pending" && (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleProcess(payout.id, "completed")}
-                                                    className="rounded-lg bg-accent-600 px-3 py-1 text-xs text-white hover:bg-accent-700"
-                                                >
-                                                    Complete
-                                                </button>
-                                                <button
-                                                    onClick={() => handleProcess(payout.id, "failed")}
-                                                    className="rounded-lg bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                                                >
-                                                    Fail
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <DataTable
+                columns={columns}
+                data={payouts}
+                keyExtractor={(p) => p.id}
+                isLoading={loading}
+                emptyState="No payout requests yet."
+                footer={
+                    <PaginationControls
+                        page={page}
+                        pageSize={pageSize}
+                        totalItems={total}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        itemLabel="payouts"
+                        disabled={loading}
+                    />
+                }
+            />
         </div>
     );
 }
 
-function getStatusStyle(status: string) {
+function getStatusStyle(status?: string) {
     switch (status) {
         case "pending":
             return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";

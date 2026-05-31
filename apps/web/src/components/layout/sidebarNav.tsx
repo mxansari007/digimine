@@ -92,6 +92,12 @@ const UsageIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const PlanIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 16l-1.5-9 5 3.5L12 4l3.5 6.5 5-3.5L19 16H5zm0 0v1.5A1.5 1.5 0 006.5 19h11a1.5 1.5 0 001.5-1.5V16" />
+    </svg>
+);
+
 export const studentNav: AppSidebarNavItem[] = [
     { name: "My Library", href: "/dashboard", icon: LibraryIcon, exact: true },
     { name: "Practice (DSA/SQL)", href: "/practice", icon: PracticeIcon },
@@ -101,6 +107,7 @@ export const studentNav: AppSidebarNavItem[] = [
     { name: "Contests", href: "/dashboard/contests", icon: ContestIcon },
     { name: "Downloads", href: "/dashboard/downloads", icon: DownloadIcon },
     { name: "My Classrooms", href: "/student/classrooms", icon: ClassroomIcon },
+    { name: "My Plan", href: "/dashboard/plan", icon: PlanIcon },
     { name: "Profile & Settings", href: "/dashboard/profile", icon: ProfileIcon },
 ];
 

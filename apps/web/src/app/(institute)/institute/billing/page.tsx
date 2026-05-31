@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
 import {
     INSTITUTE_BILLING_PLANS,
@@ -391,7 +392,7 @@ export default function InstituteBillingPage() {
                                 <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
                                     {plan.features.map((f) => (
                                         <li key={f} className="flex gap-2">
-                                            <span className="text-primary-600">✓</span>
+                                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" aria-hidden />
                                             <span>{f}</span>
                                         </li>
                                     ))}
