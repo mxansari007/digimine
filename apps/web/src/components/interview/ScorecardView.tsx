@@ -10,6 +10,7 @@ import {
     type SubmissionVerdict,
 } from "@digimine/types";
 import { ReadinessRing } from "./ReadinessRing";
+import { SkillRadar } from "./SkillRadar";
 
 function barColor(v: number): string {
     if (v >= 75) return "bg-primary-500";
@@ -62,24 +63,38 @@ export function ScorecardView({ scorecard }: { scorecard: BehaviourScorecard }) 
                             </div>
                         );
                     })()}
-                    <div className="mt-5 space-y-3">
-                        {BEHAVIOUR_DIMENSIONS.map((d) => {
-                            const v = scorecard.dimensions[d.key] ?? 0;
-                            return (
-                                <div key={d.key}>
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium text-slate-700">{d.label}</span>
-                                        <span className="text-slate-500">{v}</span>
+                    <div className="mt-5 grid grid-cols-1 items-center gap-5 sm:grid-cols-2">
+                        <div className="order-2 sm:order-1">
+                            <SkillRadar
+                                axes={[
+                                    ...BEHAVIOUR_DIMENSIONS.map((d) => ({
+                                        key: d.key as string,
+                                        label: d.label,
+                                        value: scorecard.dimensions[d.key] ?? 0,
+                                    })),
+                                    { key: "correctness", label: "Correctness / accuracy", value: scorecard.correctness },
+                                ]}
+                            />
+                        </div>
+                        <div className="order-1 space-y-3 sm:order-2">
+                            {BEHAVIOUR_DIMENSIONS.map((d) => {
+                                const v = scorecard.dimensions[d.key] ?? 0;
+                                return (
+                                    <div key={d.key}>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="font-medium text-slate-700">{d.label}</span>
+                                            <span className="font-bold tabular-nums text-slate-700">{v}</span>
+                                        </div>
+                                        <div className="mt-1 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full ${barColor(v)}`}
+                                                style={{ width: `${v}%`, transition: "width 0.6s ease" }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="mt-1 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full ${barColor(v)}`}
-                                            style={{ width: `${v}%`, transition: "width 0.6s ease" }}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 </Card>
             </div>

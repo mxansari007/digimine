@@ -124,6 +124,13 @@ export interface JudgeResult {
         expectedOutput?: string;
         actualOutput?: string;
     }>;
+    /** Compiler stderr when the submission failed to compile — surfaced so a
+     *  console can show the actual error the student is getting. */
+    compileOutput?: string;
+    /** Representative runtime stderr from the first erroring run. */
+    stderr?: string;
+    /** stdout from the first run (useful for print-debugging in the console). */
+    stdout?: string;
 }
 
 /**
@@ -148,6 +155,11 @@ export async function judgeDsa(
     let runtimeErr = false;
     let timedOut = false;
     let passed = 0;
+    // First-seen error/output, surfaced on the result so a console can show
+    // the student the real compiler/runtime error (not just a verdict).
+    let firstCompile = "";
+    let firstStderr = "";
+    let firstStdout = "";
     const results: JudgeResult["results"] = [];
 
     for (let i = 0; i < cases.length; i++) {
@@ -158,6 +170,10 @@ export async function judgeDsa(
         } catch (err: any) {
             run = { stdout: "", stderr: err?.message || "execution failed", compileOutput: "", exitCode: -1 };
         }
+
+        if (!firstCompile && run.compileOutput) firstCompile = run.compileOutput.slice(0, 4000);
+        if (!firstStderr && run.stderr) firstStderr = run.stderr.slice(0, 4000);
+        if (!firstStdout && run.stdout) firstStdout = run.stdout.slice(0, 4000);
 
         if (run.compileOutput && run.exitCode !== 0 && !run.stdout) compileFailed = true;
         if (/time limit/i.test(run.stderr)) timedOut = true;
@@ -192,7 +208,16 @@ export async function judgeDsa(
         else verdict = "wrong_answer";
     }
 
-    return { verdict, passedCount: passed, totalCount: cases.length, runtimeMs, results };
+    return {
+        verdict,
+        passedCount: passed,
+        totalCount: cases.length,
+        runtimeMs,
+        results,
+        ...(compileFailed && firstCompile ? { compileOutput: firstCompile } : {}),
+        ...(firstStderr ? { stderr: firstStderr } : {}),
+        ...(firstStdout ? { stdout: firstStdout } : {}),
+    };
 }
 
 /**

@@ -266,6 +266,9 @@ export function buildInterviewerSystem(
         "- If they're stuck, give ONE escalating Socratic hint (use the ladder, gentlest first).",
         noSolutionLine,
         runResultLine,
+        isSql
+            ? "- You can SEE the candidate's live query editor: once it's open, every message includes a 'My current query in the editor' snapshot of exactly what they've typed. When they ask you to look at / review / check their query, or when giving targeted feedback, read that snapshot and comment on specific lines, joins, or filters. Don't write the full query for them."
+            : "- You can SEE the candidate's live code editor: once it's open, every message includes a 'My current code in the editor' snapshot of exactly what they've typed. When they ask you to look at / review / check their code, or when giving targeted feedback, read that snapshot and comment on specific lines, bugs, edge cases, or complexity. Don't write the solution for them.",
         completeLine,
         "- Never output JSON, scores, or markdown headings. Speak naturally, as a person would in a call.",
     ]
@@ -325,8 +328,11 @@ export function buildInterviewerMessages(opts: {
     problem?: (PracticeProblem & { id: string }) | null;
     transcript: AIInterviewTurn[];
     latestCode: string;
+    /** The candidate's currently-selected editor language, so the code block
+     *  the interviewer sees is labelled with the real language. */
+    language?: InterviewLanguage;
 }): ChatMessage[] {
-    const { interviewType, config, problem, transcript, latestCode } = opts;
+    const { interviewType, config, problem, transcript, latestCode, language } = opts;
     const recent = transcript.slice(-MAX_CONTEXT_TURNS);
     const mapped: ChatMessage[] = [];
     for (const t of recent) {
@@ -348,11 +354,21 @@ export function buildInterviewerMessages(opts: {
             : buildConversationalSystem(config);
     const messages: ChatMessage[] = [{ role: "system", content: system }, ...mapped];
     if (isCoding && problem && latestCode && latestCode.trim()) {
-        const codeLang = problem.kind === "sql" ? "sql" : problem.languages?.[0] || "python";
-        const label = problem.kind === "sql" ? "My current query" : "My current code";
+        const codeLang = language || (problem.kind === "sql" ? "sql" : problem.languages?.[0] || "python");
+        const label = problem.kind === "sql" ? "My current query in the editor" : "My current code in the editor";
+        // If the candidate's latest message signals they're explaining/checking
+        // their work, prepend a directive so the interviewer responds to what's
+        // ACTUALLY written rather than just the spoken words.
+        const lastCandidate = [...transcript].reverse().find(
+            (t) => t.role === "candidate" && t.kind === "message"
+        );
+        const directive =
+            lastCandidate && detectCodeReviewCue(lastCandidate.content)
+                ? "[The candidate is explaining or asking about their code. READ this exact editor snapshot and respond to what's actually written: confirm it matches what they said, call out any mismatch between their explanation and the real code, and flag concrete bugs, edge cases, or complexity issues — referencing specific lines. Do not write the solution for them.]\n\n"
+                : "";
         messages.push({
             role: "user",
-            content: `${label} (${codeLang}):\n\`\`\`\n${latestCode.slice(0, 6000)}\n\`\`\``,
+            content: `${directive}${label} (${codeLang}) — this is a live snapshot of exactly what's in my editor right now:\n\`\`\`${codeLang}\n${latestCode.slice(0, 6000)}\n\`\`\``,
         });
     }
     return messages;
@@ -426,8 +442,49 @@ export function extractEndSignal(text: string): { cleaned: string; ended: boolea
     return { cleaned, ended };
 }
 
+/**
+ * Heuristic: does the candidate's message signal they're referring to / done
+ * with / explaining the code they've written? When true, the interviewer is
+ * nudged to actually READ the live editor snapshot and respond to what's there
+ * (not just the spoken words) — e.g. "I've implemented…", "let me walk you
+ * through", "I'm done", "can you check my code", "it's not working".
+ */
+const CODE_REVIEW_CUE_RE = new RegExp(
+    [
+        "\\bi('?ve| have)?\\s*(just\\s+)?(implemented|written|wrote|coded|added|used|finished|completed|tried|built|done)\\b",
+        "\\bmy\\s+(code|solution|approach|implementation|function|logic|query)\\b",
+        "\\bhere('?s| is)\\s+(my|what|how)\\b",
+        "\\bwalk\\s+(you\\s+)?through\\b",
+        "\\blet me\\s+(show|explain|walk)\\b",
+        "\\b(take a look|look at)\\s+(my|the|this)\\b",
+        "\\b(check|review|see)\\s+(my|the|this)\\s+(code|solution|query|editor|implementation)\\b",
+        "\\bdoes this\\s+(look|seem|work)\\b",
+        "\\bis this\\s+(right|correct|ok|okay|good)\\b",
+        "\\bwhat do you think\\b",
+        "\\bi('?m| am)\\s+(done|finished)\\b",
+        "\\bi think\\s+(this|it|i'?m|i am)\\s+(works|done|correct|finished|right)\\b",
+        "\\b(getting|got)\\s+an?\\s+error\\b",
+        "\\b(it'?s|this is)\\s+not\\s+working\\b",
+        "\\bcan you\\s+(check|review|look)\\b",
+    ].join("|"),
+    "i"
+);
+
+export function detectCodeReviewCue(text: string): boolean {
+    return CODE_REVIEW_CUE_RE.test((text || "").trim());
+}
+
 export function summarizeJudgeForChat(judge: JudgeResult): string {
-    if (judge.totalCount === 0) return "No test cases were run.";
+    // Surface compile/runtime errors first so the interviewer can coach on the
+    // actual error the candidate is hitting (the console shows them the same).
+    if (judge.compileOutput) {
+        return `Verdict ${judge.verdict}: the code did not compile. Compiler error: ${judge.compileOutput.slice(0, 300)}`;
+    }
+    if (judge.totalCount === 0) {
+        return judge.stderr
+            ? `No test cases ran — runtime error: ${judge.stderr.slice(0, 300)}`
+            : "No test cases were run.";
+    }
     const failed = judge.results.filter((r) => !r.passed && !r.isHidden);
     const detail =
         failed.length > 0
@@ -435,7 +492,8 @@ export function summarizeJudgeForChat(judge: JudgeResult): string {
                   .map((f) => `#${f.index + 1} (expected "${(f.expectedOutput ?? "").slice(0, 60)}", got "${(f.actualOutput ?? "").slice(0, 60)}")`)
                   .join("; ")}.`
             : "";
-    return `Verdict ${judge.verdict}: passed ${judge.passedCount}/${judge.totalCount} tests.${detail}`;
+    const runtime = judge.verdict === "runtime_error" && judge.stderr ? ` Runtime error: ${judge.stderr.slice(0, 200)}.` : "";
+    return `Verdict ${judge.verdict}: passed ${judge.passedCount}/${judge.totalCount} tests.${detail}${runtime}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────

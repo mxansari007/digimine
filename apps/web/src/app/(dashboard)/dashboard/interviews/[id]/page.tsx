@@ -17,6 +17,11 @@ import {
     Play,
     Clock,
     X,
+    ScanSearch,
+    Terminal,
+    ChevronDown,
+    CheckCircle2,
+    AlertTriangle,
 } from "lucide-react";
 import { Button, Card, Badge, FormattedContent, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -46,6 +51,37 @@ const LANG_LABEL: Record<InterviewLanguage, string> = {
     java: "Java",
     sql: "SQL",
 };
+
+/** Shape of the judge result the /turn run action returns — what the console renders. */
+interface RunOutput {
+    verdict: string;
+    passedCount: number;
+    totalCount: number;
+    runtimeMs?: number;
+    compileOutput?: string;
+    stderr?: string;
+    stdout?: string;
+    results?: Array<{
+        index: number;
+        passed: boolean;
+        isHidden: boolean;
+        input?: string;
+        expectedOutput?: string;
+        actualOutput?: string;
+    }>;
+}
+
+/** A labelled, monospaced key/value block for the console (input/expected/output). */
+function ConsoleKV({ k, v, tone }: { k: string; v: string; tone?: "amber" }) {
+    return (
+        <div className="mt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{k}</span>
+            <pre className={`mt-0.5 max-h-28 overflow-auto whitespace-pre-wrap rounded bg-black/30 p-1.5 text-[11px] leading-relaxed ${tone === "amber" ? "text-amber-200" : "text-slate-200"}`}>
+                {v || "(empty)"}
+            </pre>
+        </div>
+    );
+}
 
 export default function InterviewRoomPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -81,6 +117,10 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     const [sending, setSending] = useState(false);
     const [running, setRunning] = useState(false);
     const [ending, setEnding] = useState(false);
+    // Last run's judge result, rendered in the console panel so the candidate
+    // can see compile/runtime errors and per-test expected-vs-actual output.
+    const [lastRun, setLastRun] = useState<RunOutput | null>(null);
+    const [consoleOpen, setConsoleOpen] = useState(true);
     const [recording, setRecording] = useState(false);
     const [transcribing, setTranscribing] = useState(false);
     const [remainingMs, setRemainingMs] = useState<number | null>(null);
@@ -626,6 +666,10 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             }
             setTranscript((t) => [...t, data.turn as AIInterviewTurn]);
             const judge = data.judge;
+            if (judge) {
+                setLastRun(judge as RunOutput);
+                setConsoleOpen(true);
+            }
             if (judge?.verdict === "accepted") {
                 toast.success(isSql ? "Query matched the expected result" : `Passed ${judge.passedCount}/${judge.totalCount} visible tests`);
             } else if (isSql) {
@@ -980,7 +1024,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
 
     const editorPanel = () => (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <select
                     className="field-input"
                     value={language}
@@ -990,15 +1034,37 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         <option key={l} value={l}>{LANG_LABEL[l]}</option>
                     ))}
                 </select>
-                <Button
-                    variant="secondary"
-                    size="md"
-                    isLoading={running}
-                    onClick={runCode}
-                    leftIcon={<Play className="h-4 w-4 fill-current" />}
-                >
-                    {isSql ? "Run query" : "Run"}
-                </Button>
+                <div className="flex items-center gap-2">
+                    {/* Cue the interviewer to read the live editor and give feedback.
+                        The current code is already attached to every message, so this
+                        just sends an explicit "please review" prompt. */}
+                    <Button
+                        variant="outline"
+                        size="md"
+                        isLoading={sending}
+                        disabled={running || !currentCode.trim()}
+                        onClick={() =>
+                            sendMessageText(
+                                isSql
+                                    ? "Could you take a look at my current query in the editor and give me quick feedback?"
+                                    : "Could you take a look at my current code in the editor and give me quick feedback on what to fix?"
+                            )
+                        }
+                        leftIcon={<ScanSearch className="h-4 w-4" />}
+                        title="Ask the interviewer to review what's in your editor"
+                    >
+                        Review my code
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        isLoading={running}
+                        onClick={runCode}
+                        leftIcon={<Play className="h-4 w-4 fill-current" />}
+                    >
+                        {isSql ? "Run query" : "Run"}
+                    </Button>
+                </div>
             </div>
             {isSql && problem?.sql?.schemaSql && (
                 <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" open>
@@ -1030,8 +1096,103 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     }}
                 />
             </div>
+            {consolePanel()}
         </div>
     );
+
+    // ── Console: run output + compile/runtime errors + failing cases ──
+    const consolePanel = () => {
+        const v = lastRun?.verdict;
+        const accepted = v === "accepted";
+        const tone = accepted
+            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
+            : v === "compile_error" || v === "runtime_error"
+                ? "bg-rose-500/15 text-rose-300 ring-rose-500/30"
+                : "bg-amber-500/15 text-amber-300 ring-amber-500/30";
+        const verdictLabel = (v || "").replace(/_/g, " ") || "—";
+        const visibleFails = (lastRun?.results || []).filter((r) => !r.passed && !r.isHidden);
+        return (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-900 text-slate-100">
+                <button
+                    type="button"
+                    onClick={() => setConsoleOpen((o) => !o)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/5"
+                >
+                    <span className="flex items-center gap-2">
+                        <Terminal className="h-3.5 w-3.5" aria-hidden />
+                        Console
+                        {lastRun && (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${tone}`}>
+                                {accepted ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                                {verdictLabel}
+                            </span>
+                        )}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${consoleOpen ? "rotate-180" : ""}`} aria-hidden />
+                </button>
+                {consoleOpen && (
+                    <div className="max-h-72 space-y-3 overflow-auto border-t border-white/10 px-3 py-3 text-xs">
+                        {!lastRun ? (
+                            <p className="text-slate-400">
+                                {isSql ? "Run your query" : "Run your code"} to see output and errors here.
+                            </p>
+                        ) : (
+                            <>
+                                <p className="text-slate-300">
+                                    {isSql
+                                        ? accepted
+                                            ? "Your result set matched the expected output."
+                                            : "Your result set didn't match yet."
+                                        : `Passed ${lastRun.passedCount}/${lastRun.totalCount} visible tests`}
+                                    {typeof lastRun.runtimeMs === "number" ? ` · ${lastRun.runtimeMs} ms` : ""}
+                                </p>
+
+                                {lastRun.compileOutput && (
+                                    <div>
+                                        <p className="mb-1 font-semibold text-rose-300">Compile error</p>
+                                        <pre className="overflow-auto rounded-md bg-rose-950/40 p-2 text-[11px] leading-relaxed text-rose-200 ring-1 ring-inset ring-rose-500/20">{lastRun.compileOutput}</pre>
+                                    </div>
+                                )}
+
+                                {!lastRun.compileOutput && v === "runtime_error" && lastRun.stderr && (
+                                    <div>
+                                        <p className="mb-1 font-semibold text-rose-300">Runtime error</p>
+                                        <pre className="overflow-auto rounded-md bg-rose-950/40 p-2 text-[11px] leading-relaxed text-rose-200 ring-1 ring-inset ring-rose-500/20">{lastRun.stderr}</pre>
+                                    </div>
+                                )}
+
+                                {!lastRun.compileOutput && visibleFails.length > 0 && (
+                                    <div className="space-y-2">
+                                        {visibleFails.map((c) => (
+                                            <div key={c.index} className="rounded-md bg-white/5 p-2 ring-1 ring-inset ring-white/10">
+                                                <p className="mb-1 font-semibold text-amber-300">{isSql ? "Result mismatch" : `Test #${c.index + 1} failed`}</p>
+                                                {c.input ? <ConsoleKV k="Input" v={c.input} /> : null}
+                                                <ConsoleKV k="Expected" v={c.expectedOutput ?? ""} />
+                                                <ConsoleKV k="Your output" v={c.actualOutput ?? ""} tone="amber" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {accepted && (
+                                    <p className="flex items-center gap-1.5 font-semibold text-emerald-300">
+                                        <CheckCircle2 className="h-4 w-4" /> All visible tests passed.
+                                    </p>
+                                )}
+
+                                {lastRun.stdout && !lastRun.compileOutput && (
+                                    <details className="text-slate-300">
+                                        <summary className="cursor-pointer text-slate-400">stdout (your print output)</summary>
+                                        <pre className="mt-1 overflow-auto rounded-md bg-black/40 p-2 text-[11px] leading-relaxed text-slate-200">{lastRun.stdout}</pre>
+                                    </details>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // A read-only problem brief for the approach-discussion phase, so the
     // candidate can actually read the question — and, for SQL, the table schema

@@ -163,6 +163,7 @@ export async function POST(req: Request) {
             problem,
             transcript,
             latestCode: incomingCode,
+            language: incomingLang,
         });
 
         let reply = "";

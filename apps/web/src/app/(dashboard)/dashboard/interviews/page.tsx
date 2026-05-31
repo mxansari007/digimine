@@ -10,6 +10,7 @@ import { teacherFetch } from "@/lib/api/teacherFetch";
 import { CalendarClock } from "lucide-react";
 import { TrendLine } from "@/components/teacher/TrendLine";
 import { ReadinessRing } from "@/components/interview/ReadinessRing";
+import { SkillRadar } from "@/components/interview/SkillRadar";
 import { InterviewTypeIcon } from "@/components/interview/InterviewTypeIcon";
 import {
     DSA_PATTERNS,
@@ -620,48 +621,63 @@ export default function InterviewsDashboardPage() {
             </div>
 
             {/* Dimension averages + weak areas */}
-            {readiness && readiness.completedSessions > 0 && (
-                <Card padding="lg">
-                    <h2 className="text-lg font-bold mb-4">Your skill profile</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-                        {[
-                            ...BEHAVIOUR_DIMENSIONS.map((d) => ({
-                                key: d.key as string,
-                                label: d.label,
-                                value: readiness.dimensionAverages?.[d.key] ?? 0,
-                            })),
-                            {
-                                key: "correctness",
-                                label: "Correctness / accuracy",
-                                value: readiness.correctnessAverage ?? 0,
-                            },
-                        ].map((row) => {
-                            const weak = readiness.weakDimensions?.includes(row.key);
-                            return (
-                                <div key={row.key}>
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium text-slate-700">
-                                            {row.label} {weak && <span className="text-danger-600 text-xs">• focus</span>}
-                                        </span>
-                                        <span className="text-slate-500">{row.value}</span>
-                                    </div>
-                                    <div className="mt-1 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                                        <div className={`h-full rounded-full ${barColor(row.value)}`} style={{ width: `${row.value}%` }} />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {readiness.weakDimensions?.length > 0 && (
-                        <div className="mt-5 flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-slate-500">Practise next:</span>
-                            <Link href="/practice">
-                                <Button variant="outline" size="sm">Targeted practice →</Button>
-                            </Link>
+            {readiness && readiness.completedSessions > 0 && (() => {
+                const rows = [
+                    ...BEHAVIOUR_DIMENSIONS.map((d) => ({
+                        key: d.key as string,
+                        label: d.label,
+                        value: Math.round(readiness.dimensionAverages?.[d.key] ?? 0),
+                    })),
+                    { key: "correctness", label: "Correctness / accuracy", value: Math.round(readiness.correctnessAverage ?? 0) },
+                ];
+                const weakKeys = readiness.weakDimensions ?? [];
+                return (
+                    <Card padding="lg">
+                        <h2 className="text-lg font-bold mb-4">Your skill profile</h2>
+                        <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-2">
+                            {/* Radar — the whole profile at a glance */}
+                            <div className="order-2 lg:order-1">
+                                <SkillRadar axes={rows} weak={weakKeys} />
+                            </div>
+                            {/* Exact values + focus flags */}
+                            <div className="order-1 space-y-3 lg:order-2">
+                                {rows.map((row) => {
+                                    const weak = weakKeys.includes(row.key);
+                                    return (
+                                        <div key={row.key}>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="font-medium text-slate-700">
+                                                    {row.label}{" "}
+                                                    {weak && (
+                                                        <span className="ml-1 rounded-full bg-danger-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-danger-600 ring-1 ring-inset ring-danger-200">
+                                                            focus
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="font-bold tabular-nums text-slate-700">{row.value}</span>
+                                            </div>
+                                            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                                <div
+                                                    className={`h-full rounded-full ${barColor(row.value)} transition-[width] duration-700`}
+                                                    style={{ width: `${row.value}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    )}
-                </Card>
-            )}
+                        {weakKeys.length > 0 && (
+                            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                                <span className="text-sm text-slate-500">Practise next:</span>
+                                <Link href="/practice">
+                                    <Button variant="outline" size="sm">Targeted practice →</Button>
+                                </Link>
+                            </div>
+                        )}
+                    </Card>
+                );
+            })()}
 
             {/* Recent sessions — completed history + anything still live. Booking
                 lifecycle states (scheduled/cancelled/expired) are surfaced in the
