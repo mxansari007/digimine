@@ -7,7 +7,7 @@
         },
         {
             "path": "/api/cron/ai-interview/reap",
-            "schedule": "*/15 * * * *"
+            "schedule": "0 4 * * *"
         }
     ]
 }
