@@ -16,12 +16,17 @@ const nextConfig = {
     // The build script (package.json) passes --stack-size=65536 so the
     // micromatch pattern-matching has enough stack for any remaining deep paths.
     experimental: {
+        // Set root to monorepo root so the tracer resolves symlinked packages.
+        outputFileTracingRoot: path.join(__dirname, '../../'),
+        // Exclude large native packages the admin never uses. ** matches
+        // absolute paths (the tracer doesn't use relative paths internally).
         outputFileTracingExcludes: {
             "*": [
-                "../../node_modules/onnxruntime-node/**",
-                "../../node_modules/onnxruntime-web/**",
-                "../../node_modules/@node-llama-cpp/**",
-                "../../node_modules/sharp/**",
+                "**/onnxruntime-node/**",
+                "**/onnxruntime-web/**",
+                "**/@node-llama-cpp/**",
+                "**/kokoro-js/**",
+                "**/sharp/build/**",
             ],
         },
     },
