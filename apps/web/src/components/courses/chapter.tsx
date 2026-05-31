@@ -12,29 +12,37 @@ import type { CourseNoteSubtopic } from "@digimine/types";
  */
 export function chapterSlug(ch: { id?: string; title?: string }): string {
     if (ch.id && ch.id.startsWith("ch-")) return ch.id.slice(3);
-    return (ch.title || "")
+    return slugify(ch.title || "");
+}
+
+/**
+ * URL slug for a subtopic — slugified title (subtopic ids are opaque like
+ * `<chapterId>-st3`, which makes ugly URLs). Curated course outlines don't have
+ * duplicate subtopic titles within a chapter, so this stays unique per chapter.
+ */
+export function subtopicSlug(s: { id?: string; title?: string }): string {
+    return slugify(s.title || "") || (s.id || "");
+}
+
+function slugify(value: string): string {
+    return value
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
 }
 
 /**
- * Full rendering for a single subtopic: rich-text notes, diagram images and
- * embedded videos. Shared by the chapter reader page.
+ * The body of a single subtopic — rich-text notes, diagram images and embedded
+ * videos, WITHOUT a header. Used standalone on the subtopic page (which renders
+ * its own page-level heading).
  */
-export function CourseSubtopic({ subtopic, index }: { subtopic: CourseNoteSubtopic; index: number }) {
+export function SubtopicBody({ subtopic }: { subtopic: CourseNoteSubtopic }) {
     return (
-        <article className="scroll-mt-24 border-t border-slate-100 py-8 first:border-t-0 first:pt-0" id={subtopic.id}>
-            <div className="mb-5">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Subtopic {index + 1}</p>
-                <h3 className="mt-1 text-2xl font-black text-slate-950">{subtopic.title}</h3>
-                {subtopic.summary && <p className="mt-1 text-sm text-slate-500">{subtopic.summary}</p>}
-            </div>
-
+        <>
             {subtopic.contentHtml && <FormattedContent html={subtopic.contentHtml} size="base" className="text-slate-700" />}
 
             {(subtopic.imageUrls || []).length > 0 && (
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
                     {subtopic.imageUrls.map((url, imageIndex) => (
                         <a
                             key={`${url}-${imageIndex}`}
@@ -51,7 +59,7 @@ export function CourseSubtopic({ subtopic, index }: { subtopic: CourseNoteSubtop
             )}
 
             {(subtopic.videos || []).length > 0 && (
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className="mt-6 grid gap-4 lg:grid-cols-2">
                     {subtopic.videos.map((video) => (
                         <div key={video.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-[#020617] shadow-sm">
                             <div className="aspect-video">
@@ -70,6 +78,6 @@ export function CourseSubtopic({ subtopic, index }: { subtopic: CourseNoteSubtop
                     ))}
                 </div>
             )}
-        </article>
+        </>
     );
 }
