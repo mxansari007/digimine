@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { Button, FormattedContent } from "@digimine/ui";
+import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { getCourseBySlug, getCourseEnrollment } from "@/lib/firestore/courses";
 import { getTestSeriesBySlug } from "@/lib/firestore/tests";
