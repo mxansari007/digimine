@@ -296,6 +296,47 @@ const formattedContentCss = `
     border-top: 1px solid #e5e7eb;
     margin: 1rem 0;
 }
+
+/* ── Dark mode (Tokyo Night) ──────────────────────────────────────────────
+   The web app toggles a .dark class on <html>; admin has no dark mode so these
+   rules stay inert there. Tokens (--foreground / --surface / --border-token /
+   --c-slate-*) are defined in the web app's globals. Without this block, the
+   hardcoded light colours above (headings, blockquotes, tables, code, media
+   cards) render dark-on-dark or glare on the dark article surface. */
+.dark .formatted-content h1,
+.dark .formatted-content h2,
+.dark .formatted-content h3 { color: rgb(var(--foreground)); }
+.dark .formatted-content blockquote {
+    border-left-color: rgb(129 140 248 / 0.85);
+    background: rgb(99 102 241 / 0.14);
+    color: rgb(var(--c-slate-700));
+}
+.dark .formatted-content code {
+    background: rgb(129 140 248 / 0.16);
+    color: rgb(199 210 254);
+}
+.dark .formatted-content th,
+.dark .formatted-content td { border-color: rgb(var(--border-token)); }
+.dark .formatted-content th {
+    background: rgb(var(--surface-muted));
+    color: rgb(var(--foreground));
+}
+.dark .formatted-content a { color: rgb(129 140 248); }
+.dark .formatted-content figure.media-card {
+    border-color: rgb(var(--border-token));
+    background: rgb(var(--surface));
+    box-shadow: none;
+}
+.dark .formatted-content figure.media-card figcaption {
+    background: rgb(var(--surface-muted));
+    border-top-color: rgb(var(--border-token));
+    color: rgb(var(--muted-foreground));
+}
+.dark .formatted-content mark {
+    background: rgb(245 158 11 / 0.28);
+    color: rgb(var(--foreground));
+}
+.dark .formatted-content hr { border-top-color: rgb(var(--border-token)); }
 `;
 
 export function FormattedContent({
