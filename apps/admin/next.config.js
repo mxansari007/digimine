@@ -16,17 +16,21 @@ const nextConfig = {
     // The build script (package.json) passes --stack-size=65536 so the
     // micromatch pattern-matching has enough stack for any remaining deep paths.
     experimental: {
-        // Set root to monorepo root so the tracer resolves symlinked packages.
+        // Root at the monorepo root so the tracer resolves the symlinked
+        // next/dist runtime files into each lambda (fixes "Cannot find module
+        // next/dist/..." 500s on the dynamic edit routes).
         outputFileTracingRoot: path.join(__dirname, '../../'),
-        // Exclude large native packages the admin never uses. ** matches
-        // absolute paths (the tracer doesn't use relative paths internally).
+        // Belt-and-suspenders: drop heavy native packages from the trace output.
+        // The primary defence is scripts/prune-admin-trace.js (run in the build
+        // script), which deletes these from the pnpm store BEFORE tracing so the
+        // nft walk can't OOM the 8 GB Vercel build machine on them.
         outputFileTracingExcludes: {
             "*": [
                 "**/onnxruntime-node/**",
                 "**/onnxruntime-web/**",
-                "**/@node-llama-cpp/**",
                 "**/kokoro-js/**",
-                "**/sharp/build/**",
+                "**/sharp/**",
+                "**/@img/**",
             ],
         },
     },
