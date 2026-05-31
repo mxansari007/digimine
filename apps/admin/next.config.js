@@ -8,15 +8,10 @@ const WEB_API_URL =
 
 const nextConfig = {
     reactStrictMode: true,
-    // The file-trace walk crawls all monorepo node_modules including
-    // onnxruntime-node (405 MB of native binaries) through micromatch,
-    // which recurses until V8 stack-overflows — outputFileTracingExcludes
-    // does not help because the overflow is in micromatch's own pattern
-    // compilation during the walk. Keep tracing OFF.
-    // The runtime "Cannot find module 'undici'" is fixed separately by
-    // aliasing undici to a stub on both client and server (see webpack below)
-    // so webpack bundles the stub instead of externalizing the real undici.
-    outputFileTracing: false,
+    // outputFileTracing must be ON so Vercel includes next/dist/... runtime
+    // files in the lambda bundle. The build script uses node --stack-size=65536
+    // to prevent the micromatch stack-overflow caused by onnxruntime-node's
+    // 405 MB of deeply-nested native files in the monorepo node_modules.
     transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         domains: ["firebasestorage.googleapis.com"],

@@ -41,6 +41,7 @@ export default function EditTestSeriesPage() {
     });
 
     useEffect(() => {
+        if (!seriesId) return;
         loadSeries();
     }, [seriesId]);
 

@@ -32,6 +32,7 @@ export default function EditCoursePage() {
             }
         }
 
+        if (!courseId) return;
         loadCourse();
     }, [courseId, router]);
 
