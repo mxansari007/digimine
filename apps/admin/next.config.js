@@ -8,20 +8,15 @@ const WEB_API_URL =
 
 const nextConfig = {
     reactStrictMode: true,
-    // onnxruntime-node (405 MB of native binaries, a web-app dep) is excluded
-    // from tracing so it doesn't trigger the micromatch stack-overflow that
-    // previously forced outputFileTracing:false. Dynamic admin routes like
-    // /courses/[id]/edit need tracing ON so Vercel bundles the modules they
-    // import at runtime; without it they throw "Cannot find module" 500s.
-    experimental: {
-        serverComponentsExternalPackages: ["undici"],
-        outputFileTracingExcludes: {
-            "*": [
-                "./node_modules/onnxruntime-node/**",
-                "../../node_modules/onnxruntime-node/**",
-            ],
-        },
-    },
+    // The file-trace walk crawls all monorepo node_modules including
+    // onnxruntime-node (405 MB of native binaries) through micromatch,
+    // which recurses until V8 stack-overflows — outputFileTracingExcludes
+    // does not help because the overflow is in micromatch's own pattern
+    // compilation during the walk. Keep tracing OFF.
+    // The runtime "Cannot find module 'undici'" is fixed separately by
+    // aliasing undici to a stub on both client and server (see webpack below)
+    // so webpack bundles the stub instead of externalizing the real undici.
+    outputFileTracing: false,
     transpilePackages: ["@digimine/ui", "@digimine/shared", "@digimine/config", "@digimine/utils"],
     images: {
         domains: ["firebasestorage.googleapis.com"],
@@ -41,39 +36,20 @@ const nextConfig = {
         ];
     },
     webpack: (config, { isServer }) => {
-        // Fix for Firebase/undici compatibility with Next.js 14
         if (!isServer) {
-            // CLIENT-SIDE CONFIGURATION
-
             config.resolve.fallback = {
                 ...config.resolve.fallback,
-                fs: false,
-                net: false,
-                tls: false,
-                dns: false,
-                child_process: false,
-                undici: false,
+                fs: false, net: false, tls: false, dns: false, child_process: false,
             };
-
-            // Alias undici to a mock file to prevent parsing errors
-            config.resolve.alias['undici'] = path.join(__dirname, 'src/mocks/undici.js');
-
-            // Force usage of browser-compatible builds for Firebase to avoid pulling in Node deps
-            // Force usage of browser-compatible builds for Firebase to avoid pulling in Node deps
-            // try {
-            //     const authPkg = require.resolve('@firebase/auth/package.json');
-            //     const authDir = path.dirname(authPkg);
-            //     config.resolve.alias['@firebase/auth'] = path.join(authDir, 'dist/esm2017/index.js');
-            // } catch (e) {
-            //     console.warn('Could not resolve @firebase/auth browser path, fallback to default resolution');
-            // }
-        } else {
-            // SERVER-SIDE CONFIGURATION
-
-            // Mark undici as external so Webpack doesn't try to parse it (and fail on private class fields)
-            // It will be required at runtime by Node.js, which handles it fine.
-            config.externals = [...(config.externals || []), 'undici'];
         }
+        // Alias undici to a no-op stub on BOTH client and server.
+        // Client: avoids pulling in Node.js-only internals into the browser bundle.
+        // Server: with outputFileTracing:false the real undici file is not copied into
+        // the Vercel function bundle, so externalising it caused "Cannot find module
+        // 'undici'" at runtime on every SSR'd dynamic route. Stubbing it out means
+        // webpack bundles the stub (empty object) instead, which is fine because the
+        // admin app never calls undici APIs directly.
+        config.resolve.alias['undici'] = path.join(__dirname, 'src/mocks/undici.js');
 
         return config;
     },
