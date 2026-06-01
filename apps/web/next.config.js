@@ -65,9 +65,23 @@ const nextConfig = {
         } else {
             // SERVER-SIDE CONFIGURATION
 
-            // Mark undici as external so Webpack doesn't try to parse it (and fail on private class fields)
-            // It will be required at runtime by Node.js, which handles it fine.
-            config.externals = [...(config.externals || []), 'undici'];
+            // Alias undici to a no-op mock on the server too (the client already
+            // does this above). undici is only pulled in transitively by
+            // Firebase's Node transport and is never actually invoked during SSR
+            // or route handling: Firestore Admin reads use gRPC, and app fetch()
+            // uses Node's native global fetch — not the undici PACKAGE.
+            //
+            // Why not externalise it (the previous approach)? Externalising made
+            // Next's file-tracer responsible for copying undici into every
+            // serverless function, and it inconsistently omitted it from the
+            // course/article page-route lambdas — which then crashed at load with
+            // "Cannot find module 'undici'" (a 500 on every direct load / SSR).
+            // Webpack also can't bundle the real undici (private-field parse
+            // error). The mock is trivial, always bundled, and never missing.
+            config.resolve.alias = {
+                ...(config.resolve.alias || {}),
+                undici: path.join(__dirname, 'src/mocks/undici.js'),
+            };
         }
 
         return config;
@@ -76,7 +90,6 @@ const nextConfig = {
         // Server-side Kokoro TTS: keep these as runtime requires (real native
         // onnxruntime-node, transformers.js, kokoro-js) instead of bundling.
         serverComponentsExternalPackages: [
-            "undici",
             "sharp",
             "onnxruntime-node",
             "@huggingface/transformers",
