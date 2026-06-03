@@ -18,6 +18,28 @@ function getTestCreatedTime(test: Test): number {
     return test.createdAt instanceof Date ? test.createdAt.getTime() : 0;
 }
 
+/**
+ * Effective publish date: the release date (`availableFrom`) if set,
+ * otherwise fall back to when the test was created.
+ */
+function getTestPublishTime(test: Test): number {
+    const value: unknown = test.availableFrom;
+    let date: Date | null = null;
+    if (value instanceof Date) date = value;
+    else if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate: () => Date }).toDate === "function"
+    ) {
+        date = (value as { toDate: () => Date }).toDate();
+    } else if (typeof value === "string" || typeof value === "number") {
+        date = new Date(value);
+    }
+    if (date && !Number.isNaN(date.getTime())) return date.getTime();
+    return getTestCreatedTime(test);
+}
+
 function getAvailableFromInfo(value: unknown): { label: string; future: boolean } | null {
     if (!value) return null;
     let date: Date;
@@ -43,10 +65,10 @@ function getAvailableFromInfo(value: unknown): { label: string; future: boolean 
     return { label, future: date.getTime() > Date.now() };
 }
 
-function sortTestsByLatest(tests: Test[]): Test[] {
+function sortTestsByPublishDate(tests: Test[]): Test[] {
     return [...tests].sort((a, b) => {
-        const latestDiff = getTestCreatedTime(b) - getTestCreatedTime(a);
-        return latestDiff || a.order - b.order;
+        const publishDiff = getTestPublishTime(a) - getTestPublishTime(b);
+        return publishDiff || a.order - b.order;
     });
 }
 
@@ -71,7 +93,7 @@ export default function SeriesTestsPage() {
                 getTestsInSeries(seriesId),
             ]);
             setSeries(seriesData);
-            setTests(sortTestsByLatest(testsData));
+            setTests(sortTestsByPublishDate(testsData));
         } catch (error: any) {
             console.error("Error loading tests:", error);
             alert("Error loading tests");
