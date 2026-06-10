@@ -10,28 +10,58 @@
  *
  * Resolution path:
  *   1. Look up the user's role.
- *   2. For role=teacher, read teachers/{uid}.subscription.planCode
+ *   2. LAUNCH MODE: if the paywall is off
+ *      (`appConfig/subscription.enforced == false`) grant ALL teaching
+ *      features + unlimited limits + uncapped AI — mirroring how the
+ *      student entitlements layer opens up in launch mode. (Whether AI
+ *      actually runs is still governed by the separate global AI provider
+ *      switch + API key — launch mode lifts the PER-PLAN gate, not the
+ *      operational kill-switch.)
+ *   3. For role=teacher, read teachers/{uid}.subscription.planCode
  *      (also accepts subscription.planId for legacy).
- *   3. For role=institute_admin, find the institute they admin
+ *   4. For role=institute_admin, find the institute they admin
  *      and read institutes/{id}.subscription.planCode / .planId.
- *   4. Look up subscriptionPlans where code == planCode AND
+ *   5. Look up subscriptionPlans where code == planCode AND
  *      roleScope == <user's role scope>. If found and active,
- *      return the plan's teachingFeatures map.
- *   5. Otherwise return {} (all locked).
+ *      return the plan's teachingFeatures map + teachingLimits.
+ *   6. Otherwise fall back to the role scope's FREE plan
+ *      (isFree == true, matching roleScope, active) so the limits
+ *      the admin authored still govern access even when the user's
+ *      planCode is missing, stale, or points at a deleted plan.
+ *   7. Only when no free plan exists for the scope at all do we
+ *      fail open (features locked, limits unlimited) — that keeps
+ *      a fresh, un-seeded environment from blocking everyone.
  *
- * This means: ANY teaching-side gate is locked until (a) the
- * admin creates a plan in /admin/subscription with the right
- * code + ticks the feature, AND (b) the user has that plan
- * recorded on their account. This is intentional — it makes the
- * gate operationally explicit rather than fail-open.
+ * This means: once the paywall is ENFORCED, any teaching-side gate is
+ * locked until (a) the admin creates a plan in /admin/subscription with
+ * the right code + ticks the feature, AND (b) the user has that plan
+ * recorded on their account. This is intentional — it makes the gate
+ * operationally explicit rather than fail-open.
  */
 import { adminDb } from "@/lib/firebase/admin";
 import {
+    TEACHING_FEATURES,
     UNLIMITED_TEACHING_LIMITS,
     type TeachingFeature,
     type TeachingFeatureMap,
     type TeachingLimits,
+    type UserEntitlementOverride,
 } from "@digimine/types";
+import { getGlobalConfig } from "./entitlements";
+import { getUserEntitlementOverride } from "./userOverrides";
+
+/**
+ * Every teaching feature ON — the launch-mode (paywall-off) grant. Mirrors
+ * how the student entitlements layer hands out all features when
+ * `appConfig/subscription.enforced` is false.
+ */
+const ALL_TEACHING_FEATURES_ON: TeachingFeatureMap = TEACHING_FEATURES.reduce(
+    (acc, f) => {
+        acc[f.key] = true;
+        return acc;
+    },
+    {} as TeachingFeatureMap
+);
 
 /**
  * Read a TeachingLimits map off a raw plan doc. Missing or non-numeric
@@ -52,6 +82,29 @@ function readTeachingLimits(raw: any): TeachingLimits {
         maxCourses: num("maxCourses"),
         maxQuestions: num("maxQuestions"),
         pistonConcurrency: num("pistonConcurrency"),
+    };
+}
+
+/**
+ * Layer a per-user admin override on top of the plan-resolved teaching
+ * entitlements. Only the keys the admin set win — so a grant can unlock a
+ * teaching feature / raise a limit / lift the AI cap the plan doesn't give,
+ * for this user only. `aiQuestionsPerDay` is overridden only when the admin
+ * explicitly set it (including to null = unlimited or 0 = disabled).
+ */
+function applyTeachingOverride(
+    base: ResolvedTeachingPlan,
+    override: UserEntitlementOverride | null
+): ResolvedTeachingPlan {
+    if (!override) return base;
+    return {
+        ...base,
+        teachingFeatures: { ...base.teachingFeatures, ...(override.teachingFeatures || {}) },
+        teachingLimits: { ...base.teachingLimits, ...(override.teachingLimits || {}) },
+        aiQuestionsPerDay:
+            override.aiQuestionsPerDay !== undefined
+                ? override.aiQuestionsPerDay
+                : base.aiQuestionsPerDay,
     };
 }
 
@@ -82,7 +135,13 @@ export type TeachingEntitlements =
 function readPlanCodeFromSubscription(sub: any): string | null {
     if (!sub || typeof sub !== "object") return null;
     if (typeof sub.planCode === "string" && sub.planCode) return sub.planCode;
-    if (typeof sub.planId === "string" && sub.planId) return sub.planId;
+    // "institute_seat" (written by the claim flow) is a seat MARKER, not a
+    // plan code — it exists in no plan doc. Treating it as a personal plan
+    // code blocked the institute-inheritance branch below, locking seat
+    // teachers out of the features/limits their institute pays for.
+    if (typeof sub.planId === "string" && sub.planId && sub.planId !== "institute_seat") {
+        return sub.planId;
+    }
     return null;
 }
 
@@ -138,25 +197,92 @@ async function resolveScopeForUser(
     return null;
 }
 
+/**
+ * Resolve the FREE plan for a role scope. Used as the fallback when the
+ * user's subscription has no planCode, or the planCode no longer matches
+ * any active plan — so admin-authored free-tier limits still apply instead
+ * of silently granting unlimited access. Returns null when the admin has
+ * not created a free plan for the scope (fresh environment).
+ */
+async function findFreePlanForScope(
+    scope: TeachingPlanScope
+): Promise<ResolvedTeachingPlan | null> {
+    const snap = await adminDb
+        .collection("subscriptionPlans")
+        .where("isFree", "==", true)
+        .get();
+    const matches = snap.docs.filter((d) => {
+        const data = d.data() || {};
+        const rs = data.roleScope === "teacher" || data.roleScope === "institute"
+            ? data.roleScope
+            : "student";
+        return rs === scope && data.isActive !== false;
+    });
+    if (matches.length === 0) return null;
+    matches.sort((a, b) => (a.data()?.sortOrder ?? 0) - (b.data()?.sortOrder ?? 0));
+    const doc = matches[0];
+    const data = doc.data() || {};
+    return {
+        scope,
+        planCode: typeof data.code === "string" ? data.code : null,
+        planId: doc.id,
+        planName: typeof data.name === "string" ? data.name : null,
+        teachingFeatures: (data.teachingFeatures as TeachingFeatureMap) || {},
+        teachingLimits: readTeachingLimits(data.teachingLimits),
+        aiQuestionsPerDay:
+            typeof data.aiQuestionsPerDay === "number" ? data.aiQuestionsPerDay : 0,
+    };
+}
+
 export async function getTeachingEntitlements(
     userId: string
 ): Promise<TeachingEntitlements> {
     const scoped = await resolveScopeForUser(userId);
     if (!scoped) return { ok: false, reason: "not_teaching_role" };
 
+    // Read the per-user override once and apply it to whichever base the
+    // resolution below settles on (plan match, free fallback, launch mode…).
+    const override = await getUserEntitlementOverride(userId);
+    const wrap = (resolved: ResolvedTeachingPlan): TeachingEntitlements => ({
+        ok: true,
+        resolved: applyTeachingOverride(resolved, override),
+    });
+
+    // Launch mode: paywall off → grant everything, exactly like the student
+    // entitlements layer does. This is the missing link teachers hit when the
+    // admin flips "launch mode" on expecting AI generation (and the rest) to
+    // open up but it stayed plan-gated. The global AI provider switch + API
+    // key are still required for AI to actually run (that's the operational
+    // kill-switch, separate from the per-plan grant). Reads the SAME config
+    // the student layer reads, so the two can never disagree on launch mode.
+    const config = await getGlobalConfig();
+    if (!config.enforced) {
+        return wrap({
+            scope: scoped.scope,
+            planCode: scoped.planCode,
+            planId: null,
+            planName: null,
+            teachingFeatures: { ...ALL_TEACHING_FEATURES_ON },
+            teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiQuestionsPerDay: null,
+        });
+    }
+
     if (!scoped.planCode) {
-        return {
-            ok: true,
-            resolved: {
-                scope: scoped.scope,
-                planCode: null,
-                planId: null,
-                planName: null,
-                teachingFeatures: {},
-                teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
-                aiQuestionsPerDay: 0,
-            },
-        };
+        // No plan recorded — give the admin-authored free tier for this
+        // scope so its limits govern access; unlimited only when no free
+        // plan exists (un-seeded environment).
+        const free = await findFreePlanForScope(scoped.scope);
+        if (free) return wrap(free);
+        return wrap({
+            scope: scoped.scope,
+            planCode: null,
+            planId: null,
+            planName: null,
+            teachingFeatures: {},
+            teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiQuestionsPerDay: 0,
+        });
     }
 
     // Match subscriptionPlans by code + roleScope. Existing plans
@@ -176,35 +302,33 @@ export async function getTeachingEntitlements(
         return rs === scoped.scope && data.isActive !== false;
     });
     if (!match) {
-        return {
-            ok: true,
-            resolved: {
-                scope: scoped.scope,
-                planCode: scoped.planCode,
-                planId: null,
-                planName: null,
-                teachingFeatures: {},
-                teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
-                aiQuestionsPerDay: 0,
-            },
-        };
-    }
-    const data = match.data() || {};
-    return {
-        ok: true,
-        resolved: {
+        // The subscription points at a plan code that no longer exists (or
+        // was deactivated / re-scoped). Fall back to the scope's free plan
+        // so the admin's authored limits still apply, instead of silently
+        // granting unlimited access on a stale code.
+        const free = await findFreePlanForScope(scoped.scope);
+        if (free) return wrap(free);
+        return wrap({
             scope: scoped.scope,
             planCode: scoped.planCode,
-            planId: match.id,
-            planName: typeof data.name === "string" ? data.name : null,
-            teachingFeatures: (data.teachingFeatures as TeachingFeatureMap) || {},
-            teachingLimits: readTeachingLimits(data.teachingLimits),
-            aiQuestionsPerDay:
-                typeof data.aiQuestionsPerDay === "number"
-                    ? data.aiQuestionsPerDay
-                    : null,
-        },
-    };
+            planId: null,
+            planName: null,
+            teachingFeatures: {},
+            teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiQuestionsPerDay: 0,
+        });
+    }
+    const data = match.data() || {};
+    return wrap({
+        scope: scoped.scope,
+        planCode: scoped.planCode,
+        planId: match.id,
+        planName: typeof data.name === "string" ? data.name : null,
+        teachingFeatures: (data.teachingFeatures as TeachingFeatureMap) || {},
+        teachingLimits: readTeachingLimits(data.teachingLimits),
+        aiQuestionsPerDay:
+            typeof data.aiQuestionsPerDay === "number" ? data.aiQuestionsPerDay : null,
+    });
 }
 
 export function hasTeachingFeature(

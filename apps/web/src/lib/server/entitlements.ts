@@ -21,6 +21,7 @@ import {
     type UserSubscription,
 } from "@digimine/types";
 import { adminDb } from "@/lib/firebase/admin";
+import { getUserEntitlementOverride } from "@/lib/server/userOverrides";
 
 const CONFIG_DOC = adminDb.collection("appConfig").doc("subscription");
 
@@ -90,14 +91,30 @@ export async function getEntitlements(userId: string | null): Promise<ResolvedEn
     // In launch mode no further plan resolution is needed — `features` /
     // `quotas` come from the all-access defaults, but we still pass the sub
     // + paid plan so `isPaid` reflects reality.
+    let resolved: ResolvedEntitlements;
     if (!config.enforced) {
-        return resolveEntitlements(config, null, sub, paidPlan);
+        resolved = resolveEntitlements(config, null, sub, paidPlan);
+    } else {
+        const active = sub && isPlanActive(sub);
+        const planCode = active ? sub!.planCode : config.freePlanCode;
+        const plan = await getPlanByCode(planCode);
+        resolved = resolveEntitlements(config, plan, active ? sub : null, paidPlan);
     }
 
-    const active = sub && isPlanActive(sub);
-    const planCode = active ? sub!.planCode : config.freePlanCode;
-    const plan = await getPlanByCode(planCode);
-    return resolveEntitlements(config, plan, active ? sub : null, paidPlan);
+    // Layer the per-user admin override on top — only the keys the admin set
+    // win, so a grant can unlock a feature/quota the plan doesn't include
+    // (or revoke one it does), for this user only.
+    if (userId) {
+        const override = await getUserEntitlementOverride(userId);
+        if (override) {
+            resolved = {
+                ...resolved,
+                features: { ...resolved.features, ...(override.features || {}) },
+                quotas: { ...resolved.quotas, ...(override.quotas || {}) },
+            };
+        }
+    }
+    return resolved;
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -271,7 +271,20 @@ export interface AppSubscriptionPlan {
     aiQuestionsPerDay: number | null;
     /** The single free tier everyone falls back to. Exactly one should be true. */
     isFree: boolean;
+    /**
+     * `false` fully retires the plan — it disappears from pricing pages AND
+     * the teaching resolver stops matching it (subscribers drop to the free
+     * tier). Use this only when sunsetting a plan and migrating its users.
+     */
     isActive: boolean;
+    /**
+     * Controls PUBLIC visibility independently of `isActive`. When `false`,
+     * the plan is hidden from the public pricing pages (no new signups can
+     * pick it) but it still resolves normally for users already on it — so
+     * an admin can hide a legacy plan and grandfather its current subscribers
+     * while steering new users to replacement plans. Defaults to `true`.
+     */
+    isPublic: boolean;
     recommended: boolean;
     badge: string | null;
     sortOrder: number;
@@ -524,6 +537,52 @@ export function resolveEntitlements(
         isPaid,
         paidPlanCode,
     };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Per-user entitlement overrides (admin grants)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * An admin-authored, per-user override that is layered ON TOP of whatever
+ * the user's subscription plan resolves to — so an admin can grant (or
+ * revoke) any individual capability for a specific user, bypassing the
+ * plan entirely. Stored at `userEntitlementOverrides/{uid}`.
+ *
+ * Every field is OPTIONAL and sparse: only the keys present win over the
+ * plan; absent keys inherit the plan as normal. A feature set to `true`
+ * grants it; `false` revokes it; omitted leaves it to the plan.
+ */
+export interface UserEntitlementOverride {
+    userId: string;
+    /** Student capability overrides (EntitlementFeature → grant/deny). */
+    features?: EntitlementFeatureMap;
+    /** Student quota overrides (EntitlementQuota → number; -1 = unlimited). */
+    quotas?: EntitlementQuotaMap;
+    /** Teacher/institute capability overrides (TeachingFeature → grant/deny). */
+    teachingFeatures?: TeachingFeatureMap;
+    /** Teacher/institute numeric limit overrides (-1 = unlimited). */
+    teachingLimits?: Partial<TeachingLimits>;
+    /** Daily AI-question cap override. `null` = unlimited; `0` = disabled. */
+    aiQuestionsPerDay?: number | null;
+    /** Free-text admin note explaining why the grant exists. */
+    note?: string;
+    /** Optional expiry — after this the override is ignored. null = permanent. */
+    expiresAt?: Date | null;
+    /** Admin uid that last edited the override. */
+    grantedBy?: string;
+    updatedAt?: Date;
+}
+
+/** True when an override exists and hasn't expired. */
+export function isOverrideActive(
+    o: Pick<UserEntitlementOverride, "expiresAt"> | null | undefined,
+    now: number = Date.now()
+): boolean {
+    if (!o) return false;
+    if (!o.expiresAt) return true;
+    const exp = o.expiresAt instanceof Date ? o.expiresAt.getTime() : new Date(o.expiresAt).getTime();
+    return Number.isFinite(exp) ? exp > now : true;
 }
 
 export function isPlanActive(sub: Pick<UserSubscription, "status" | "expiresAt"> | null, now: number = Date.now()): boolean {

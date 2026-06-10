@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import {
     ENTITLEMENT_FEATURES,
+    ENTITLEMENT_QUOTAS,
     formatINR,
     type EntitlementFeature,
 } from "@digimine/types";
@@ -59,10 +60,23 @@ type Plan = {
     interval: string;
     roleScope?: string;
     features: Record<string, boolean>;
+    quotas?: Record<string, number>;
     isFree: boolean;
     recommended: boolean;
     badge: string | null;
 };
+
+// Code-level fallback for the daily-submission quota — only used when the
+// plan doc doesn't carry the field, so the table never shows a number the
+// backend wouldn't actually enforce.
+const SUBMISSIONS_FREE_DEFAULT =
+    ENTITLEMENT_QUOTAS.find((q) => q.key === "practiceSubmissionsPerDay")?.freeDefault ?? 20;
+
+/** -1 means unlimited; anything else renders as "N / day". */
+function formatDailySubmissions(value: number | undefined, fallback: number): string {
+    const n = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    return n < 0 ? "Unlimited" : `${n} / day`;
+}
 
 // ─── Marketing copy ──────────────────────────────────────────────────
 // Editing these is the fastest way to retune the page. Keep them in
@@ -801,9 +815,19 @@ export default function MembershipPage() {
                                             Daily code submissions
                                             <div className="text-xs text-slate-500">How many graded submits per day</div>
                                         </td>
-                                        <td className="px-5 py-3 text-center text-sm text-slate-600">20 / day</td>
+                                        {/* Read the quota off the actual plan docs so the table
+                                            always matches what the backend enforces. */}
+                                        <td className="px-5 py-3 text-center text-sm text-slate-600">
+                                            {formatDailySubmissions(
+                                                freePlan?.quotas?.practiceSubmissionsPerDay,
+                                                SUBMISSIONS_FREE_DEFAULT
+                                            )}
+                                        </td>
                                         <td className="px-5 py-3 text-center text-sm font-semibold text-primary-700">
-                                            Unlimited
+                                            {formatDailySubmissions(
+                                                benchmarkPremium.quotas?.practiceSubmissionsPerDay,
+                                                -1
+                                            )}
                                         </td>
                                     </tr>
                                     <tr className="bg-slate-50">

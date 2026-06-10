@@ -443,6 +443,7 @@ export default function SubscriptionManagerPage() {
                                             {p.isFree && <span className="chip-neutral text-[10px]">Free</span>}
                                             {p.recommended && <span className="chip-info text-[10px]">Recommended</span>}
                                             {!p.isActive && <span className="chip-warning text-[10px]">Inactive</span>}
+                                            {p.isActive && p.isPublic === false && <span className="chip-warning text-[10px]">Hidden</span>}
                                             {p.roleScope === "institute" && p.seatCap != null && (
                                                 <span className="chip-neutral text-[10px]">
                                                     {p.seatCap} seats
@@ -698,10 +699,18 @@ function PlanEditor({
                         plan&apos;s <span className="font-mono">Code</span> so the fallback resolves correctly.
                         You normally have exactly one free plan.
                     </InfoTip>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={draft.isPublic !== false} onChange={(e) => setDraft({ ...draft, isPublic: e.target.checked })} /> Listed publicly</label>
+                    <InfoTip label="Listed publicly">
+                        When ticked, the plan is offered on the public pricing / membership pages so new
+                        users can pick it. <strong>Untick to hide it</strong> from new signups while leaving
+                        every current subscriber on it untouched — the perfect way to sunset a plan: hide the
+                        old one, publish a new replacement, and existing users keep exactly what they have.
+                    </InfoTip>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={draft.isActive !== false} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} /> Active</label>
                     <InfoTip label="Active">
-                        Only active plans appear on the membership page. Untick to retire a plan without
-                        deleting it (existing subscribers keep what they bought).
+                        The hard kill-switch. Unticking fully retires the plan: it disappears from pricing
+                        pages AND teacher/institute subscribers on it drop to the free tier. To hide a plan
+                        without affecting current users, leave this ticked and untick <strong>Listed publicly</strong> instead.
                     </InfoTip>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(draft.recommended)} onChange={(e) => setDraft({ ...draft, recommended: e.target.checked })} /> Recommended</label>
                     <InfoTip label="Recommended">

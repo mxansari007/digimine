@@ -19,6 +19,7 @@
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { Sparkles, X, Check, Lock } from "lucide-react";
 import type { User as FirebaseUser } from "firebase/auth";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -374,19 +375,13 @@ function AiModal({
                                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     How many (1–{effectiveMax})
                                 </span>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     min={1}
                                     max={effectiveMax}
                                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                                     value={Math.min(count, effectiveMax)}
-                                    onChange={(e) =>
-                                        setCount(
-                                            Math.min(
-                                                effectiveMax,
-                                                Math.max(1, Number(e.target.value) || 1)
-                                            )
-                                        )
+                                    onValueChange={(v) =>
+                                        setCount(Math.min(effectiveMax, Math.max(1, v ?? 1)))
                                     }
                                 />
                                 {dailyQuota.cap !== null && (

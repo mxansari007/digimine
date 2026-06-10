@@ -19,12 +19,28 @@ export type TeacherSubscriptionStatus =
     | "free" | "trial";
 
 export interface TeacherSubscription {
+    /**
+     * Legacy identifier. Writers now mirror `planCode` into this field —
+     * both must be a `code` that exists in the `subscriptionPlans`
+     * collection (the entitlements resolver reads planCode first and
+     * falls back to planId for older docs).
+     */
     planId: string;
+    /**
+     * Stable plan code matching `subscriptionPlans.code`. Primary key the
+     * teachingEntitlements resolver and pricing-page "Current plan" pill
+     * use to connect this subscription to an admin-authored plan.
+     */
+    planCode?: string;
     status: TeacherSubscriptionStatus;
     startedAt: Date;
     expiresAt: Date;
     gracePeriodEndsAt: Date | null;
     autoRenew: boolean;
+    /** Billing cadence chosen at purchase/switch. */
+    cadence?: "monthly" | "annual";
+    /** Snapshot of the plan's monthly price (INR) at grant time. */
+    planPrice?: number;
 }
 
 export interface TeacherUsage {

@@ -5,9 +5,9 @@
  * role scope. Used by the per-role pricing pages (/pricing/teacher,
  * /pricing/institute) and by the student membership page.
  *
- * Only returns plans where `isActive !== false`. The "isFree" plan
- * for each role is always included so the page can render the
- * "Free baseline" tier.
+ * Only returns plans that are publicly listed: `isActive !== false` AND
+ * `isPublic !== false`. Hidden plans (isPublic === false) still resolve
+ * for users already on them — they're just not offered to new signups.
  */
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
@@ -53,6 +53,7 @@ export async function GET(req: Request) {
                             : null,
                     isFree: Boolean(data.isFree),
                     isActive: data.isActive !== false,
+                    isPublic: data.isPublic !== false,
                     recommended: Boolean(data.recommended),
                     badge: data.badge ?? null,
                     sortOrder: data.sortOrder ?? 0,
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
                         data.quotas && typeof data.quotas === "object" ? data.quotas : {},
                 };
             })
-            .filter((p) => p.isActive)
+            .filter((p) => p.isActive && p.isPublic)
             .filter((p) => {
                 if (!roleScope) return true;
                 if (!ALLOWED_SCOPES.has(roleScope)) return false;

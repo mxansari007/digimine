@@ -14,6 +14,9 @@ export async function GET() {
         ]);
 
         const plans = plansSnap.docs
+            // Hidden plans (isPublic === false) still resolve for current
+            // subscribers but are not offered publicly.
+            .filter((d) => (d.data() || {}).isPublic !== false)
             .map((d) => {
                 const r = d.data() || {};
                 return {

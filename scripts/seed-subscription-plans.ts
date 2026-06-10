@@ -1,24 +1,30 @@
 /**
- * Seed script for subscription plans.
+ * DEPRECATED — do not run.
  *
- *   Run: npx ts-node scripts/seed-subscription-plans.ts
- *   Or:  node --loader ts-node/esm scripts/seed-subscription-plans.ts
+ * This script seeds the LEGACY `subscription_plans` (snake_case) collection,
+ * which NOTHING in the codebase reads anymore:
+ *   - checkPlanLimits.ts now resolves limits via getTeachingEntitlements,
+ *     which reads the camelCase `subscriptionPlans` collection.
+ *   - The teacher usage page reads /api/me/teaching-features (same resolver).
  *
- * This seeds the LEGACY `subscription_plans` (snake_case) collection. This
- * collection is the source of truth for:
- *   - apps/web/src/lib/middleware/checkPlanLimits.ts (server-side caps)
- *   - apps/web/src/app/(teacher)/teacher/usage/page.tsx (teacher usage UI)
+ * Plans authored here would be invisible to every pricing page, resolver,
+ * and limit check — a silent disconnect between "plans created" and "what
+ * users can access". Author plans in the admin app (/subscription) or run
+ * scripts/seed-plans.ts, both of which target `subscriptionPlans`.
  *
- * **Bootstrap-only.** Once seeded, admins manage these rows from the admin
- * app at `/plan-limits` — and those edits will overwrite seed values. Do
- * NOT re-run this seed against an environment where admins have already
- * tuned the limits without coordinating, or you'll wipe their changes.
- *
- * The newer camelCase `subscriptionPlans` collection used by the pricing
- * pages + entitlements code is seeded separately in
- * scripts/seed-teacher-plans.ts.
+ * The script now exits immediately to make running it harmless. Delete the
+ * file (and the orphaned `subscription_plans` collection in Firestore) once
+ * you're confident nothing external depends on it.
  */
 
+console.error(
+    "[seed-subscription-plans] DEPRECATED: this seeds the orphaned snake_case " +
+        "`subscription_plans` collection that no code reads. Use scripts/seed-plans.ts " +
+        "(camelCase `subscriptionPlans`) or the admin app instead. Exiting without writing."
+);
+process.exit(1);
+
+// eslint-disable-next-line no-unreachable
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 

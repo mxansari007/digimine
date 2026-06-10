@@ -13,9 +13,11 @@ import {
 } from "@digimine/ui";
 import { authedFetch } from "@/lib/api";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { UserAccessModal } from "@/components/users/UserAccessModal";
 
 export default function UsersPage() {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [accessUser, setAccessUser] = useState<User | null>(null);
     const { isSuperAdmin } = useAdminAuth();
 
     // Server-paginated: each page fetch hits /api/admin/users?page=&pageSize=
@@ -106,13 +108,18 @@ export default function UsersPage() {
         },
     ];
 
-    if (isSuperAdmin) {
-        columns.push({
-            key: "actions",
-            header: "",
-            className: "text-right",
-            render: (user) => (
-                user.role !== "super_admin" && user.email !== "mxansari007@gmail.com" ? (
+    columns.push({
+        key: "actions",
+        header: "",
+        className: "text-right",
+        render: (user) => (
+            <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAccessUser(user)}>
+                    Manage access
+                </Button>
+                {isSuperAdmin &&
+                user.role !== "super_admin" &&
+                user.email !== "mxansari007@gmail.com" ? (
                     <Button
                         variant={user.role === "admin" ? "outline" : "primary"}
                         size="sm"
@@ -121,10 +128,10 @@ export default function UsersPage() {
                     >
                         {user.role === "admin" ? "Demote" : "Promote"}
                     </Button>
-                ) : null
-            ),
-        });
-    }
+                ) : null}
+            </div>
+        ),
+    });
 
     return (
         <div className="space-y-6">
@@ -153,6 +160,10 @@ export default function UsersPage() {
                     />
                 }
             />
+
+            {accessUser && (
+                <UserAccessModal user={accessUser} onClose={() => setAccessUser(null)} />
+            )}
         </div>
     );
 }
