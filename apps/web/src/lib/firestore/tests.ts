@@ -1205,6 +1205,8 @@ export async function submitTestAttempt(
     answers: TestAnswerInput[];
     remainingTime: number;
     finalStatus?: "completed" | "timed_out";
+    /** Proctoring signals captured during the attempt (best-effort). */
+    integrity?: { tabSwitches?: number; autoSubmitted?: boolean };
   }
 ): Promise<TestAttempt> {
   const attemptRef = doc(testAttemptsCollection, attemptId);
@@ -1469,6 +1471,14 @@ export async function submitTestAttempt(
     sectionCutoffsPassed,
     updatedAt: now.toDate(),
     remainingTime: data.remainingTime,
+    ...(data.integrity
+      ? {
+          integrity: {
+            tabSwitches: Math.max(0, Math.floor(Number(data.integrity.tabSwitches) || 0)),
+            autoSubmitted: data.integrity.autoSubmitted === true,
+          },
+        }
+      : {}),
   };
 
   // Transactional commit: re-read at commit time and skip the write if a

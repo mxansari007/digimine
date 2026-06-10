@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { callerCanReadAttempt } from "@/lib/server/attemptAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -139,7 +140,15 @@ export async function GET(req: Request) {
 
         const selectedAttemptData = selectedAttemptSnap.data() as Record<string, unknown>;
         const currentUserId = readString(selectedAttemptData, "userId");
-        const canRead = currentUserId === authUserId || await isAdminUser(authUserId);
+        // Owner, platform admin, or the teacher/institute that owns the quiz
+        // (teacher portal reviews student results through this endpoint).
+        const canRead =
+            currentUserId === authUserId ||
+            (await isAdminUser(authUserId)) ||
+            (await callerCanReadAttempt(authUserId, { userId: currentUserId }, {
+                collection: "quizzes",
+                id: readString(selectedAttemptData, "quizId"),
+            }));
         if (!canRead) {
             return NextResponse.json({ error: "You cannot view ranking for this attempt" }, { status: 403 });
         }

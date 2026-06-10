@@ -11,6 +11,7 @@ import {
     serializeAttempt,
     syncTimedOutAttempt,
 } from "@/lib/server/quizAttempts";
+import { callerCanReadAttempt } from "@/lib/server/attemptAccess";
 
 type SaveAnswer = {
     questionId: string;
@@ -54,10 +55,27 @@ async function requireOwnedAttempt(req: Request, attemptId: string) {
 
 export async function GET(req: Request, { params }: { params: { attemptId: string } }) {
     try {
-        const owned = await requireOwnedAttempt(req, params.attemptId);
-        if (owned.error) return owned.error;
+        // READS are wider than mutations: the attempt owner as before, plus
+        // the teacher who authored the quiz and admins of its institute —
+        // the teacher portal's student-result view is a non-owner read.
+        // PATCH and POST below stay strictly owner-only.
+        const userId = await getAuthenticatedUserId(req);
+        if (!userId) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+        const attempt = await getAttempt(params.attemptId);
+        if (!attempt) {
+            return NextResponse.json({ error: "Quiz attempt not found" }, { status: 404 });
+        }
+        const canRead = await callerCanReadAttempt(userId, attempt, {
+            collection: "quizzes",
+            id: attempt.quizId,
+        });
+        if (!canRead) {
+            return NextResponse.json({ error: "You do not own this quiz attempt" }, { status: 403 });
+        }
 
-        const synced = await syncTimedOutAttempt(owned.attempt!);
+        const synced = await syncTimedOutAttempt(attempt);
         const questions = await getRawQuestions(synced.quizId);
         return NextResponse.json(
             synced.status === "in_progress"

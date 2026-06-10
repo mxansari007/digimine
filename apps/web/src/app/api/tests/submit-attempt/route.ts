@@ -80,11 +80,22 @@ export async function POST(req: Request) {
                 : 0;
         const finalStatus =
             body.finalStatus === "timed_out" ? "timed_out" : "completed";
+        const integrity =
+            body.integrity && typeof body.integrity === "object"
+                ? {
+                      tabSwitches:
+                          typeof body.integrity.tabSwitches === "number"
+                              ? body.integrity.tabSwitches
+                              : 0,
+                      autoSubmitted: body.integrity.autoSubmitted === true,
+                  }
+                : undefined;
 
         const finalAttempt = await submitTestAttemptServer(attemptId, {
             answers,
             remainingTime,
             finalStatus,
+            integrity,
         });
 
         return NextResponse.json({ attempt: serializeTestAttempt(finalAttempt) });

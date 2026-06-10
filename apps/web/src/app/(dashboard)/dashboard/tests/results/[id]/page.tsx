@@ -634,9 +634,18 @@ export default function TestResultPage() {
                         )}
                     </div>
                 )}
-                {isTeacherPreview && submittedAt && (
-                    <div className="flex items-center justify-end">
-                        <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
+                {isTeacherPreview && (
+                    <div className="flex items-center justify-between">
+                        <Link
+                            href={`/teacher/content/tests/${encodeURIComponent(String((attempt as any)?.seriesId || ""))}/attempts`}
+                            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            Back to attempts
+                        </Link>
+                        {submittedAt && (
+                            <span className="text-xs text-gray-400 hidden sm:inline">Submitted {formatDateTime(submittedAt)}</span>
+                        )}
                     </div>
                 )}
 

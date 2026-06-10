@@ -123,6 +123,7 @@ export const teacherNav: AppSidebarNavItem[] = [
 
 export const instituteNav: AppSidebarNavItem[] = [
     { name: "Dashboard", href: "/institute/dashboard", icon: HomeIcon, exact: true },
+    { name: "Reports", href: "/institute/reports", icon: UsageIcon },
     { name: "Teachers", href: "/institute/teachers", icon: StudentsIcon },
     { name: "Students", href: "/institute/students", icon: StudentsIcon },
     { name: "Classes", href: "/institute/classes", icon: ClassroomIcon },

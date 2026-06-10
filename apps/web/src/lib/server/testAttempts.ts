@@ -222,6 +222,13 @@ export async function submitTestAttemptServer(
         answers: TestAnswerInput[];
         remainingTime: number;
         finalStatus?: "completed" | "timed_out";
+        /**
+         * Client-reported proctoring signals captured during the attempt.
+         * Best-effort by nature (a hostile client can lie), but persisted so
+         * teachers/TPOs can see tab-switch counts and auto-submit flags on
+         * the attempt record.
+         */
+        integrity?: { tabSwitches?: number; autoSubmitted?: boolean };
     }
 ): Promise<any> {
     const attemptRef = adminDb.collection("testAttempts").doc(attemptId);
@@ -445,6 +452,17 @@ export async function submitTestAttemptServer(
         sectionCutoffsPassed,
         updatedAt: now.toDate(),
         remainingTime: payload.remainingTime,
+        ...(payload.integrity
+            ? {
+                  integrity: {
+                      tabSwitches: Math.max(
+                          0,
+                          Math.floor(Number(payload.integrity.tabSwitches) || 0)
+                      ),
+                      autoSubmitted: payload.integrity.autoSubmitted === true,
+                  },
+              }
+            : {}),
     };
 
     const finalAttempt = await adminDb.runTransaction(async (tx) => {

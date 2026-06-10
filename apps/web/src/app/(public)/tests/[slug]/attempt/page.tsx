@@ -159,6 +159,13 @@ function applyTestSettings(questions: Question[], test: Test, attemptId: string)
     });
 }
 
+/**
+ * Proctoring: classroom (teacher/institute-assigned) attempts auto-submit
+ * once the student has left the test window this many times. Public
+ * catalogue practice has no auto-submit — the count is recorded either way.
+ */
+const MAX_TAB_SWITCHES = 10;
+
 export default function TestAttemptPage() {
     const params = useParams();
     const toast = useToast();
@@ -859,6 +866,12 @@ export default function TestAttemptPage() {
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
     const wasFocusedRef = useRef(true);
+    // Mirrors tabSwitchCount for code that runs outside React's render cycle
+    // (submit handlers, listeners registered once) so the persisted integrity
+    // record can never go stale.
+    const tabSwitchCountRef = useRef(0);
+    // True when the proctoring threshold (not the timer) forced the submit.
+    const autoSubmittedRef = useRef(false);
 
     useEffect(() => {
         if (!isStarted || submitting) return;
@@ -914,7 +927,8 @@ export default function TestAttemptPage() {
             if (wasFocusedRef.current) {
                 wasFocusedRef.current = false;
                 setWindowFocused(false);
-                setTabSwitchCount(c => c + 1);
+                tabSwitchCountRef.current += 1;
+                setTabSwitchCount(tabSwitchCountRef.current);
             }
         };
         const handleReturn = () => {
@@ -951,6 +965,19 @@ export default function TestAttemptPage() {
             document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [isStarted, submitting]);
+
+    // Proctoring threshold: classroom (teacher/institute-assigned) attempts
+    // auto-submit after too many tab switches, so the recorded score reflects
+    // a supervised sitting. Public catalogue practice never auto-submits —
+    // the count is still recorded on the attempt either way.
+    useEffect(() => {
+        if (!isClassroomContext || !isStarted || submitting) return;
+        if (tabSwitchCount >= MAX_TAB_SWITCHES) {
+            autoSubmittedRef.current = true;
+            finishTest();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tabSwitchCount, isClassroomContext, isStarted, submitting]);
 
     // Beforeunload handler to warn about leaving
     useEffect(() => {
@@ -1078,7 +1105,12 @@ export default function TestAttemptPage() {
 
     const finalizeAttempt = async (
         attemptId: string,
-        data: { answers: any[]; remainingTime: number; finalStatus: "completed" | "timed_out" }
+        data: {
+            answers: any[];
+            remainingTime: number;
+            finalStatus: "completed" | "timed_out";
+            integrity?: { tabSwitches: number; autoSubmitted: boolean };
+        }
     ): Promise<TestAttempt> => {
         if (isClassroomContext) {
             if (!firebaseUser) throw new Error("Not authenticated.");
@@ -1276,11 +1308,18 @@ export default function TestAttemptPage() {
         setSubmitError(null);
         try {
             const answersArray = buildAnswersArray(targetAnswers, mergedCodeAnswers);
+            // Proctoring record travels with the submit so the attempt doc
+            // keeps the tab-switch count + whether proctoring forced the end.
+            const integrity = {
+                tabSwitches: tabSwitchCountRef.current,
+                autoSubmitted: autoSubmittedRef.current,
+            };
 
             await finalizeAttempt(targetAttempt.id, {
                 answers: answersArray,
                 remainingTime: targetTimeLeft,
                 finalStatus,
+                integrity,
             });
 
             // Verify on the server that the attempt really left in_progress.
@@ -1293,6 +1332,7 @@ export default function TestAttemptPage() {
                         answers: answersArray,
                         remainingTime: targetTimeLeft,
                         finalStatus,
+                        integrity,
                     });
                     confirmed = await fetchAttempt(targetAttempt.id);
                 } catch {
@@ -1771,11 +1811,22 @@ export default function TestAttemptPage() {
                                 <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Tab switch count</p>
                                 <p className={`text-3xl font-bold ${tabSwitchCount >= 3 ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300'}`}>
                                     {tabSwitchCount}
+                                    {isClassroomContext && (
+                                        <span className="text-base font-semibold text-gray-400"> / {MAX_TAB_SWITCHES}</span>
+                                    )}
                                 </p>
-                                {tabSwitchCount >= 3 && (
+                                {isClassroomContext ? (
                                     <p className="text-xs text-red-600 dark:text-red-300 font-semibold mt-1">
-                                        Repeated violations may lead to test cancellation.
+                                        Your test submits automatically at {MAX_TAB_SWITCHES} switches.
+                                        {tabSwitchCount >= MAX_TAB_SWITCHES - 2 &&
+                                            ` ${MAX_TAB_SWITCHES - tabSwitchCount} remaining.`}
                                     </p>
+                                ) : (
+                                    tabSwitchCount >= 3 && (
+                                        <p className="text-xs text-red-600 dark:text-red-300 font-semibold mt-1">
+                                            Repeated violations may lead to test cancellation.
+                                        </p>
+                                    )
                                 )}
                             </div>
                             <Button

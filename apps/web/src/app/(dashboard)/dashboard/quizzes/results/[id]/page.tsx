@@ -112,7 +112,15 @@ export default function QuizResultPage() {
     const searchParams = useSearchParams();
     const attemptId = params.id as string;
     const classroomTeacherId = searchParams.get("teacherId");
-    const { firebaseUser } = useAuthContext();
+    const { firebaseUser, user } = useAuthContext();
+    // Teacher / institute-admin reviewing a student's attempt (mirrors the
+    // test results page). The page doubles as the student's own result UI,
+    // but "Back to Classroom Quizzes" and "Open Quiz" are student CTAs —
+    // swap them for a back-to-attempts link in teacher view.
+    const isTeacherPreview =
+        Boolean(classroomTeacherId) &&
+        Boolean(user?.role) &&
+        user?.role !== "customer";
 
     const [attempt, setAttempt] = useState<QuizAttemptResponse | null>(null);
     const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -211,16 +219,32 @@ export default function QuizResultPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <Link href={backHref} className="text-sm font-bold text-slate-500 hover:text-primary-700">
-                    ← Back to {backLabel}
-                </Link>
-                {!isContestResult && quiz?.slug ? (
-                    <Link href={`/quizzes/${quiz.slug}`}>
-                        <Button variant="outline" size="sm">Open Quiz</Button>
+            {isTeacherPreview ? (
+                /* Teacher reviewing a student's attempt — link back to the
+                   attempts list they came from, no student CTAs. */
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Link
+                        href={`/teacher/content/quizzes/${encodeURIComponent(attempt.quizId)}/attempts`}
+                        className="text-sm font-bold text-slate-500 hover:text-primary-700"
+                    >
+                        ← Back to attempts
                     </Link>
-                ) : null}
-            </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                        Teacher view
+                    </span>
+                </div>
+            ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Link href={backHref} className="text-sm font-bold text-slate-500 hover:text-primary-700">
+                        ← Back to {backLabel}
+                    </Link>
+                    {!isContestResult && quiz?.slug ? (
+                        <Link href={`/quizzes/${quiz.slug}`}>
+                            <Button variant="outline" size="sm">Open Quiz</Button>
+                        </Link>
+                    ) : null}
+                </div>
+            )}
 
             <section className="surface-panel overflow-hidden">
                 <div className={`on-dark grid gap-6 p-6 lg:grid-cols-[1fr_320px] lg:p-8 ${isPassed ? "bg-gradient-to-r from-[#020617] to-emerald-950" : "bg-gradient-to-r from-[#020617] to-red-950"} text-white`}>

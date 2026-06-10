@@ -27,7 +27,45 @@ export type AttemptRow = {
     passed: boolean | null;
     attemptNumber?: number;
     testId?: string;
+    /** Proctoring record captured during the attempt (tests only). */
+    integrity?: { tabSwitches: number; autoSubmitted: boolean } | null;
 };
+
+/**
+ * Compact proctoring cell: green "clean" when the student never left the
+ * window, amber count when they did, red when proctoring force-submitted.
+ */
+function IntegrityBadge({ integrity }: { integrity?: AttemptRow["integrity"] }) {
+    if (!integrity) return <span className="text-xs text-gray-300">—</span>;
+    if (integrity.autoSubmitted) {
+        return (
+            <span
+                className="inline-flex items-center rounded-full bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-500/25"
+                title={`Auto-submitted after ${integrity.tabSwitches} tab switches`}
+            >
+                Auto-submitted · {integrity.tabSwitches}
+            </span>
+        );
+    }
+    if (integrity.tabSwitches > 0) {
+        return (
+            <span
+                className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25"
+                title={`Left the test window ${integrity.tabSwitches} time${integrity.tabSwitches === 1 ? "" : "s"}`}
+            >
+                {integrity.tabSwitches} switch{integrity.tabSwitches === 1 ? "" : "es"}
+            </span>
+        );
+    }
+    return (
+        <span
+            className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25"
+            title="Never left the test window"
+        >
+            Clean
+        </span>
+    );
+}
 
 type Detail = {
     content: {
@@ -337,6 +375,9 @@ export function ContentAttemptsView({
                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">Score</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">Correct / Wrong</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">Duration</th>
+                                    {kind === "test" && (
+                                        <th className="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">Integrity</th>
+                                    )}
                                     <th className="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">Submitted</th>
                                     <th className="px-5 py-3"></th>
                                 </tr>
@@ -375,6 +416,11 @@ export function ContentAttemptsView({
                                             <span className="text-gray-500">{row.unattempted} skipped</span>
                                         </td>
                                         <td className="px-5 py-3 text-gray-600">{formatDuration(row.durationSeconds)}</td>
+                                        {kind === "test" && (
+                                            <td className="px-5 py-3">
+                                                <IntegrityBadge integrity={row.integrity} />
+                                            </td>
+                                        )}
                                         <td className="px-5 py-3 text-gray-500">{formatDate(row.completedAt || row.startedAt)}</td>
                                         <td className="px-5 py-3 text-right">
                                             <Link

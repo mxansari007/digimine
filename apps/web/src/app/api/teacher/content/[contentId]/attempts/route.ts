@@ -141,6 +141,7 @@ export async function GET(
             testId?: string;
             seriesId?: string;
             quizId?: string;
+            integrity?: { tabSwitches: number; autoSubmitted: boolean } | null;
         };
 
         const rows: AttemptRow[] = [];
@@ -179,6 +180,16 @@ export async function GET(
                 testId: data.testId,
                 seriesId: data.seriesId,
                 quizId: data.quizId,
+                integrity:
+                    data.integrity && typeof data.integrity === "object"
+                        ? {
+                              tabSwitches:
+                                  typeof data.integrity.tabSwitches === "number"
+                                      ? data.integrity.tabSwitches
+                                      : 0,
+                              autoSubmitted: data.integrity.autoSubmitted === true,
+                          }
+                        : null,
             });
         });
 

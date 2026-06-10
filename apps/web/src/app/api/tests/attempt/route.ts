@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { callerCanReadAttempt } from "@/lib/server/attemptAccess";
 
 export async function GET(req: Request) {
     try {
@@ -10,9 +11,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "attemptId required" }, { status: 400 });
         }
 
-        // Auth + ownership. This endpoint previously returned ANY attempt by id
-        // with no authentication — an IDOR that leaked other users' answers and
-        // graded results. Require a bearer token and that the caller owns it.
+        // Auth + read-authorization. This endpoint previously returned ANY
+        // attempt by id with no authentication — an IDOR that leaked other
+        // users' answers and graded results. Reads are allowed for the
+        // attempt's OWNER, the teacher who authored the test series, or an
+        // admin of the institute that owns it — the teacher portal's
+        // student-result view depends on the non-owner read paths.
         const userId = await getBearerUserId(req).catch(() => null);
         if (!userId) {
             return NextResponse.json({ error: "Sign in." }, { status: 401 });
@@ -24,7 +28,11 @@ export async function GET(req: Request) {
         }
 
         const data = snap.data()!;
-        if (data.userId !== userId) {
+        const canRead = await callerCanReadAttempt(userId, data as { userId?: string }, {
+            collection: "tests",
+            id: data.seriesId,
+        });
+        if (!canRead) {
             return NextResponse.json({ error: "You do not own this attempt." }, { status: 403 });
         }
         const attempt = {
