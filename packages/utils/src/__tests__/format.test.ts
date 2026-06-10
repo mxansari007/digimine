@@ -197,8 +197,10 @@ describe("slugify", () => {
     expect(slugify("hello world")).toBe("hello-world");
   });
 
-  it("removes special characters", () => {
-    expect(slugify("hello@world!")).toBe("helloworld");
+  it("turns symbol runs into a single separating hyphen", () => {
+    // Symbols act as word separators (not deleted), so words stay distinct.
+    expect(slugify("hello@world!")).toBe("hello-world");
+    expect(slugify("node.js & react")).toBe("node-js-react");
   });
 
   it("trims leading/trailing hyphens", () => {
@@ -223,5 +225,31 @@ describe("slugify", () => {
 
   it("BUG: consecutive hyphens are collapsed correctly", () => {
     expect(slugify("hello---world")).toBe("hello-world");
+  });
+
+  it("folds accented characters to ASCII", () => {
+    expect(slugify("Café Society")).toBe("cafe-society");
+    expect(slugify("Niño Piñata")).toBe("nino-pinata");
+    expect(slugify("Crème Brûlée")).toBe("creme-brulee");
+  });
+
+  it("caps length without leaving a trailing hyphen", () => {
+    // 'a'*30 + ' ' + 'b'*60 → trimmed to 80 chars, no dangling hyphen.
+    const long = `${"a".repeat(30)} ${"b".repeat(60)}`;
+    const result = slugify(long);
+    expect(result.length).toBeLessThanOrEqual(80);
+    expect(result.endsWith("-")).toBe(false);
+  });
+
+  it("respects a custom maxLength", () => {
+    // slice(0,5) → "data-" → trailing hyphen stripped → "data".
+    expect(slugify("data structures and algorithms", 5)).toBe("data");
+  });
+
+  it("always produces a valid slug for non-empty alphanumeric input", () => {
+    for (const input of ["Hello, World!", "  spaced  out  ", "C++ & C#", "2024 Roadmap"]) {
+      const out = slugify(input);
+      if (out) expect(out).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    }
   });
 });

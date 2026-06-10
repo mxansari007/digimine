@@ -255,6 +255,9 @@ importers:
       '@digimine/ui':
         specifier: workspace:*
         version: link:../ui
+      '@digimine/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@tiptap/extension-image':
         specifier: ^3.23.6
         version: 3.23.6(@tiptap/core@3.23.6)

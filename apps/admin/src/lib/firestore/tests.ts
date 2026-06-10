@@ -30,6 +30,7 @@ import type {
     TestSectionInput,
 } from "@digimine/types";
 import { v4 as uuidv4 } from "uuid";
+import { assertSlugAvailable } from "./slug";
 
 // Collection Refs
 const testsCollection = collection(db, "tests");
@@ -134,11 +135,16 @@ export async function getTestSeries(seriesId: string): Promise<TestSeries | null
 export const getTest = getTestSeries;
 
 export async function createTestSeries(data: CreateTestSeriesInput, createdBy: string): Promise<string> {
-    const docRef = doc(testsCollection, data.slug);
+    // Reserve the slug before using it as the document ID so a duplicate
+    // can't overwrite an existing series (and its tests/questions subtree).
+    const slug = await assertSlugAvailable("tests", data.slug);
+    const docRef = doc(testsCollection, slug);
     const now = Timestamp.now();
 
     const seriesData: Omit<TestSeries, "id"> = {
         ...data,
+        // Keep the slug field in lockstep with the document ID.
+        slug,
         thumbnailURL: data.thumbnailURL || null,
         status: data.status || "draft",
         tags: data.tags || [],
@@ -160,7 +166,7 @@ export async function createTestSeries(data: CreateTestSeriesInput, createdBy: s
     } as Omit<TestSeries, "id">;
 
     await setDoc(docRef, sanitizeData(seriesData));
-    return data.slug;
+    return slug;
 }
 
 // Backward compatibility

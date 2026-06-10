@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { slugify } from "@digimine/utils";
+import { NumberInput } from "@digimine/shared";
 import { createTestSeries } from "@/lib/firestore/tests";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { FileUpload } from "@/components/common/FileUpload";
@@ -15,7 +17,17 @@ export default function CreateTestSeriesPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const [formData, setFormData] = useState<CreateTestSeriesInput>({
+    // While untouched, the slug tracks the title live (fixing a title typo
+    // fixes the slug too); editing it by hand takes the title out of the loop.
+    const [slugTouched, setSlugTouched] = useState(false);
+
+    const [formData, setFormData] = useState<
+        Omit<CreateTestSeriesInput, "price" | "compareAtPrice"> & {
+            // Nullable so the price fields can be cleared; coerced at submit.
+            price: number | null;
+            compareAtPrice: number | null;
+        }
+    >({
         title: "",
         slug: "",
         description: "",
@@ -23,8 +35,8 @@ export default function CreateTestSeriesPage() {
         thumbnailURL: "",
         status: "draft",
         accessType: "paid",
-        price: 0,
-        compareAtPrice: 0,
+        price: null,
+        compareAtPrice: null,
         category: "",
         subcategory: "",
         tags: [],
@@ -50,20 +62,26 @@ export default function CreateTestSeriesPage() {
         }
     };
 
-    const generateSlug = (title: string) => {
-        return title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-    };
-
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const title = e.target.value;
         setFormData((prev) => ({
             ...prev,
             title,
-            slug: prev.slug || generateSlug(title),
+            // Keep the slug in sync with the title until the user takes it over.
+            slug: slugTouched ? prev.slug : slugify(title),
         }));
+    };
+
+    // Slug accepts raw typing, normalised on blur + submit. Clearing it hands
+    // control back to the title.
+    const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSlugTouched(value.trim().length > 0);
+        setFormData((prev) => ({ ...prev, slug: value }));
+    };
+
+    const handleSlugBlur = () => {
+        setFormData((prev) => ({ ...prev, slug: slugify(prev.slug) }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +94,16 @@ export default function CreateTestSeriesPage() {
                 throw new Error("You must be logged in to create a test series");
             }
 
-            await createTestSeries(formData, user.id);
+            // Normalise the slug and coerce the nullable price fields to numbers.
+            await createTestSeries(
+                {
+                    ...formData,
+                    slug: slugify(formData.slug || formData.title),
+                    price: Number(formData.price) || 0,
+                    compareAtPrice: Number(formData.compareAtPrice) || undefined,
+                },
+                user.id
+            );
             router.push("/tests");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create test series");
@@ -123,10 +150,14 @@ export default function CreateTestSeriesPage() {
                                 type="text"
                                 name="slug"
                                 value={formData.slug}
-                                onChange={handleChange}
+                                onChange={handleSlugChange}
+                                onBlur={handleSlugBlur}
                                 required
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             />
+                            <p className="mt-1 text-xs text-gray-400">
+                                Auto-filled from the title; edit to customise. Must be unique.
+                            </p>
                         </div>
                         <div className="md:col-span-2">
                             <FileUpload
@@ -194,23 +225,21 @@ export default function CreateTestSeriesPage() {
                             <>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
-                                    <input
-                                        type="number"
-                                        name="price"
+                                    <NumberInput
                                         value={formData.price}
-                                        onChange={handleChange}
+                                        onValueChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
                                         min={0}
+                                        placeholder="0"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Compare at Price (₹)</label>
-                                    <input
-                                        type="number"
-                                        name="compareAtPrice"
+                                    <NumberInput
                                         value={formData.compareAtPrice}
-                                        onChange={handleChange}
+                                        onValueChange={(v) => setFormData((prev) => ({ ...prev, compareAtPrice: v }))}
                                         min={0}
+                                        placeholder="0"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                 </div>

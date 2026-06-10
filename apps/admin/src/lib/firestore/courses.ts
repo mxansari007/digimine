@@ -23,6 +23,7 @@ import type {
     CreateCourseInput,
     UpdateCourseInput,
 } from "@digimine/types";
+import { assertSlugAvailable } from "./slug";
 
 const coursesCollection = collection(db, "courses");
 
@@ -134,15 +135,18 @@ export async function getCourse(courseId: string): Promise<Course | null> {
 }
 
 export async function createCourse(data: CreateCourseInput, createdBy: string): Promise<string> {
-    if (!data.slug) throw new Error("Slug is required for creating a course");
+    // Reserve the slug (format + uniqueness) before using it as the document
+    // ID so a duplicate can't overwrite an existing course and its chapters.
+    const slug = await assertSlugAvailable("courses", data.slug);
 
-    const docRef = doc(coursesCollection, data.slug);
+    const docRef = doc(coursesCollection, slug);
     const now = Timestamp.now();
     const chapters = prepareChapters(data.chapters || []);
 
     const courseData: Omit<Course, "id" | "chapters"> = {
         title: data.title,
-        slug: data.slug,
+        // Keep the slug field in lockstep with the document ID.
+        slug,
         description: data.description || "",
         shortDescription: data.shortDescription || "",
         thumbnailURL: data.thumbnailURL || null,

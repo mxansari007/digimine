@@ -66,13 +66,34 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 /**
- * Generate a slug from a string
+ * Generate a URL-safe slug from a string. This is the single canonical
+ * implementation — every content creator (quizzes, tests, courses, contests,
+ * …) routes through it so slugs are consistent across the whole platform.
+ *
+ * Rules:
+ *   - Unicode accents are folded to ASCII ("Café" → "cafe").
+ *   - Any run of non-alphanumeric characters becomes a single hyphen, so
+ *     symbols act as word separators ("hello@world" → "hello-world", not
+ *     "helloworld"). This matches how the builder forms have always behaved,
+ *     keeping existing document IDs stable.
+ *   - Leading/trailing hyphens are trimmed.
+ *   - The result is capped to `maxLength` without leaving a dangling hyphen.
+ *
+ * The output always satisfies `isValidSlug`, or is "" for input with no
+ * alphanumerics (callers should fall back to a title/default in that case).
  */
-export function slugify(text: string): string {
-    return text
+export function slugify(text: string, maxLength = 80): string {
+    const base = (text || "")
+        // Split accented chars into base letter + combining mark, then drop
+        // the marks. e.g. "é" → "e", "ñ" → "n".
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/[\s_-]+/g, "-")
+        // Any run of non-alphanumerics (spaces, underscores, symbols) → one hyphen.
+        .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
+
+    if (base.length <= maxLength) return base;
+    // Trim to the cap, then strip a hyphen the cut may have left dangling.
+    return base.slice(0, maxLength).replace(/-+$/g, "");
 }

@@ -2,9 +2,11 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Button, Card } from "@digimine/ui";
+import { slugify } from "@digimine/utils";
 import type { FirebaseStorage } from "firebase/storage";
 import type { CreateQuizInput, Quiz, QuizAccessType, QuizStatus } from "@digimine/types";
 import { ImageInput } from "../ImageInput";
+import { NumberInput } from "../NumberInput";
 
 export interface QuizFormProps {
     /** Existing quiz when editing; undefined when creating. */
@@ -24,13 +26,6 @@ export interface QuizFormProps {
      * teacher content is private until admin approval.
      */
     mode?: "admin" | "teacher";
-}
-
-function slugify(value: string): string {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
 }
 
 function parseTags(value: string): string[] {
@@ -75,12 +70,21 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
     const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(", "));
+    // While the slug hasn't been hand-edited, it tracks the title live (so
+    // fixing a title typo also fixes the slug). Editing an existing quiz
+    // starts "touched" so we never silently rewrite a published slug.
+    const [slugTouched, setSlugTouched] = useState(Boolean(initialData?.slug));
     // Local form state keeps `availableFrom` as a string because the
     // `<input type="datetime-local">` only reads/writes strings.
     // Converted to a real Date when submitting via the
     // `CreateQuizInput` payload below.
     const [formData, setFormData] = useState<
-        Omit<CreateQuizInput, "availableFrom"> & { availableFrom: string }
+        Omit<CreateQuizInput, "availableFrom" | "timeLimitMinutes" | "passingPercentage"> & {
+            availableFrom: string;
+            // Nullable so the fields can be cleared; coerced to a number at submit.
+            timeLimitMinutes: number | null;
+            passingPercentage: number | null;
+        }
     >({
         title: initialData?.title || "",
         slug: initialData?.slug || "",
@@ -92,8 +96,8 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
         accessType: initialData?.accessType || "free",
         category: initialData?.category || "",
         tags: initialData?.tags || [],
-        timeLimitMinutes: initialData?.timeLimitMinutes || 0,
-        passingPercentage: initialData?.passingPercentage || 0,
+        timeLimitMinutes: initialData?.timeLimitMinutes ?? null,
+        passingPercentage: initialData?.passingPercentage ?? null,
         shuffleQuestions: initialData?.shuffleQuestions ?? false,
         shuffleOptions: initialData?.shuffleOptions ?? false,
         showExplanations: initialData?.showExplanations ?? true,
@@ -124,8 +128,23 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
         setFormData((prev) => ({
             ...prev,
             title,
-            slug: prev.slug || slugify(title),
+            // Keep the slug in sync with the title until the user takes it over.
+            slug: slugTouched ? prev.slug : slugify(title),
         }));
+    };
+
+    // The slug field accepts raw typing (so hyphens are easy to type); it's
+    // normalised on blur and again on submit. Editing it marks it "touched"
+    // so the title stops driving it — unless the user clears it, which hands
+    // control back to the title.
+    const handleSlugChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const value = event.target.value;
+        setSlugTouched(value.trim().length > 0);
+        setFormData((prev) => ({ ...prev, slug: value }));
+    };
+
+    const handleSlugBlur = () => {
+        setFormData((prev) => ({ ...prev, slug: slugify(prev.slug) }));
     };
 
     const handleSubmit = async (event: FormEvent) => {
@@ -136,6 +155,9 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
         try {
             const payload: CreateQuizInput = {
                 ...formData,
+                // Normalise the slug one last time so the document ID is always
+                // well-formed, falling back to the title if it's been emptied.
+                slug: slugify(formData.slug || formData.title),
                 tags: parseTags(tagsInput),
                 thumbnailURL: formData.thumbnailURL || null,
                 timeLimitMinutes: Number(formData.timeLimitMinutes) || 0,
@@ -191,10 +213,14 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
                                 required
                                 name="slug"
                                 value={formData.slug}
-                                onChange={handleChange}
+                                onChange={handleSlugChange}
+                                onBlur={handleSlugBlur}
                                 className="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                                 placeholder="cn-osi-quick-quiz"
                             />
+                            <p className="mt-1 text-xs text-slate-400">
+                                Auto-filled from the title; edit to customise. Must be unique.
+                            </p>
                         </div>
                         <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Short description</label>
@@ -308,25 +334,27 @@ export function QuizForm({ initialData, onSubmit, onCancel, storage, mode = "adm
                         </div>
                         <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Time limit (minutes)</label>
-                            <input
-                                type="number"
+                            <NumberInput
                                 min={0}
-                                name="timeLimitMinutes"
                                 value={formData.timeLimitMinutes}
-                                onChange={handleChange}
+                                onValueChange={(v) =>
+                                    setFormData((prev) => ({ ...prev, timeLimitMinutes: v }))
+                                }
+                                placeholder="0"
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
                             />
-                            <p className="mt-1 text-xs text-slate-500">Use 0 for untimed practice.</p>
+                            <p className="mt-1 text-xs text-slate-500">Leave blank or 0 for untimed practice.</p>
                         </div>
                         <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Passing percentage</label>
-                            <input
-                                type="number"
+                            <NumberInput
                                 min={0}
                                 max={100}
-                                name="passingPercentage"
                                 value={formData.passingPercentage}
-                                onChange={handleChange}
+                                onValueChange={(v) =>
+                                    setFormData((prev) => ({ ...prev, passingPercentage: v }))
+                                }
+                                placeholder="0"
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
                             />
                         </div>

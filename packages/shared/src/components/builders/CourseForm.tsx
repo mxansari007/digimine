@@ -4,7 +4,9 @@ import type { FirebaseStorage } from "firebase/storage";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
+import { slugify } from "@digimine/utils";
 import { ImageInput } from "../ImageInput";
+import { NumberInput } from "../NumberInput";
 import type {
     Course,
     CourseAccessType,
@@ -58,6 +60,9 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
     const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(", "));
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // While untouched, the slug tracks the title live; editing an existing
+    // course starts "touched" so we never silently rewrite its slug.
+    const [slugTouched, setSlugTouched] = useState(Boolean(initialData?.slug));
 
     const [formData, setFormData] = useState({
         title: initialData?.title || "",
@@ -67,11 +72,12 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
         thumbnailURL: initialData?.thumbnailURL || "",
         status: (initialData?.status || "draft") as CourseStatus,
         accessType: (initialData?.accessType || "free") as CourseAccessType,
-        price: initialData?.price || 0,
-        compareAtPrice: initialData?.compareAtPrice || 0,
+        // Nullable so the numeric fields can be cleared; coerced at submit.
+        price: (initialData?.price ?? null) as number | null,
+        compareAtPrice: (initialData?.compareAtPrice ?? null) as number | null,
         category: initialData?.category || "",
         difficulty: (initialData?.difficulty || "beginner") as CourseDifficulty,
-        estimatedHours: initialData?.estimatedHours || 0,
+        estimatedHours: (initialData?.estimatedHours ?? null) as number | null,
         linkedTestSeriesIds: initialData?.linkedTestSeriesIds || [],
         linkedQuizzes: initialData?.linkedQuizzes || [],
         chapters: initialData?.chapters || [],
@@ -91,13 +97,26 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
         [formData.linkedTestSeriesIds, testSeries]
     );
 
-    const handleTitleBlur = () => {
-        if (!formData.slug && formData.title) {
-            setFormData((prev) => ({
-                ...prev,
-                slug: formData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, ""),
-            }));
-        }
+    const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const title = event.target.value;
+        setFormData((prev) => ({
+            ...prev,
+            title,
+            // Keep the slug in sync with the title until the user takes it over.
+            slug: slugTouched ? prev.slug : slugify(title),
+        }));
+    };
+
+    // Slug accepts raw typing, normalised on blur + submit. Clearing it hands
+    // control back to the title.
+    const handleSlugChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const value = event.target.value;
+        setSlugTouched(value.trim().length > 0);
+        setFormData((prev) => ({ ...prev, slug: value }));
+    };
+
+    const handleSlugBlur = () => {
+        setFormData((prev) => ({ ...prev, slug: slugify(prev.slug) }));
     };
 
     const toggleTestSeries = (seriesId: string) => {
@@ -160,6 +179,8 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
 
         const payload = {
             ...formData,
+            // Normalise so the document ID is always well-formed.
+            slug: slugify(formData.slug || formData.title),
             tags: parseTags(tagsInput),
             thumbnailURL: formData.thumbnailURL || null,
             estimatedHours: Number(formData.estimatedHours) || 0,
@@ -205,8 +226,7 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
                                 <input
                                     required
                                     value={formData.title}
-                                    onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))}
-                                    onBlur={handleTitleBlur}
+                                    onChange={handleTitleChange}
                                     className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                                     placeholder="Computer Networks"
                                 />
@@ -217,13 +237,18 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
                                 <input
                                     required
                                     value={formData.slug}
-                                    onChange={(event) => setFormData((prev) => ({ ...prev, slug: event.target.value }))}
+                                    onChange={handleSlugChange}
+                                    onBlur={handleSlugBlur}
                                     className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                                     placeholder="computer-networks"
                                 />
-                                {initialData && (
+                                {initialData ? (
                                     <p className="mt-1 text-xs text-gray-500">
                                         The document stays under its original admin ID. Slug updates affect the public URL lookup.
+                                    </p>
+                                ) : (
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Auto-filled from the title; edit to customise. Must be unique.
                                     </p>
                                 )}
                             </div>
@@ -437,24 +462,22 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
                                 <div className="grid grid-cols-2 gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3">
                                     <div>
                                         <label className="mb-1 block text-sm font-semibold text-gray-700">Price (₹)</label>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             min="1"
                                             step="0.01"
                                             required={formData.accessType === "enrollment_required"}
                                             value={formData.price}
-                                            onChange={(event) => setFormData((prev) => ({ ...prev, price: Number(event.target.value) || 0 }))}
+                                            onValueChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
                                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 outline-none"
                                         />
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-sm font-semibold text-gray-700">Compare at</label>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             min="0"
                                             step="0.01"
                                             value={formData.compareAtPrice}
-                                            onChange={(event) => setFormData((prev) => ({ ...prev, compareAtPrice: Number(event.target.value) || 0 }))}
+                                            onValueChange={(v) => setFormData((prev) => ({ ...prev, compareAtPrice: v }))}
                                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 outline-none"
                                         />
                                     </div>
@@ -476,11 +499,11 @@ export function CourseForm({ initialData, actingUserId, storage, onSubmit, loadT
                                 </div>
                                 <div>
                                     <label className="mb-1 block text-sm font-semibold text-gray-700">Hours</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         min="0"
                                         value={formData.estimatedHours}
-                                        onChange={(event) => setFormData((prev) => ({ ...prev, estimatedHours: Number(event.target.value) || 0 }))}
+                                        onValueChange={(v) => setFormData((prev) => ({ ...prev, estimatedHours: v }))}
+                                        placeholder="0"
                                         className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none"
                                     />
                                 </div>

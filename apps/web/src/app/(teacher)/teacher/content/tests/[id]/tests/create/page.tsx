@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import {
   getTeacherTestSeries,
   createTeacherTestInSeries,
@@ -165,11 +166,10 @@ export default function TeacherCreateSubTestPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Duration (mins)
               </label>
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
+                onValueChange={(v) => setDuration(v ?? 0)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -177,11 +177,10 @@ export default function TeacherCreateSubTestPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Total Marks
               </label>
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 value={totalMarks}
-                onChange={(e) => setTotalMarks(Number(e.target.value))}
+                onValueChange={(v) => setTotalMarks(v ?? 0)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -189,11 +188,10 @@ export default function TeacherCreateSubTestPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Passing Marks
               </label>
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 value={passingMarks}
-                onChange={(e) => setPassingMarks(Number(e.target.value))}
+                onValueChange={(v) => setPassingMarks(v ?? 0)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -266,18 +264,11 @@ export default function TeacherCreateSubTestPage() {
                   <label className="block text-xs text-slate-500">
                     Marks/Q
                   </label>
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     step={0.5}
-                    value={section.marksPerQuestion ?? ""}
-                    onChange={(e) =>
-                      updateSection(
-                        index,
-                        "marksPerQuestion",
-                        e.target.value === "" ? 0 : Number(e.target.value)
-                      )
-                    }
+                    value={section.marksPerQuestion ?? null}
+                    onValueChange={(v) => updateSection(index, "marksPerQuestion", v ?? 0)}
                     className="w-full mt-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
                   />
                 </div>
@@ -286,18 +277,11 @@ export default function TeacherCreateSubTestPage() {
                     <label className="block text-xs text-slate-500">
                       Negative
                     </label>
-                    <input
-                      type="number"
+                    <NumberInput
                       min={0}
                       step={0.25}
-                      value={section.negativeMarks ?? ""}
-                      onChange={(e) =>
-                        updateSection(
-                          index,
-                          "negativeMarks",
-                          e.target.value === "" ? 0 : Number(e.target.value)
-                        )
-                      }
+                      value={section.negativeMarks ?? null}
+                      onValueChange={(v) => updateSection(index, "negativeMarks", v ?? 0)}
                       className="w-full mt-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
                     />
                   </div>

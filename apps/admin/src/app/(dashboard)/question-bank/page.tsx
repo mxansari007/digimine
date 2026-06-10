@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, DataTable, PaginationControls, getPaginatedItems, stripFormattedContent, type DataTableColumn } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import {
@@ -983,7 +984,7 @@ export default function QuestionBankPage() {
                                                         </label>
                                                         <label className="flex items-center gap-2 text-sm text-slate-600">
                                                             Weight
-                                                            <input type="number" min={1} value={testCase.weight ?? 1} onChange={(event) => setEditingQuestion({ ...editingQuestion, testCases: editingQuestion.testCases.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) || 1 } : item) })} className="w-20 rounded-lg border border-slate-200 px-2 py-1" />
+                                                            <NumberInput min={1} value={testCase.weight ?? 1} onValueChange={(v) => setEditingQuestion({ ...editingQuestion, testCases: editingQuestion.testCases.map((item, itemIndex) => itemIndex === index ? { ...item, weight: v ?? 1 } : item) })} className="w-20 rounded-lg border border-slate-200 px-2 py-1" />
                                                         </label>
                                                     </div>
                                                 </div>
@@ -1000,11 +1001,11 @@ export default function QuestionBankPage() {
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-semibold text-slate-700">Time limit (s)</span>
-                                            <input type="number" min={1} value={editingQuestion.timeLimit} onChange={(event) => setEditingQuestion({ ...editingQuestion, timeLimit: Number(event.target.value) || 2 })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none" />
+                                            <NumberInput min={1} value={editingQuestion.timeLimit} onValueChange={(v) => setEditingQuestion({ ...editingQuestion, timeLimit: v ?? 2 })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none" />
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-semibold text-slate-700">Memory (MB)</span>
-                                            <input type="number" min={16} value={editingQuestion.memoryLimit} onChange={(event) => setEditingQuestion({ ...editingQuestion, memoryLimit: Number(event.target.value) || 128 })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none" />
+                                            <NumberInput min={16} value={editingQuestion.memoryLimit} onValueChange={(v) => setEditingQuestion({ ...editingQuestion, memoryLimit: v ?? 128 })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none" />
                                         </label>
                                     </div>
                                 </div>
@@ -1021,11 +1022,11 @@ export default function QuestionBankPage() {
                             <div className="grid gap-4 md:grid-cols-4">
                                 <label className="space-y-1">
                                     <span className="text-sm font-semibold text-slate-700">Marks</span>
-                                    <input type="number" min={0.5} step={0.5} value={editingQuestion.marks} onChange={(event) => setEditingQuestion({ ...editingQuestion, marks: Number(event.target.value) || 1 })} className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none" />
+                                    <NumberInput min={0.5} step={0.5} value={editingQuestion.marks} onValueChange={(v) => setEditingQuestion({ ...editingQuestion, marks: v ?? 1 })} className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none" />
                                 </label>
                                 <label className="space-y-1">
                                     <span className="text-sm font-semibold text-slate-700">Negative marks</span>
-                                    <input type="number" min={0} step={0.25} value={editingQuestion.negativeMarks} onChange={(event) => setEditingQuestion({ ...editingQuestion, negativeMarks: Number(event.target.value) || 0 })} className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none" />
+                                    <NumberInput min={0} step={0.25} value={editingQuestion.negativeMarks} onValueChange={(v) => setEditingQuestion({ ...editingQuestion, negativeMarks: v ?? 0 })} className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none" />
                                 </label>
                                 <label className="space-y-1">
                                     <span className="text-sm font-semibold text-slate-700">Difficulty</span>

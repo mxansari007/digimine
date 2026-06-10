@@ -3,6 +3,7 @@
 import {
     collection,
     doc,
+    getCountFromServer,
     getDoc,
     getDocs,
     setDoc,
@@ -14,8 +15,9 @@ import {
     Timestamp,
     type DocumentData,
 } from "firebase/firestore";
-import { db } from "../firebase/client";
+import { auth, db } from "../firebase/client";
 import type { CreateQuizInput, Quiz, TestSeries, Course, Contest } from "@digimine/types";
+import { assertSlugAvailable } from "./slug";
 
 /**
  * Freemium overlay applied to every piece of teacher-authored content.
@@ -63,6 +65,63 @@ export type InstituteAuthorContext = {
     instituteId: string;
     classIds: string[];
 };
+
+/**
+ * Map each content collection to the plan limit that governs it and a
+ * human label for the upgrade message.
+ */
+const TEACHING_LIMIT_BY_COLLECTION = {
+    quizzes: { key: "maxQuizzes", label: "quizzes" },
+    tests: { key: "maxTests", label: "test series" },
+    courses: { key: "maxCourses", label: "courses" },
+    contests: { key: "maxContests", label: "contests" },
+} as const;
+
+/**
+ * Enforce the caller's plan limit before creating content. The limit comes
+ * from the server-resolved entitlements (`/api/me/teaching-features`, which
+ * reads the subscriptionPlans doc the admin authored), and the current count
+ * comes from an aggregate count of the teacher's existing docs — so what the
+ * plan maker configured is what actually governs creation.
+ *
+ * Fails OPEN on resolver/network hiccups (a transient 500 must not block a
+ * paying teacher), and -1 / missing limits mean unlimited. Throws a friendly
+ * error (surfaced inline by the builder forms) when the cap is reached.
+ */
+async function assertWithinTeachingLimit(
+    collectionName: keyof typeof TEACHING_LIMIT_BY_COLLECTION,
+    teacherId: string
+): Promise<void> {
+    const { key, label } = TEACHING_LIMIT_BY_COLLECTION[collectionName];
+
+    let max = -1;
+    try {
+        const user = auth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const res = await fetch("/api/me/teaching-features", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const value = data?.teachingLimits?.[key];
+        max = typeof value === "number" && Number.isFinite(value) ? value : -1;
+    } catch {
+        return;
+    }
+    if (max < 0) return;
+
+    const countSnap = await getCountFromServer(
+        query(collection(db, collectionName), where("teacherId", "==", teacherId))
+    );
+    const current = countSnap.data().count;
+    if (current >= max) {
+        throw new Error(
+            `Your current plan allows up to ${max} ${label}. ` +
+                `Upgrade your plan to create more.`
+        );
+    }
+}
 
 /**
  * Remove keys with `undefined` values from an object.
@@ -121,13 +180,19 @@ export async function createTeacherQuiz(
     payload: CreateQuizInput,
     institute?: InstituteAuthorContext
 ): Promise<string> {
-    const ref = doc(quizzesCollection);
+    // Plan limit first (cheap deny), then slug reservation.
+    await assertWithinTeachingLimit("quizzes", teacherId);
+    // Key the document by its slug (format + uniqueness checked) so quizzes
+    // are addressable by slug and a duplicate can't be created twice.
+    const slug = await assertSlugAvailable("quizzes", payload.slug);
+    const ref = doc(quizzesCollection, slug);
     const now = Timestamp.now();
     const overlay = institute
         ? instituteOverlay(teacherId, institute.instituteId, institute.classIds)
         : teacherOverlay(teacherId);
     await setDoc(ref, {
         ...stripUndefined(payload as any),
+        slug,
         ...overlay,
         // Teacher content always starts as draft regardless of what the
         // form supplied — admin review is the only path to "published".
@@ -248,13 +313,17 @@ export async function createTeacherTest(
     data: Omit<TestSeries, "id" | "createdAt" | "updatedAt">,
     institute?: InstituteAuthorContext
 ): Promise<string> {
-    const ref = doc(testsCollection);
+    await assertWithinTeachingLimit("tests", teacherId);
+    // Key the document by its slug (format + uniqueness checked).
+    const slug = await assertSlugAvailable("tests", (data as any).slug);
+    const ref = doc(testsCollection, slug);
     const now = Timestamp.now();
     const overlay = institute
         ? instituteOverlay(teacherId, institute.instituteId, institute.classIds)
         : teacherOverlay(teacherId);
     await setDoc(ref, {
         ...stripUndefined(data as any),
+        slug,
         ...overlay,
         status: "draft",
         createdBy: teacherId,
@@ -305,13 +374,17 @@ export async function createTeacherCourse(
     data: Omit<Course, "id" | "createdAt" | "updatedAt">,
     institute?: InstituteAuthorContext
 ): Promise<string> {
-    const ref = doc(coursesCollection);
+    await assertWithinTeachingLimit("courses", teacherId);
+    // Key the document by its slug (format + uniqueness checked).
+    const slug = await assertSlugAvailable("courses", (data as any).slug);
+    const ref = doc(coursesCollection, slug);
     const now = Timestamp.now();
     const overlay = institute
         ? instituteOverlay(teacherId, institute.instituteId, institute.classIds)
         : teacherOverlay(teacherId);
     await setDoc(ref, {
         ...stripUndefined(data as any),
+        slug,
         ...overlay,
         status: "draft",
         createdBy: teacherId,
@@ -355,13 +428,17 @@ export async function createTeacherContest(
     data: Omit<Contest, "id" | "createdAt" | "updatedAt">,
     institute?: InstituteAuthorContext
 ): Promise<string> {
-    const ref = doc(contestsCollection);
+    await assertWithinTeachingLimit("contests", teacherId);
+    // Key the document by its slug (format + uniqueness checked).
+    const slug = await assertSlugAvailable("contests", (data as any).slug);
+    const ref = doc(contestsCollection, slug);
     const now = Timestamp.now();
     const overlay = institute
         ? instituteOverlay(teacherId, institute.instituteId, institute.classIds)
         : teacherOverlay(teacherId);
     await setDoc(ref, {
         ...stripUndefined(data as any),
+        slug,
         ...overlay,
         status: "draft",
         createdBy: teacherId,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { Button, Card } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { HelpTutorial } from "@/components/help/HelpTutorial";
@@ -416,11 +417,10 @@ function CreateQuestionModal({
                         </div>
                         <div>
                             <label className="stat-label">Marks</label>
-                            <input
-                                type="number"
+                            <NumberInput
                                 min={1}
                                 value={marks}
-                                onChange={(e) => setMarks(Math.max(1, Number(e.target.value) || 1))}
+                                onValueChange={(v) => setMarks(v ?? 1)}
                                 className="field-input mt-1 text-sm py-2"
                             />
                         </div>
@@ -528,12 +528,11 @@ function CreateQuestionModal({
                         </div>
                         <div>
                             <label className="stat-label">Negative marks</label>
-                            <input
-                                type="number"
+                            <NumberInput
                                 min={0}
                                 step={0.25}
                                 value={negativeMarks}
-                                onChange={(e) => setNegativeMarks(Math.max(0, Number(e.target.value) || 0))}
+                                onValueChange={(v) => setNegativeMarks(v ?? 0)}
                                 className="field-input mt-1 text-sm py-2"
                             />
                         </div>

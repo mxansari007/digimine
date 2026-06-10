@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../firebase/client";
 import { getTestById, getTestSeries } from "./tests";
 import { getQuiz } from "./quizzes";
+import { assertSlugAvailable } from "./slug";
 import type { Contest, ContestSourceType, CreateContestInput, CreateQuizQuestionInput, TestStatus, UpdateContestInput } from "@digimine/types";
 
 const contestsCollection = collection(db, "contests");
@@ -250,10 +251,13 @@ export async function getContest(contestId: string): Promise<Contest | null> {
 }
 
 export async function createContest(data: CreateContestInput, createdBy: string): Promise<string> {
-    const contestRef = doc(contestsCollection, data.slug);
-    const payload = await buildContestPayload(data, createdBy);
+    // Reserve the slug (format + uniqueness) before using it as the document
+    // ID so a duplicate can't overwrite an existing contest.
+    const slug = await assertSlugAvailable("contests", data.slug);
+    const contestRef = doc(contestsCollection, slug);
+    const payload = await buildContestPayload({ ...data, slug }, createdBy);
     await setDoc(contestRef, payload);
-    return data.slug;
+    return slug;
 }
 
 export async function updateContest(data: UpdateContestInput): Promise<void> {

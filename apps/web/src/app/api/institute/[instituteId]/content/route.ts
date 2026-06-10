@@ -3,6 +3,9 @@ import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { assertInstituteAdmin } from "@/lib/server/institutes";
 import { toIsoDate } from "@/lib/server/classroomAccess";
+import { getTeachingEntitlements } from "@/lib/server/teachingEntitlements";
+import { isValidSlug, slugify } from "@digimine/utils";
+import type { TeachingLimits } from "@digimine/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +14,14 @@ const TYPE_COLLECTION: Record<string, string> = {
     test: "tests",
     contest: "contests",
     course: "courses",
+};
+
+/** Plan limit governing each content collection. */
+const LIMIT_KEY_BY_COLLECTION: Record<string, keyof TeachingLimits> = {
+    quizzes: "maxQuizzes",
+    tests: "maxTests",
+    contests: "maxContests",
+    courses: "maxCourses",
 };
 
 const COLLECTION_KIND: Record<string, "quiz" | "test" | "contest" | "course"> = {
@@ -108,8 +119,49 @@ export async function POST(req: Request, { params }: { params: { instituteId: st
             }
         }
 
-        const slug = (typeof body.slug === "string" && body.slug.trim()) || slugify(title);
-        const ref = type === "quiz" ? adminDb.collection(col).doc(slug) : adminDb.collection(col).doc();
+        // Enforce the institute plan's content limit (authored in the admin
+        // plan maker) before creating: count the institute's existing docs of
+        // this type and deny once the cap is reached. -1 / missing = unlimited.
+        const entitlements = await getTeachingEntitlements(auth.userId);
+        if (entitlements.ok) {
+            const limitKey = LIMIT_KEY_BY_COLLECTION[col];
+            const max = limitKey ? entitlements.resolved.teachingLimits[limitKey] : -1;
+            if (typeof max === "number" && max >= 0) {
+                const agg = await adminDb
+                    .collection(col)
+                    .where("instituteId", "==", params.instituteId)
+                    .count()
+                    .get();
+                if (agg.data().count >= max) {
+                    return NextResponse.json(
+                        {
+                            error: `Your current plan allows up to ${max} ${col}. Upgrade your plan to create more.`,
+                            code: "plan_limit_reached",
+                        },
+                        { status: 403 }
+                    );
+                }
+            }
+        }
+
+        // Normalise through the canonical slugifier (handles a raw client
+        // value as well as the title fallback), then assert it's well-formed.
+        const slug = slugify(typeof body.slug === "string" && body.slug.trim() ? body.slug : title);
+        if (!isValidSlug(slug)) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Slug can only contain lowercase letters, numbers, and single hyphens.",
+                },
+                { status: 400 }
+            );
+        }
+        // Every content type is keyed by its slug so the catalog can address it
+        // by slug and a duplicate can't be created twice. `.create()` is atomic
+        // and fails if the document already exists — this also closes the hole
+        // where a raw client slug could overwrite an existing (even platform)
+        // document via the admin SDK.
+        const ref = adminDb.collection(col).doc(slug);
         const now = Timestamp.now();
 
         const baseData: Record<string, any> = {
@@ -155,7 +207,23 @@ export async function POST(req: Request, { params }: { params: { instituteId: st
             baseData.accessType = body.accessType || "free";
         }
 
-        await ref.set(baseData);
+        try {
+            // `.create()` (not `.set()`) fails if the slug is already taken,
+            // so we never silently overwrite an existing document.
+            await ref.create(baseData);
+        } catch (err: any) {
+            // Firestore ALREADY_EXISTS = gRPC code 6.
+            if (err?.code === 6 || /already exists/i.test(err?.message || "")) {
+                return NextResponse.json(
+                    {
+                        error: `The slug "${slug}" is already taken. Please choose a different slug.`,
+                        code: "slug_taken",
+                    },
+                    { status: 409 }
+                );
+            }
+            throw err;
+        }
         return NextResponse.json({
             id: ref.id,
             kind: type,
@@ -168,12 +236,4 @@ export async function POST(req: Request, { params }: { params: { instituteId: st
         console.error("Institute content create failed:", error);
         return NextResponse.json({ error: error?.message || "Failed" }, { status: 500 });
     }
-}
-
-function slugify(input: string): string {
-    return input
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 80);
 }

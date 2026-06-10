@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { QuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
 import {
@@ -674,23 +675,21 @@ export default function QuizQuestionsPage() {
                             <div className="grid gap-4 md:grid-cols-3">
                                 <div>
                                     <label className="mb-1 block text-sm font-semibold text-slate-700">Marks</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         min={0.5}
                                         step={0.5}
                                         value={editingQuestion.marks}
-                                        onChange={(event) => setEditingQuestion({ ...editingQuestion, marks: Number(event.target.value) || 1 })}
+                                        onValueChange={(v) => setEditingQuestion({ ...editingQuestion, marks: v ?? 1 })}
                                         className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
                                     />
                                 </div>
                                 <div>
                                     <label className="mb-1 block text-sm font-semibold text-slate-700">Negative marks</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         min={0}
                                         step={0.25}
                                         value={editingQuestion.negativeMarks}
-                                        onChange={(event) => setEditingQuestion({ ...editingQuestion, negativeMarks: Number(event.target.value) || 0 })}
+                                        onValueChange={(v) => setEditingQuestion({ ...editingQuestion, negativeMarks: v ?? 0 })}
                                         className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none"
                                     />
                                 </div>

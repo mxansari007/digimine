@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../firebase/client";
+import { assertSlugAvailable } from "./slug";
 import type {
     CreateQuizInput,
     CreateQuizQuestionInput,
@@ -88,13 +89,17 @@ export async function getQuiz(quizId: string): Promise<Quiz | null> {
 }
 
 export async function createQuiz(data: CreateQuizInput, createdBy: string): Promise<string> {
-    const quizId = data.slug;
+    // Reserve the slug (format-checked + uniqueness-checked) before using it
+    // as the document ID, so a duplicate slug can't silently overwrite an
+    // existing quiz and inherit its questions subcollection.
+    const quizId = await assertSlugAvailable("quizzes", data.slug);
     const quizRef = doc(db, "quizzes", quizId);
     const now = Timestamp.now();
 
     const quizData: Omit<Quiz, "id"> = {
         title: data.title,
-        slug: data.slug,
+        // Keep the slug field in lockstep with the document ID.
+        slug: quizId,
         description: data.description || "",
         shortDescription: data.shortDescription || "",
         thumbnailURL: data.thumbnailURL || null,

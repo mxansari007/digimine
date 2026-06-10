@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, stripFormattedContent } from "@digimine/ui";
+import { slugify } from "@digimine/utils";
 import { RichTextEditor } from "../RichTextEditor";
 import { ImageInput } from "../ImageInput";
+import { NumberInput } from "../NumberInput";
 
 
 
@@ -106,14 +108,6 @@ interface CustomQuestionDraft {
     difficulty: DifficultyLevel;
     passageGroup: string;
     passage: string;
-}
-
-function slugify(value: string) {
-    return value
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
 }
 
 function toDateTimeLocalValue(date: Date) {
@@ -296,9 +290,11 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
                     quizId: value === "quiz" && !current.quizId && quizList[0] ? quizList[0].id : current.quizId,
                 };
             }
-            return { ...current, [field]: field === "slug" ? slugify(value) : value };
+            // The slug field stores raw input for easy typing (hyphens etc.);
+            // it's normalised on blur and on submit.
+            return { ...current, [field]: value };
         });
-        if (field === "slug") setManualSlug(true);
+        if (field === "slug") setManualSlug(value.trim().length > 0);
     };
 
     const handleAddCustomQuestion = () => {
@@ -413,7 +409,8 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
 
         const payload = {
             title: form.title.trim(),
-            slug: form.slug.trim(),
+            // Normalise so the document ID is always well-formed.
+            slug: slugify(form.slug || form.title),
             shortDescription: form.shortDescription.trim(),
             description: form.description.trim(),
             thumbnailURL: form.thumbnailURL.trim() || undefined,
@@ -489,6 +486,7 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
                         <input
                             value={form.slug}
                             onChange={(event) => updateField("slug", event.target.value)}
+                            onBlur={() => setForm((c) => ({ ...c, slug: slugify(c.slug) }))}
                             disabled={Boolean(contest)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none disabled:bg-slate-50 disabled:text-slate-500 focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                             placeholder="infosys-national-sprint"
@@ -1026,23 +1024,21 @@ export function ContestForm({ contest, actingUserId, storage, onSubmit, loadTest
                             <div className="grid gap-4 md:grid-cols-3">
                                 <div>
                                     <label className="mb-1 block text-sm font-semibold text-slate-700">Marks</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         min={0.5}
                                         step={0.5}
                                         value={editingCustomQuestion.marks}
-                                        onChange={(event) => setEditingCustomQuestion({ ...editingCustomQuestion, marks: Number(event.target.value) || 1 })}
+                                        onValueChange={(v) => setEditingCustomQuestion({ ...editingCustomQuestion, marks: v ?? 1 })}
                                         className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                                     />
                                 </div>
                                 <div>
                                     <label className="mb-1 block text-sm font-semibold text-slate-700">Negative marks</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         min={0}
                                         step={0.25}
                                         value={editingCustomQuestion.negativeMarks}
-                                        onChange={(event) => setEditingCustomQuestion({ ...editingCustomQuestion, negativeMarks: Number(event.target.value) || 0 })}
+                                        onValueChange={(v) => setEditingCustomQuestion({ ...editingCustomQuestion, negativeMarks: v ?? 0 })}
                                         className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                                     />
                                 </div>

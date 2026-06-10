@@ -8,6 +8,7 @@
 export { uploadFile, type UploadProgress } from "./firebase/storage";
 export { FileUpload } from "./components/FileUpload";
 export { ImageInput, type ImageInputProps } from "./components/ImageInput";
+export { NumberInput, type NumberInputProps } from "./components/NumberInput";
 export { QuizForm, type QuizFormProps } from "./components/builders/QuizForm";
 export { RichTextEditor, type RichTextEditorProps } from "./components/RichTextEditor";
 export {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Card } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { getTestSeries, getTestById, updateTestInSeries } from "@/lib/firestore/tests";
 import type { TestSeries, Test, UpdateTestInput, TestSectionInput } from "@digimine/types";
 import Link from "next/link";
@@ -79,12 +80,12 @@ export default function EditSubTestPage() {
         });
     };
 
-    const updateSectionNumber = (index: number, field: "marksPerQuestion" | "negativeMarks" | "cutoffMarks", value: string) => {
+    const updateSectionNumber = (index: number, field: "marksPerQuestion" | "negativeMarks" | "cutoffMarks", value: number | null) => {
         setFormData({
             ...formData,
             sections: sections.map((section, sectionIndex) =>
                 sectionIndex === index
-                    ? { ...section, [field]: value === "" ? undefined : Number(value) }
+                    ? { ...section, [field]: value ?? undefined }
                     : section
             ),
         });
@@ -213,28 +214,25 @@ export default function EditSubTestPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Duration (mins)</label>
-                                <input
-                                    type="number"
-                                    value={formData.duration}
-                                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                                <NumberInput
+                                    value={formData.duration ?? null}
+                                    onValueChange={(v) => setFormData({ ...formData, duration: v ?? undefined })}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Total Marks</label>
-                                <input
-                                    type="number"
-                                    value={formData.totalMarks}
-                                    onChange={(e) => setFormData({ ...formData, totalMarks: parseInt(e.target.value) })}
+                                <NumberInput
+                                    value={formData.totalMarks ?? null}
+                                    onValueChange={(v) => setFormData({ ...formData, totalMarks: v ?? undefined })}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Passing Marks</label>
-                                <input
-                                    type="number"
-                                    value={formData.passingMarks}
-                                    onChange={(e) => setFormData({ ...formData, passingMarks: parseInt(e.target.value) })}
+                                <NumberInput
+                                    value={formData.passingMarks ?? null}
+                                    onValueChange={(v) => setFormData({ ...formData, passingMarks: v ?? undefined })}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                 />
                             </div>
@@ -319,34 +317,31 @@ export default function EditSubTestPage() {
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-600">Marks/Q</label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     min={0}
                                                     step={0.5}
-                                                    value={section.marksPerQuestion ?? ""}
-                                                    onChange={(e) => updateSectionNumber(index, "marksPerQuestion", e.target.value)}
+                                                    value={section.marksPerQuestion ?? null}
+                                                    onValueChange={(v) => updateSectionNumber(index, "marksPerQuestion", v)}
                                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-600">Negative</label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     min={0}
                                                     step={0.25}
-                                                    value={section.negativeMarks ?? ""}
-                                                    onChange={(e) => updateSectionNumber(index, "negativeMarks", e.target.value)}
+                                                    value={section.negativeMarks ?? null}
+                                                    onValueChange={(v) => updateSectionNumber(index, "negativeMarks", v)}
                                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-600">Cutoff</label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     min={0}
                                                     step={0.5}
-                                                    value={section.cutoffMarks ?? ""}
-                                                    onChange={(e) => updateSectionNumber(index, "cutoffMarks", e.target.value)}
+                                                    value={section.cutoffMarks ?? null}
+                                                    onValueChange={(v) => updateSectionNumber(index, "cutoffMarks", v)}
                                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                                 />
                                             </div>

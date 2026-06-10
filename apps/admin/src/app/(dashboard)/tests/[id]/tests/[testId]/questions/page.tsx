@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, Card, FormattedContent, stripFormattedContent } from "@digimine/ui";
+import { NumberInput } from "@digimine/shared";
 import { getTestSeries, getTestById, getQuestionsByTestId, createQuestion, updateQuestion, deleteQuestion, updateTestInSeries } from "@/lib/firestore/tests";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { QuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
@@ -1071,14 +1072,13 @@ export default function QuestionsPage() {
                                                                 return (
                                                                     <label className="flex items-center gap-2 text-sm">
                                                                         <span className="text-xs font-medium text-gray-600">Weight</span>
-                                                                        <input
-                                                                            type="number"
+                                                                        <NumberInput
                                                                             value={tc.weight ?? 1}
                                                                             min={0}
                                                                             step={1}
-                                                                            onChange={(e) => {
+                                                                            onValueChange={(v) => {
                                                                                 const newCases = [...editingQuestion.testCases];
-                                                                                newCases[idx] = { ...tc, weight: Math.max(0, parseFloat(e.target.value) || 0) };
+                                                                                newCases[idx] = { ...tc, weight: v ?? 0 };
                                                                                 setEditingQuestion({ ...editingQuestion, testCases: newCases });
                                                                             }}
                                                                             className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
@@ -1115,13 +1115,12 @@ export default function QuestionsPage() {
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Time Limit (seconds)
                                                 </label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     value={editingQuestion.timeLimit}
-                                                    onChange={(e) =>
+                                                    onValueChange={(v) =>
                                                         setEditingQuestion({
                                                             ...editingQuestion,
-                                                            timeLimit: parseFloat(e.target.value) || 1,
+                                                            timeLimit: v ?? 1,
                                                         })
                                                     }
                                                     min={1}
@@ -1133,13 +1132,12 @@ export default function QuestionsPage() {
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Memory Limit (MB)
                                                 </label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     value={editingQuestion.memoryLimit}
-                                                    onChange={(e) =>
+                                                    onValueChange={(v) =>
                                                         setEditingQuestion({
                                                             ...editingQuestion,
-                                                            memoryLimit: parseFloat(e.target.value) || 64,
+                                                            memoryLimit: v ?? 64,
                                                         })
                                                     }
                                                     min={16}
@@ -1174,13 +1172,12 @@ export default function QuestionsPage() {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Marks *
                                         </label>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             value={editingQuestion.marks}
-                                            onChange={(e) =>
+                                            onValueChange={(v) =>
                                                 setEditingQuestion({
                                                     ...editingQuestion,
-                                                    marks: parseFloat(e.target.value) || 0,
+                                                    marks: v ?? 0,
                                                 })
                                             }
                                             min={0.5}
@@ -1192,13 +1189,12 @@ export default function QuestionsPage() {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Negative Marks
                                         </label>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             value={editingQuestion.negativeMarks}
-                                            onChange={(e) =>
+                                            onValueChange={(v) =>
                                                 setEditingQuestion({
                                                     ...editingQuestion,
-                                                    negativeMarks: parseFloat(e.target.value) || 0,
+                                                    negativeMarks: v ?? 0,
                                                 })
                                             }
                                             min={0}
