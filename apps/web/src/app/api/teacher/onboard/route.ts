@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 export async function POST(req: Request) {
     try {
-        const tokenUserId = await getBearerUserId(req).catch(() => null);
-        if (!tokenUserId) {
-            return NextResponse.json({ error: "Sign in to complete onboarding." }, { status: 401 });
+        // Must be signed in AND email-verified to provision a teacher account.
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const tokenUserId = auth.userId;
 
         const body = await req.json();
-        const { step, phone, uid } = body;
+        const { step, uid } = body;
 
         if (!step || !uid) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -24,45 +26,8 @@ export async function POST(req: Request) {
             );
         }
 
-        if (step === "phone") {
-            if (!phone) {
-                return NextResponse.json({ error: "Phone number required" }, { status: 400 });
-            }
-
-            // Check if phone already exists on another active/trial teacher
-            const teachersSnap = await adminDb
-                .collection("teachers")
-                .where("profile.phone", "==", phone)
-                .where("subscription.status", "in", ["trial", "active", "expired"])
-                .limit(1)
-                .get();
-
-            if (!teachersSnap.empty) {
-                const existing = teachersSnap.docs[0];
-                if (existing.id !== uid) {
-                    return NextResponse.json(
-                        { error: "This phone number is already registered with another teacher account." },
-                        { status: 409 }
-                    );
-                }
-            }
-
-            // Persist the verified phone on the user doc (not just the step) so
-            // a resume — e.g. logging back in mid-onboarding, which lands on the
-            // profile page without the ?phone= query param — can recover it
-            // instead of saving an empty phone on the teacher profile.
-            await adminDb.collection("users").doc(uid).set(
-                {
-                    phoneNumber: phone,
-                    phoneVerifiedAt: new Date(),
-                    onboardingStep: "teacher:profile",
-                    updatedAt: new Date(),
-                },
-                { merge: true }
-            );
-            return NextResponse.json({ success: true });
-        }
-
+        // The "phone" step was removed — email verification is the only
+        // identity gate. Onboarding is now the single "profile" step.
         if (step === "profile") {
             const { name, institute, subjects, bio, avatarUrl, phone, inviteCode } = body;
 
@@ -73,6 +38,28 @@ export async function POST(req: Request) {
             const now = Timestamp.now();
             const trialEnd = new Date();
             trialEnd.setDate(trialEnd.getDate() + 7);
+
+            // The 7-day trial runs on the Starter plan. Resolve the actual
+            // plan doc the admin authored so the recorded subscription always
+            // points at a REAL plan code with its REAL price — previously this
+            // hardcoded planId "starter" (a code that exists in no plan doc)
+            // and planPrice 50 (the actual Starter plan is priced differently),
+            // so what teachers were granted could drift from the plan maker.
+            const TRIAL_PLAN_CODE = "teacher-starter";
+            let trialPlanPrice = 0;
+            try {
+                const planSnap = await adminDb
+                    .collection("subscriptionPlans")
+                    .where("code", "==", TRIAL_PLAN_CODE)
+                    .limit(1)
+                    .get();
+                const planData = planSnap.docs[0]?.data();
+                if (typeof planData?.monthlyPriceINR === "number") {
+                    trialPlanPrice = planData.monthlyPriceINR;
+                }
+            } catch (e) {
+                console.warn("[teacher/onboard] trial plan lookup failed:", e);
+            }
 
             // Atomic batch: create teacher doc + flip user role
             const batch = adminDb.batch();
@@ -90,20 +77,18 @@ export async function POST(req: Request) {
                 inviteCode,
                 paymentFingerprint: null,
                 subscription: {
-                    // Legacy snake_case `subscription_plans` doc id (used by
-                    // checkPlanLimits middleware).
-                    planId: "starter",
-                    // Camel-case `subscriptionPlans` doc code (used by the
-                    // teachingEntitlements resolver / pricing UI). Without
-                    // this, the pricing page can't match the teacher's
-                    // current plan and never shows the "Current plan" pill.
-                    planCode: "teacher-starter",
+                    // planId mirrors planCode — both must be a code that exists
+                    // in `subscriptionPlans` (the teachingEntitlements resolver
+                    // reads planCode first, planId as legacy fallback, and the
+                    // pricing page's "Current plan" pill matches on planCode).
+                    planId: TRIAL_PLAN_CODE,
+                    planCode: TRIAL_PLAN_CODE,
                     status: "trial",
                     startedAt: now,
                     expiresAt: Timestamp.fromDate(trialEnd),
                     gracePeriodEndsAt: null,
                     autoRenew: false,
-                    planPrice: 50,
+                    planPrice: trialPlanPrice,
                     cadence: "monthly",
                 },
                 stats: { totalStudents: 0, totalQuizzes: 0, totalTests: 0, totalContests: 0, totalCourses: 0 },

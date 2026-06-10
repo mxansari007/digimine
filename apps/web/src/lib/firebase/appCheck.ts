@@ -13,7 +13,7 @@
  * per month and silent (no user friction). reCAPTCHA Enterprise is the
  * paid alternative; we don't need its extra fraud signals at our scale
  * because the abuse surface is already bounded by:
- *   - Server-side OTP rate limit (`/api/onboarding/otp-send`)
+ *   - Email verification gate (EmailVerificationGate)
  *   - Institute signup velocity caps
  *   - Phone uniqueness + email blocklist
  *

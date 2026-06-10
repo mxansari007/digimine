@@ -56,6 +56,46 @@ export async function getBearerUserId(req: Request): Promise<string | null> {
     return decoded.uid;
 }
 
+export type BearerAuth =
+    | { ok: true; userId: string }
+    | { ok: false; status: number; error: string; code?: string };
+
+/**
+ * Resolve the caller AND require a verified email before any feature or
+ * provisioning action. This is the server-side half of the email-verification
+ * policy — the client gate (EmailVerificationGate) handles UX, but it can be
+ * bypassed, so every sensitive mutation must independently verify the token's
+ * `email_verified` claim here.
+ *
+ * Phone-only accounts (no email on the token) have nothing to verify and pass.
+ * Google / federated sign-ins arrive with `email_verified === true` already.
+ */
+export async function requireVerifiedUser(req: Request): Promise<BearerAuth> {
+    const header = req.headers.get("authorization") || "";
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    if (!match) return { ok: false, status: 401, error: "Sign in to continue." };
+
+    let decoded: Awaited<ReturnType<typeof adminAuth.verifyIdToken>>;
+    try {
+        decoded = await adminAuth.verifyIdToken(match[1]);
+    } catch {
+        return { ok: false, status: 401, error: "Sign in to continue." };
+    }
+
+    const email = (decoded.email as string | undefined) || null;
+    const emailVerified = decoded.email_verified === true;
+    // Only accounts that actually have an email must verify it.
+    if (email && !emailVerified) {
+        return {
+            ok: false,
+            status: 403,
+            error: "Please verify your email address before continuing.",
+            code: "email_unverified",
+        };
+    }
+    return { ok: true, userId: decoded.uid };
+}
+
 export function isPublicApprovedTeacherContent(data: FirebaseFirestore.DocumentData | undefined): boolean {
     return data?.visibility === "published" || data?.visibility === "public";
 }

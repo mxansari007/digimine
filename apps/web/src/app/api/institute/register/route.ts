@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
+import { slugify } from "@digimine/utils";
 import { adminDb } from "@/lib/firebase/admin";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import {
     allocateUniqueInstituteInviteCode,
     findInstituteForAdmin,
@@ -30,10 +31,10 @@ export const dynamic = "force-dynamic";
  * existing one rather than creating a duplicate.
  *
  * Abuse-prevention layers (see lib/server/abuse.ts for rationale):
- *   1. Phone verification — caller must have a verified phone on their
- *      user doc before they can create an institute.
- *   2. Phone deduplication — the verified phone can't already own a
- *      different institute.
+ *   1. Email verification — enforced app-wide by EmailVerificationGate
+ *      (the phone-OTP gate was removed to reduce onboarding friction).
+ *   2. Phone deduplication — when a phone exists on the user doc, it
+ *      can't already own a different institute.
  *   3. Disposable email blocklist — common throwaway domains rejected
  *      as the contact email.
  *   4. Velocity caps — per-IP, 3 / 24h and 5 / 7d.
@@ -47,17 +48,19 @@ export async function POST(req: Request) {
 
     let userId: string | null = null;
     try {
-        userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) {
+        // Signed in AND email-verified to provision an institute.
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
             await logInstituteSignupAttempt({
                 userId: null,
                 outcome: "error",
-                reason: "unauthenticated",
+                reason: auth.code === "email_unverified" ? "email_unverified" : "unauthenticated",
                 ipHash,
                 userAgent,
             });
-            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        userId = auth.userId;
 
         // 1. Already owns an institute — return it. No new creation, so we
         //    don't burn a velocity budget either.
@@ -86,32 +89,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Name too long" }, { status: 400 });
         }
 
-        const slug = (typeof body.slug === "string" && body.slug.trim()) || slugify(name);
+        const slug = slugify(typeof body.slug === "string" && body.slug.trim() ? body.slug : name);
         const description = typeof body.description === "string" ? body.description.trim() : "";
         const contactEmail = typeof body.contactEmail === "string" ? body.contactEmail.trim() : "";
         const contactPhone = typeof body.contactPhone === "string" ? body.contactPhone.trim() : "";
         const website = typeof body.website === "string" ? body.website.trim() : "";
 
-        // 2. Phone gate — every institute owner must be OTP-verified.
+        // 2. Phone is optional now — the OTP onboarding step was removed
+        //    (email verification is the only identity gate). If a number is
+        //    on the user doc (legacy flow / settings), still record it and
+        //    keep the cross-institute uniqueness check for it.
         const ownerPhone = normalisePhone(await getUserPhoneNumber(userId));
-        if (!ownerPhone) {
-            await logInstituteSignupAttempt({
-                userId,
-                outcome: "rejected_phone_missing",
-                reason: "users/{uid}.phoneNumber missing",
-                name,
-                contactEmail,
-                ipHash,
-                userAgent,
-            });
-            return NextResponse.json(
-                { error: "Verify your phone first to register an institute.", code: "phone_required" },
-                { status: 412 }
-            );
-        }
 
-        // 3. Phone uniqueness across institutes.
-        if (await isInstituteOwnerPhoneTaken(ownerPhone, userId)) {
+        // 3. Phone uniqueness across institutes (only when a phone exists).
+        if (ownerPhone && (await isInstituteOwnerPhoneTaken(ownerPhone, userId))) {
             await logInstituteSignupAttempt({
                 userId,
                 outcome: "rejected_phone_reused",
@@ -184,7 +175,7 @@ export async function POST(req: Request) {
             slug,
             description: description || null,
             ownerId: userId,
-            ownerPhone,
+            ownerPhone: ownerPhone || null,
             contactEmail: contactEmail || null,
             contactPhone: contactPhone || null,
             website: website || null,
@@ -192,7 +183,16 @@ export async function POST(req: Request) {
             inviteCode,
             branding: { logoUrl: null, primaryColor: null, tagline: null },
             subscription: {
+                // Two plan vocabularies coexist for institutes:
+                //  - planId keys the hardcoded INSTITUTE_BILLING_PLANS used by
+                //    /institute/billing and invoices ("trial" lives there).
+                //  - planCode keys the admin-authored `subscriptionPlans`
+                //    collection used by teachingEntitlements + /pricing/institute.
+                //    Without it, a new institute's entitlements resolved off
+                //    planId "trial" (a code no plan doc has) — disconnecting
+                //    the limits the admin authored from what the institute got.
                 planId: "trial",
+                planCode: "institute-free",
                 status: "trial",
                 startedAt: now,
                 expiresAt: Timestamp.fromMillis(now.toMillis() + 30 * 24 * 60 * 60 * 1000),
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
             // Trust + abuse signals tracked on the institute doc itself so
             // super_admin tooling can filter on them without a join.
             trust: {
-                ownerPhoneVerified: true,
+                ownerPhoneVerified: Boolean(ownerPhone),
                 flagged,
                 ipHashAtSignup: ipHash,
                 createdAtIp: ipHash,
@@ -281,12 +281,4 @@ export async function POST(req: Request) {
             { status: 500 }
         );
     }
-}
-
-function slugify(input: string): string {
-    return input
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 60);
 }

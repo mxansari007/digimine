@@ -34,16 +34,15 @@ export function resumeOnboardingPath(
     step: OnboardingStep | null | undefined
 ): string | null {
     switch (step) {
+        // Legacy steps: the phone-OTP and payment steps were removed to reduce
+        // onboarding friction — email verification is the only gate now. Any
+        // user whose doc still reads "teacher:phone" / "teacher:payment" /
+        // "institute:phone" resumes at the surviving step of their flow.
         case "teacher:phone":
-            return "/teacher/onboarding/phone";
-        // Legacy step: the payment step was removed to reduce onboarding
-        // friction. Any user whose doc still reads "teacher:payment" resumes
-        // at the profile step instead of a now-deleted page.
         case "teacher:payment":
         case "teacher:profile":
             return "/teacher/onboarding/profile";
         case "institute:phone":
-            return "/institute/onboarding/phone";
         case "institute:setup":
             return "/institute/onboarding";
         default:

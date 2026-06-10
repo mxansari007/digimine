@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import { loadProblemById, loadProblemBySlug, recordSubmission } from "@/lib/server/practice";
 import { judgeDsa, judgeSql } from "@/lib/server/practiceJudge";
 import { checkQuota, getEntitlements } from "@/lib/server/entitlements";
@@ -18,8 +18,9 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
     try {
-        const userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) return NextResponse.json({ error: "Sign in to submit." }, { status: 401 });
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
+        const userId = auth.userId;
 
         // Defense-in-depth: useAttemptGate funnels role-less users through
         // /role-select on the client, but we re-verify here for stale tabs

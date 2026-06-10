@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Step 2 of institute onboarding — collect institute details, create the
+ * Institute onboarding (single step) — collect institute details, create the
  * institute doc on the server, then show a confirmation screen with the
- * invite code that teachers will use to join.
+ * invite code that teachers will use to join. The phone-OTP step that used
+ * to precede this was removed: email verification is the only gate now.
  *
  * Two states:
- *   - "form"  → name + contact fields, gated on the phone step being done
+ *   - "form"  → name + contact fields
  *   - "done"  → success screen with invite code + copy button + CTA to dashboard
  */
 import { useState } from "react";
@@ -16,13 +17,10 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import {
     OnboardingShell,
-    Stepper,
     StepHeader,
     FormField,
     textInputClass,
 } from "@/components/onboarding";
-
-const STEPS = ["Phone", "Institute"];
 
 export default function InstituteOnboardingPage() {
     const router = useRouter();
@@ -60,10 +58,6 @@ export default function InstituteOnboardingPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                if (data.code === "phone_required") {
-                    router.push("/institute/onboarding/phone");
-                    return;
-                }
                 throw new Error(data.error || "Failed to register institute");
             }
             setInstitute(data.institute);
@@ -85,10 +79,6 @@ export default function InstituteOnboardingPage() {
     if (step === "done" && institute) {
         return (
             <OnboardingShell maxWidth="md">
-                <div className="mb-8">
-                    <Stepper steps={STEPS} current={STEPS.length} />
-                </div>
-
                 <div className="mb-6">
                     <StepHeader
                         eyebrow="Institute created"
@@ -154,10 +144,6 @@ export default function InstituteOnboardingPage() {
 
     return (
         <OnboardingShell maxWidth="2xl">
-            <div className="mb-8">
-                <Stepper steps={STEPS} current={1} />
-            </div>
-
             <div className="mb-6">
                 <StepHeader
                     title="Set up your institute"

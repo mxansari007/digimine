@@ -1,6 +1,6 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getBearerUserId, toIsoDate } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser, toIsoDate } from "@/lib/server/classroomAccess";
 
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const INVITE_PREFIX = "INS-";
@@ -84,8 +84,11 @@ export async function assertInstituteAdmin(
     req: Request,
     instituteId: string
 ): Promise<InstituteAdminAuth> {
-    const userId = await getBearerUserId(req).catch(() => null);
-    if (!userId) return { ok: false, status: 401, error: "Sign in" };
+    // Every institute-admin action requires a verified email (covers all
+    // institute portal mutation routes that go through this helper).
+    const auth = await requireVerifiedUser(req);
+    if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
+    const userId = auth.userId;
     if (!instituteId) return { ok: false, status: 400, error: "instituteId required" };
     const institute = await getInstituteById(instituteId);
     if (!institute) return { ok: false, status: 404, error: "Institute not found" };

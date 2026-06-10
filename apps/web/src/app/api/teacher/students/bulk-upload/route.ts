@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { checkPlanLimits } from "@/lib/middleware/checkPlanLimits";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 export async function POST(req: Request) {
     try {
-        const tokenUserId = await getBearerUserId(req).catch(() => null);
-        if (!tokenUserId) {
-            return NextResponse.json({ error: "Sign in to enroll students." }, { status: 401 });
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const tokenUserId = auth.userId;
 
         const body = await req.json();
         const { teacherId, students } = body;

@@ -54,6 +54,15 @@ service cloud.firestore {
       return request.auth.token.get('email', '').lower();
     }
 
+    // Email-verification policy: no one uses a feature without a verified
+    // email. Phone-only accounts (no email on the token) have nothing to
+    // verify and pass. Admins are exempted at each call site via isAdmin().
+    function isEmailVerified() {
+      return isAuthenticated()
+          && (request.auth.token.get('email_verified', false) == true
+              || request.auth.token.get('email', '') == '');
+    }
+
     // "God Mode" for Bootstrap Admins - Bypasses all DB lookups
     function isBootstrapAdmin() {
       return isAuthenticated() &&
@@ -87,12 +96,14 @@ service cloud.firestore {
 
     function teacherCanCreate(uid) {
       return isTeacher(uid)
+          && isEmailVerified()
           && get(/databases/$(database)/documents/teachers/$(uid))
              .data.get('subscription', {}).get('status', 'free') in ['free', 'trial', 'active', 'grace_period'];
     }
 
     function isOwnTeacherContent() {
       return isAuthenticated()
+          && isEmailVerified()
           && resource.data.get('teacherId', '') == request.auth.uid;
     }
 
@@ -1198,6 +1209,14 @@ service cloud.firestore {
       // One dedupe doc per (user, target); only the owner touches it.
       allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Per-user entitlement overrides (admin grants). Written ONLY by the
+    // validated server route /api/admin/user-overrides (admin SDK, which
+    // bypasses these rules). Clients can never write them; admins may read.
+    match /userEntitlementOverrides/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }

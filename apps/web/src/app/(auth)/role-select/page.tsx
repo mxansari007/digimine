@@ -159,17 +159,17 @@ export default function RoleSelectPage() {
                 // `role`, so this merge write is safe from the client.
                 await setDoc(
                     doc(db, "users", firebaseUser.uid),
-                    { onboardingStep: "teacher:phone", updatedAt: new Date() },
+                    { onboardingStep: "teacher:profile", updatedAt: new Date() },
                     { merge: true }
                 );
                 const q = next ? `?next=${encodeURIComponent(next)}` : "";
-                router.push(`/teacher/onboarding/phone${q}`);
+                router.push(`/teacher/onboarding/profile${q}`);
                 return;
             }
             if (role === "institute") {
                 await setDoc(
                     doc(db, "users", firebaseUser.uid),
-                    { onboardingStep: "institute:phone", updatedAt: new Date() },
+                    { onboardingStep: "institute:setup", updatedAt: new Date() },
                     { merge: true }
                 );
                 const q = next ? `?next=${encodeURIComponent(next)}` : "";

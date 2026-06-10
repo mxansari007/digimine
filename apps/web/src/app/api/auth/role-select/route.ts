@@ -23,19 +23,18 @@
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
-        const uid = await getBearerUserId(req).catch(() => null);
-        if (!uid) {
-            return NextResponse.json(
-                { error: "Sign in to continue." },
-                { status: 401 }
-            );
+        // A role can only be claimed after the email is verified.
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const uid = auth.userId;
 
         const body = await req.json().catch(() => ({} as { role?: string }));
         const requested = (body as { role?: string }).role;

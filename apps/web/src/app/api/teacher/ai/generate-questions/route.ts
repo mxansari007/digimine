@@ -33,7 +33,7 @@
  * and auth header; the request shape is unified.
  */
 import { NextResponse } from "next/server";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import {
     getTeachingEntitlements,
     hasTeachingFeature,
@@ -169,10 +169,12 @@ function normalizeGenerated(raw: any): GeneratedQuestion[] {
 
 export async function POST(req: Request) {
     try {
-        const userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) {
-            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        // Gate 0: signed in + email-verified.
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const userId = auth.userId;
 
         // Gate 1: global kill-switch.
         const aiCfg = await getAiProviderConfig();

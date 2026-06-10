@@ -13,17 +13,18 @@
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 export async function POST(req: Request) {
     try {
-        const userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) {
-            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const userId = auth.userId;
 
         const body = await req.json().catch(() => ({}));
         const planCode = typeof body.planCode === "string" ? body.planCode : "";

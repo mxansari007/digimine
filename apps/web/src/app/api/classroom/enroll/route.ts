@@ -3,19 +3,20 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { checkPlanLimits } from "@/lib/middleware/checkPlanLimits";
 import { getClassById, getClassByInviteCode } from "@/lib/server/classes";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
-        // Bearer token required. Pre-fix, an unauthenticated caller could
-        // POST `{ inviteCode, studentId: "<any-uid>" }` and enroll any
-        // student in any open class — spam-amplifiable, pollutes rosters.
-        const tokenUserId = await getBearerUserId(req).catch(() => null);
-        if (!tokenUserId) {
-            return NextResponse.json({ error: "Sign in to join a class." }, { status: 401 });
+        // Bearer token + verified email required. Pre-fix, an unauthenticated
+        // caller could POST `{ inviteCode, studentId: "<any-uid>" }` and enroll
+        // any student in any open class — spam-amplifiable, pollutes rosters.
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const tokenUserId = auth.userId;
 
         const body = await req.json();
         const { inviteCode, classId: classIdInput, studentId: bodyStudentId, studentEmail, studentName, rollNumber } =

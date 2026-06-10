@@ -15,14 +15,27 @@ import { resumeOnboardingPath } from "@/lib/auth/redirects";
 type RoleChoice = "student" | "teacher" | "institute";
 
 function afterSignupPath(role: RoleChoice): string {
-    if (role === "teacher") return "/teacher/onboarding/phone";
+    if (role === "teacher") return "/teacher/onboarding/profile";
     if (role === "institute") return "/institute/onboarding";
     return "/dashboard";
 }
 
+/**
+ * Where to send the user immediately after account creation. An unverified
+ * email/password account is routed to /verify-email FIRST (carrying its
+ * eventual destination in `next`), so verification happens before any
+ * onboarding or feature use. Already-verified accounts (e.g. Google) go
+ * straight to their destination.
+ */
+function postSignupDestination(role: RoleChoice, emailVerified: boolean): string {
+    const dest = afterSignupPath(role);
+    if (emailVerified) return dest;
+    return `/verify-email?next=${encodeURIComponent(dest)}`;
+}
+
 function initialOnboardingStep(role: RoleChoice): OnboardingStep {
-    if (role === "teacher") return "teacher:phone";
-    if (role === "institute") return "institute:phone";
+    if (role === "teacher") return "teacher:profile";
+    if (role === "institute") return "institute:setup";
     return "complete";
 }
 
@@ -144,7 +157,8 @@ export default function RegisterPage() {
                 console.warn("[register] post-signup hooks failed:", e)
             );
 
-            router.push(afterSignupPath(role));
+            // Email/password accounts start unverified → verify before onboarding.
+            router.push(postSignupDestination(role, credential.user.emailVerified));
         } catch (err: unknown) {
             const code = (err as { code?: string })?.code || "";
             if (code === "auth/email-already-in-use") {
@@ -234,7 +248,8 @@ export default function RegisterPage() {
                 console.warn("[register] post-signup hooks failed:", e)
             );
 
-            router.push(afterSignupPath(role));
+            // Email/password accounts start unverified → verify before onboarding.
+            router.push(postSignupDestination(role, credential.user.emailVerified));
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to sign up with Google";
             setError(errorMessage);

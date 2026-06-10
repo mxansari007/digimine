@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * Step 3 of teacher onboarding — collect profile details, create the
+ * Teacher onboarding (single step) — collect profile details, create the
  * teacher doc on the server, then wait for the client's user snapshot to
- * reflect role="teacher" before navigating to the dashboard.
+ * reflect role="teacher" before navigating to the dashboard. The phone-OTP
+ * step that used to precede this was removed: email verification is the
+ * only identity gate for every user now.
  *
  * Why the wait matters (this was a real bug): the teacher layout guard
  * checks `isTeacher` immediately on route change. After we POST to
@@ -28,13 +30,10 @@ import { storage } from "@/lib/firebase/client";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import {
     OnboardingShell,
-    Stepper,
     StepHeader,
     FormField,
     textInputClass,
 } from "@/components/onboarding";
-
-const STEPS = ["Phone", "Profile"];
 
 function generateInviteCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -49,11 +48,10 @@ export default function ProfileOnboardingPage() {
 
     const { firebaseUser, user, isAuthenticated, loading: authLoading } = useAuthContext();
 
-    // Phone comes from the phone step via the ?phone= query param on a normal
-    // forward. But when a user RESUMES (logs back in mid-onboarding, landing
-    // here straight from the resume redirect), that param is absent — so fall
-    // back to the phone we persisted on their user doc during the phone step.
-    // Without this, the profile would be saved with an empty phone.
+    // The phone-OTP step was removed, so the phone is optional now. Keep
+    // whatever already exists — a legacy ?phone= param from an old link, or
+    // a number persisted on the user doc by the retired flow — so existing
+    // teacher profiles don't lose it.
     const phone = useMemo(
         () => searchParams.get("phone") || user?.phoneNumber || "",
         [searchParams, user?.phoneNumber]
@@ -113,13 +111,6 @@ export default function ProfileOnboardingPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Guard: never save a teacher profile with an empty phone. If we got
-        // here without one (skipped/abandoned the phone step), send them back
-        // to complete it rather than persisting a blank number.
-        if (!phone.trim()) {
-            router.push("/teacher/onboarding/phone");
-            return;
-        }
         if (!firebaseUser || !effectiveName || !form.institute.trim()) {
             setError(
                 !effectiveName
@@ -213,7 +204,6 @@ export default function ProfileOnboardingPage() {
                             Provisioning your teacher account and starting your 7-day trial.
                         </p>
                         <div className="mt-6 flex w-full flex-col gap-2 text-left text-xs text-slate-500">
-                            <FinaliseRow done label="Verified phone" />
                             <FinaliseRow done label="Profile saved" />
                             <FinaliseRow
                                 done={user?.role === "teacher"}
@@ -228,10 +218,6 @@ export default function ProfileOnboardingPage() {
 
     return (
         <OnboardingShell maxWidth="2xl">
-            <div className="mb-8">
-                <Stepper steps={STEPS} current={1} />
-            </div>
-
             <div className="mb-6">
                 <StepHeader
                     title={`Welcome, ${firstName}`}

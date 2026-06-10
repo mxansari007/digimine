@@ -16,7 +16,7 @@
  *   6. Weekly quota (429) — consumed on instant start (bookings consumed it already).
  */
 import { NextResponse } from "next/server";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { getEntitlements, checkQuota, refundQuota } from "@/lib/server/entitlements";
 import { getAiProviderConfig } from "@/lib/server/aiProvider";
@@ -53,10 +53,11 @@ async function nextOpenSlot(now: Date, cfg: AIInterviewSchedulingConfig) {
 
 export async function POST(req: Request) {
     try {
-        const userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) {
-            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const userId = auth.userId;
 
         // Cheap guard against double-clicked starts racing each other.
         const rl = await rateLimit("aiStart", userId, { limit: 3, windowSeconds: 10 });

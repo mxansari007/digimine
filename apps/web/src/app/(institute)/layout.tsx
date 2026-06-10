@@ -34,7 +34,6 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname() ?? "";
 
     const isOnboardingPath = pathname.startsWith("/institute/onboarding");
-    const isPhoneStepPath = pathname.startsWith("/institute/onboarding/phone");
 
     const [resolving, setResolving] = useState(true);
     const [hasInstitute, setHasInstitute] = useState(false);
@@ -70,21 +69,10 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                     : user?.role === "institute_admin";
                 setHasInstitute(ok);
 
-                // Abuse-prevention: every new institute admin must verify
-                // their phone before they can reach the create-institute
-                // wizard. Skip the gate if (a) they already have an
-                // institute, or (b) they already have a phone on their
-                // user doc (e.g. existing teacher).
-                const needsPhoneStep = !ok && !user?.phoneNumber;
-
                 if (ok && isOnboardingPath) {
                     router.replace("/institute/dashboard");
-                } else if (!ok && needsPhoneStep && !isPhoneStepPath) {
-                    router.replace("/institute/onboarding/phone");
-                } else if (!ok && !needsPhoneStep && isPhoneStepPath) {
-                    router.replace("/institute/onboarding");
                 } else if (!ok && !isOnboardingPath) {
-                    router.replace(needsPhoneStep ? "/institute/onboarding/phone" : "/institute/onboarding");
+                    router.replace("/institute/onboarding");
                 }
             } catch {
                 // Network error reaching /api/institute/me — don't strand a
@@ -95,16 +83,14 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                 } else {
                     setHasInstitute(false);
                     if (!isOnboardingPath) {
-                        router.replace(
-                            user?.phoneNumber ? "/institute/onboarding" : "/institute/onboarding/phone"
-                        );
+                        router.replace("/institute/onboarding");
                     }
                 }
             } finally {
                 setResolving(false);
             }
         })();
-    }, [firebaseUser, isAuthenticated, isOnboardingPath, isPhoneStepPath, loading, router, user?.phoneNumber, user?.role]);
+    }, [firebaseUser, isAuthenticated, isOnboardingPath, loading, router, user?.role]);
 
     if (loading || resolving) return <PageLoading />;
 

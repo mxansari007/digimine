@@ -16,7 +16,7 @@
  * student begins, so a 3-day-old booking never starts on stale/changed content.
  */
 import { NextResponse } from "next/server";
-import { getBearerUserId } from "@/lib/server/classroomAccess";
+import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { getEntitlements, checkQuota, refundQuota } from "@/lib/server/entitlements";
 import { rateLimit } from "@/lib/server/ratelimit";
@@ -41,10 +41,11 @@ export const maxDuration = 20;
 
 export async function POST(req: Request) {
     try {
-        const userId = await getBearerUserId(req).catch(() => null);
-        if (!userId) {
-            return NextResponse.json({ error: "Sign in" }, { status: 401 });
+        const auth = await requireVerifiedUser(req);
+        if (!auth.ok) {
+            return NextResponse.json({ error: auth.error, code: auth.code }, { status: auth.status });
         }
+        const userId = auth.userId;
         const rl = await rateLimit("aiSchedule", userId, { limit: 5, windowSeconds: 10 });
         if (!rl.success) {
             return NextResponse.json({ error: "Slow down a moment." }, { status: 429 });
