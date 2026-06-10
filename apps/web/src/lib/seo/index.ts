@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 // `import { ogImageUrl } from "@/lib/seo"`.
 export {
     ogImageUrl,
+    defaultOgImage,
     articleOgImage,
     practiceOgImage,
     testOgImage,
@@ -24,9 +25,10 @@ export {
     type OgImageStat,
     type OgAccent,
 } from "./og";
+import { defaultOgImage } from "./og";
 
 export const SITE_NAME = "PlacementRanker";
-export const SITE_TAGLINE = "Tests, quizzes, courses & marketplace for learners and educators";
+export const SITE_TAGLINE = "DSA, SQL, mock tests & AI mock interviews";
 export const SITE_TWITTER = "@placementranker";
 export const SITE_LOCALE = "en_IN";
 export const DEFAULT_OG_IMAGE = "/og-default.png";
@@ -69,7 +71,7 @@ export interface BuildMetadataInput {
 export function buildMetadata(input: BuildMetadataInput): Metadata {
     const path = input.path || "/";
     const canonical = input.canonical || absoluteUrl(path);
-    const image = input.ogImage ? absoluteUrl(input.ogImage) : absoluteUrl(DEFAULT_OG_IMAGE);
+    const image = input.ogImage ? absoluteUrl(input.ogImage) : defaultOgImage();
     const description = input.description?.trim() || SITE_TAGLINE;
 
     return {
@@ -113,6 +115,8 @@ export function organizationJsonLd() {
         "@type": "Organization",
         name: SITE_NAME,
         url: siteOrigin(),
+        description:
+            "All-in-one placement preparation platform — DSA & SQL practice with instant judging, mock tests, live coding contests, quizzes, courses and AI mock interviews.",
         logo: absoluteUrl("/logo.png"),
         sameAs: [
             "https://twitter.com/placementranker",
@@ -145,7 +149,7 @@ export function websiteJsonLd() {
             "@type": "SearchAction",
             target: {
                 "@type": "EntryPoint",
-                urlTemplate: `${siteOrigin()}/marketplace?q={search_term_string}`,
+                urlTemplate: `${siteOrigin()}/search?q={search_term_string}`,
             },
             "query-input": "required name=search_term_string",
         },

@@ -14,8 +14,9 @@ export function Footer() {
                             <Logo variant="dark" iconSize={28} />
                         </Link>
                         <p className="max-w-sm text-slate-500">
-                            Your marketplace for premium digital products. Discover eBooks,
-                            courses, templates, and more from creators worldwide.
+                            Crack your placement with DSA &amp; SQL practice, real-timing mock
+                            tests, live coding contests, quizzes, courses, and AI mock
+                            interviews — built for Indian placement season and beyond.
                         </p>
                     </div>
 

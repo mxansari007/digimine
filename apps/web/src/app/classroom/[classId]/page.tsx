@@ -29,7 +29,7 @@ type ClassShape = {
 
 export default function ClassroomPage() {
     const params = useParams();
-    const { firebaseUser } = useAuthContext();
+    const { firebaseUser, loading: authLoading } = useAuthContext();
     const classId = params.classId as string;
     const isLegacy = classId.startsWith("legacy:");
     const legacyTeacherId = isLegacy ? classId.replace(/^legacy:/, "") : "";
@@ -99,8 +99,13 @@ export default function ClassroomPage() {
     }, [classId, firebaseUser, isLegacy, legacyTeacherId]);
 
     useEffect(() => {
+        // Wait for Firebase to finish restoring the session before the first
+        // fetch. On a hard reload `firebaseUser` is briefly null; firing
+        // loadData then would request the class without the student's id/token
+        // and wrongly render the not-enrolled / not-found state.
+        if (authLoading) return;
         loadData();
-    }, [loadData]);
+    }, [authLoading, loadData]);
 
     const handleLeave = async () => {
         if (!firebaseUser) return;

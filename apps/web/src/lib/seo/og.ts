@@ -72,6 +72,27 @@ export function ogImageUrl(params: OgImageParams): string {
     return u.toString();
 }
 
+/**
+ * The site-wide default OG card — used on the homepage and as the fallback for
+ * any page that doesn't supply its own image. Renders through the dynamic
+ * /api/og route so social shares always get a branded 1200×630 preview (there
+ * is no static og-default.png in /public).
+ */
+export function defaultOgImage(): string {
+    return ogImageUrl({
+        title: "Crack your placement — practice, learn, repeat",
+        subtitle: "DSA & SQL practice, mock tests, live contests & AI mock interviews",
+        category: "Placement Prep",
+        accent: "green",
+        stats: [
+            { label: "Practice", value: "DSA & SQL" },
+            { label: "Mock tests", value: "Real timing" },
+            { label: "Contests", value: "Live" },
+            { label: "Interviews", value: "AI-powered" },
+        ],
+    });
+}
+
 // ─── Domain-specific shortcuts ───────────────────────────────────────
 
 /**

@@ -7,12 +7,11 @@ import { FacebookPixel } from "@/components/common";
 import { ToastProvider } from "@digimine/ui";
 import { ThemeProvider, themeInitScript } from "@/components/theme";
 import {
-    DEFAULT_OG_IMAGE,
+    defaultOgImage,
     SITE_LOCALE,
     SITE_NAME,
     SITE_TAGLINE,
     SITE_TWITTER,
-    absoluteUrl,
     jsonLdScript,
     organizationJsonLd,
     siteOrigin,
@@ -46,22 +45,26 @@ export const metadata: Metadata = {
         template: `%s · ${SITE_NAME}`,
     },
     description:
-        "PlacementRanker is an Indian learning platform for tests, quizzes, courses, contests, and a teacher marketplace. Practice for NEET, JEE, school boards, and more.",
+        "PlacementRanker is an all-in-one placement-prep platform: DSA & SQL practice, mock tests, live coding contests, quizzes, courses & AI mock interviews.",
     applicationName: SITE_NAME,
     keywords: [
-        "mock tests",
-        "online quizzes",
-        "online courses",
-        "NEET preparation",
-        "JEE preparation",
-        "school tests",
-        "teacher marketplace",
-        "coding tests",
-        "study material India",
+        "placement preparation",
+        "DSA practice",
+        "SQL practice",
+        "coding interview preparation",
+        "AI mock interview",
+        "online mock tests",
+        "coding contests",
+        "aptitude practice",
+        "campus placement",
+        "technical interview practice",
+        "competitive programming",
+        "online code judge",
     ],
     authors: [{ name: SITE_NAME, url: siteOrigin() }],
     creator: SITE_NAME,
     publisher: SITE_NAME,
+    category: "education",
     alternates: {
         canonical: siteOrigin(),
     },
@@ -72,8 +75,8 @@ export const metadata: Metadata = {
         siteName: SITE_NAME,
         title: `${SITE_NAME} — ${SITE_TAGLINE}`,
         description:
-            "Tests, quizzes, courses, contests, and a teacher marketplace for every kind of learner in India.",
-        images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE), width: 1200, height: 630, alt: SITE_NAME }],
+            "Crack your placement: DSA & SQL practice, real-timing mock tests, live coding contests, quizzes, courses & AI mock interviews — built for Indian placement season.",
+        images: [{ url: defaultOgImage(), width: 1200, height: 630, alt: SITE_NAME }],
     },
     twitter: {
         card: "summary_large_image",
@@ -81,8 +84,8 @@ export const metadata: Metadata = {
         creator: SITE_TWITTER,
         title: `${SITE_NAME} — ${SITE_TAGLINE}`,
         description:
-            "Tests, quizzes, courses, contests, and a teacher marketplace for every kind of learner in India.",
-        images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+            "Crack your placement: DSA & SQL practice, real-timing mock tests, live coding contests, quizzes, courses & AI mock interviews — built for Indian placement season.",
+        images: [defaultOgImage()],
     },
     robots: {
         index: true,

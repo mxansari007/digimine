@@ -222,7 +222,7 @@ async function fetchPublishedQuizzes(): Promise<QuizItem[]> {
         .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export const getCachedQuizzes = shared("catalog:quizzes:v1", unstable_cache(fetchPublishedQuizzes, ["catalog:quizzes:v1"], {
+export const getCachedQuizzes = shared("catalog:quizzes:v2", unstable_cache(fetchPublishedQuizzes, ["catalog:quizzes:v2"], {
     revalidate: TTL,
     tags: [CATALOG_TAG],
 }));
