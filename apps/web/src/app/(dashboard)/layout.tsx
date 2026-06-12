@@ -8,7 +8,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
-import { studentNav } from "@/components/layout/sidebarNav";
+import { studentNav, portalSwitchNav } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
 
@@ -50,7 +50,7 @@ function DashboardLayoutInner({
 }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const { user, loading, isAuthenticated } = useAuthContext();
+  const { user, loading, isAuthenticated, portals } = useAuthContext();
   const isResultsPath = isUniversalResultsPath(pathname);
 
   useEffect(() => {
@@ -115,7 +115,7 @@ function DashboardLayoutInner({
         <AppSidebar
           role="student"
           pathname={pathname}
-          nav={studentNav}
+          nav={[...studentNav, ...portalSwitchNav(portals, "student")]}
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}

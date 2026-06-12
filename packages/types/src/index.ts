@@ -42,3 +42,5 @@ export * from "./appSubscription";
 export * from "./contentMetadata";
 export * from "./payout";
 export * from "./job";
+export * from "./projectEvaluation";
+export * from "./classCommunity";

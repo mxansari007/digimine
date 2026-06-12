@@ -648,6 +648,96 @@
                 { "fieldPath": "visibility", "order": "ASCENDING" },
                 { "fieldPath": "submittedForReviewAt", "order": "DESCENDING" }
             ]
+        },
+
+        {
+            "collectionGroup": "projectEvaluations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "teacherId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectEvaluations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "instituteId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectEvaluations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "assignedMode", "order": "ASCENDING" },
+                { "fieldPath": "teacherId", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectSubmissions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "evaluationId", "order": "ASCENDING" },
+                { "fieldPath": "submittedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectSubmissions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "evaluationId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectSubmissions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "processingStartedAt", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "projectSubmissions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "submittedAt", "order": "ASCENDING" }
+            ]
+        },
+
+        {
+            "collectionGroup": "classThreads",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "classId", "order": "ASCENDING" },
+                { "fieldPath": "lastActivityAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "classThreads",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "classId", "order": "ASCENDING" },
+                { "fieldPath": "upvoteCount", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "classThreads",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "classId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "dmThreads",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
+                { "fieldPath": "updatedAt", "order": "DESCENDING" }
+            ]
         }
     ],
     "fieldOverrides": [

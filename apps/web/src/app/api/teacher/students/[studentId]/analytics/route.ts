@@ -10,6 +10,7 @@ import {
     loadTeacherContentIds,
     toMillis,
 } from "@/lib/server/teacherAnalytics";
+import { listStudentProjectResults } from "@/lib/server/projectEval/store";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +190,10 @@ export async function GET(
         // Streak — longest consecutive-day run of attempts in last 90 days
         const streak = computeStreak(daily);
 
+        const projectResults = await listStudentProjectResults(teacherId, studentId).catch(
+            () => []
+        );
+
         return NextResponse.json({
             student: {
                 id: studentId,
@@ -231,6 +236,7 @@ export async function GET(
             sectionStrengths,
             daily,
             recent,
+            projectResults,
         });
     } catch (error: any) {
         console.error("Student analytics error:", error);

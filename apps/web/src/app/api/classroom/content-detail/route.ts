@@ -40,6 +40,16 @@ export async function GET(req: Request) {
             endTime: toIsoDate(data?.endTime),
         };
 
+        // Course notes live in the `chapters` SUBCOLLECTION (CourseNoteChapter
+        // docs) — without this the classroom course reader rendered an empty
+        // course no matter what the teacher wrote.
+        if (type === "course") {
+            const chaptersSnap = await snap.ref.collection("chapters").get();
+            content.chapters = chaptersSnap.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+        }
+
         return NextResponse.json({ content });
     } catch (error: any) {
         console.error("Content detail error:", error);

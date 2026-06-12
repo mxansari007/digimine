@@ -1060,7 +1060,7 @@ export interface SeedStudentScenariosOpts {
     quizCategory: string;
     /** Pass the first test series id from TEST_IDS. */
     testSeriesId: string;
-    /** Subtest id under the series (e.g. "s1"). */
+    /** Sub-test id under the series — tests/{seriesId}/tests/{id} (e.g. "t1"). */
     testSubtestId: string;
     testTitle: string;
     testDurationMinutes: number;

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Card, Button } from "@digimine/ui";
+import { Button, Card, FormattedContent } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { ClassroomShell, shortDateTime } from "@/components/classroom/ui";
 
 export default function ClassroomContentPage() {
     const params = useParams();
@@ -69,84 +69,168 @@ export default function ClassroomContentPage() {
     };
 
     const takeRoute = getTakeRoute();
-    const typeLabel = contentType === "test" ? "Test Series" :
+    const typeLabel =
+        contentType === "test" ? "Mock test series" :
         contentType.charAt(0).toUpperCase() + contentType.slice(1);
 
-    if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-gray-500">Loading...</div>;
-    if (!content) return <div className="min-h-screen bg-slate-100 flex items-center justify-center"><Card className="p-8 text-center text-gray-500">{error || "Content not found."}</Card></div>;
-
-    const chapters = Array.isArray(content.chapters) ? content.chapters : [];
-
-    return (
-        <div className="min-h-screen bg-slate-100 py-12 px-4">
-            <div className="max-w-3xl mx-auto">
-                <div className="flex items-center gap-3 mb-6">
-                    <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700 text-sm">← Back</button>
-                    <h1 className="text-2xl font-bold text-gray-900">{content.title || content.name || typeLabel}</h1>
-                </div>
-
-                <Card className="p-6 mb-6">
-                    <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-                        <span className="px-2 py-0.5 bg-gray-100 rounded-full capitalize">{contentType}</span>
-                        {content.accessType === "free" && <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 rounded-full text-xs">Free</span>}
-                    </div>
-                    <p className="text-gray-600 whitespace-pre-wrap">{content.description || content.shortDescription || ""}</p>
-                </Card>
-
-                <Card className="p-6 space-y-3">
-                    <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Details</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                        {content.totalQuestions !== undefined && content.totalQuestions > 0 && <div><span className="text-gray-500">Questions:</span> <span className="font-semibold text-gray-900 ml-1">{content.totalQuestions}</span></div>}
-                        {content.totalMarks !== undefined && content.totalMarks > 0 && <div><span className="text-gray-500">Marks:</span> <span className="font-semibold text-gray-900 ml-1">{content.totalMarks}</span></div>}
-                        {content.duration !== undefined && content.duration > 0 && <div><span className="text-gray-500">Duration:</span> <span className="font-semibold text-gray-900 ml-1">{content.duration} min</span></div>}
-                        {content.estimatedHours !== undefined && content.estimatedHours > 0 && <div><span className="text-gray-500">Duration:</span> <span className="font-semibold text-gray-900 ml-1">{content.estimatedHours} hrs</span></div>}
-                        {content.startTime && <div><span className="text-gray-500">Starts:</span> <span className="font-semibold text-gray-900 ml-1">{new Date(content.startTime).toLocaleString()}</span></div>}
-                        {content.endTime && <div><span className="text-gray-500">Ends:</span> <span className="font-semibold text-gray-900 ml-1">{new Date(content.endTime).toLocaleString()}</span></div>}
-                    </div>
-                </Card>
-
-                {contentType === "course" && chapters.length > 0 && (
-                    <Card className="mt-6 p-6">
-                        <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Course Notes</h3>
-                        <div className="mt-4 space-y-4">
-                            {chapters.map((chapter: any, index: number) => (
-                                <div key={chapter.id || index} className="rounded-xl border border-gray-200 p-4">
-                                    <h4 className="font-semibold text-gray-900">{chapter.title || `Chapter ${index + 1}`}</h4>
-                                    {chapter.description && <p className="mt-1 text-sm text-gray-500">{chapter.description}</p>}
-                                    {Array.isArray(chapter.subtopics) && chapter.subtopics.length > 0 && (
-                                        <div className="mt-3 space-y-3">
-                                            {chapter.subtopics.map((subtopic: any, subIndex: number) => (
-                                                <div key={subtopic.id || subIndex} className="rounded-lg bg-slate-50 p-3">
-                                                    <div className="font-medium text-gray-900">{subtopic.title || `Topic ${subIndex + 1}`}</div>
-                                                    {(subtopic.content || subtopic.notes) && (
-                                                        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{subtopic.content || subtopic.notes}</p>
-                                                    )}
-                                                    {subtopic.videoUrl && (
-                                                        <a href={subtopic.videoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-medium text-primary-700">
-                                                            Open video
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-                )}
-
-                <div className="mt-6 flex gap-3 flex-wrap">
-                    <Link href={`/classroom/${classId}`}>
-                        <Button variant="outline">← Classroom</Button>
-                    </Link>
-                    {takeRoute && (
-                        <Button variant="primary" onClick={() => router.push(takeRoute)}>
-                            {contentType === "quiz" ? "Take Quiz" : contentType === "test" ? "Open Test Series" : contentType === "contest" ? "View Contest" : "Open"}
-                        </Button>
-                    )}
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background px-4 py-10">
+                <div className="mx-auto max-w-3xl space-y-3">
+                    <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800" />
+                    <div className="h-64 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800" />
                 </div>
             </div>
-        </div>
+        );
+    }
+    if (!content) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background px-4">
+                <Card className="max-w-sm p-8 text-center">
+                    <h1 className="font-display text-lg font-semibold text-gray-900">
+                        Couldn&apos;t open this
+                    </h1>
+                    <p className="mt-2 text-sm text-slate-500">
+                        {error || "This content may have been unpublished by your teacher."}
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push(`/classroom/${classId}`)}>
+                        Back to classroom
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
+
+    const chapters = Array.isArray(content.chapters) ? content.chapters : [];
+    const facts: Array<[string, string]> = [];
+    if (content.totalQuestions > 0) facts.push(["Questions", String(content.totalQuestions)]);
+    if (content.totalMarks > 0) facts.push(["Marks", String(content.totalMarks)]);
+    if (content.duration > 0) facts.push(["Duration", `${content.duration} min`]);
+    if (content.estimatedHours > 0) facts.push(["Effort", `~${content.estimatedHours} hrs`]);
+    if (content.startTime) facts.push(["Starts", shortDateTime(content.startTime)]);
+    if (content.endTime) facts.push(["Ends", shortDateTime(content.endTime)]);
+
+    return (
+        <ClassroomShell
+            backHref={`/classroom/${classId}`}
+            backLabel="Classroom"
+            eyebrow={typeLabel}
+            title={content.title || content.name || typeLabel}
+            subtitle={
+                facts.length > 0 ? (
+                    <span className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
+                        {facts.map(([k, v]) => (
+                            <span key={k}>
+                                <span className="text-slate-400">{k} </span>
+                                <span className="text-gray-900">{v}</span>
+                            </span>
+                        ))}
+                    </span>
+                ) : undefined
+            }
+            aside={
+                takeRoute ? (
+                    <Button variant="primary" onClick={() => router.push(takeRoute)}>
+                        {contentType === "quiz" ? "Take quiz" : contentType === "test" ? "Open series" : "View contest"}
+                    </Button>
+                ) : undefined
+            }
+        >
+            {(content.description || content.shortDescription) && (
+                <p className="max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    {content.description || content.shortDescription}
+                </p>
+            )}
+
+            {/* Course reader — chapters are a real sequence, so numbering is
+                information here, not decoration. */}
+            {contentType === "course" && chapters.length > 0 && (
+                <div className="space-y-3">
+                    {chapters.map((chapter: any, index: number) => (
+                        <details
+                            key={chapter.id || index}
+                            open={index === 0}
+                            className="group overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface shadow-soft-sm"
+                        >
+                            <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:bg-slate-50 focus:outline-none">
+                                <span className="font-mono text-xs text-slate-400 tabular-nums">
+                                    {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block font-display text-[15px] font-semibold text-gray-900">
+                                        {chapter.title || `Chapter ${index + 1}`}
+                                    </span>
+                                    {chapter.description && (
+                                        <span className="block truncate text-xs text-slate-500">
+                                            {chapter.description}
+                                        </span>
+                                    )}
+                                </span>
+                                <svg
+                                    className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </summary>
+                            <div className="space-y-5 border-t border-slate-100 dark:border-slate-800 px-5 py-4">
+                                {(Array.isArray(chapter.subtopics) ? chapter.subtopics : []).map(
+                                    (subtopic: any, subIndex: number) => (
+                                        <div key={subtopic.id || subIndex}>
+                                            <h4 className="text-sm font-semibold text-gray-900">
+                                                {subtopic.title || `Topic ${subIndex + 1}`}
+                                            </h4>
+                                            {/* Canonical chapters carry HTML in `contentHtml`;
+                                                legacy docs used plain-text `content`/`notes`. */}
+                                            {subtopic.contentHtml ? (
+                                                <FormattedContent
+                                                    html={subtopic.contentHtml}
+                                                    size="sm"
+                                                    className="mt-1.5"
+                                                />
+                                            ) : subtopic.content || subtopic.notes ? (
+                                                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                                                    {subtopic.content || subtopic.notes}
+                                                </p>
+                                            ) : subtopic.summary ? (
+                                                <p className="mt-1.5 text-sm text-slate-500">{subtopic.summary}</p>
+                                            ) : null}
+                                            {(subtopic.videoUrl ||
+                                                (Array.isArray(subtopic.videos) && subtopic.videos.length > 0)) && (
+                                                <div className="mt-2 flex flex-wrap gap-3">
+                                                    {subtopic.videoUrl && (
+                                                        <a
+                                                            href={subtopic.videoUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-xs font-medium text-primary-700 dark:text-primary-300 hover:underline"
+                                                        >
+                                                            Watch video →
+                                                        </a>
+                                                    )}
+                                                    {(subtopic.videos || []).map((v: any, vi: number) =>
+                                                        v?.url ? (
+                                                            <a
+                                                                key={vi}
+                                                                href={v.url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-xs font-medium text-primary-700 dark:text-primary-300 hover:underline"
+                                                            >
+                                                                {v.title || `Watch video ${vi + 1}`} →
+                                                            </a>
+                                                        ) : null
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        </details>
+                    ))}
+                </div>
+            )}
+        </ClassroomShell>
     );
 }

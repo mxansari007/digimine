@@ -10,6 +10,7 @@ import {
     loadTeacherContentIds,
     toMillis,
 } from "@/lib/server/teacherAnalytics";
+import { buildClassProjectEvalStats } from "@/lib/server/projectEval/store";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,13 @@ export async function GET(req: Request, { params }: { params: { classId: string 
         ]);
 
         const studentIds = roster.map((s) => s.studentId).filter(Boolean);
-        const allAttempts = await loadAttemptsForUsers(studentIds, contentIndex);
+        const [allAttempts, projectEvals] = await Promise.all([
+            loadAttemptsForUsers(studentIds, contentIndex),
+            buildClassProjectEvalStats(
+                { id: params.classId, teacherId: ownership.teacherId },
+                studentIds
+            ).catch(() => []),
+        ]);
 
         const totalAssignedContent = contentIndex.quizzes.size + contentIndex.seriesById.size;
 
@@ -239,6 +246,7 @@ export async function GET(req: Request, { params }: { params: { classId: string 
             mostMissed,
             dropOffStudents,
             notAttempted,
+            projectEvals,
         });
     } catch (error: any) {
         console.error("Class analytics error:", error);

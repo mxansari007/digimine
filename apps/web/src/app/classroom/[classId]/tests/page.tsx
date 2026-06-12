@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Card, Button } from "@digimine/ui";
+import { Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import {
+    ClassroomShell,
+    ContentItemRow,
+    metaFor,
+    type ClassContentRow,
+} from "@/components/classroom/ui";
 
 export default function ClassroomTestsPage() {
     const params = useParams();
@@ -14,7 +19,7 @@ export default function ClassroomTestsPage() {
     const isLegacy = classId.startsWith("legacy:");
     const legacyTeacherId = isLegacy ? classId.replace(/^legacy:/, "") : "";
 
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<ClassContentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -49,48 +54,45 @@ export default function ClassroomTestsPage() {
         loadItems();
     }, [authLoading, firebaseUser, router, classId, isLegacy, legacyTeacherId]);
 
-    if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-gray-500">Loading...</div>;
+    const attemptQuery = isLegacy ? `teacherId=${legacyTeacherId}` : `classId=${classId}`;
 
     return (
-        <div className="min-h-screen bg-slate-100 py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center gap-3 mb-6">
-                    <Link href={`/classroom/${classId}`} className="text-gray-500 hover:text-gray-700">← Back</Link>
-                    <h1 className="text-2xl font-bold text-gray-900">Test Series</h1>
+        <ClassroomShell
+            backHref={`/classroom/${classId}`}
+            backLabel="Classroom"
+            title="Mock tests"
+            subtitle="Timed, exam-style series posted by your teacher. Results land in your dashboard."
+        >
+            {loading ? (
+                <div className="space-y-2">
+                    {[0, 1].map((i) => (
+                        <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800" />
+                    ))}
                 </div>
-                {error ? (
-                    <Card className="p-12 text-center text-red-600">{error}</Card>
-                ) : items.length === 0 ? (
-                    <Card className="p-12 text-center text-gray-500">No published test series yet.</Card>
-                ) : (
-                    <div className="grid gap-4">
-                        {items.map((item) => {
-                            const testSlug = item.slug || item.id;
-                            const attemptQuery = isLegacy
-                                ? `teacherId=${legacyTeacherId}`
-                                : `classId=${classId}`;
-                            return (
-                                <Card key={item.id} className="p-5 hover:shadow-md transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                                            <p className="text-gray-500 text-sm mt-1 line-clamp-2">{item.description}</p>
-                                        </div>
-                                        <div className="flex items-center gap-4 ml-4">
-                                            <div className="text-gray-400 text-sm text-right">
-                                                <div>{item.totalQuestions} Q</div>
-                                                <div>{item.totalMarks} marks</div>
-                                                {item.duration > 0 && <div>{item.duration} min</div>}
-                                            </div>
-                                            <Button variant="primary" size="sm" onClick={() => router.push(`/tests/${testSlug}?${attemptQuery}`)}>Open Series</Button>
-                                        </div>
-                                    </div>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </div>
+            ) : error ? (
+                <Card intent="danger" className="p-5 text-sm text-danger-700">{error}</Card>
+            ) : items.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 px-6 py-12 text-center">
+                    <h2 className="font-display text-base font-semibold text-gray-900">
+                        No mock tests yet
+                    </h2>
+                    <p className="mt-1.5 text-sm text-slate-500">
+                        When your teacher publishes a test series to this class, it appears here.
+                    </p>
+                </div>
+            ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface shadow-soft-sm">
+                    {items.map((item, i) => (
+                        <ContentItemRow
+                            key={item.id}
+                            first={i === 0}
+                            href={`/tests/${item.slug || item.id}?${attemptQuery}`}
+                            title={item.title}
+                            meta={metaFor.test(item)}
+                        />
+                    ))}
+                </div>
+            )}
+        </ClassroomShell>
     );
 }

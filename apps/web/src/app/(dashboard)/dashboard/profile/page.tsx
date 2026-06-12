@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
+import { FileUpload } from "@digimine/shared";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { doc, updateDoc, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { db, storage } from "@/lib/firebase/client";
 import { formatCurrency } from "@digimine/utils";
 import { getUserTestPurchases, getTestSeriesBySlug } from "@/lib/firestore/tests";
 import type { Order, TestPurchase } from "@digimine/types";
 import { PageLoading } from "@/components/common";
+import { SecuritySettings } from "@/components/account/SecuritySettings";
 
 export default function ProfilePage() {
     const { user, firebaseUser } = useAuthContext();
@@ -17,6 +19,16 @@ export default function ProfilePage() {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+    // Public profile — shown in classroom discussions, DMs, and People pages.
+    const [photoURL, setPhotoURL] = useState("");
+    const [headline, setHeadline] = useState("");
+    const [bio, setBio] = useState("");
+    const [college, setCollege] = useState("");
+    const [gradYear, setGradYear] = useState("");
+    const [skillsInput, setSkillsInput] = useState("");
+    const [github, setGithub] = useState("");
+    const [linkedin, setLinkedin] = useState("");
+    const [portfolio, setPortfolio] = useState("");
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{
         type: "success" | "error";
@@ -34,6 +46,15 @@ export default function ProfilePage() {
             setFirstName(user.firstName || "");
             setLastName(user.lastName || "");
             setPhoneNumber(user.phoneNumber || "");
+            setPhotoURL(user.photoURL || "");
+            setHeadline(user.headline || "");
+            setBio(user.bio || "");
+            setCollege(user.college || "");
+            setGradYear(user.gradYear ? String(user.gradYear) : "");
+            setSkillsInput((user.skills || []).join(", "));
+            setGithub(user.links?.github || "");
+            setLinkedin(user.links?.linkedin || "");
+            setPortfolio(user.links?.portfolio || "");
         }
     }, [user]);
 
@@ -108,11 +129,32 @@ export default function ProfilePage() {
 
         try {
             const displayName = `${firstName} ${lastName}`.trim();
+            const yearNum = parseInt(gradYear, 10);
+            const normalizeUrl = (v: string) => {
+                const t = v.trim();
+                if (!t) return null;
+                return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+            };
             await updateDoc(doc(db, "users", firebaseUser.uid), {
                 firstName,
                 lastName,
                 displayName,
                 phoneNumber: phoneNumber || null,
+                photoURL: photoURL || null,
+                headline: headline.trim().slice(0, 120) || null,
+                bio: bio.trim().slice(0, 1000) || null,
+                college: college.trim().slice(0, 120) || null,
+                gradYear: Number.isFinite(yearNum) && yearNum > 2000 && yearNum < 2100 ? yearNum : null,
+                skills: skillsInput
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .slice(0, 12),
+                links: {
+                    github: normalizeUrl(github),
+                    linkedin: normalizeUrl(linkedin),
+                    portfolio: normalizeUrl(portfolio),
+                },
                 updatedAt: Timestamp.now(),
             });
             setMessage({ type: "success", text: "Profile updated successfully!" });
@@ -155,6 +197,36 @@ export default function ProfilePage() {
                                     {message.text}
                                 </div>
                             )}
+
+                            {/* Avatar */}
+                            <div className="flex items-center gap-4">
+                                {photoURL ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={photoURL}
+                                        alt="Profile photo"
+                                        className="h-16 w-16 rounded-full object-cover ring-2 ring-slate-200 dark:ring-slate-700"
+                                    />
+                                ) : (
+                                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/20 text-xl font-bold text-primary-700 dark:text-primary-300">
+                                        {(firstName[0] || firebaseUser?.email?.[0] || "?").toUpperCase()}
+                                    </span>
+                                )}
+                                <div className="flex-1">
+                                    <FileUpload
+                                        label=""
+                                        path={`users/${firebaseUser?.uid || "anon"}/avatar`}
+                                        accept="image/*"
+                                        storage={storage}
+                                        existingUrl={photoURL || undefined}
+                                        onUploadComplete={(url) => setPhotoURL(url)}
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Shown next to your posts, messages, and on your class&apos;s
+                                        People page. Save changes to apply.
+                                    </p>
+                                </div>
+                            </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -227,6 +299,130 @@ export default function ProfilePage() {
                                 />
                             </div>
 
+                            {/* Public profile */}
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                                <h3 className="font-display text-base font-semibold text-gray-900">
+                                    Public profile
+                                </h3>
+                                <p className="mt-0.5 text-xs text-gray-500">
+                                    Classmates and teachers see this in discussions, messages, and
+                                    the People page.
+                                </p>
+                                <div className="mt-4 space-y-4">
+                                    <div>
+                                        <label htmlFor="headline" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Headline
+                                        </label>
+                                        <input
+                                            id="headline"
+                                            type="text"
+                                            value={headline}
+                                            onChange={(e) => setHeadline(e.target.value)}
+                                            maxLength={120}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                            placeholder='e.g. "Final-year CSE · aiming for SDE roles"'
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                                            About you
+                                        </label>
+                                        <textarea
+                                            id="bio"
+                                            value={bio}
+                                            onChange={(e) => setBio(e.target.value)}
+                                            maxLength={1000}
+                                            className="w-full min-h-[80px] px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                            placeholder="What you're studying, what you're building, what you want help with."
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="college" className="block text-sm font-medium text-gray-700 mb-1">
+                                                College
+                                            </label>
+                                            <input
+                                                id="college"
+                                                type="text"
+                                                value={college}
+                                                onChange={(e) => setCollege(e.target.value)}
+                                                maxLength={120}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                                placeholder="Chandigarh University"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="gradYear" className="block text-sm font-medium text-gray-700 mb-1">
+                                                Graduation year
+                                            </label>
+                                            <input
+                                                id="gradYear"
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={gradYear}
+                                                onChange={(e) => setGradYear(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                                placeholder="2027"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="skills" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Skills <span className="font-normal text-gray-400">· comma-separated</span>
+                                        </label>
+                                        <input
+                                            id="skills"
+                                            type="text"
+                                            value={skillsInput}
+                                            onChange={(e) => setSkillsInput(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                            placeholder="React, Node.js, SQL, DSA"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="github" className="block text-sm font-medium text-gray-700 mb-1">
+                                                GitHub
+                                            </label>
+                                            <input
+                                                id="github"
+                                                type="text"
+                                                value={github}
+                                                onChange={(e) => setGithub(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                                placeholder="github.com/you"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
+                                                LinkedIn
+                                            </label>
+                                            <input
+                                                id="linkedin"
+                                                type="text"
+                                                value={linkedin}
+                                                onChange={(e) => setLinkedin(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                                placeholder="linkedin.com/in/you"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="portfolio" className="block text-sm font-medium text-gray-700 mb-1">
+                                                Portfolio
+                                            </label>
+                                            <input
+                                                id="portfolio"
+                                                type="text"
+                                                value={portfolio}
+                                                onChange={(e) => setPortfolio(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+                                                placeholder="you.dev"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex justify-end">
                                 <Button
                                     type="submit"
@@ -238,6 +434,9 @@ export default function ProfilePage() {
                             </div>
                         </form>
                     </Card>
+
+                    {/* Security */}
+                    <SecuritySettings />
 
                     {/* Purchase History */}
                     <Card padding="lg">

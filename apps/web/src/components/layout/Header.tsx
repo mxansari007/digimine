@@ -23,15 +23,15 @@ export interface HeaderProps {
 }
 
 export function Header({ megaNavItems }: HeaderProps = {}) {
-    const { isAuthenticated, user, loading } = useAuthContext();
+    const { isAuthenticated, user, loading, portals } = useAuthContext();
     const { isPremium } = useEntitlements();
     const pathname = usePathname();
     const router = useRouter();
-    // Send each role to its own home — teacher → /teacher/dashboard,
-    // institute admin → /institute/dashboard, admin → /admin, customer →
-    // /dashboard. Falls back to /dashboard when user state hasn't loaded
-    // yet so the link target is never undefined.
-    const dashboardHref = user ? userHomePath(user) : "/dashboard";
+    // Send each role to its own home. `portals` reflects the user's REAL
+    // roles (a teacher who also admins an institute has both), so prefer
+    // its first entry; fall back to the single-role path, then /dashboard,
+    // so the link target is never undefined.
+    const dashboardHref = portals[0]?.href ?? (user ? userHomePath(user) : "/dashboard");
     // The "My Teachers" dropdown is a student-only utility — it lists the
     // classes the caller is enrolled in. Hiding it for non-customers
     // avoids a Firestore-rules-denied read storm on every public page.
@@ -110,7 +110,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                                 ) : isAuthenticated ? (
                                     <div className="flex items-center gap-1.5">
                                         {showTeachersDropdown && <TeachersDropdown />}
-                                        <UserMenu user={user} onSignOut={handleSignOut} isPremium={isPremium} />
+                                        <UserMenu user={user} onSignOut={handleSignOut} portals={portals} isPremium={isPremium} />
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -206,13 +206,26 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                                     <p className="truncate text-xs text-slate-500">{user?.email}</p>
                                 </div>
                             </div>
-                            <Link
-                                href={dashboardHref}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="block w-full rounded-lg bg-primary-600 px-4 py-2.5 text-center font-medium text-white shadow-soft-sm transition-all duration-200 hover:bg-primary-700 active:scale-[0.98]"
-                            >
-                                My Dashboard
-                            </Link>
+                            {portals.length > 1 ? (
+                                portals.map((p) => (
+                                    <Link
+                                        key={p.id}
+                                        href={p.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="block w-full rounded-lg bg-primary-600 px-4 py-2.5 text-center font-medium text-white shadow-soft-sm transition-all duration-200 hover:bg-primary-700 active:scale-[0.98]"
+                                    >
+                                        {p.label} dashboard
+                                    </Link>
+                                ))
+                            ) : (
+                                <Link
+                                    href={dashboardHref}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="block w-full rounded-lg bg-primary-600 px-4 py-2.5 text-center font-medium text-white shadow-soft-sm transition-all duration-200 hover:bg-primary-700 active:scale-[0.98]"
+                                >
+                                    My Dashboard
+                                </Link>
+                            )}
                             <button
                                 onClick={handleSignOut}
                                 className="block w-full px-4 py-2 text-center text-slate-600 hover:text-slate-900"

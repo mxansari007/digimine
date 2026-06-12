@@ -504,17 +504,25 @@ async function seedQuiz(opts: {
     });
     const batch = db.batch();
     opts.questions.forEach((q, i) => {
+        // Canonical QuizQuestion shape (packages/types/src/quiz.ts) — the
+        // attempt engine reads `questionText`, not `text`, and expects
+        // quizId / difficulty / timestamps to be present.
         batch.set(quizRef.collection("questions").doc(q.id), {
+            quizId: opts.id,
             order: i,
             type: "mcq",
-            text: q.text,
+            questionText: q.text,
             options: q.options.map((label, idx) => ({
                 id: `${q.id}-o${idx}`,
                 text: label,
                 isCorrect: idx === q.correctIndex,
             })),
+            explanation: `Correct answer: ${q.options[q.correctIndex]}.`,
             marks: q.marks,
             negativeMarks: 0,
+            difficulty: "medium",
+            createdAt: now(),
+            updatedAt: now(),
         });
     });
     await batch.commit();
@@ -679,7 +687,10 @@ async function seedTest(opts: {
     const totalQuestions = opts.sections.reduce((s, x) => s + x.totalQuestions, 0);
     const totalMarks = opts.sections.reduce((s, x) => s + x.totalQuestions * x.marksPerQuestion, 0);
     const ref = db.collection("tests").doc(opts.id);
+    // Clean both the canonical subcollection and the legacy misnamed one
+    // ("subtests") that earlier versions of this script wrote.
     await deleteSubcollection(ref, "subtests");
+    await deleteSubcollection(ref, "tests");
     await deleteSubcollection(ref, "questions");
     await ref.set({
         slug: opts.id,
@@ -697,6 +708,10 @@ async function seedTest(opts: {
         totalQuestions,
         totalMarks,
         duration: opts.durationMinutes,
+        instantResults: true,
+        allowRetake: true,
+        shuffleQuestions: false,
+        shuffleOptions: false,
         status: "published",
         visibility: opts.visibility,
         teacherId: opts.teacherId,
@@ -706,17 +721,73 @@ async function seedTest(opts: {
         updatedAt: now(),
         createdBy: opts.teacherId || "seed-admin",
     });
-    // Sub-tests (one per section) — minimal docs so the list page renders.
+
+    // Sub-tests live in `tests/{seriesId}/tests/{testId}` (the app and the
+    // admin builder both read that path — NOT "subtests"), each with a
+    // `questions` subcollection whose docs carry a sectionId matching the
+    // sub-test's `sections` array. Shape mirrors `createTestInSeries` /
+    // `createQuestion` in apps/admin/src/lib/firestore/tests.ts.
     for (let i = 0; i < opts.sections.length; i += 1) {
         const sec = opts.sections[i];
-        await ref.collection("subtests").doc(`s${i + 1}`).set({
-            order: i,
-            name: sec.name,
+        const testId = `t${i + 1}`;
+        const sectionId = `${testId}-sec1`;
+        const duration = Math.max(10, Math.round(opts.durationMinutes / opts.sections.length));
+        const sectionMarks = sec.totalQuestions * sec.marksPerQuestion;
+        const testRef = ref.collection("tests").doc(testId);
+        await testRef.set({
+            seriesId: opts.id,
+            title: `${sec.name} — Mock ${i + 1}`,
+            description: `${sec.totalQuestions} questions on ${sec.name.toLowerCase()} · ${sec.marksPerQuestion} mark(s) each.`,
+            duration,
+            totalMarks: sectionMarks,
+            passingMarks: Math.ceil(sectionMarks * 0.4),
             totalQuestions: sec.totalQuestions,
-            marksPerQuestion: sec.marksPerQuestion,
-            durationMinutes: Math.round(opts.durationMinutes / opts.sections.length),
+            order: i,
+            status: "published",
+            instantResults: true,
+            allowRetake: true,
+            shuffleQuestions: false,
+            shuffleOptions: false,
+            sections: [
+                {
+                    id: sectionId,
+                    title: sec.name,
+                    order: 0,
+                    marksPerQuestion: sec.marksPerQuestion,
+                    negativeMarks: 0,
+                },
+            ],
+            availableFrom: null,
             createdAt: now(),
+            updatedAt: now(),
         });
+
+        const batch = db.batch();
+        for (let q = 0; q < sec.totalQuestions; q += 1) {
+            const correctIndex = q % 4;
+            const qId = `${testId}-q${q + 1}`;
+            batch.set(testRef.collection("questions").doc(qId), {
+                testId,
+                seriesId: opts.id,
+                quizId: null,
+                type: "mcq",
+                questionText: `${sec.name} practice question ${q + 1}: which option is marked correct in this seeded item?`,
+                options: [0, 1, 2, 3].map((idx) => ({
+                    id: `${qId}-o${idx}`,
+                    text: `Option ${String.fromCharCode(65 + idx)}${idx === correctIndex ? " (correct)" : ""}`,
+                    isCorrect: idx === correctIndex,
+                })),
+                explanation: `Seeded item — option ${String.fromCharCode(65 + correctIndex)} is correct.`,
+                marks: sec.marksPerQuestion,
+                negativeMarks: 0,
+                difficulty: "medium",
+                order: q,
+                sectionId,
+                createdAt: now(),
+                updatedAt: now(),
+            });
+        }
+        await batch.commit();
     }
 }
 
@@ -731,27 +802,39 @@ async function seedContest(opts: {
     totalQuestions: number;
     totalMarks: number;
 }) {
-    const startsAt = Timestamp.fromMillis(Date.now() + opts.startsInMinutes * 60_000);
-    const endsAt = Timestamp.fromMillis(
+    // The app reads `startTime`/`endTime` (Contest type in
+    // packages/types/src/test.ts) — NOT startsAt/endsAt — and a contest is
+    // attemptable only through its companion quiz (`quizId`), mirroring
+    // `upsertCustomQuiz` in apps/admin/src/lib/firestore/contests.ts.
+    const startTime = Timestamp.fromMillis(Date.now() + opts.startsInMinutes * 60_000);
+    const endTime = Timestamp.fromMillis(
         Date.now() + (opts.startsInMinutes + opts.durationMinutes) * 60_000
     );
+    const quizId = `contest-${opts.id}`;
+    const marksPerQuestion = Math.max(1, Math.round(opts.totalMarks / opts.totalQuestions));
+
     await db.collection("contests").doc(opts.id).set({
         slug: opts.id,
         teacherId: opts.teacherId,
         title: opts.title,
         description: opts.description,
         shortDescription: opts.description.slice(0, 200),
+        thumbnailURL: null,
         accessType: "free",
         category: "Weekly",
         tags: ["contest", "weekly"],
         visibility: "private",
         status: "published",
         classIds: opts.classIds,
-        startsAt,
-        endsAt,
+        sourceType: "custom",
+        quizId,
+        quizTitle: opts.title,
+        startTime,
+        endTime,
         durationMinutes: opts.durationMinutes,
         totalQuestions: opts.totalQuestions,
         totalMarks: opts.totalMarks,
+        passingMarks: Math.ceil(opts.totalMarks * 0.4),
         passingPercentage: 40,
         allowLateJoin: false,
         instantResults: false,
@@ -761,6 +844,61 @@ async function seedContest(opts: {
         updatedAt: now(),
         createdBy: opts.teacherId,
     });
+
+    // Companion quiz holding the actual paper.
+    const quizRef = db.collection("quizzes").doc(quizId);
+    await deleteSubcollection(quizRef, "questions");
+    await quizRef.set({
+        title: opts.title,
+        slug: `${opts.id}-paper`,
+        description: opts.description,
+        shortDescription: opts.description.slice(0, 200),
+        thumbnailURL: null,
+        status: "published",
+        accessType: "free",
+        category: "Weekly",
+        tags: ["contest", "weekly"],
+        timeLimitMinutes: opts.durationMinutes,
+        passingPercentage: 0,
+        totalQuestions: opts.totalQuestions,
+        totalMarks: opts.totalQuestions * marksPerQuestion,
+        shuffleQuestions: false,
+        shuffleOptions: false,
+        showExplanations: true,
+        linkedCourseIds: [],
+        teacherId: opts.teacherId,
+        // No classIds — the paper is reached THROUGH the contest, never
+        // listed as a standalone classroom quiz (mirrors upsertCustomQuiz).
+        classIds: [],
+        visibility: "private",
+        isDeleted: false,
+        createdAt: now(),
+        updatedAt: now(),
+        createdBy: opts.teacherId,
+    });
+    const batch = db.batch();
+    for (let q = 0; q < opts.totalQuestions; q += 1) {
+        const correctIndex = q % 4;
+        const qId = `${opts.id}-q${q + 1}`;
+        batch.set(quizRef.collection("questions").doc(qId), {
+            quizId,
+            order: q,
+            type: "mcq",
+            questionText: `Contest question ${q + 1}: which option is marked correct in this seeded item?`,
+            options: [0, 1, 2, 3].map((idx) => ({
+                id: `${qId}-o${idx}`,
+                text: `Option ${String.fromCharCode(65 + idx)}${idx === correctIndex ? " (correct)" : ""}`,
+                isCorrect: idx === correctIndex,
+            })),
+            explanation: `Seeded item — option ${String.fromCharCode(65 + correctIndex)} is correct.`,
+            marks: marksPerQuestion,
+            negativeMarks: 0,
+            difficulty: "medium",
+            createdAt: now(),
+            updatedAt: now(),
+        });
+    }
+    await batch.commit();
 }
 
 async function seedCourse(opts: {
@@ -779,6 +917,7 @@ async function seedCourse(opts: {
     linkedTestSeriesIds: string[];
 }) {
     const totalLessons = opts.notesOutline.reduce((s, m) => s + m.lessonTitles.length, 0);
+    const courseRef = db.collection("courses").doc(opts.id);
     await db.collection("courses").doc(opts.id).set({
         slug: opts.id,
         title: opts.title,
@@ -807,6 +946,30 @@ async function seedCourse(opts: {
         updatedAt: now(),
         createdBy: opts.teacherId || "seed-admin",
     });
+
+    // Course content lives in the `chapters` SUBCOLLECTION (CourseNoteChapter
+    // shape) — the reader pages don't render the inline notesOutline field.
+    await deleteSubcollection(courseRef, "chapters");
+    const batch = db.batch();
+    opts.notesOutline.forEach((mod, mi) => {
+        const chapterId = `ch-${mod.moduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+        batch.set(courseRef.collection("chapters").doc(chapterId), {
+            id: chapterId,
+            title: mod.moduleTitle,
+            description: `${mod.lessonTitles.length} lessons.`,
+            order: mi,
+            subtopics: mod.lessonTitles.map((lesson, li) => ({
+                id: `${chapterId}-s${li + 1}`,
+                title: lesson,
+                summary: `Seeded lesson: ${lesson}.`,
+                contentHtml: `<h2>${lesson}</h2><p>Seeded lesson content for <strong>${lesson}</strong> in the ${mod.moduleTitle} module. Replace with real notes via the admin/teacher builder.</p>`,
+                imageUrls: [],
+                videos: [],
+                order: li,
+            })),
+        });
+    });
+    await batch.commit();
 }
 
 // ─── Practice problems (import from JSON packs) ───────────────────────
@@ -1239,8 +1402,10 @@ async function main() {
         quizTitle: "Arrays Basics",
         quizCategory: "Arrays",
         testSeriesId: TEST_IDS[0],
-        testSubtestId: "s1",
-        testTitle: "DSA Mock — Set 1 · Section 1",
+        // Sub-test ids are t1/t2/t3 (tests/{seriesId}/tests/{id}) — keep in
+        // sync with seedTest above.
+        testSubtestId: "t1",
+        testTitle: "Arrays — Mock 1",
         testDurationMinutes: 60,
         courseId: COURSE_IDS[0],
         classA: { classId: CLASS_A_ID, teacherId: teacher.uid },

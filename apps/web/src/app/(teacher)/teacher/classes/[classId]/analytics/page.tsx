@@ -60,6 +60,17 @@ type ClassAnalytics = {
     mostMissed: Array<{ questionId: string; contentTitle: string; totalAttempts: number; wrongCount: number; wrongRate: number }>;
     dropOffStudents: Array<{ studentId: string; studentName: string; inProgressAttempts: number }>;
     notAttempted: Array<{ studentId: string; studentName: string; studentEmail: string; enrolledAt: string | null }>;
+    projectEvals: Array<{
+        id: string;
+        title: string;
+        status: string;
+        dueAt: string | null;
+        maxTotalScore: number;
+        submitted: number;
+        scored: number;
+        pending: number;
+        averagePercent: number | null;
+    }>;
 };
 
 function formatPct(n: number | null | undefined) {
@@ -382,6 +393,51 @@ export default function ClassAnalyticsPage() {
                     </div>
                 </Card>
             </div>
+
+            {/* Project evaluations */}
+            {(data.projectEvals || []).length > 0 && (
+                <Card className="p-6">
+                    <h3 className="text-sm font-semibold text-gray-900">Project evaluations</h3>
+                    <p className="text-xs text-gray-500">
+                        Submission and scoring progress for AI-graded projects assigned to this class.
+                    </p>
+                    <div className="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
+                        {data.projectEvals.map((ev) => {
+                            const total = ev.submitted + ev.pending;
+                            const submitPct = total > 0 ? Math.round((ev.submitted / total) * 100) : 0;
+                            return (
+                                <div key={ev.id} className="flex flex-wrap items-center gap-3 py-3">
+                                    <div className="min-w-0 flex-1">
+                                        <Link
+                                            href={`/teacher/project-evals/${ev.id}`}
+                                            className="truncate text-sm font-medium text-gray-900 hover:text-primary-700"
+                                        >
+                                            {ev.title}
+                                        </Link>
+                                        <div className="mt-1 h-2 max-w-xs overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
+                                            <div className="h-full bg-primary-500" style={{ width: `${submitPct}%` }} />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-5 text-xs text-gray-500">
+                                        <span>
+                                            <span className="font-semibold text-gray-900">{ev.submitted}</span>/{total} submitted
+                                        </span>
+                                        <span>
+                                            <span className="font-semibold text-gray-900">{ev.scored}</span> scored
+                                        </span>
+                                        <span>
+                                            class avg{" "}
+                                            <span className="font-semibold text-gray-900">
+                                                {ev.averagePercent === null ? "—" : `${ev.averagePercent}%`}
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
 
             {/* Most-missed questions + dropoffs */}
             <div className="grid gap-4 lg:grid-cols-2">

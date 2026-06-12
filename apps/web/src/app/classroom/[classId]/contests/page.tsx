@@ -2,9 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Card, Button } from "@digimine/ui";
+import { Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import {
+    ClassroomShell,
+    ContentItemRow,
+    contestPhase,
+    metaFor,
+    type ClassContentRow,
+} from "@/components/classroom/ui";
 
 export default function ClassroomContestsPage() {
     const params = useParams();
@@ -14,7 +20,7 @@ export default function ClassroomContestsPage() {
     const isLegacy = classId.startsWith("legacy:");
     const legacyTeacherId = isLegacy ? classId.replace(/^legacy:/, "") : "";
 
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<ClassContentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -49,47 +55,68 @@ export default function ClassroomContestsPage() {
         loadItems();
     }, [authLoading, firebaseUser, router, classId, isLegacy, legacyTeacherId]);
 
-    if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-gray-500">Loading...</div>;
+    const attemptQuery = isLegacy ? `teacherId=${legacyTeacherId}` : `classId=${classId}`;
+
+    // Live first, then upcoming by start time, then past.
+    const ordered = [...items].sort((a, b) => {
+        const rank = { live: 0, upcoming: 1, ended: 2 } as const;
+        const d = rank[contestPhase(a)] - rank[contestPhase(b)];
+        if (d !== 0) return d;
+        return (a.startTime || "").localeCompare(b.startTime || "");
+    });
 
     return (
-        <div className="min-h-screen bg-slate-100 py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center gap-3 mb-6">
-                    <Link href={`/classroom/${classId}`} className="text-gray-500 hover:text-gray-700">← Back</Link>
-                    <h1 className="text-2xl font-bold text-gray-900">Contests</h1>
+        <ClassroomShell
+            backHref={`/classroom/${classId}`}
+            backLabel="Classroom"
+            title="Contests"
+            subtitle="Timed competitions with a leaderboard — everyone attempts the same paper in the same window."
+        >
+            {loading ? (
+                <div className="space-y-2">
+                    {[0, 1].map((i) => (
+                        <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800" />
+                    ))}
                 </div>
-                {error ? (
-                    <Card className="p-12 text-center text-red-600">{error}</Card>
-                ) : items.length === 0 ? (
-                    <Card className="p-12 text-center text-gray-500">No published contests yet.</Card>
-                ) : (
-                    <div className="grid gap-4">
-                        {items.map((item) => {
-                            const contestSlug = item.slug || item.id;
-                            const attemptQuery = isLegacy
-                                ? `teacherId=${legacyTeacherId}`
-                                : `classId=${classId}`;
-                            return (
-                                <Card key={item.id} className="p-5 hover:shadow-md transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                                            <p className="text-gray-500 text-sm mt-1 line-clamp-2">{item.description}</p>
-                                        </div>
-                                        <div className="flex items-center gap-4 ml-4">
-                                            <div className="text-gray-400 text-sm text-right">
-                                                {item.startTime && <div>Starts {new Date(item.startTime).toLocaleDateString()}</div>}
-                                                {item.endTime && <div>Ends {new Date(item.endTime).toLocaleDateString()}</div>}
-                                            </div>
-                                            <Button variant="primary" size="sm" onClick={() => router.push(`/contests/${contestSlug}?${attemptQuery}`)}>View</Button>
-                                        </div>
-                                    </div>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </div>
+            ) : error ? (
+                <Card intent="danger" className="p-5 text-sm text-danger-700">{error}</Card>
+            ) : ordered.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 px-6 py-12 text-center">
+                    <h2 className="font-display text-base font-semibold text-gray-900">No contests yet</h2>
+                    <p className="mt-1.5 text-sm text-slate-500">
+                        When your teacher schedules a contest for this class, it appears here with
+                        its start time.
+                    </p>
+                </div>
+            ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface shadow-soft-sm">
+                    {ordered.map((item, i) => {
+                        const phase = contestPhase(item);
+                        return (
+                            <ContentItemRow
+                                key={item.id}
+                                first={i === 0}
+                                href={`/contests/${item.slug || item.id}?${attemptQuery}`}
+                                title={item.title}
+                                meta={metaFor.contest(item)}
+                                right={
+                                    phase === "live" ? (
+                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-danger-600 dark:text-danger-400">
+                                            <span className="relative flex h-1.5 w-1.5">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger-500 opacity-60 motion-reduce:animate-none" />
+                                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-danger-500" />
+                                            </span>
+                                            LIVE
+                                        </span>
+                                    ) : phase === "ended" ? (
+                                        <span className="text-[11px] text-slate-400">ended</span>
+                                    ) : undefined
+                                }
+                            />
+                        );
+                    })}
+                </div>
+            )}
+        </ClassroomShell>
     );
 }

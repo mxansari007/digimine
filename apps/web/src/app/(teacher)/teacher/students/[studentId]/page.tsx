@@ -55,6 +55,22 @@ type Analytics = {
     sectionStrengths: Array<{ key: string; title: string; averagePercentage: number; attempts: number }>;
     daily: Array<{ date: string; count: number; avgPercentage: number | null }>;
     recent: Array<{ id: string; kind: "quiz" | "test"; contentTitle: string; category: string; status: string; percentage: number; durationSeconds: number; completedAt: string | null; correctAnswers: number; wrongAnswers: number }>;
+    projectResults: Array<{
+        evaluationId: string;
+        title: string;
+        evalStatus: string;
+        dueAt: string | null;
+        maxTotalScore: number;
+        submission: {
+            status: string;
+            totalScore: number | null;
+            finalScore: number | null;
+            reviewed: boolean;
+            published: boolean;
+            attempt: number;
+            submittedAt: string | null;
+        } | null;
+    }>;
 };
 
 const riskBg: Record<RiskBand, string> = {
@@ -161,6 +177,7 @@ export default function TeacherStudentDetailPage() {
     }
 
     const { student, risk, headline, trend, rollingAvg, topicBreakdown, sectionStrengths, daily, recent } = data;
+    const projectResults = data.projectResults || [];
 
     return (
         <div className="space-y-6">
@@ -432,6 +449,75 @@ export default function TeacherStudentDetailPage() {
                     </Button>
                 </div>
             </Card>
+
+            {/* Project evaluations */}
+            {projectResults.length > 0 && (
+                <Card className="p-0 overflow-hidden">
+                    <div className="border-b border-gray-100 px-5 py-3">
+                        <h3 className="text-sm font-semibold text-gray-900">Project evaluations</h3>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {projectResults.map((p) => {
+                            const sub = p.submission;
+                            return (
+                                <div key={p.evaluationId} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-medium text-gray-900">{p.title}</div>
+                                        <div className="text-xs text-gray-500">
+                                            {p.maxTotalScore} marks · due {formatDate(p.dueAt)}
+                                            {sub?.attempt && sub.attempt > 1 ? ` · attempt ${sub.attempt}` : ""}
+                                        </div>
+                                    </div>
+                                    {sub ? (
+                                        <>
+                                            <span
+                                                className={`rounded-full px-2 py-0.5 text-xs ${
+                                                    sub.status === "scored"
+                                                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25"
+                                                        : sub.status === "failed"
+                                                        ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-500/25"
+                                                        : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-500/25"
+                                                }`}
+                                            >
+                                                {sub.status === "scored" && sub.reviewed
+                                                    ? "reviewed"
+                                                    : sub.status.replace("_", " ")}
+                                            </span>
+                                            {sub.status === "scored" && (
+                                                <span
+                                                    className={`rounded-full px-2 py-0.5 text-[11px] ${
+                                                        sub.published
+                                                            ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-500/25"
+                                                            : "border border-dashed border-warning-400 dark:border-warning-500/50 text-warning-700 dark:text-warning-300"
+                                                    }`}
+                                                >
+                                                    {sub.published ? "released" : "held"}
+                                                </span>
+                                            )}
+                                            {sub.status === "scored" && sub.finalScore !== null && (
+                                                <span className="text-sm font-semibold text-gray-900">
+                                                    {sub.finalScore}
+                                                    <span className="font-normal text-gray-500">/{p.maxTotalScore}</span>
+                                                </span>
+                                            )}
+                                            <Link
+                                                href={`/teacher/project-evals/${p.evaluationId}/submissions/${p.evaluationId}_${student.id}`}
+                                                className="text-xs text-primary-700 hover:text-primary-800"
+                                            >
+                                                Report →
+                                            </Link>
+                                        </>
+                                    ) : (
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200">
+                                            not submitted
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
 
             {/* Recent attempts */}
             <Card className="p-0 overflow-hidden">

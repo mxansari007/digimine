@@ -76,6 +76,20 @@ export interface User {
     updatedAt: Date;
     // Enrolled classroom teacher IDs (reliable source for dashboard)
     enrolledClassrooms?: string[];
+    // ── Public profile (student-editable; shown in classroom threads,
+    //    DMs, and the People page) ──────────────────────────────────────
+    /** One-line intro, e.g. "Final-year CSE · aiming for SDE roles". */
+    headline?: string | null;
+    bio?: string | null;
+    college?: string | null;
+    /** Expected graduation year, e.g. 2027. */
+    gradYear?: number | null;
+    skills?: string[];
+    links?: {
+        github?: string | null;
+        linkedin?: string | null;
+        portfolio?: string | null;
+    };
 }
 
 /**

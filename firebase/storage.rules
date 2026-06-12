@@ -45,5 +45,13 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth.uid == userId && isValidImageType() && isValidFileSize(5);
     }
+
+    // Classroom discussion attachments (images shared in threads/replies).
+    // Anyone signed in can read; only the owner uploads their own images,
+    // capped to images under 5MB. The thread API records the download URL.
+    match /community/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth.uid == userId && isValidImageType() && isValidFileSize(5);
+    }
   }
 }

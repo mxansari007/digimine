@@ -21,11 +21,18 @@ import { Star } from "lucide-react";
 import type { User } from "@digimine/types";
 import Avatar from "@/components/common/Avatar";
 import { userHomePath } from "@/lib/auth/redirects";
+import type { Portal } from "@/contexts/AuthContext";
 
 export interface UserMenuProps {
     user: Pick<User, "displayName" | "email" | "photoURL" | "role"> | null;
     onSignOut: () => void;
     dashboardLabel?: string;
+    /**
+     * Every dashboard this user can reach. When they hold more than one
+     * role (e.g. teacher + institute admin) we list each instead of
+     * guessing a single "my dashboard" from the role field.
+     */
+    portals?: Portal[];
     /**
      * True only when the caller has an active subscription on a paid
      * (non-free) plan. The parent (Header) reads this from
@@ -42,6 +49,7 @@ export default function UserMenu({
     user,
     onSignOut,
     dashboardLabel = "My dashboard",
+    portals = [],
     isPremium = false,
 }: UserMenuProps) {
     const [open, setOpen] = useState(false);
@@ -63,7 +71,8 @@ export default function UserMenu({
         };
     }, [open]);
 
-    const dashboardHref = user ? userHomePath(user) : "/dashboard";
+    const dashboardHref = portals[0]?.href ?? (user ? userHomePath(user) : "/dashboard");
+    const multiRole = portals.length > 1;
     const displayName = user?.displayName || "Account";
     const subline = user?.email || "Signed in";
 
@@ -136,10 +145,24 @@ export default function UserMenu({
 
                     <div className="my-2 h-px bg-slate-100" />
 
-                    <MenuLink href={dashboardHref} onSelect={() => setOpen(false)}>
-                        <DashboardIcon className="h-4 w-4 text-slate-400" />
-                        {dashboardLabel}
-                    </MenuLink>
+                    {multiRole ? (
+                        <>
+                            <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                Your dashboards
+                            </p>
+                            {portals.map((p) => (
+                                <MenuLink key={p.id} href={p.href} onSelect={() => setOpen(false)}>
+                                    <DashboardIcon className="h-4 w-4 text-slate-400" />
+                                    {p.label} dashboard
+                                </MenuLink>
+                            ))}
+                        </>
+                    ) : (
+                        <MenuLink href={dashboardHref} onSelect={() => setOpen(false)}>
+                            <DashboardIcon className="h-4 w-4 text-slate-400" />
+                            {dashboardLabel}
+                        </MenuLink>
+                    )}
                     <MenuLink href="/dashboard/profile" onSelect={() => setOpen(false)}>
                         <UserIcon className="h-4 w-4 text-slate-400" />
                         Profile &amp; settings

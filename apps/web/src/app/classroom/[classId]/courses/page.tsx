@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { Card } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import {
+    ClassroomShell,
+    ContentItemRow,
+    metaFor,
+    type ClassContentRow,
+} from "@/components/classroom/ui";
 
 export default function ClassroomCoursesPage() {
     const params = useParams();
@@ -14,7 +19,7 @@ export default function ClassroomCoursesPage() {
     const isLegacy = classId.startsWith("legacy:");
     const legacyTeacherId = isLegacy ? classId.replace(/^legacy:/, "") : "";
 
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<ClassContentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -49,37 +54,41 @@ export default function ClassroomCoursesPage() {
         loadItems();
     }, [authLoading, firebaseUser, router, classId, isLegacy, legacyTeacherId]);
 
-    if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-gray-500">Loading...</div>;
-
     return (
-        <div className="min-h-screen bg-slate-100 py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center gap-3 mb-6">
-                    <Link href={`/classroom/${classId}`} className="text-gray-500 hover:text-gray-700">← Back</Link>
-                    <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
+        <ClassroomShell
+            backHref={`/classroom/${classId}`}
+            backLabel="Classroom"
+            title="Courses"
+            subtitle="Study material organized chapter by chapter — read at your own pace."
+        >
+            {loading ? (
+                <div className="space-y-2">
+                    {[0, 1].map((i) => (
+                        <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800" />
+                    ))}
                 </div>
-                {error ? (
-                    <Card className="p-12 text-center text-red-600">{error}</Card>
-                ) : items.length === 0 ? (
-                    <Card className="p-12 text-center text-gray-500">No published courses yet.</Card>
-                ) : (
-                    <div className="grid gap-4">
-                        {items.map((item) => (
-                            <Card key={item.id} className="p-5 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/classroom/${classId}/content/${item.id}?type=course`)}>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                                        <p className="text-gray-500 text-sm mt-1">{item.description}</p>
-                                    </div>
-                                    <div className="text-gray-400 text-sm text-right">
-                                        {item.estimatedHours > 0 && <div>{item.estimatedHours} hours</div>}
-                                    </div>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
+            ) : error ? (
+                <Card intent="danger" className="p-5 text-sm text-danger-700">{error}</Card>
+            ) : items.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 px-6 py-12 text-center">
+                    <h2 className="font-display text-base font-semibold text-gray-900">No courses yet</h2>
+                    <p className="mt-1.5 text-sm text-slate-500">
+                        When your teacher shares course notes with this class, they appear here.
+                    </p>
+                </div>
+            ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface shadow-soft-sm">
+                    {items.map((item, i) => (
+                        <ContentItemRow
+                            key={item.id}
+                            first={i === 0}
+                            onClick={() => router.push(`/classroom/${classId}/content/${item.id}?type=course`)}
+                            title={item.title}
+                            meta={metaFor.course(item)}
+                        />
+                    ))}
+                </div>
+            )}
+        </ClassroomShell>
     );
 }

@@ -50,6 +50,8 @@ import {
     Archive,
     ChevronRight,
     UserPlus,
+    MessageSquare,
+    Megaphone,
 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -474,6 +476,24 @@ export default function TeacherClassDetailPage() {
                             Archived
                         </span>
                     )}
+                    <Link href={`/classroom/${classroom.id}/threads?from=teacher&compose=announcement`}>
+                        <Button variant="primary">
+                            <Megaphone className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
+                            Announce
+                        </Button>
+                    </Link>
+                    <Link href={`/classroom/${classroom.id}/threads?from=teacher`}>
+                        <Button variant="outline">
+                            <MessageSquare className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
+                            Discussions
+                        </Button>
+                    </Link>
+                    <Link href={`/classroom/${classroom.id}/people?from=teacher`}>
+                        <Button variant="outline">
+                            <Users className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
+                            People
+                        </Button>
+                    </Link>
                     <Link
                         href={`/teacher/classes/${classroom.id}/analytics`}
                         data-tour="deep-analytics"

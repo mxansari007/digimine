@@ -1218,5 +1218,34 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false;
     }
+
+    // Fullstack project evaluation (AI-assisted project grading).
+    // projectEvaluations/{id} and projectSubmissions/{evalId_uid} are
+    // SERVER-ONLY: every read/write goes through /api/teacher/project-evals*,
+    // /api/project-evals* and /api/project-eval/process (admin SDK).
+    // Explicit deny documents the intent; default-deny already covers it.
+    match /projectEvaluations/{evalId} {
+      allow read, write: if false;
+    }
+    match /projectSubmissions/{submissionId} {
+      allow read, write: if false;
+    }
+
+    // Classroom community (discussion threads + 1:1 direct messages).
+    // SERVER-ONLY: reads/writes go through /api/classes/[classId]/threads*,
+    // /api/classes/[classId]/members and /api/dm* (admin SDK), which gate on
+    // class membership / shared-classroom relationships.
+    match /classThreads/{threadId} {
+      allow read, write: if false;
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+    match /dmThreads/{threadId} {
+      allow read, write: if false;
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
   }
 }

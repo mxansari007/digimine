@@ -8,7 +8,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { userHomePath } from "@/lib/auth/redirects";
 import { PageLoading } from "@/components/common";
-import { teacherNav } from "@/components/layout/sidebarNav";
+import { teacherNav, portalSwitchNav } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
 
@@ -29,7 +29,7 @@ function TeacherLayoutInner({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, isTeacher, isInstituteAdmin, loading } = useAuthContext();
+  const { user, isAuthenticated, isTeacher, isInstituteAdmin, loading, portals } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname() ?? "";
 
@@ -88,7 +88,7 @@ function TeacherLayoutInner({
         <AppSidebar
           role="teacher"
           pathname={pathname}
-          nav={teacherNav}
+          nav={[...teacherNav, ...portalSwitchNav(portals, "teacher")]}
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}
