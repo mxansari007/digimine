@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { requireTeacher } from "@/lib/middleware/requireTeacher";
+import { getTeachingEntitlements, hasTeachingFeature } from "@/lib/server/teachingEntitlements";
 import {
     PROJECT_EVALS,
     sanitizeParameters,
@@ -38,6 +39,20 @@ export async function POST(req: NextRequest) {
     const auth = await requireTeacher(req);
     if (auth instanceof NextResponse) return auth;
     try {
+        // Plan gate: the AI project-evaluation teaching feature must be on.
+        const ent = await getTeachingEntitlements(auth.uid);
+        if (!ent.ok || !hasTeachingFeature(ent.resolved.teachingFeatures, "ai_project_evaluation")) {
+            return NextResponse.json(
+                {
+                    error: "Your plan doesn't include AI project evaluation. Upgrade to unlock.",
+                    upgradeHref: ent.ok && ent.resolved.scope === "institute"
+                        ? "/pricing/institute"
+                        : "/pricing/teacher",
+                },
+                { status: 403 }
+            );
+        }
+
         const body = await req.json().catch(() => ({}));
         const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
         const brief = typeof body.brief === "string" ? body.brief.trim().slice(0, 6000) : "";

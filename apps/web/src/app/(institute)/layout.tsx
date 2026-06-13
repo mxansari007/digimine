@@ -7,9 +7,10 @@ import { AppSidebar, DashboardShell } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
-import { instituteNav, portalSwitchNav } from "@/components/layout/sidebarNav";
+import { instituteNav, portalSwitchNav, withCredits } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
+import { useCredits } from "@/contexts/CreditsContext";
 
 /**
  * Institute admin layout. Mirrors the teacher layout shape but resolves the
@@ -30,6 +31,7 @@ export default function InstituteLayout({
 
 function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
     const { user, firebaseUser, isAuthenticated, loading, portals } = useAuthContext();
+    const credits = useCredits();
     const router = useRouter();
     const pathname = usePathname() ?? "";
 
@@ -115,7 +117,10 @@ function InstituteLayoutInner({ children }: { children: React.ReactNode }) {
                 <AppSidebar
                     role="institute"
                     pathname={pathname}
-                    nav={[...instituteNav, ...portalSwitchNav(portals, "institute")]}
+                    nav={[
+                        ...withCredits(instituteNav, credits.enabled, credits.balance, "Billing"),
+                        ...portalSwitchNav(portals, "institute"),
+                    ]}
                     user={user}
                     LinkComponent={Link}
                     onSignOut={handleSignOut}

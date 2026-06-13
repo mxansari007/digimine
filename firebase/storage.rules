@@ -21,6 +21,42 @@ service firebase.storage {
       return request.resource.size < maxSizeMB * 1024 * 1024;
     }
 
+    // Class resource library: the file types a class member may share —
+    // images, video, audio, and the common document/office formats.
+    function isClassResourceType() {
+      return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('video/.*')
+          || request.resource.contentType.matches('audio/.*')
+          || request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'application/msword'
+          || request.resource.contentType == 'application/vnd.ms-powerpoint'
+          || request.resource.contentType == 'application/vnd.ms-excel'
+          || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument..*')
+          || request.resource.contentType.matches('application/vnd.oasis.opendocument..*')
+          || request.resource.contentType == 'text/plain'
+          || request.resource.contentType == 'text/csv'
+          || request.resource.contentType == 'application/rtf'
+          || request.resource.contentType == 'application/zip';
+    }
+
+    // Video can be large; everything else (decks, PDFs, images) caps lower.
+    function isValidClassResourceSize() {
+      return request.resource.contentType.matches('video/.*')
+        ? request.resource.size < 250 * 1024 * 1024
+        : request.resource.size < 60 * 1024 * 1024;
+    }
+
+    // Only an enrolled student (roster doc exists) or the class teacher may
+    // upload into a class's resource folder — stops any signed-in user
+    // dumping large files into arbitrary class folders. Resource-doc creation
+    // is independently gated on membership server-side; this caps abuse at the
+    // storage layer too. (Institute admins author via the server API.)
+    function isClassMemberOrTeacher(classId) {
+      return firestore.exists(/databases/(default)/documents/classes/$(classId)/students/$(request.auth.uid))
+          || (firestore.exists(/databases/(default)/documents/classes/$(classId))
+              && firestore.get(/databases/(default)/documents/classes/$(classId)).data.teacherId == request.auth.uid);
+    }
+
     // Default rule for all paths
     match /{allPaths=**} {
       allow read: if true;
@@ -52,6 +88,21 @@ service firebase.storage {
     match /community/{userId}/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth.uid == userId && isValidImageType() && isValidFileSize(5);
+    }
+
+    // Class resource library (PDFs, slide decks, documents, images, video
+    // shared in a class). Anyone signed in can read (download URLs are
+    // recorded by the resources API, which gates listing on class
+    // membership); only the owner uploads under their own folder, restricted
+    // to allowed types and size. Class-membership is enforced server-side
+    // when the file is recorded as a resource doc.
+    match /classResources/{classId}/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && isClassMemberOrTeacher(classId)
+                   && isClassResourceType()
+                   && isValidClassResourceSize();
     }
   }
 }

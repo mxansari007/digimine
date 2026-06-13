@@ -8,9 +8,10 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { userHomePath } from "@/lib/auth/redirects";
 import { PageLoading } from "@/components/common";
-import { teacherNav, portalSwitchNav } from "@/components/layout/sidebarNav";
+import { teacherNav, portalSwitchNav, withCredits } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
+import { useCredits } from "@/contexts/CreditsContext";
 
 export default function TeacherLayout({
   children,
@@ -30,6 +31,7 @@ function TeacherLayoutInner({
   children: React.ReactNode;
 }) {
   const { user, isAuthenticated, isTeacher, isInstituteAdmin, loading, portals } = useAuthContext();
+  const credits = useCredits();
   const router = useRouter();
   const pathname = usePathname() ?? "";
 
@@ -88,7 +90,10 @@ function TeacherLayoutInner({
         <AppSidebar
           role="teacher"
           pathname={pathname}
-          nav={[...teacherNav, ...portalSwitchNav(portals, "teacher")]}
+          nav={[
+            ...withCredits(teacherNav, credits.enabled, credits.balance, "Usage"),
+            ...portalSwitchNav(portals, "teacher"),
+          ]}
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}

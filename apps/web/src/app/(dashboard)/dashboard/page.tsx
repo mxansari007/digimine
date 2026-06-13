@@ -5,12 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useCredits } from "@/contexts/CreditsContext";
 
 import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
 import { BookOpenIcon } from "@/components/icons/AppIcons";
 
 export default function DashboardPage() {
     const { user, firebaseUser } = useAuthContext();
+    const credits = useCredits();
     const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [purchasedSeries, setPurchasedSeries] = useState<TestSeries[]>([]);
@@ -177,6 +179,38 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* AI Credits — only shown when credit metering is enabled. Gives
+                students a glanceable balance + a fast path to top up, since
+                the wallet powers AI interviews and other AI features. */}
+            {credits.enabled && (
+                <Link
+                    href="/credits"
+                    className="group relative block overflow-hidden rounded-2xl border border-amber-200/80 dark:border-amber-500/25 bg-gradient-to-r from-amber-50 dark:from-amber-500/10 via-white dark:via-surface to-orange-50/60 dark:to-orange-500/10 p-5 shadow-[0_18px_45px_rgba(245,158,11,0.10)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(245,158,11,0.16)] sm:p-6"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden>
+                                <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z" />
+                            </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">AI Credits</p>
+                            <p className="mt-0.5 flex items-baseline gap-1.5">
+                                <span className="text-2xl font-bold text-gray-900 tabular-nums">{credits.balance ?? "—"}</span>
+                                <span className="text-sm text-gray-500">available</span>
+                            </p>
+                            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">Powers AI mock interviews and other AI features.</p>
+                        </div>
+                        <span className="hidden shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors group-hover:bg-amber-700 sm:inline-flex">
+                            Buy credits
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </Link>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

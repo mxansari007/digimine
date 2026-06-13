@@ -20,6 +20,7 @@ import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { getEntitlements, checkQuota, refundQuota } from "@/lib/server/entitlements";
 import { getAiProviderConfig } from "@/lib/server/aiProvider";
+import { chargeCredits, refundCredits } from "@/lib/server/credits";
 import { serializeProblemPublic } from "@/lib/server/practice";
 import { rateLimit } from "@/lib/server/ratelimit";
 import {
@@ -279,9 +280,13 @@ export async function POST(req: Request) {
             );
         }
 
-        // Weekly quota — consumed only once capacity is secured. Release the
-        // slot we just reserved if the user is out of allowance (or the consume
-        // itself errors) so a failed start never leaks a slot unit.
+        // Allowance, overflow model (after capacity is secured):
+        //   1. Spend the plan's weekly quota first — free, no credits.
+        //   2. Only once that's exhausted do credits cover this interview.
+        // `creditsCharged > 0` marks a credit-paid interview so refunds give
+        // back exactly what was spent (quota OR credits, never both). Release
+        // the reserved slot on any failure so a dead start never leaks a unit.
+        const id = crypto.randomUUID();
         let quota;
         try {
             quota = await checkQuota(userId, AI_INTERVIEW_QUOTA, { consume: true });
@@ -289,23 +294,51 @@ export async function POST(req: Request) {
             await releaseSlot(slot.slotKey);
             throw err;
         }
+
+        let creditsCharged = 0;
         if (!quota.allowed) {
-            await releaseSlot(slot.slotKey);
-            return NextResponse.json(
-                {
-                    error:
-                        quota.limit === 0
-                            ? "Your plan doesn't include AI interviews. Upgrade to unlock."
-                            : `You've used this week's ${quota.limit} AI interview${quota.limit === 1 ? "" : "s"}. Come back next week or upgrade for more.`,
-                    code: "quota_exceeded",
-                    upgradeUrl: "/membership",
-                },
-                { status: 429 }
-            );
+            // Plan allowance used up — try to cover this one with credits.
+            let charge;
+            try {
+                charge = await chargeCredits({ userId, task: "ai_interview", ref: id });
+            } catch (err) {
+                // Quota wasn't consumed (it was already exhausted) — nothing to refund.
+                await releaseSlot(slot.slotKey);
+                throw err;
+            }
+            if (!charge.ok) {
+                await releaseSlot(slot.slotKey);
+                return NextResponse.json(
+                    {
+                        error: `You've used all ${quota.limit} AI interview${quota.limit === 1 ? "" : "s"} in your plan this week and have ${charge.balance} credit${charge.balance === 1 ? "" : "s"} — ${charge.needed} are needed. Add credits to keep going.`,
+                        code: "insufficient_credits",
+                        needed: charge.needed,
+                        balance: charge.balance,
+                        buyUrl: "/credits",
+                    },
+                    { status: 402 }
+                );
+            }
+            if (charge.charged === 0) {
+                // Credits are off (or interviews are credit-free) — the plan
+                // weekly cap stands. Nothing was charged, so just block.
+                await releaseSlot(slot.slotKey);
+                return NextResponse.json(
+                    {
+                        error:
+                            quota.limit === 0
+                                ? "Your plan doesn't include AI interviews. Upgrade to unlock."
+                                : `You've used this week's ${quota.limit} AI interview${quota.limit === 1 ? "" : "s"}. Come back next week or upgrade for more.`,
+                        code: "quota_exceeded",
+                        upgradeUrl: "/membership",
+                    },
+                    { status: 429 }
+                );
+            }
+            creditsCharged = charge.charged;
         }
 
         const opening = composeInterviewOpening(interviewType, config, problem);
-        const id = crypto.randomUUID();
         const session: AIInterviewSession = {
             id,
             userId,
@@ -324,6 +357,7 @@ export async function POST(req: Request) {
             scorecard: null,
             slotId: slot.slotKey,
             scheduledAt: null,
+            creditsCharged,
             expiresAt: new Date(now.getTime() + cfg.maxRuntimeMin * 60_000).toISOString(),
             startedAt: nowIso,
             completedAt: null,
@@ -333,9 +367,20 @@ export async function POST(req: Request) {
         try {
             await adminDb.collection(AI_INTERVIEW_SESSIONS).doc(id).set(session);
         } catch (err) {
-            // Couldn't persist after reserving + charging — undo both.
+            // Couldn't persist — undo the slot and give back whichever
+            // allowance actually paid: credits if charged, else the quota unit.
             await releaseSlot(slot.slotKey);
-            await refundQuota(userId, AI_INTERVIEW_QUOTA, now);
+            if (creditsCharged > 0) {
+                await refundCredits({
+                    userId,
+                    task: "ai_interview",
+                    amount: creditsCharged,
+                    ref: id,
+                    note: "Interview failed to start",
+                });
+            } else {
+                await refundQuota(userId, AI_INTERVIEW_QUOTA, now);
+            }
             throw err;
         }
         const publicProblem = problem ? serializeProblemPublic(problem.id, problem) : null;

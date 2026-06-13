@@ -72,6 +72,8 @@ export type SubmissionRow = {
     totalScore: number | null;
     maxTotalScore: number | null;
     error: string | null;
+    /** How the scores were produced — "ai" pipeline or teacher "manual" grade. */
+    scoredBy?: "ai" | "manual" | null;
     teacherReview: {
         adjustedScores: Record<string, number>;
         finalScore: number;

@@ -199,7 +199,7 @@ export function dmThreadId(a: string, b: string): string {
 }
 
 /** Class ids the user belongs to — as an enrolled student or as teacher. */
-async function classIdsFor(userId: string): Promise<Set<string>> {
+export async function classIdsFor(userId: string): Promise<Set<string>> {
     const ids = new Set<string>();
     const [enrolled, taught] = await Promise.all([
         adminDb
@@ -279,6 +279,10 @@ export function serializeDmThread(doc: any, viewerId: string) {
             (id: string) => id !== viewerId
         ) || "";
     const other = data.participants?.[otherId] || {};
+    // User-initiated blocks live on the thread doc as a list of blocker uids.
+    // `blockedByMe` drives the Unblock affordance; `blockedByOther` (kept
+    // intentionally vague to the blocked party) just disables the composer.
+    const blockedBy: string[] = Array.isArray(data.blockedBy) ? data.blockedBy : [];
     return {
         id: doc.id || data.id,
         otherId,
@@ -293,6 +297,9 @@ export function serializeDmThread(doc: any, viewerId: string) {
               }
             : null,
         unread: data.unread?.[viewerId] ?? 0,
+        blockedByMe: blockedBy.includes(viewerId),
+        blockedByOther: blockedBy.some((id) => id && id !== viewerId),
+        isBlocked: blockedBy.length > 0,
         updatedAt: toIsoDate(data.updatedAt),
     };
 }

@@ -10,6 +10,7 @@ import {
     serializeReply,
     toggleVote,
 } from "@/lib/server/classCommunity";
+import { createNotification } from "@/lib/server/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,19 @@ export async function POST(req: Request, { params }: Params) {
             lastActivityAt: now,
             updatedAt: now,
         });
+
+        // Tell the original poster someone replied.
+        if (data.authorId && data.authorId !== member.userId) {
+            void createNotification(data.authorId, {
+                type: "thread_reply",
+                title: `${identity.name} replied to your post`,
+                body: data.title ? `“${String(data.title).slice(0, 80)}”` : text.slice(0, 140),
+                data: { classId: params.classId, threadId: params.threadId, kind: "thread" },
+                actorId: member.userId,
+                actorName: identity.name,
+            });
+        }
+
         return NextResponse.json({
             reply: serializeReply({ id: replyRef.id, ...replyData }, { myVote: false }),
         });

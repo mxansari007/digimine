@@ -44,3 +44,4 @@ export * from "./payout";
 export * from "./job";
 export * from "./projectEvaluation";
 export * from "./classCommunity";
+export * from "./credits";

@@ -128,7 +128,12 @@ export function useKokoroTts(user: User | null | undefined, sessionId?: string) 
                             const ctx = new AC();
                             const srcNode = ctx.createMediaElementSource(el);
                             const analyser = ctx.createAnalyser();
-                            analyser.fftSize = 64;
+                            // 256 → 128 bins (~187 Hz each at 48 kHz), so the
+                            // voiced range (0–4 kHz) spans ~20 bins. At 64 (32
+                            // bins of ~750 Hz) nearly all speech energy landed
+                            // in the first few bins and only the first
+                            // equalizer bars ever moved.
+                            analyser.fftSize = 256;
                             analyser.smoothingTimeConstant = 0.6;
                             srcNode.connect(analyser);
                             analyser.connect(ctx.destination);

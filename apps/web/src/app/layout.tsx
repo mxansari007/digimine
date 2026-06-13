@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
+import { CreditsProvider } from "@/contexts/CreditsContext";
 import { FacebookPixel } from "@/components/common";
 import { ToastProvider } from "@digimine/ui";
 import { ThemeProvider, themeInitScript } from "@/components/theme";
@@ -147,7 +148,9 @@ export default function RootLayout({
                     <ToastProvider>
                         <AuthProvider>
                             <EntitlementsProvider>
-                                {children}
+                                <CreditsProvider>
+                                    {children}
+                                </CreditsProvider>
                             </EntitlementsProvider>
                         </AuthProvider>
                     </ToastProvider>

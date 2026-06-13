@@ -38,6 +38,10 @@ export default function SubmissionReportPage() {
     const [comment, setComment] = useState("");
     const [savingReview, setSavingReview] = useState(false);
 
+    // Manual-grade fallback (when the AI run failed / is unavailable).
+    const [manualMode, setManualMode] = useState(false);
+    const [manualScores, setManualScores] = useState<Record<string, string>>({});
+
     const load = useCallback(async () => {
         if (!firebaseUser || !evalId || !submissionId) return;
         try {
@@ -82,6 +86,49 @@ export default function SubmissionReportPage() {
             return sum + (Number.isFinite(v) ? Math.min(s.maxScore, Math.max(0, v)) : s.score);
         }, 0);
     }, [submission, adjusted]);
+
+    const manualTotal = useMemo(() => {
+        if (!evaluation) return 0;
+        return evaluation.parameters.reduce((sum, p) => {
+            const raw = manualScores[p.id];
+            const v = raw !== undefined && raw !== "" ? Number(raw) : 0;
+            return sum + (Number.isFinite(v) ? Math.min(p.maxScore, Math.max(0, v)) : 0);
+        }, 0);
+    }, [evaluation, manualScores]);
+
+    /** Save a hand-entered grade — the fallback when AI couldn't score. */
+    const submitManualGrade = async (publish?: boolean) => {
+        if (!firebaseUser || !evaluation) return;
+        setSavingReview(true);
+        try {
+            const scores: Record<string, number> = {};
+            for (const p of evaluation.parameters) {
+                const raw = manualScores[p.id];
+                const v = raw !== undefined && raw !== "" ? Number(raw) : 0;
+                scores[p.id] = Number.isFinite(v) ? v : 0;
+            }
+            const payload: Record<string, unknown> = { manualScores: scores, comment };
+            if (typeof publish === "boolean") payload.publish = publish;
+            const res = await teacherFetch(
+                firebaseUser,
+                `/api/teacher/project-evals/${evalId}/submissions/${submissionId}`,
+                { method: "PATCH", body: JSON.stringify(payload) }
+            );
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to save grade.");
+            setSubmission(data.submission);
+            setManualMode(false);
+            toast.success(
+                publish === true
+                    ? "Graded — the student can now see the result."
+                    : "Grade saved — publish it when you're ready."
+            );
+        } catch (err: any) {
+            toast.error(err.message || "Failed to save grade.");
+        } finally {
+            setSavingReview(false);
+        }
+    };
 
     /**
      * Save the review and, optionally, flip release state in the same call.
@@ -153,7 +200,20 @@ export default function SubmissionReportPage() {
                 </Link>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface p-5 shadow-soft-sm">
                     <div className="min-w-0">
-                        <Eyebrow>Evaluation report</Eyebrow>
+                        <div className="flex items-center gap-2">
+                            <Eyebrow>Evaluation report</Eyebrow>
+                            {submission.status === "scored" && (
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                                        submission.scoredBy === "manual"
+                                            ? "bg-primary-50 text-primary-700 ring-1 ring-primary-200 dark:bg-primary-500/15 dark:text-primary-300 dark:ring-primary-500/30"
+                                            : "bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-700/50 dark:text-slate-300 dark:ring-slate-600"
+                                    }`}
+                                >
+                                    {submission.scoredBy === "manual" ? "Graded by you" : "AI-scored"}
+                                </span>
+                            )}
+                        </div>
                         <h1 className="mt-1 font-display text-2xl font-bold text-gray-900">
                             {submission.studentName}
                         </h1>
@@ -183,11 +243,95 @@ export default function SubmissionReportPage() {
                 </div>
             </div>
 
-            {submission.status !== "scored" ? (
+            {submission.status === "failed" ? (
+                <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface p-5 shadow-soft-sm">
+                    <div className="rounded-xl border border-danger-200 dark:border-danger-500/30 bg-danger-50/60 dark:bg-danger-500/10 px-4 py-3 text-sm text-danger-700 dark:text-danger-300">
+                        Evaluation couldn&apos;t run: {submission.error || "unknown error"}
+                    </div>
+                    {!manualMode ? (
+                        <>
+                            <p className="mt-3 max-w-prose text-sm text-slate-600 dark:text-slate-300">
+                                Out of AI budget, or the analysis just couldn&apos;t run? You can{" "}
+                                <strong>grade this submission yourself</strong> against the rubric —
+                                no AI, no credits — or retry the AI run from the submissions list.
+                            </p>
+                            <Button className="mt-4" onClick={() => setManualMode(true)}>
+                                Grade manually
+                            </Button>
+                        </>
+                    ) : (
+                        <div className="mt-5 space-y-4">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <h2 className="font-display text-lg font-semibold text-gray-900">
+                                    Manual marksheet
+                                </h2>
+                                <p className="text-sm text-slate-500">
+                                    Total{" "}
+                                    <span className="font-display text-lg font-bold tabular-nums text-gray-900">
+                                        {Math.round(manualTotal * 10) / 10}
+                                    </span>
+                                    <span className="font-mono text-xs text-slate-400">
+                                        /{evaluation.maxTotalScore}
+                                    </span>
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                {evaluation.parameters.map((p) => (
+                                    <div
+                                        key={p.id}
+                                        className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 dark:border-slate-700 px-3.5 py-2.5"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium text-gray-900">{p.title}</div>
+                                            {p.description && (
+                                                <div className="mt-0.5 line-clamp-2 text-xs text-slate-500">
+                                                    {p.description}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
+                                            <input
+                                                className={overrideInput}
+                                                value={manualScores[p.id] ?? ""}
+                                                placeholder="0"
+                                                inputMode="decimal"
+                                                onChange={(e) =>
+                                                    setManualScores((prev) => ({
+                                                        ...prev,
+                                                        [p.id]: e.target.value.replace(/[^0-9.]/g, ""),
+                                                    }))
+                                                }
+                                                aria-label={`Score for ${p.title} out of ${p.maxScore}`}
+                                            />
+                                            <span className="font-mono text-slate-400">/ {p.maxScore}</span>
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                            <textarea
+                                className="min-h-[88px] w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                placeholder="Feedback for the student — shown with their grade."
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                maxLength={3000}
+                            />
+                            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                                <Button variant="ghost" disabled={savingReview} onClick={() => setManualMode(false)}>
+                                    Cancel
+                                </Button>
+                                <Button variant="outline" disabled={savingReview} onClick={() => submitManualGrade()}>
+                                    Save grade
+                                </Button>
+                                <Button variant="primary" disabled={savingReview} onClick={() => submitManualGrade(true)}>
+                                    {savingReview ? "Saving…" : "Save & publish"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            ) : submission.status !== "scored" ? (
                 <Card className="p-10 text-center text-sm text-slate-500">
-                    {submission.status === "failed"
-                        ? `Evaluation failed: ${submission.error || "unknown error"}. Use Retry on the submissions list to run it again.`
-                        : "This submission hasn't been scored yet — the report appears here once the analysis finishes."}
+                    This submission hasn&apos;t been scored yet — the report appears here once the analysis finishes.
                 </Card>
             ) : (
                 <>
@@ -286,7 +430,9 @@ export default function SubmissionReportPage() {
                         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                             <h2 className="font-display text-lg font-semibold text-gray-900">Marksheet</h2>
                             <p className="text-xs text-slate-500">
-                                AI-suggested scores with cited files. Type a final mark to override any of them.
+                                {submission.scoredBy === "manual"
+                                    ? "You graded this submission. Type a new mark to adjust any parameter."
+                                    : "AI-suggested scores with cited files. Type a final mark to override any of them."}
                             </p>
                         </div>
                         <RubricLedger

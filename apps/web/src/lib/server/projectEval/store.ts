@@ -322,6 +322,13 @@ export function serializeSubmission(doc: any, opts: { forStudent?: boolean } = {
         totalScore: data.totalScore ?? null,
         maxTotalScore: data.maxTotalScore ?? null,
         error: data.error ?? null,
+        // Absent on legacy rows — a scored-but-untagged submission is AI-scored.
+        scoredBy:
+            data.scoredBy === "manual" || data.scoredBy === "ai"
+                ? data.scoredBy
+                : data.status === "scored"
+                  ? "ai"
+                  : null,
         teacherReview,
         resultPublished,
         resultPublishedAt: toIsoDate(data.resultPublishedAt),

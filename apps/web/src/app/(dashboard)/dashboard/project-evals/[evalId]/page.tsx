@@ -320,7 +320,14 @@ export default function StudentProjectEvalPage() {
                     )}
 
                     <section>
-                        <h2 className="mb-3 font-display text-lg font-semibold text-gray-900">Marksheet</h2>
+                        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                            <h2 className="font-display text-lg font-semibold text-gray-900">Marksheet</h2>
+                            <p className="text-xs text-slate-500">
+                                {submission.scoredBy === "manual"
+                                    ? "Graded by your teacher."
+                                    : "AI-reviewed, released by your teacher."}
+                            </p>
+                        </div>
                         <RubricLedger
                             scores={submission.scores || []}
                             adjustedScores={submission.teacherReview?.adjustedScores}

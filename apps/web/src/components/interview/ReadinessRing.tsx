@@ -7,6 +7,9 @@ interface Props {
     size?: number;
     label?: string;
     sublabel?: string;
+    /** "dark" renders the gauge for a dark-by-design band (white number,
+     *  translucent track) — used by the results debrief hero. */
+    tone?: "light" | "dark";
 }
 
 function ringStops(v: number): [string, string] {
@@ -24,14 +27,15 @@ function statusWord(v: number): string {
     return "Early days";
 }
 
-export function ReadinessRing({ value, size = 140, label, sublabel }: Props) {
+export function ReadinessRing({ value, size = 140, label, sublabel, tone = "light" }: Props) {
     const v = Math.max(0, Math.min(100, Math.round(value)));
     const stroke = 12;
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
     const offset = c - (v / 100) * c;
     const [from, to] = ringStops(v);
-    const gid = `ring-${from.slice(1)}-${to.slice(1)}`;
+    const dark = tone === "dark";
+    const gid = `ring-${tone}-${from.slice(1)}-${to.slice(1)}`;
 
     return (
         <div className="inline-flex flex-col items-center">
@@ -46,7 +50,14 @@ export function ReadinessRing({ value, size = 140, label, sublabel }: Props) {
                     </filter>
                 </defs>
                 {/* track */}
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--c-slate-200))" strokeWidth={stroke} />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={r}
+                    fill="none"
+                    stroke={dark ? "rgba(255,255,255,0.14)" : "rgb(var(--c-slate-200))"}
+                    strokeWidth={stroke}
+                />
                 {/* value arc */}
                 <circle
                     cx={size / 2}
@@ -68,19 +79,27 @@ export function ReadinessRing({ value, size = 140, label, sublabel }: Props) {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="font-display font-black"
-                    style={{ fontSize: size * 0.27, fill: "rgb(var(--c-slate-900))" }}
+                    style={{ fontSize: size * 0.27, fill: dark ? "#fff" : "rgb(var(--c-slate-900))" }}
                 >
                     {v}
                 </text>
-                <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size * 0.085, fill: "rgb(var(--c-slate-400))" }}>
+                <text
+                    x="50%"
+                    y="58%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{ fontSize: size * 0.085, fill: dark ? "rgba(255,255,255,0.45)" : "rgb(var(--c-slate-400))" }}
+                >
                     / 100
                 </text>
                 <text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size * 0.082, fontWeight: 700, fill: to }}>
                     {statusWord(v).toUpperCase()}
                 </text>
             </svg>
-            {label && <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>}
-            {sublabel && <p className="text-xs text-slate-500">{sublabel}</p>}
+            {label && (
+                <p className={`mt-1 text-sm font-semibold ${dark ? "text-white/85" : "text-slate-700"}`}>{label}</p>
+            )}
+            {sublabel && <p className={`text-xs ${dark ? "text-white/55" : "text-slate-500"}`}>{sublabel}</p>}
         </div>
     );
 }

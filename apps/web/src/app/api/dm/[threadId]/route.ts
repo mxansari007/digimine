@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
-import { DM_THREADS, dmMuteBlocks, serializeDmThread } from "@/lib/server/classCommunity";
+import {
+    DM_THREADS,
+    dmMuteBlocks,
+    getUserIdentity,
+    serializeDmThread,
+} from "@/lib/server/classCommunity";
 import { toIsoDate } from "@/lib/server/classroomAccess";
+import { createNotification } from "@/lib/server/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +85,23 @@ export async function POST(req: Request, { params }: Params) {
 
         const otherId = convo.data.participantIds.find((id: string) => id !== userId) || "";
 
+        // User-initiated block: either party having blocked the thread stops
+        // delivery. The blocker gets a clear unblock hint; the blocked party
+        // just learns they can't reply (we don't reveal who blocked whom).
+        const blockedBy: string[] = Array.isArray(convo.data.blockedBy) ? convo.data.blockedBy : [];
+        if (blockedBy.length > 0) {
+            const mine = blockedBy.includes(userId);
+            return NextResponse.json(
+                {
+                    error: mine
+                        ? "You blocked this person. Unblock them to send a message."
+                        : "You can't reply to this conversation.",
+                    code: mine ? "blocked_by_me" : "blocked",
+                },
+                { status: 403 }
+            );
+        }
+
         // The real mute gate: this is where every message is created, so a
         // student muted after a conversation already exists is still stopped.
         if (await dmMuteBlocks(userId, otherId)) {
@@ -100,11 +123,59 @@ export async function POST(req: Request, { params }: Params) {
             { merge: true }
         );
 
+        // Notify the recipient (in-app feed + best-effort push).
+        const meName = convo.data.participants?.[userId]?.name || (await getUserIdentity(userId)).name;
+        void createNotification(otherId, {
+            type: "dm",
+            title: `New message from ${meName}`,
+            body: text.slice(0, 140),
+            data: { threadId: params.threadId, kind: "dm" },
+            actorId: userId,
+            actorName: meName,
+        });
+
         return NextResponse.json({
             message: { id: msgRef.id, senderId: userId, text, createdAt: now.toDate().toISOString() },
         });
     } catch (error: any) {
         console.error("Send message failed:", error);
+        return NextResponse.json({ error: error?.message || "Failed" }, { status: 500 });
+    }
+}
+
+/**
+ * Moderation on the conversation itself. Body: { action: "block" | "unblock" }.
+ * Block is per-user (the caller's uid joins/leaves the thread's blockedBy
+ * list); a thread with anyone in that list refuses new messages from both
+ * sides until the blocker unblocks.
+ */
+export async function PATCH(req: Request, { params }: Params) {
+    try {
+        const userId = await getBearerUserId(req).catch(() => null);
+        if (!userId) return NextResponse.json({ error: "Sign in to continue." }, { status: 401 });
+        const convo = await loadConversation(params.threadId, userId);
+        if (!convo) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+
+        const body = await req.json().catch(() => ({}));
+        const action = typeof body.action === "string" ? body.action : "";
+        if (action !== "block" && action !== "unblock") {
+            return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+        }
+
+        await convo.ref.set(
+            {
+                blockedBy:
+                    action === "block"
+                        ? FieldValue.arrayUnion(userId)
+                        : FieldValue.arrayRemove(userId),
+                updatedAt: Timestamp.now(),
+            },
+            { merge: true }
+        );
+        const fresh = await convo.ref.get();
+        return NextResponse.json({ conversation: serializeDmThread(fresh, userId) });
+    } catch (error: any) {
+        console.error("Block/unblock failed:", error);
         return NextResponse.json({ error: error?.message || "Failed" }, { status: 500 });
     }
 }

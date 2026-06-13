@@ -144,6 +144,46 @@ const ProjectIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const CreditIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+);
+
+/**
+ * The "AI Credits" sidebar entry. Rendered with an amber accent + a live
+ * balance pill (via the sidebar's `accent`/`badge` affordances) so the
+ * wallet stands out from the plain page links. Built per-render so the
+ * number stays fresh as the balance updates.
+ */
+export function creditsNavItem(balance: number | null): AppSidebarNavItem {
+    return {
+        name: "AI Credits",
+        href: "/credits",
+        icon: CreditIcon,
+        accent: true,
+        badge: balance != null ? balance : null,
+    };
+}
+
+/**
+ * Insert the credits entry into a nav list right after `afterName` (or at
+ * the end if that anchor isn't found) — but only when metering is enabled,
+ * so launch mode shows no credit UI at all.
+ */
+export function withCredits(
+    nav: AppSidebarNavItem[],
+    enabled: boolean,
+    balance: number | null,
+    afterName: string
+): AppSidebarNavItem[] {
+    if (!enabled) return nav;
+    const item = creditsNavItem(balance);
+    const idx = nav.findIndex((n) => n.name === afterName);
+    if (idx === -1) return [...nav, item];
+    return [...nav.slice(0, idx + 1), item, ...nav.slice(idx + 1)];
+}
+
 export const studentNav: AppSidebarNavItem[] = [
     { name: "My Library", href: "/dashboard", icon: LibraryIcon, exact: true },
     { name: "Practice (DSA/SQL)", href: "/practice", icon: PracticeIcon },

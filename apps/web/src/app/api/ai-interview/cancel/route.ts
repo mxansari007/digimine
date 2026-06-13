@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { refundQuota } from "@/lib/server/entitlements";
+import { refundCredits } from "@/lib/server/credits";
 import { AI_INTERVIEW_SESSIONS, AI_INTERVIEW_QUOTA } from "@/lib/server/aiInterview";
 import { releaseSlot } from "@/lib/server/aiInterviewScheduling";
 import type { AIInterviewSession } from "@digimine/types";
@@ -50,7 +51,19 @@ export async function POST(req: Request) {
             { merge: true }
         );
         await releaseSlot(session.slotId);
-        await refundQuota(userId, AI_INTERVIEW_QUOTA, new Date(session.createdAt || session.scheduledAt || Date.now()));
+        // Give back whatever paid for the booking: credits if it was a
+        // credit-paid (over-allowance) booking, otherwise the quota unit.
+        if ((session.creditsCharged || 0) > 0) {
+            await refundCredits({
+                userId,
+                task: "ai_interview",
+                amount: session.creditsCharged || 0,
+                ref: sessionId,
+                note: "Booking cancelled",
+            });
+        } else {
+            await refundQuota(userId, AI_INTERVIEW_QUOTA, new Date(session.createdAt || session.scheduledAt || Date.now()));
+        }
 
         return NextResponse.json({ ok: true });
     } catch (error) {

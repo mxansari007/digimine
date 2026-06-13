@@ -386,10 +386,10 @@ export default function ProjectEvalDetailPage() {
                                                             {s.status === "failed" ? "Retry" : "Re-run"}
                                                         </Button>
                                                     )}
-                                                    {s.status === "scored" && (
+                                                    {(s.status === "scored" || s.status === "failed") && (
                                                         <Link href={`/teacher/project-evals/${evalId}/submissions/${s.id}`}>
                                                             <Button variant="outline" size="sm">
-                                                                Open report
+                                                                {s.status === "failed" ? "Grade manually" : "Open report"}
                                                             </Button>
                                                         </Link>
                                                     )}

@@ -501,9 +501,9 @@ export default function ClassroomPage() {
 
                         <UpNextRail entries={upNext} />
 
-                        {/* Community strip — discussions + people */}
+                        {/* Community strip — discussions + people + resources */}
                         {!isLegacy && (
-                            <div className="grid gap-2.5 sm:grid-cols-2">
+                            <div className="grid gap-2.5 sm:grid-cols-3">
                                 <Link
                                     href={`${basePath}/threads`}
                                     className="group flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface px-4 py-3.5 shadow-soft-sm transition-colors hover:border-primary-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus:outline-none"
@@ -517,8 +517,24 @@ export default function ClassroomPage() {
                                         <span className="block text-sm font-medium text-gray-900">Discussions</span>
                                         <span className="block truncate text-xs text-slate-500">
                                             {board?.total
-                                                ? `${board.total} ${board.total === 1 ? "post" : "posts"} · ask doubts, share resources`
-                                                : "Ask doubts, share resources — start the first post"}
+                                                ? `${board.total} ${board.total === 1 ? "post" : "posts"} · ask doubts & discuss`
+                                                : "Ask doubts & discuss — start the first post"}
+                                        </span>
+                                    </span>
+                                </Link>
+                                <Link
+                                    href={`${basePath}/resources`}
+                                    className="group flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface px-4 py-3.5 shadow-soft-sm transition-colors hover:border-primary-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus:outline-none"
+                                >
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300">
+                                        <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                                        </svg>
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block text-sm font-medium text-gray-900">Resources</span>
+                                        <span className="block truncate text-xs text-slate-500">
+                                            Slide decks, PDFs &amp; videos shared in class
                                         </span>
                                     </span>
                                 </Link>
@@ -534,7 +550,7 @@ export default function ClassroomPage() {
                                     <span className="min-w-0">
                                         <span className="block text-sm font-medium text-gray-900">People</span>
                                         <span className="block truncate text-xs text-slate-500">
-                                            See classmates · message anyone, including {teacherName.split(" ")[0]}
+                                            Classmates · message anyone, including {teacherName.split(" ")[0]}
                                         </span>
                                     </span>
                                 </Link>

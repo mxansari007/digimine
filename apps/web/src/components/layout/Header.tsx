@@ -6,11 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/contexts/EntitlementsContext";
+import { useCredits } from "@/contexts/CreditsContext";
 import { signOut } from "@/lib/firebase/auth";
 import { Logo } from "@/components/common/Logo";
 import { TeachersDropdown } from "@/components/teacher/TeachersDropdown";
 import { userHomePath } from "@/lib/auth/redirects";
 import UserMenu from "@/components/layout/UserMenu";
+import CreditsBalancePill, { CreditsMobileRow } from "@/components/layout/CreditsBalancePill";
 import Avatar from "@/components/common/Avatar";
 import MegaNav from "@/components/layout/MegaNav";
 import HeaderSearch from "@/components/layout/HeaderSearch";
@@ -25,6 +27,7 @@ export interface HeaderProps {
 export function Header({ megaNavItems }: HeaderProps = {}) {
     const { isAuthenticated, user, loading, portals } = useAuthContext();
     const { isPremium } = useEntitlements();
+    const { enabled: creditsEnabled, balance: creditsBalance } = useCredits();
     const pathname = usePathname();
     const router = useRouter();
     // Send each role to its own home. `portals` reflects the user's REAL
@@ -110,7 +113,8 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                                 ) : isAuthenticated ? (
                                     <div className="flex items-center gap-1.5">
                                         {showTeachersDropdown && <TeachersDropdown />}
-                                        <UserMenu user={user} onSignOut={handleSignOut} portals={portals} isPremium={isPremium} />
+                                        <CreditsBalancePill />
+                                        <UserMenu user={user} onSignOut={handleSignOut} portals={portals} isPremium={isPremium} showCredits={creditsEnabled} creditsBalance={creditsBalance} />
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -226,6 +230,7 @@ export function Header({ megaNavItems }: HeaderProps = {}) {
                                     My Dashboard
                                 </Link>
                             )}
+                            <CreditsMobileRow onNavigate={() => setIsMobileMenuOpen(false)} />
                             <button
                                 onClick={handleSignOut}
                                 className="block w-full px-4 py-2 text-center text-slate-600 hover:text-slate-900"

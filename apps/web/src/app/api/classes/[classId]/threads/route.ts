@@ -10,6 +10,7 @@ import {
     sanitizeAttachments,
     serializeThread,
 } from "@/lib/server/classCommunity";
+import { createNotifications } from "@/lib/server/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +136,28 @@ export async function POST(req: Request, { params }: { params: { classId: string
             updatedAt: now,
         };
         await ref.set(data);
+
+        // Announcements ping every active student in the class.
+        if (tag === "announcement") {
+            const studentsSnap = await adminDb
+                .collection("classes")
+                .doc(params.classId)
+                .collection("students")
+                .where("status", "==", "active")
+                .get();
+            void createNotifications(
+                studentsSnap.docs.map((d) => d.id),
+                {
+                    type: "announcement",
+                    title: `Announcement in ${member.classDoc?.name || "your class"}`,
+                    body: title,
+                    data: { classId: params.classId, threadId: ref.id, kind: "announcement" },
+                    actorId: member.userId,
+                    actorName: identity.name,
+                }
+            );
+        }
+
         return NextResponse.json({ thread: serializeThread({ id: ref.id, ...data }, { myVote: false }) });
     } catch (error: any) {
         console.error("Create thread failed:", error);

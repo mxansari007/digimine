@@ -91,6 +91,55 @@ export async function commitAiUsage(
     });
 }
 
+export interface AiUsageReservation {
+    /** Questions covered by the plan's daily allowance (free). */
+    fromQuota: number;
+    /** Questions beyond the allowance — must be paid with credits. */
+    overflow: number;
+    /** The day's usage count after reserving `fromQuota`. */
+    usedAfter: number;
+}
+
+/**
+ * Overflow-model reservation: take as many of `count` from the daily plan
+ * allowance as fit, and report the rest as `overflow` for the caller to
+ * cover with credits. Runs in a transaction so concurrent batches can't
+ * over-reserve the plan quota.
+ *
+ * - `cap === null` or `cap < 0` → unlimited plan: all from quota, no overflow.
+ * - `cap === 0`                 → plan includes none: all overflow.
+ * - `cap > 0`                   → split at the remaining allowance.
+ *
+ * Only `fromQuota` is written to the counter; overflow questions don't
+ * touch the plan quota (they're paid in credits). Refund the quota part
+ * with `refundAiUsage` if the caller later bails.
+ */
+export async function reserveAiUsageWithOverflow(
+    userId: string,
+    count: number,
+    cap: number | null
+): Promise<AiUsageReservation> {
+    const ref = adminDb.collection("aiUsage").doc(userId);
+    const today = istDateString();
+    const unlimited = cap === null || cap < 0;
+    return adminDb.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const data = snap.exists ? snap.data() || {} : {};
+        const usedToday = data.date === today && typeof data.count === "number" ? data.count : 0;
+        const remaining = unlimited ? count : Math.max(0, cap! - usedToday);
+        const fromQuota = Math.min(count, remaining);
+        const usedAfter = usedToday + fromQuota;
+        if (fromQuota > 0) {
+            tx.set(
+                ref,
+                { date: today, count: usedAfter, updatedAt: Timestamp.now() },
+                { merge: true }
+            );
+        }
+        return { fromQuota, overflow: count - fromQuota, usedAfter };
+    });
+}
+
 /**
  * Decrement a previously-committed reservation. Use when the upstream
  * AI call failed after `commitAiUsage` succeeded so the user isn't

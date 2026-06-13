@@ -28,6 +28,7 @@ import {
 } from "@digimine/types";
 import { AI_INTERVIEW_SESSIONS, AI_INTERVIEW_SLOTS, AI_INTERVIEW_QUOTA } from "@/lib/server/aiInterview";
 import { refundQuota } from "@/lib/server/entitlements";
+import { refundCredits } from "@/lib/server/credits";
 
 const CONFIG_DOC = adminDb.collection("appConfig").doc("aiInterviewScheduling");
 
@@ -273,10 +274,22 @@ async function reapOne(
         { merge: true }
     );
     await releaseSlot(s.slotId);
-    // A never-joined booking gets its weekly quota unit back; an abandoned
-    // in-progress interview already consumed real infra, so no refund.
+    // A never-joined booking gets its allowance back — credits if it was a
+    // credit-paid (over-quota) booking, otherwise the weekly quota unit (never
+    // both, since only one paid). An abandoned in-progress interview already
+    // consumed real infra, so no refund.
     if (s.status === "scheduled" && s.userId) {
-        await refundQuota(s.userId, AI_INTERVIEW_QUOTA, new Date(s.createdAt || s.scheduledAt || now));
+        if ((s.creditsCharged || 0) > 0) {
+            await refundCredits({
+                userId: s.userId,
+                task: "ai_interview",
+                amount: s.creditsCharged || 0,
+                ref: doc.id,
+                note: "Missed booking",
+            });
+        } else {
+            await refundQuota(s.userId, AI_INTERVIEW_QUOTA, new Date(s.createdAt || s.scheduledAt || now));
+        }
     }
     return true;
 }

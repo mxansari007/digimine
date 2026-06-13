@@ -43,6 +43,10 @@ export interface UserMenuProps {
      * with the entitlements context.
      */
     isPremium?: boolean;
+    /** Show the "AI Credits" entry — true only when metering is enabled. */
+    showCredits?: boolean;
+    /** Live wallet balance, shown beside the credits entry when known. */
+    creditsBalance?: number | null;
 }
 
 export default function UserMenu({
@@ -51,6 +55,8 @@ export default function UserMenu({
     dashboardLabel = "My dashboard",
     portals = [],
     isPremium = false,
+    showCredits = false,
+    creditsBalance = null,
 }: UserMenuProps) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -171,6 +177,17 @@ export default function UserMenu({
                         <ReceiptIcon className="h-4 w-4 text-slate-400" />
                         My purchases
                     </MenuLink>
+                    {showCredits && (
+                        <MenuLink href="/credits" onSelect={() => setOpen(false)}>
+                            <BoltIcon className="h-4 w-4 text-slate-400" />
+                            <span className="flex-1">AI Credits</span>
+                            {creditsBalance != null && (
+                                <span className="rounded-md bg-primary-50 px-1.5 py-0.5 text-xs font-bold tabular-nums text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">
+                                    {creditsBalance}
+                                </span>
+                            )}
+                        </MenuLink>
+                    )}
 
                     <div className="my-2 h-px bg-slate-100" />
 
@@ -233,6 +250,12 @@ const ReceiptIcon = ({ className = "" }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
         <path d="M9 8h6M9 12h6M9 16h3" />
+    </svg>
+);
+
+const BoltIcon = ({ className = "" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+        <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z" />
     </svg>
 );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -23,10 +24,11 @@ import {
     CheckCircle2,
     AlertTriangle,
 } from "lucide-react";
-import { Button, Card, Badge, FormattedContent, useToast } from "@digimine/ui";
+import { Button, Badge, FormattedContent, useToast } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { useKokoroTts } from "@/components/interview/useKokoroTts";
+import { InterviewTypeIcon } from "@/components/interview/InterviewTypeIcon";
 import { interviewTypeMeta } from "@digimine/types";
 import type {
     AIInterviewSession,
@@ -92,6 +94,14 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
 
     const [loading, setLoading] = useState(true);
     const [sessionReady, setSessionReady] = useState(false);
+    // The room renders as a full-screen takeover. It must be PORTALED to
+    // <body>: the dashboard shell's content wrapper is `relative z-0`, which
+    // creates a stacking context that would paint any in-tree `fixed z-50`
+    // overlay BELOW the z-40 sidebar.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    const fullscreen = (node: ReactNode) =>
+        mounted && typeof document !== "undefined" ? createPortal(node, document.body) : null;
     const [problem, setProblem] = useState<any>(null);
     const [interviewType, setInterviewType] = useState<InterviewType>("dsa");
     const [interviewTitle, setInterviewTitle] = useState("");
@@ -346,9 +356,15 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             const a = kokoro.analyserRef.current;
             const n = eqRefs.current.length;
             if (a) {
+                // `data` reads the LOWEST 64 of the analyser's bins (≈0–12 kHz
+                // at fftSize 256). Speech energy sits low in that range, so
+                // spread the bars over the bottom half on a perceptual curve —
+                // a linear sweep of the full spectrum parks the upper bars in
+                // silent frequencies and only the first few ever move.
                 a.getByteFrequencyData(data);
                 for (let i = 0; i < n; i++) {
-                    const idx = Math.floor((i / n) * data.length);
+                    const frac = Math.pow(i / Math.max(1, n - 1), 1.5);
+                    const idx = Math.min(data.length - 1, Math.round(frac * data.length * 0.5));
                     const v = data[idx] / 255;
                     const el = eqRefs.current[i];
                     if (el) el.style.height = `${Math.max(12, 12 + v * 88)}%`;
@@ -836,23 +852,39 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     // ── Render helpers ──
     const EQ_BARS = 9;
 
-    // The interviewer "person" — fills the call stage; avatar + voice-matched
-    // equalizer + speaking ring.
+    // The interviewer "person" — fills the call stage. A breathing teal
+    // spotlight sits behind the avatar (stronger while speaking) so the room
+    // visibly reacts to the interviewer's voice; equalizer bars are driven by
+    // the live audio analyser.
     const interviewerStage = (compact: boolean) => (
         <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+            {/* Voice-reactive spotlight */}
+            <div
+                aria-hidden
+                className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
+                    kokoro.speaking ? "opacity-100" : "opacity-50"
+                }`}
+                style={{
+                    background:
+                        "radial-gradient(ellipse 55% 45% at 50% 42%, rgba(20,184,166,0.16), transparent 70%)",
+                }}
+            />
             <div className="relative">
                 {kokoro.speaking && (
-                    <span className="absolute inset-0 -m-2 animate-ping rounded-full bg-primary-400/25" />
+                    <>
+                        <span className="absolute inset-0 -m-3 animate-ping rounded-full bg-primary-400/20" />
+                        <span className="absolute inset-0 -m-1.5 rounded-full ring-2 ring-primary-400/40" />
+                    </>
                 )}
                 <div
-                    className={`relative flex items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 font-display font-bold text-white shadow-2xl ${
-                        compact ? "h-16 w-16 text-xl" : "h-28 w-28 text-4xl"
-                    } ${kokoro.speaking ? "ring-4 ring-primary-400/50" : "ring-1 ring-white/10"}`}
+                    className={`relative flex items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 font-display font-bold text-white shadow-2xl shadow-primary-950/60 ${
+                        compact ? "h-16 w-16 text-xl" : "h-28 w-28 text-4xl sm:h-32 sm:w-32"
+                    } ${kokoro.speaking ? "ring-4 ring-primary-400/50" : "ring-1 ring-white/15"}`}
                 >
                     AI
                 </div>
             </div>
-            <div className={`flex items-end gap-1 ${compact ? "h-6" : "h-10"}`} aria-hidden>
+            <div className={`relative flex items-end gap-1 ${compact ? "h-6" : "h-10"}`} aria-hidden>
                 {Array.from({ length: EQ_BARS }).map((_, i) => (
                     <span
                         key={i}
@@ -864,14 +896,22 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     />
                 ))}
             </div>
-            {!compact && <p className="text-sm font-medium text-slate-300">AI Interviewer</p>}
-            <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
-                <span className={`h-1.5 w-1.5 rounded-full ${kokoro.speaking ? "bg-emerald-400" : "bg-slate-400"}`} />
+            {!compact && (
+                <p className="relative font-display text-sm font-semibold tracking-wide text-slate-200">
+                    AI Interviewer
+                </p>
+            )}
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
+                <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                        kokoro.speaking ? "animate-pulse bg-emerald-400" : "bg-slate-400"
+                    }`}
+                />
                 Interviewer
             </div>
             {(kokoro.generating || kokoro.usingFallback) && (
-                <div className="absolute right-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-slate-200 backdrop-blur">
-                    {kokoro.generating ? "generating…" : "browser voice"}
+                <div className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-medium text-slate-200 backdrop-blur">
+                    {kokoro.generating ? "generating voice…" : "browser voice"}
                 </div>
             )}
         </div>
@@ -879,7 +919,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
 
     // Candidate self-view — small floating thumbnail (Meet PiP).
     const selfPiP = () => (
-        <div className="on-dark absolute bottom-3 right-3 z-10 w-28 overflow-hidden rounded-xl border border-white/10 bg-[#0f172a] shadow-xl sm:w-44">
+        <div className="on-dark absolute bottom-3 right-3 z-10 w-28 overflow-hidden rounded-xl bg-[#0b1120] shadow-2xl shadow-black/50 ring-1 ring-white/15 sm:w-44">
             <div className="relative aspect-video">
                 <video
                     ref={attachVideo}
@@ -916,7 +956,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         if (!lastInterviewerText) return null;
         return (
             <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-3">
-                <div className="max-w-2xl rounded-2xl bg-black/70 px-4 py-2.5 text-center backdrop-blur">
+                <div className="max-w-2xl rounded-2xl bg-black/70 px-4 py-2.5 text-center ring-1 ring-white/10 backdrop-blur-md">
                     <p className="text-sm leading-relaxed text-white sm:text-base">{lastInterviewerText}</p>
                 </div>
             </div>
@@ -946,9 +986,11 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         </div>
     );
 
-    // Chat as a Meet-style slide-in panel (secondary to the call).
+    // Chat as a Meet-style slide-in panel — deliberately a light "paper" panel
+    // over the dark room (same move Meet makes), which also keeps the problem
+    // statement and transcript maximally readable.
     const chatDrawer = () => (
-        <div className="fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-sm flex-col bg-white shadow-2xl shadow-black/40 sm:my-3 sm:mr-3 sm:rounded-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-3">
                 <h3 className="font-semibold">In-call messages</h3>
                 <button
@@ -1023,7 +1065,9 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         </div>
     );
 
-    // Google-Meet-style control bar.
+    // Floating glass control dock (Meet-style). Sits over the dark room, so
+    // buttons are white-glass with a primary fill for "on" toggles and rose
+    // for recording / leave.
     const controlBtn = (
         icon: ReactNode,
         label: string,
@@ -1035,15 +1079,15 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             title={label}
             aria-label={label}
             aria-pressed={opts.active}
-            className="flex flex-col items-center gap-1.5"
+            className="group flex flex-col items-center gap-1"
         >
             <span
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition-all duration-200 active:scale-95 sm:h-12 sm:w-12 ${
                     opts.danger
-                        ? "bg-rose-600 text-white shadow-soft hover:bg-rose-700"
+                        ? "bg-rose-600 text-white shadow-lg shadow-rose-950/40 hover:bg-rose-500"
                         : opts.active
-                            ? "bg-primary-600 text-white shadow-soft hover:bg-primary-700"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-200"
+                            ? "bg-primary-500 text-white shadow-lg shadow-primary-950/40 hover:bg-primary-400"
+                            : "bg-white/[0.08] text-slate-200 ring-1 ring-inset ring-white/10 hover:bg-white/[0.16] hover:text-white"
                 }`}
             >
                 {opts.busy ? (
@@ -1052,12 +1096,14 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     icon
                 )}
             </span>
-            <span className="text-[10px] font-medium text-slate-500">{label}</span>
+            <span className="text-[10px] font-medium text-slate-400 transition-colors group-hover:text-slate-300">
+                {label}
+            </span>
         </button>
     );
 
     const controlBar = () => (
-        <div className="flex flex-wrap items-end justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-soft-sm sm:gap-4 sm:px-4">
+        <div className="flex flex-wrap items-end justify-center gap-2.5 rounded-[28px] border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 shadow-2xl shadow-black/50 backdrop-blur-xl sm:gap-4 sm:px-6">
             {micSupported &&
                 controlBtn(
                     recording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />,
@@ -1083,26 +1129,29 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
             )}
             {controlBtn(<Captions className="h-5 w-5" />, "Captions", () => setCaptionsOn((v) => !v), { active: captionsOn })}
             {controlBtn(<MessageSquare className="h-5 w-5" />, "Chat", () => setChatOpen((v) => !v), { active: chatOpen })}
-            <button onClick={endInterview} disabled={ending} title="End interview" aria-label="End interview" className="flex flex-col items-center gap-1.5">
-                <span className="flex h-11 w-16 items-center justify-center rounded-full bg-rose-600 text-white shadow-soft transition-all duration-200 hover:bg-rose-700 active:scale-95 disabled:opacity-70 sm:h-12">
+            <button onClick={endInterview} disabled={ending} title="End interview" aria-label="End interview" className="group flex flex-col items-center gap-1">
+                <span className="flex h-11 w-16 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-950/40 transition-all duration-200 hover:bg-rose-500 active:scale-95 disabled:opacity-70 sm:h-12 sm:w-[72px]">
                     {ending ? (
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                     ) : (
                         <PhoneOff className="h-5 w-5" />
                     )}
                 </span>
-                <span className="text-[10px] font-medium text-slate-500">Leave</span>
+                <span className="text-[10px] font-medium text-rose-300/80 transition-colors group-hover:text-rose-300">Leave</span>
             </button>
         </div>
     );
 
+    // One continuous dark chrome: toolbar / editor / console — reads as a
+    // single instrument panel inside the room rather than stacked cards.
     const editorPanel = () => (
-        <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-[#0b1120] ring-1 ring-white/[0.08] lg:flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2">
                 <select
-                    className="field-input"
+                    className="rounded-lg border-0 bg-white/[0.07] px-2.5 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-inset ring-white/10 focus:outline-none focus:ring-2 focus:ring-primary-400/60 [&>option]:bg-[#0b1120]"
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as InterviewLanguage)}
+                    aria-label="Editor language"
                 >
                     {availableLangs.map((l) => (
                         <option key={l} value={l}>{LANG_LABEL[l]}</option>
@@ -1112,11 +1161,9 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     {/* Cue the interviewer to read the live editor and give feedback.
                         The current code is already attached to every message, so this
                         just sends an explicit "please review" prompt. */}
-                    <Button
-                        variant="outline"
-                        size="md"
-                        isLoading={sending}
-                        disabled={running || !currentCode.trim()}
+                    <button
+                        type="button"
+                        disabled={sending || running || !currentCode.trim()}
                         onClick={() =>
                             sendMessageText(
                                 isSql
@@ -1124,40 +1171,49 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                                     : "Could you take a look at my current code in the editor and give me quick feedback on what to fix?"
                             )
                         }
-                        leftIcon={<ScanSearch className="h-4 w-4" />}
                         title="Ask the interviewer to review what's in your editor"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.07] px-3 py-1.5 text-sm font-semibold text-slate-200 ring-1 ring-inset ring-white/10 transition-colors hover:bg-white/[0.14] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
+                        {sending ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70" />
+                        ) : (
+                            <ScanSearch className="h-4 w-4" />
+                        )}
                         Review my code
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="md"
-                        isLoading={running}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={running}
                         onClick={runCode}
-                        leftIcon={<Play className="h-4 w-4 fill-current" />}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-1.5 text-sm font-bold text-white shadow-lg shadow-primary-950/40 transition-colors hover:bg-primary-500 disabled:opacity-60"
                     >
+                        {running ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                        ) : (
+                            <Play className="h-4 w-4 fill-current" />
+                        )}
                         {isSql ? "Run query" : "Run"}
-                    </Button>
+                    </button>
                 </div>
             </div>
             {isSql && problem?.sql?.schemaSql && (
-                <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" open>
-                    <summary className="cursor-pointer font-semibold text-slate-700">Table schema</summary>
-                    <pre className="on-dark mt-2 max-h-40 overflow-auto rounded-md bg-[#0f172a] p-2 text-[11px] leading-relaxed text-slate-100">
+                <details className="border-b border-white/[0.06] px-3 py-2 text-xs" open>
+                    <summary className="cursor-pointer font-semibold text-slate-300">Table schema</summary>
+                    <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-black/30 p-2 text-[11px] leading-relaxed text-slate-100">
                         {problem.sql.schemaSql}
                     </pre>
                 </details>
             )}
-            <div className="rounded-xl overflow-hidden border border-slate-200">
+            <div className="h-[42vh] min-h-[280px] lg:h-auto lg:min-h-[300px] lg:flex-1">
                 <MonacoEditor
                     key={language}
-                    height="440px"
+                    height="100%"
                     language={MONACO_LANG[language] || "plaintext"}
                     value={currentCode}
                     onChange={(v) => setCodeByLang((m) => ({ ...m, [language]: v ?? "" }))}
                     theme="vs-dark"
                     loading={
-                        <div className="on-dark flex h-[440px] items-center justify-center bg-[#0f172a] text-sm text-slate-400">
+                        <div className="flex h-full items-center justify-center bg-[#0b1120] text-sm text-slate-400">
                             Loading editor…
                         </div>
                     }
@@ -1186,7 +1242,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         const verdictLabel = (v || "").replace(/_/g, " ") || "—";
         const visibleFails = (lastRun?.results || []).filter((r) => !r.passed && !r.isHidden);
         return (
-            <div className="on-dark overflow-hidden rounded-xl border border-slate-200 bg-[#0f172a] text-slate-100">
+            <div className="border-t border-white/[0.06] bg-black/20 text-slate-100">
                 <button
                     type="button"
                     onClick={() => setConsoleOpen((o) => !o)}
@@ -1273,12 +1329,14 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
     // the interviewer keeps referring to — BEFORE the editor opens. (Once coding
     // is unlocked the editor panel + chat carry this, so it's only shown while
     // discussing the approach.)
+    // The problem statement as a white "handout" — a sheet of paper in the
+    // dark room. Collapsible so the stage stays the focus once it's been read.
     const problemBrief = () => {
         if (!(isCoding && problem)) return null;
         return (
             <details
                 open
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
+                className="rounded-2xl bg-white px-4 py-3 text-sm shadow-2xl shadow-black/40 ring-1 ring-white/10"
             >
                 <summary className="cursor-pointer font-semibold text-slate-700">
                     {isSql ? "Problem & schema" : "Problem"}
@@ -1294,7 +1352,7 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                     {isSql && problem.sql?.schemaSql && (
                         <div className="mt-2">
                             <p className="font-semibold text-slate-700">Schema</p>
-                            <pre className="on-dark mt-1 max-h-44 overflow-auto rounded-md bg-[#0f172a] p-2 text-[11px] leading-relaxed text-slate-100">
+                            <pre className="mt-1 max-h-44 overflow-auto rounded-md bg-[#0b1120] p-2 text-[11px] leading-relaxed text-slate-100">
                                 {problem.sql.schemaSql}
                             </pre>
                         </div>
@@ -1304,83 +1362,189 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
         );
     };
 
-    // ── Loading ──
+    // ── Loading: a dark splash so entering the room never flashes white ──
     if (authLoading || loading) {
-        return (
-            <div className="flex items-center justify-center py-32">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-200 border-t-primary-600" />
+        return fullscreen(
+            <div className="on-dark fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-[#070b14]">
+                <div className="relative">
+                    <span className="absolute inset-0 -m-3 animate-ping rounded-full bg-primary-400/20" />
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 font-display text-2xl font-bold text-white ring-1 ring-white/15">
+                        AI
+                    </div>
+                </div>
+                <p className="text-sm font-medium text-slate-400">Preparing your interview room…</p>
             </div>
         );
     }
     if (!sessionReady) return null;
 
-    // ── Pre-join (Google-Meet style) ──
+    // ── Green room: device check + session ticket before stepping in ──
     if (!joined) {
-        return (
-            <div className="mx-auto max-w-2xl py-6">
-                <h1 className="text-2xl font-bold">Ready to join your interview?</h1>
-                <p className="mt-1 text-sm text-slate-500">
-                    You&apos;ll discuss <span className="font-medium">{interviewTitle}</span> with your AI interviewer.
-                </p>
-                <Card padding="lg" elevated className="mt-5">
-                    <div className="on-dark relative aspect-video overflow-hidden rounded-2xl bg-[#0f172a]">
-                        <video
-                            ref={attachVideo}
-                            autoPlay
-                            muted
-                            playsInline
-                            className={`h-full w-full object-cover ${cameraOn ? "" : "hidden"}`}
-                            style={{ transform: "scaleX(-1)" }}
-                        />
-                        {!cameraOn && (
-                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-400">
-                                <div className="on-dark flex h-16 w-16 items-center justify-center rounded-full bg-[#334155] text-xl font-bold text-slate-200">
-                                    You
-                                </div>
-                                <p className="text-xs">Camera off — you can still join</p>
-                            </div>
-                        )}
-                    </div>
-                    <p className="mt-4 text-center text-xs text-slate-500">
-                        Your camera is on just to give you a real interview feel — the video is never recorded or uploaded.
+        return fullscreen(
+            <div className="on-dark fixed inset-0 z-50 overflow-y-auto bg-[#070b14]">
+                <div
+                    aria-hidden
+                    className="pointer-events-none fixed inset-0"
+                    style={{
+                        background:
+                            "radial-gradient(ellipse 50% 40% at 70% 0%, rgba(20,184,166,0.08), transparent 70%), radial-gradient(ellipse 40% 35% at 10% 100%, rgba(20,184,166,0.05), transparent 70%)",
+                    }}
+                />
+                <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center px-4 py-10">
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary-400">
+                        AI mock interview
                     </p>
-                    <div className="mt-4 flex flex-col items-center gap-2">
-                        <Button variant="primary" size="lg" onClick={join} className="w-full sm:w-auto">
-                            Join interview
-                        </Button>
-                        <label className="flex items-center gap-2 text-sm text-slate-600">
-                            <input
-                                type="checkbox"
-                                checked={voiceOn}
-                                onChange={(e) => setVoiceOn(e.target.checked)}
+                    <h1 className="mt-2 font-display text-3xl font-bold text-white sm:text-4xl">
+                        Ready when you are.
+                    </h1>
+                    <div className="mt-7 grid items-stretch gap-5 lg:grid-cols-[1.25fr_1fr]">
+                        {/* Camera check. `aspect-video` only below lg: combined
+                            with the stretched row height it would compute the
+                            card's WIDTH from the ticket's height and overflow
+                            into the ticket column — on lg the card fills the
+                            row and the video covers it instead. */}
+                        <div className="relative aspect-video min-w-0 overflow-hidden rounded-3xl bg-[#0b1120] ring-1 ring-white/10 lg:aspect-auto lg:h-full lg:min-h-[340px]">
+                            <video
+                                ref={attachVideo}
+                                autoPlay
+                                muted
+                                playsInline
+                                className={`h-full w-full object-cover ${cameraOn ? "" : "hidden"}`}
+                                style={{ transform: "scaleX(-1)" }}
                             />
-                            Interviewer speaks aloud (Kokoro voice)
-                        </label>
+                            {!cameraOn && (
+                                <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-slate-400">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1e293b] text-xl font-bold text-slate-200">
+                                        You
+                                    </div>
+                                    <p className="text-xs">Camera off — you can still join</p>
+                                </div>
+                            )}
+                            <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur">
+                                <span className="flex h-4 w-1.5 items-end overflow-hidden rounded-full bg-white/20">
+                                    <span
+                                        ref={micBarRef}
+                                        className="w-full rounded-full bg-emerald-400 transition-[height] duration-75"
+                                        style={{ height: "8%" }}
+                                    />
+                                </span>
+                                Mic check — say something
+                            </div>
+                            <p className="absolute bottom-3 right-3 max-w-[55%] rounded-full bg-black/50 px-3 py-1.5 text-right text-[10px] text-slate-300 backdrop-blur">
+                                Video never leaves your device
+                            </p>
+                        </div>
+
+                        {/* Session ticket — a solid panel so it stays readable
+                            over the ambient glow (no see-through glass). */}
+                        <div className="flex min-w-0 flex-col rounded-3xl border border-white/10 bg-[#0c1424] p-6 shadow-2xl shadow-black/40">
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/15 text-primary-300 ring-1 ring-primary-400/25">
+                                    <InterviewTypeIcon type={interviewType} className="h-5 w-5" />
+                                </span>
+                                <div className="min-w-0">
+                                    <h2 className="truncate font-display text-lg font-bold text-white">{interviewTitle}</h2>
+                                    <p className="truncate text-xs capitalize text-slate-400">{interviewMeta}</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex flex-wrap gap-1.5">
+                                <span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-[11px] font-medium text-slate-300 ring-1 ring-inset ring-white/10">
+                                    ~{interviewTypeMeta(interviewType).durationMin} min
+                                </span>
+                                {isCoding && (
+                                    <span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-[11px] font-medium text-slate-300 ring-1 ring-inset ring-white/10">
+                                        Live code editor
+                                    </span>
+                                )}
+                                <span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-[11px] font-medium text-slate-300 ring-1 ring-inset ring-white/10">
+                                    Scorecard at the end
+                                </span>
+                            </div>
+                            <ul className="mt-5 space-y-2.5 border-t border-white/[0.07] pt-5 text-sm text-slate-300">
+                                <li className="flex gap-2.5">
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
+                                    Speak naturally — the room listens hands-free and waits while you think.
+                                </li>
+                                {isCoding ? (
+                                    <li className="flex gap-2.5">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
+                                        Talk through your approach first; the editor unlocks on the interviewer&apos;s cue.
+                                    </li>
+                                ) : (
+                                    <li className="flex gap-2.5">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
+                                        Structure your answers out loud — that&apos;s what gets scored.
+                                    </li>
+                                )}
+                                <li className="flex gap-2.5">
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400" />
+                                    You&apos;ll get a readiness scorecard with coaching notes when it ends.
+                                </li>
+                            </ul>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={voiceOn}
+                                onClick={() => setVoiceOn((v) => !v)}
+                                className="mt-5 flex w-full items-center justify-between rounded-xl bg-white/[0.05] px-3.5 py-2.5 text-left ring-1 ring-inset ring-white/[0.08] transition-colors hover:bg-white/[0.08]"
+                            >
+                                <span className="text-sm font-medium text-slate-200">Interviewer speaks aloud</span>
+                                <span
+                                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                                        voiceOn ? "bg-primary-500" : "bg-white/15"
+                                    }`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left] ${
+                                            voiceOn ? "left-[18px]" : "left-0.5"
+                                        }`}
+                                    />
+                                </span>
+                            </button>
+                            <Button variant="primary" size="lg" onClick={join} className="mt-4 w-full">
+                                Join interview
+                            </Button>
+                        </div>
                     </div>
-                </Card>
+                </div>
             </div>
         );
     }
 
-    // ── In-call ──
-    return (
-        <div className="flex flex-col gap-3">
-            {/* Compact header + inline live status */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                    <h1 className="text-xl font-bold truncate">{interviewTitle}</h1>
-                    <p className="text-xs text-slate-500 capitalize">
-                        {interviewMeta}
-                        {isCoding && !codingUnlocked && " · discussing approach"}
-                    </p>
+    // ── In-call: a full-screen room (covers the dashboard chrome) ──
+    return fullscreen(
+        <div className="on-dark fixed inset-0 z-50 flex flex-col bg-[#070b14]">
+            {/* Top status rail */}
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2.5 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300 ring-1 ring-primary-400/25">
+                        <InterviewTypeIcon type={interviewType} className="h-[18px] w-[18px]" />
+                    </span>
+                    <div className="min-w-0">
+                        <h1 className="truncate font-display text-sm font-bold text-white sm:text-base">
+                            {interviewTitle}
+                        </h1>
+                        <p className="truncate text-[11px] capitalize text-slate-400">
+                            {interviewMeta}
+                            {isCoding && !codingUnlocked && " · discussing approach"}
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {recording && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-bold text-rose-300 ring-1 ring-inset ring-rose-400/30">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+                            REC
+                        </span>
+                    )}
                     {remainingLabel && (
                         <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${
-                                (remainingMs ?? 0) < 60000
-                                    ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300"
-                                    : "bg-slate-100 text-slate-600"
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ring-1 ring-inset ${
+                                (remainingMs ?? 0) < 60_000
+                                    ? "animate-pulse bg-rose-500/15 text-rose-300 ring-rose-400/30"
+                                    : (remainingMs ?? 0) < 5 * 60_000
+                                        ? "bg-amber-500/15 text-amber-300 ring-amber-400/30"
+                                        : "bg-white/[0.06] text-slate-300 ring-white/10"
                             }`}
                             title="Time remaining"
                         >
@@ -1388,48 +1552,55 @@ export default function InterviewRoomPage({ params }: { params: { id: string } }
                         </span>
                     )}
                     <span
-                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
-                            phase.live ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300" : "bg-slate-100 text-slate-600"
+                        className={`inline-flex max-w-[260px] items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
+                            phase.live
+                                ? "bg-emerald-500/10 text-emerald-300 ring-emerald-400/25"
+                                : "bg-white/[0.06] text-slate-300 ring-white/10"
                         }`}
                     >
                         {phase.spin ? (
-                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-primary-600" />
+                            <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-primary-400" />
                         ) : (
                             <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                    phase.live ? "animate-pulse bg-primary-500" : "bg-emerald-500"
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                                    phase.live ? "animate-pulse bg-emerald-400" : "bg-primary-400"
                                 }`}
                             />
                         )}
-                        {phase.label}
+                        <span className="truncate">{phase.label}</span>
                     </span>
                 </div>
+            </header>
+
+            {/* Stage */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+                {!(codingUnlocked && isCoding) ? (
+                    // ── Conversation: a real 1:1 video-call stage ──
+                    <div className="flex h-full min-h-[480px] flex-col gap-3">
+                        <div className="relative min-h-[380px] flex-1 overflow-hidden rounded-3xl bg-gradient-to-b from-[#0d1626] via-[#0a101d] to-[#070b14] ring-1 ring-white/[0.06]">
+                            {interviewerStage(false)}
+                            {selfPiP()}
+                            {captionsOn && captionsOverlay()}
+                        </div>
+                        {problemBrief()}
+                    </div>
+                ) : (
+                    // ── Coding: instrument panel + a compact call stage beside it ──
+                    <div className="grid gap-3 lg:h-full lg:min-h-0 lg:grid-cols-[1fr_380px]">
+                        <div className="flex min-h-0 flex-col">{editorPanel()}</div>
+                        <div className="relative min-h-[300px] overflow-hidden rounded-2xl bg-gradient-to-b from-[#0d1626] via-[#0a101d] to-[#070b14] ring-1 ring-white/[0.06]">
+                            {interviewerStage(true)}
+                            {selfPiP()}
+                            {captionsOn && captionsOverlay()}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {!(codingUnlocked && isCoding) ? (
-                // ── Conversation: a real 1:1 video-call stage ──
-                <>
-                    <div className="on-dark relative h-[58vh] min-h-[440px] overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] to-[#020617] ring-1 ring-white/5">
-                        {interviewerStage(false)}
-                        {selfPiP()}
-                        {captionsOn && captionsOverlay()}
-                    </div>
-                    {problemBrief()}
-                </>
-            ) : (
-                // ── Coding: editor + a smaller call stage beside it ──
-                <div className="grid gap-3 lg:grid-cols-2">
-                    <div>{editorPanel()}</div>
-                    <div className="on-dark relative min-h-[340px] overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#020617] ring-1 ring-white/5">
-                        {interviewerStage(true)}
-                        {selfPiP()}
-                        {captionsOn && captionsOverlay()}
-                    </div>
-                </div>
-            )}
-
-            {/* Google-Meet-style control bar (mic is the primary action) */}
-            {controlBar()}
+            {/* Floating control dock (mic is the primary action) */}
+            <footer className="flex justify-center px-3 pb-3 sm:pb-4">
+                {controlBar()}
+            </footer>
 
             {/* Slide-in chat (secondary) */}
             {chatOpen && chatDrawer()}

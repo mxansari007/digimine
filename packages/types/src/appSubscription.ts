@@ -97,7 +97,8 @@ export type EntitlementQuotaMap = Partial<Record<EntitlementQuota, number>>;
 export type TeachingFeature =
     | "question_bank_template_download"
     | "question_bank_markdown_import"
-    | "ai_question_generation";
+    | "ai_question_generation"
+    | "ai_project_evaluation";
 
 export interface TeachingFeatureMeta {
     key: TeachingFeature;
@@ -123,6 +124,12 @@ export const TEACHING_FEATURES: TeachingFeatureMeta[] = [
         label: "AI question generation",
         blurb:
             "Generate question drafts from a topic + difficulty prompt; review and save individually.",
+    },
+    {
+        key: "ai_project_evaluation",
+        label: "AI project evaluation",
+        blurb:
+            "Score student GitHub projects against custom parameters with an AI evidence-cited report.",
     },
 ];
 
@@ -185,6 +192,64 @@ export const UNLIMITED_TEACHING_LIMITS: TeachingLimits = {
     maxQuestions: -1,
     pistonConcurrency: -1,
 };
+
+// ─────────────────────────────────────────────────────────────────────
+// AI allowances — per-plan metered AI usage with an admin-chosen window.
+//
+// Replaces the fixed "per day" question cap: the admin sets, per AI task,
+// how many uses a plan includes and over what period (day/week/month/
+// year). These are the FREE included usage; the AI credit system meters
+// anything beyond the allowance (see credits.ts — overflow model).
+// `limit`: -1 = unlimited, 0 = none included (every use needs credits),
+// > 0 = that many per period.
+// ─────────────────────────────────────────────────────────────────────
+
+export type AiQuotaPeriod = "day" | "week" | "month" | "year";
+
+export const AI_QUOTA_PERIODS: { key: AiQuotaPeriod; label: string; noun: string }[] = [
+    { key: "day", label: "Per day", noun: "today" },
+    { key: "week", label: "Per week", noun: "this week" },
+    { key: "month", label: "Per month", noun: "this month" },
+    { key: "year", label: "Per year", noun: "this year" },
+];
+
+export interface AiAllowance {
+    /** -1 = unlimited, 0 = none included, > 0 = capped at this many per period. */
+    limit: number;
+    period: AiQuotaPeriod;
+}
+
+/** AI tasks a teaching plan can meter (the teacher/institute-scoped ones). */
+export type AiQuotaTask = "ai_question_generation" | "project_evaluation";
+
+export interface AiQuotaTaskMeta {
+    key: AiQuotaTask;
+    label: string;
+    /** Unit noun for the editor, e.g. "questions" / "evaluations". */
+    unit: string;
+    /** Teaching feature flag that must also be on for this task to run. */
+    feature: TeachingFeature;
+}
+
+export const AI_QUOTA_TASKS: AiQuotaTaskMeta[] = [
+    {
+        key: "ai_question_generation",
+        label: "AI question generation",
+        unit: "questions",
+        feature: "ai_question_generation",
+    },
+    {
+        key: "project_evaluation",
+        label: "AI project evaluation",
+        unit: "evaluations",
+        feature: "ai_project_evaluation",
+    },
+];
+
+/** Unlimited allowance — the default when a plan doesn't cap a task. */
+export const UNLIMITED_AI_ALLOWANCE: AiAllowance = { limit: -1, period: "month" };
+
+export type AiAllowanceMap = Partial<Record<AiQuotaTask, AiAllowance>>;
 
 // ─────────────────────────────────────────────────────────────────────
 // Plans
@@ -267,8 +332,19 @@ export interface AppSubscriptionPlan {
      *   - `0`     → AI requests are rejected even if the flag is on.
      *   - `> 0`   → that many questions per day.
      * Only meaningful when `roleScope` is "teacher" or "institute".
+     *
+     * @deprecated Superseded by `aiAllowances.ai_question_generation`. Still
+     * written/read for back-compat; when `aiAllowances` is present it wins.
      */
     aiQuestionsPerDay: number | null;
+    /**
+     * Per-AI-task included usage with an admin-chosen period (day/week/
+     * month/year). The source of truth for AI metering on teacher/institute
+     * plans. A task absent from the map defaults to unlimited (free under
+     * the plan). Anything beyond the allowance is paid with AI credits.
+     * Only meaningful when `roleScope` is "teacher" or "institute".
+     */
+    aiAllowances?: AiAllowanceMap;
     /** The single free tier everyone falls back to. Exactly one should be true. */
     isFree: boolean;
     /**
@@ -563,8 +639,13 @@ export interface UserEntitlementOverride {
     teachingFeatures?: TeachingFeatureMap;
     /** Teacher/institute numeric limit overrides (-1 = unlimited). */
     teachingLimits?: Partial<TeachingLimits>;
-    /** Daily AI-question cap override. `null` = unlimited; `0` = disabled. */
+    /**
+     * Daily AI-question cap override. `null` = unlimited; `0` = disabled.
+     * @deprecated Superseded by `aiAllowances.ai_question_generation`.
+     */
     aiQuestionsPerDay?: number | null;
+    /** Per-task AI allowance overrides (limit + period), layered over the plan. */
+    aiAllowances?: AiAllowanceMap;
     /** Free-text admin note explaining why the grant exists. */
     note?: string;
     /** Optional expiry — after this the override is ignored. null = permanent. */

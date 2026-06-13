@@ -39,7 +39,13 @@ import {
     hasTeachingFeature,
 } from "@/lib/server/teachingEntitlements";
 import { getAiProviderConfig } from "@/lib/server/aiProvider";
-import { commitAiUsage, getAiUsageToday, refundAiUsage } from "@/lib/server/aiUsage";
+import {
+    reserveAiTaskUsage,
+    refundAiTaskUsage,
+    getAiTaskUsage,
+} from "@/lib/server/aiTaskUsage";
+import { AI_QUOTA_PERIODS } from "@digimine/types";
+import { chargeCredits, refundCredits, insufficientCreditsResponse } from "@/lib/server/credits";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -243,34 +249,92 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "topic is required" }, { status: 400 });
         }
 
-        // Gate 3: daily question cap from the plan. Reserve the count
-        // up-front so two parallel requests can't over-spend the cap.
-        const dailyCap = entitlements.resolved.aiQuestionsPerDay;
-        const reservation = await commitAiUsage(userId, count, dailyCap);
-        if (!reservation.ok) {
-            const today = await getAiUsageToday(userId);
-            return NextResponse.json(
-                {
-                    error:
-                        reservation.cap === 0
-                            ? "Your plan doesn't include any AI question generations. Upgrade to unlock daily quota."
-                            : `Daily AI quota exceeded. You've used ${reservation.used} of ${reservation.cap} questions today — quota resets at midnight IST.`,
-                    quota: {
-                        used: today.used,
-                        cap: reservation.cap,
-                        resetsAtMidnightIST: true,
+        // Gate 3: allowance, overflow model. The plan's included allowance
+        // (admin-set limit + period) covers as many of `count` as fit (free);
+        // the rest is `overflow`, paid with credits. Reserved transactionally
+        // so parallel batches can't over-spend the allowance.
+        const allowance = entitlements.resolved.aiAllowances.ai_question_generation;
+        const reservation = await reserveAiTaskUsage(
+            userId,
+            "ai_question_generation",
+            count,
+            allowance
+        );
+        const periodNoun =
+            AI_QUOTA_PERIODS.find((p) => p.key === allowance.period)?.noun ?? "this period";
+
+        const upgradeHref =
+            entitlements.resolved.scope === "teacher" ? "/pricing/teacher" : "/pricing/institute";
+
+        // Gate 4: AI credits cover only the over-allowance (overflow) questions.
+        // Within the plan's included allowance nothing is charged.
+        let creditsCharged = 0;
+        if (reservation.overflow > 0) {
+            const charge = await chargeCredits({
+                userId,
+                task: "ai_question_generation",
+                units: reservation.overflow,
+                note: `${reservation.overflow} ${type} question${reservation.overflow === 1 ? "" : "s"} beyond plan · ${topic.slice(0, 60)}`,
+            });
+            if (!charge.ok) {
+                // Out of both the plan allowance and credits — hand the plan
+                // portion back and ask them to top up.
+                await refundAiTaskUsage(
+                    userId,
+                    "ai_question_generation",
+                    reservation.periodKey,
+                    reservation.fromQuota
+                ).catch(() => {});
+                return insufficientCreditsResponse(
+                    charge,
+                    `${reservation.overflow} question${reservation.overflow === 1 ? "" : "s"} beyond your plan's allowance`
+                );
+            }
+            if (charge.charged === 0) {
+                // Credits are off (or questions are credit-free): the plan
+                // allowance stands. Nothing was charged — release the plan part.
+                await refundAiTaskUsage(
+                    userId,
+                    "ai_question_generation",
+                    reservation.periodKey,
+                    reservation.fromQuota
+                ).catch(() => {});
+                const usage = await getAiTaskUsage(userId, "ai_question_generation", allowance);
+                return NextResponse.json(
+                    {
+                        error:
+                            allowance.limit === 0
+                                ? "Your plan doesn't include AI question generation. Upgrade to unlock an allowance."
+                                : `AI question allowance reached — you've used your plan's ${allowance.limit} questions ${periodNoun}.`,
+                        quota: { used: usage.used, cap: allowance.limit, period: allowance.period },
+                        upgradeHref,
                     },
-                    upgradeHref:
-                        entitlements.resolved.scope === "teacher"
-                            ? "/pricing/teacher"
-                            : "/pricing/institute",
-                },
-                { status: 429 }
-            );
+                    { status: 429 }
+                );
+            }
+            creditsCharged = charge.charged;
         }
+        // Per-question credit cost for the overflow slice — used to refund
+        // proportionally if the model under-delivers.
+        const perOverflowCredits =
+            reservation.overflow > 0 ? creditsCharged / reservation.overflow : 0;
 
         const endpoint = PROVIDER_ENDPOINTS[aiCfg.provider];
         if (!endpoint) {
+            await refundAiTaskUsage(
+                userId,
+                "ai_question_generation",
+                reservation.periodKey,
+                reservation.fromQuota
+            ).catch(() => {});
+            if (creditsCharged > 0) {
+                await refundCredits({
+                    userId,
+                    task: "ai_question_generation",
+                    amount: creditsCharged,
+                    note: "Provider not supported",
+                });
+            }
             return NextResponse.json(
                 {
                     error: `Provider "${aiCfg.provider}" is not supported by the server yet.`,
@@ -305,27 +369,46 @@ export async function POST(req: Request) {
             }),
         });
 
-        // Refund helper that logs failures structurally so admins can
-        // manually reconcile if the refund Firestore write itself errors.
-        // The previous `.catch(() => {})` silently dropped the failure,
-        // which meant the user paid for questions they didn't get.
+        // Refund helper for the `n` questions the model never delivered.
+        // Refunds the credit-paid (overflow) slice FIRST — the teacher keeps
+        // their free plan allowance and only loses the paid extras they
+        // didn't receive — then the plan quota. Logs structurally so admins
+        // can reconcile if a Firestore refund write itself errors (the old
+        // `.catch(() => {})` silently dropped those).
         const safeRefund = async (n: number, reason: string) => {
             if (n <= 0) return;
-            try {
-                await refundAiUsage(userId, n);
-            } catch (refundErr) {
-                console.error(
-                    "[ai/generate-questions] refund failed — manual reconcile needed",
-                    {
+            const creditRefund = Math.min(n, reservation.overflow);
+            const quotaRefund = n - creditRefund;
+            if (quotaRefund > 0) {
+                try {
+                    await refundAiTaskUsage(
                         userId,
-                        count: n,
-                        reason,
-                        error:
-                            refundErr instanceof Error
-                                ? refundErr.message
-                                : String(refundErr),
-                    }
-                );
+                        "ai_question_generation",
+                        reservation.periodKey,
+                        quotaRefund
+                    );
+                } catch (refundErr) {
+                    console.error(
+                        "[ai/generate-questions] quota refund failed — manual reconcile needed",
+                        {
+                            userId,
+                            count: quotaRefund,
+                            reason,
+                            error:
+                                refundErr instanceof Error
+                                    ? refundErr.message
+                                    : String(refundErr),
+                        }
+                    );
+                }
+            }
+            if (creditRefund > 0 && perOverflowCredits > 0) {
+                await refundCredits({
+                    userId,
+                    task: "ai_question_generation",
+                    amount: Math.round(creditRefund * perOverflowCredits),
+                    note: reason,
+                });
             }
         };
 
@@ -369,7 +452,9 @@ export async function POST(req: Request) {
             );
         }
 
-        const usageAfter = await getAiUsageToday(userId).catch(() => null);
+        const usageAfter = await getAiTaskUsage(userId, "ai_question_generation", allowance).catch(
+            () => null
+        );
         return NextResponse.json({
             questions,
             provider: aiCfg.provider,
@@ -377,8 +462,8 @@ export async function POST(req: Request) {
             quota: usageAfter
                 ? {
                       used: usageAfter.used,
-                      cap: dailyCap,
-                      resetsAtMidnightIST: true,
+                      cap: allowance.limit,
+                      period: allowance.period,
                   }
                 : null,
         });

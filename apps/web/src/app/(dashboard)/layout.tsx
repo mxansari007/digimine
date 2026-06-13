@@ -8,9 +8,10 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
-import { studentNav, portalSwitchNav } from "@/components/layout/sidebarNav";
+import { studentNav, portalSwitchNav, withCredits } from "@/components/layout/sidebarNav";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
+import { useCredits } from "@/contexts/CreditsContext";
 
 /**
  * Results pages (test / quiz / contest) are user-scoped — anyone whose
@@ -51,6 +52,7 @@ function DashboardLayoutInner({
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { user, loading, isAuthenticated, portals } = useAuthContext();
+  const credits = useCredits();
   const isResultsPath = isUniversalResultsPath(pathname);
 
   useEffect(() => {
@@ -115,7 +117,10 @@ function DashboardLayoutInner({
         <AppSidebar
           role="student"
           pathname={pathname}
-          nav={[...studentNav, ...portalSwitchNav(portals, "student")]}
+          nav={[
+            ...withCredits(studentNav, credits.enabled, credits.balance, "My Plan"),
+            ...portalSwitchNav(portals, "student"),
+          ]}
           user={user}
           LinkComponent={Link}
           onSignOut={handleSignOut}

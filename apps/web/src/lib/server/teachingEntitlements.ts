@@ -40,8 +40,14 @@
  */
 import { adminDb } from "@/lib/firebase/admin";
 import {
+    AI_QUOTA_PERIODS,
     TEACHING_FEATURES,
+    UNLIMITED_AI_ALLOWANCE,
     UNLIMITED_TEACHING_LIMITS,
+    type AiAllowance,
+    type AiAllowanceMap,
+    type AiQuotaPeriod,
+    type AiQuotaTask,
     type TeachingFeature,
     type TeachingFeatureMap,
     type TeachingLimits,
@@ -49,6 +55,54 @@ import {
 } from "@digimine/types";
 import { getGlobalConfig } from "./entitlements";
 import { getUserEntitlementOverride } from "./userOverrides";
+
+type ResolvedAiAllowances = Record<AiQuotaTask, AiAllowance>;
+
+const ALL_AI_ALLOWANCES_UNLIMITED: ResolvedAiAllowances = {
+    ai_question_generation: { ...UNLIMITED_AI_ALLOWANCE },
+    project_evaluation: { ...UNLIMITED_AI_ALLOWANCE },
+};
+
+const VALID_PERIODS = new Set<AiQuotaPeriod>(AI_QUOTA_PERIODS.map((p) => p.key));
+
+/** Coerce one raw allowance object, falling back when absent/invalid. */
+function readAiAllowance(raw: any, fallback: AiAllowance): AiAllowance {
+    if (raw && typeof raw === "object" && typeof raw.limit === "number" && Number.isFinite(raw.limit)) {
+        const period: AiQuotaPeriod = VALID_PERIODS.has(raw.period) ? raw.period : "month";
+        return { limit: Math.trunc(raw.limit), period };
+    }
+    return { ...fallback };
+}
+
+/**
+ * Resolve a plan doc's per-task AI allowances. Precedence per task:
+ * explicit `aiAllowances[task]` → (question gen only) legacy
+ * `aiQuestionsPerDay` as a daily cap → unlimited. A task with no cap is
+ * free under the plan; credits meter anything beyond.
+ */
+function readAiAllowances(raw: any): ResolvedAiAllowances {
+    const map = (raw?.aiAllowances || {}) as AiAllowanceMap;
+    const legacyQuestionGen: AiAllowance =
+        typeof raw?.aiQuestionsPerDay === "number"
+            ? { limit: raw.aiQuestionsPerDay, period: "day" }
+            : { ...UNLIMITED_AI_ALLOWANCE };
+    return {
+        ai_question_generation: readAiAllowance(map.ai_question_generation, legacyQuestionGen),
+        project_evaluation: readAiAllowance(map.project_evaluation, { ...UNLIMITED_AI_ALLOWANCE }),
+    };
+}
+
+/**
+ * Project a resolved allowance back to the legacy `aiQuestionsPerDay`
+ * shape for display-only readers that don't understand periods yet:
+ * unlimited → null, none → 0, a per-day cap → its number, any other
+ * period → null (a weekly/monthly cap can't be expressed as a daily one).
+ */
+function dayCapOf(a: AiAllowance): number | null {
+    if (a.limit === 0) return 0;
+    if (a.limit < 0) return null;
+    return a.period === "day" ? a.limit : null;
+}
 
 /**
  * Every teaching feature ON — the launch-mode (paywall-off) grant. Mirrors
@@ -97,14 +151,31 @@ function applyTeachingOverride(
     override: UserEntitlementOverride | null
 ): ResolvedTeachingPlan {
     if (!override) return base;
+    // Allowances: per-task override wins; the legacy aiQuestionsPerDay
+    // override still maps onto the question-gen allowance (daily) so
+    // existing grants keep working.
+    const aiAllowances: ResolvedAiAllowances = {
+        ai_question_generation: { ...base.aiAllowances.ai_question_generation },
+        project_evaluation: { ...base.aiAllowances.project_evaluation },
+    };
+    if (override.aiQuestionsPerDay !== undefined) {
+        aiAllowances.ai_question_generation =
+            override.aiQuestionsPerDay === null
+                ? { ...UNLIMITED_AI_ALLOWANCE }
+                : { limit: override.aiQuestionsPerDay, period: "day" };
+    }
+    if (override.aiAllowances) {
+        for (const task of Object.keys(override.aiAllowances) as AiQuotaTask[]) {
+            const a = override.aiAllowances[task];
+            if (a) aiAllowances[task] = readAiAllowance(a, aiAllowances[task]);
+        }
+    }
     return {
         ...base,
         teachingFeatures: { ...base.teachingFeatures, ...(override.teachingFeatures || {}) },
         teachingLimits: { ...base.teachingLimits, ...(override.teachingLimits || {}) },
-        aiQuestionsPerDay:
-            override.aiQuestionsPerDay !== undefined
-                ? override.aiQuestionsPerDay
-                : base.aiQuestionsPerDay,
+        aiAllowances,
+        aiQuestionsPerDay: dayCapOf(aiAllowances.ai_question_generation),
     };
 }
 
@@ -122,10 +193,14 @@ interface ResolvedTeachingPlan {
     /** Numeric usage caps. -1 means unlimited. */
     teachingLimits: TeachingLimits;
     /**
-     * Daily AI-question cap copied from the matched plan.
-     * `null` = no cap; `0` = effectively disabled.
+     * Daily AI-question cap, back-compat projection of
+     * `aiAllowances.ai_question_generation` (null when its period isn't
+     * daily). Prefer `aiAllowances` for new code.
+     * @deprecated
      */
     aiQuestionsPerDay: number | null;
+    /** Per-task AI included usage (limit + period). The source of truth. */
+    aiAllowances: ResolvedAiAllowances;
 }
 
 export type TeachingEntitlements =
@@ -222,6 +297,7 @@ async function findFreePlanForScope(
     matches.sort((a, b) => (a.data()?.sortOrder ?? 0) - (b.data()?.sortOrder ?? 0));
     const doc = matches[0];
     const data = doc.data() || {};
+    const aiAllowances = readAiAllowances(data);
     return {
         scope,
         planCode: typeof data.code === "string" ? data.code : null,
@@ -229,10 +305,17 @@ async function findFreePlanForScope(
         planName: typeof data.name === "string" ? data.name : null,
         teachingFeatures: (data.teachingFeatures as TeachingFeatureMap) || {},
         teachingLimits: readTeachingLimits(data.teachingLimits),
-        aiQuestionsPerDay:
-            typeof data.aiQuestionsPerDay === "number" ? data.aiQuestionsPerDay : 0,
+        aiAllowances,
+        aiQuestionsPerDay: dayCapOf(aiAllowances.ai_question_generation),
     };
 }
+
+/** Allowances for "fail-open but features locked" fallbacks: nothing
+ *  included (the feature flag gates access first anyway). */
+const NO_AI_ALLOWANCES: ResolvedAiAllowances = {
+    ai_question_generation: { limit: 0, period: "day" },
+    project_evaluation: { limit: 0, period: "month" },
+};
 
 export async function getTeachingEntitlements(
     userId: string
@@ -264,6 +347,7 @@ export async function getTeachingEntitlements(
             planName: null,
             teachingFeatures: { ...ALL_TEACHING_FEATURES_ON },
             teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiAllowances: { ...ALL_AI_ALLOWANCES_UNLIMITED },
             aiQuestionsPerDay: null,
         });
     }
@@ -281,6 +365,7 @@ export async function getTeachingEntitlements(
             planName: null,
             teachingFeatures: {},
             teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiAllowances: { ...NO_AI_ALLOWANCES },
             aiQuestionsPerDay: 0,
         });
     }
@@ -315,10 +400,12 @@ export async function getTeachingEntitlements(
             planName: null,
             teachingFeatures: {},
             teachingLimits: { ...UNLIMITED_TEACHING_LIMITS },
+            aiAllowances: { ...NO_AI_ALLOWANCES },
             aiQuestionsPerDay: 0,
         });
     }
     const data = match.data() || {};
+    const aiAllowances = readAiAllowances(data);
     return wrap({
         scope: scoped.scope,
         planCode: scoped.planCode,
@@ -326,8 +413,8 @@ export async function getTeachingEntitlements(
         planName: typeof data.name === "string" ? data.name : null,
         teachingFeatures: (data.teachingFeatures as TeachingFeatureMap) || {},
         teachingLimits: readTeachingLimits(data.teachingLimits),
-        aiQuestionsPerDay:
-            typeof data.aiQuestionsPerDay === "number" ? data.aiQuestionsPerDay : null,
+        aiAllowances,
+        aiQuestionsPerDay: dayCapOf(aiAllowances.ai_question_generation),
     });
 }
 

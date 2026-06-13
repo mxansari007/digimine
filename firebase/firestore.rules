@@ -1158,6 +1158,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── AI credit wallets ───────────────────────────────────────────────
+    // All mutations are server-side (charge/refund in AI routes, purchase
+    // verification, admin grants via /api/admin/credits) — clients only read.
+    match /creditWallets/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+    // Append-only ledger; one row per charge/refund/purchase/grant.
+    match /creditTransactions/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+    // Razorpay pack orders — created and transitioned server-side only.
+    match /creditOrders/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
     // Mentor Rescue — students raise flags; the assigned teacher or an
     // institute admin for that teacher can read + answer.
     match /practiceRescueRequests/{requestId} {
@@ -1241,11 +1259,38 @@ service cloud.firestore {
         allow read, write: if false;
       }
     }
+
+    // Class resource library metadata — SERVER-ONLY (admin SDK via
+    // /api/classes/[classId]/resources*). The files live in Storage; these
+    // docs are gated on class membership in the API. Default-deny already
+    // covers it; the explicit rule documents the intent.
+    match /classResources/{resourceId} {
+      allow read, write: if false;
+    }
     match /dmThreads/{threadId} {
       allow read, write: if false;
       match /{document=**} {
         allow read, write: if false;
       }
+    }
+
+    // Notifications feed, registered push-device tokens, and community
+    // reports are ALL server-only. Clients read the feed and register
+    // tokens through /api/notifications*, /api/devices and
+    // /api/dm/*/report (admin SDK), which gate on the caller's bearer token.
+    match /notifications/{notificationId} {
+      allow read, write: if false;
+    }
+    match /deviceTokens/{tokenId} {
+      allow read, write: if false;
+    }
+    // Per-user notification preferences (which categories push/notify). Read +
+    // written ONLY through /api/notification-prefs (admin SDK).
+    match /notificationPrefs/{userId} {
+      allow read, write: if false;
+    }
+    match /communityReports/{reportId} {
+      allow read, write: if false;
     }
   }
 }

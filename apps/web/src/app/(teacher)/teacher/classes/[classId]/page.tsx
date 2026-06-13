@@ -52,6 +52,7 @@ import {
     UserPlus,
     MessageSquare,
     Megaphone,
+    FolderOpen,
 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
@@ -486,6 +487,12 @@ export default function TeacherClassDetailPage() {
                         <Button variant="outline">
                             <MessageSquare className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
                             Discussions
+                        </Button>
+                    </Link>
+                    <Link href={`/classroom/${classroom.id}/resources?from=teacher`}>
+                        <Button variant="outline">
+                            <FolderOpen className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
+                            Resources
                         </Button>
                     </Link>
                     <Link href={`/classroom/${classroom.id}/people?from=teacher`}>

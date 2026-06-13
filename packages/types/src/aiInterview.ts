@@ -374,6 +374,11 @@ export interface AIInterviewSession {
      *  → `abandoned` (startedAt + maxRuntime). Null when not applicable. */
     expiresAt: string | null;
 
+    /** AI credits debited for this interview (at booking / instant start).
+     *  Cancel / no-show refunds return exactly this amount. Absent or 0 when
+     *  the credit system was disabled at charge time. */
+    creditsCharged?: number;
+
     /** For a `scheduled` session that hasn't begun, `startedAt` is "" until the
      *  student joins (begins) it. */
     startedAt: string;

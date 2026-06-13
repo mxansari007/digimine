@@ -17,7 +17,7 @@ import { NextResponse } from "next/server";
 import { getBearerUserId } from "@/lib/server/classroomAccess";
 import { getTeachingEntitlements } from "@/lib/server/teachingEntitlements";
 import { getAiProviderConfig, toPublicView } from "@/lib/server/aiProvider";
-import { getAiUsageToday } from "@/lib/server/aiUsage";
+import { getAiTaskUsage } from "@/lib/server/aiTaskUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +28,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Sign in" }, { status: 401 });
         }
 
-        const [entitlements, aiCfg, usage] = await Promise.all([
+        const [entitlements, aiCfg] = await Promise.all([
             getTeachingEntitlements(userId),
             getAiProviderConfig(),
-            getAiUsageToday(userId).catch(() => ({ date: "", used: 0 })),
         ]);
 
         if (!entitlements.ok) {
@@ -42,11 +41,17 @@ export async function GET(req: Request) {
                 teachingFeatures: {},
                 teachingLimits: null,
                 ai: toPublicView(aiCfg),
-                aiQuota: { used: usage.used, cap: 0 },
+                aiQuota: { used: 0, cap: 0, period: "day" },
+                aiAllowances: null,
             });
         }
 
         const r = entitlements.resolved;
+        // Current usage for each metered AI task in its plan's period.
+        const [qUsage, peUsage] = await Promise.all([
+            getAiTaskUsage(userId, "ai_question_generation", r.aiAllowances.ai_question_generation),
+            getAiTaskUsage(userId, "project_evaluation", r.aiAllowances.project_evaluation),
+        ]);
         return NextResponse.json({
             scope: r.scope,
             planCode: r.planCode,
@@ -54,9 +59,27 @@ export async function GET(req: Request) {
             teachingFeatures: r.teachingFeatures,
             teachingLimits: r.teachingLimits,
             ai: toPublicView(aiCfg),
+            // Back-compat: the question-generation allowance, used by the
+            // AiQuestionGenerator badge. The badge's contract is cap=null for
+            // unlimited (the allowance uses -1), so map it. `period` is new.
             aiQuota: {
-                used: usage.used,
-                cap: r.aiQuestionsPerDay,
+                used: qUsage.used,
+                cap:
+                    r.aiAllowances.ai_question_generation.limit < 0
+                        ? null
+                        : r.aiAllowances.ai_question_generation.limit,
+                period: r.aiAllowances.ai_question_generation.period,
+            },
+            // Full per-task allowance view (limit + period + current usage).
+            aiAllowances: {
+                ai_question_generation: {
+                    ...r.aiAllowances.ai_question_generation,
+                    used: qUsage.used,
+                },
+                project_evaluation: {
+                    ...r.aiAllowances.project_evaluation,
+                    used: peUsage.used,
+                },
             },
         });
     } catch (error) {

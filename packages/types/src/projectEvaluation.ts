@@ -152,6 +152,13 @@ export interface ProjectSubmission {
     totalScore: number | null;
     maxTotalScore: number | null;
     error: string | null;
+    /**
+     * How the `scores` were produced. `"ai"` (or absent, for legacy rows) =
+     * the LLM pipeline scored it; `"manual"` = the teacher graded it by hand
+     * (the fallback when AI is unavailable / out of allowance). Null while
+     * unscored.
+     */
+    scoredBy: "ai" | "manual" | null;
     teacherReview: ProjectTeacherReview | null;
     /**
      * Whether the teacher has released this result to the student. Scoring

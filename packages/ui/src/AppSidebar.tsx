@@ -71,6 +71,18 @@ export interface AppSidebarNavItem {
   /** When true, only highlight this item on exact path match (not subpaths). */
   exact?: boolean;
   /**
+   * Optional trailing pill rendered on the right of the row — e.g. a live
+   * balance ("150") or a count. Null/empty hides it. In the collapsed rail
+   * it degrades to a small corner dot (the value moves into the tooltip).
+   */
+  badge?: string | number | null;
+  /**
+   * Visually accent this row even when it isn't the active route — a subtle
+   * amber tint that lifts a special entry (e.g. AI Credits) out of the plain
+   * link list so it reads as a wallet/currency affordance, not just a page.
+   */
+  accent?: boolean;
+  /**
    * Sub-items rendered indented under the parent. When present, clicking the
    * parent toggles expand/collapse rather than navigating. The parent button
    * shows the "active" tint when ANY child is active.
@@ -206,6 +218,7 @@ function NavLeaf({
   const isActive = item.href
     ? isNavItemActive(pathname, item.href, item.exact)
     : false;
+  const hasBadge = item.badge != null && item.badge !== "";
 
   // Collapsed rail: render as an icon-only square with tooltip via `title`.
   // Children of a group don't appear in this mode — the group parent is
@@ -216,16 +229,21 @@ function NavLeaf({
       <LinkComponent
         href={item.href || "#"}
         onClick={onClose}
-        title={item.name}
-        aria-label={item.name}
+        title={hasBadge ? `${item.name} · ${item.badge}` : item.name}
+        aria-label={hasBadge ? `${item.name}, ${item.badge}` : item.name}
         className={
           (isActive
             ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/15 text-primary-700 dark:text-primary-200 shadow-sm shadow-primary-900/5"
-            : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200") +
+            : item.accent
+              ? "relative flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-100 dark:hover:bg-amber-500/20"
+              : "relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-primary-50/70 dark:hover:bg-primary-500/15 hover:text-primary-800 dark:hover:text-primary-200") +
           " mx-auto"
         }
       >
         <Icon className="w-5 h-5" />
+        {hasBadge ? (
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />
+        ) : null}
         {isActive ? (
           <span className="absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500" />
         ) : null}
@@ -233,23 +251,40 @@ function NavLeaf({
     );
   }
 
+  const rowTone = isActive
+    ? "border-primary-200/80 dark:border-primary-500/30 bg-primary-50/80 dark:bg-primary-500/15 font-semibold text-primary-800 dark:text-primary-200 shadow-sm shadow-primary-950/5"
+    : item.accent
+      ? "border-amber-200/80 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/10 font-semibold text-amber-800 dark:text-amber-200 transition-colors hover:bg-amber-50 dark:hover:bg-amber-500/20"
+      : "border-transparent font-medium text-slate-600 transition-colors hover:bg-primary-50/60 dark:hover:bg-primary-500/10 hover:text-primary-900 dark:hover:text-primary-200";
+
   return (
     <LinkComponent
       href={item.href || "#"}
       onClick={onClose}
       className={
-        (isActive
-          ? "relative flex items-center gap-3 rounded-xl border border-primary-200/80 dark:border-primary-500/30 bg-primary-50/80 dark:bg-primary-500/15 text-sm font-semibold text-primary-800 dark:text-primary-200 shadow-sm shadow-primary-950/5"
-          : "relative flex items-center gap-3 rounded-xl border border-transparent text-sm font-medium text-slate-600 transition-colors hover:bg-primary-50/60 dark:hover:bg-primary-500/10 hover:text-primary-900 dark:hover:text-primary-200") +
+        "relative flex items-center gap-3 rounded-xl border text-sm " +
+        rowTone +
         (indented ? " pl-10 pr-4 py-2" : " px-4 py-2.5")
       }
     >
       {indented ? (
         <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50" />
       ) : (
-        <Icon className="w-5 h-5" />
+        <Icon className="w-5 h-5 shrink-0" />
       )}
-      <span className="truncate">{item.name}</span>
+      <span className="flex-1 truncate">{item.name}</span>
+      {hasBadge ? (
+        <span
+          className={
+            "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums " +
+            (item.accent && !isActive
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
+              : "bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200")
+          }
+        >
+          {item.badge}
+        </span>
+      ) : null}
       {isActive ? (
         <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-500 shadow-[0_0_10px_rgba(82,109,104,0.18)]" />
       ) : null}

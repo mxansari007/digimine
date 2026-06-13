@@ -38,6 +38,10 @@ export async function getUserEntitlementOverride(
                 typeof d.aiQuestionsPerDay === "number" || d.aiQuestionsPerDay === null
                     ? d.aiQuestionsPerDay
                     : undefined,
+            aiAllowances:
+                d.aiAllowances && typeof d.aiAllowances === "object"
+                    ? d.aiAllowances
+                    : undefined,
             note: typeof d.note === "string" ? d.note : undefined,
             expiresAt: d.expiresAt?.toDate ? d.expiresAt.toDate() : d.expiresAt ?? null,
             grantedBy: typeof d.grantedBy === "string" ? d.grantedBy : undefined,
