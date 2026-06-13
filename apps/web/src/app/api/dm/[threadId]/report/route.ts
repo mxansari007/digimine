@@ -13,7 +13,9 @@ import { createNotification } from "@/lib/server/notifications";
 
 export const dynamic = "force-dynamic";
 
-export const COMMUNITY_REPORTS = "communityReports";
+// Local const — a route.ts file may only export HTTP handlers + Next config
+// fields, so this can't be `export`ed (next build rejects stray route exports).
+const COMMUNITY_REPORTS = "communityReports";
 
 type Params = { params: { threadId: string } };
 
