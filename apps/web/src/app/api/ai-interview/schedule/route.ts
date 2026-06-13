@@ -105,13 +105,8 @@ export async function POST(req: Request) {
         const quota = await checkQuota(userId, AI_INTERVIEW_QUOTA, { consume: true });
         let creditsCharged = 0;
         if (!quota.allowed) {
-            let charge;
-            try {
-                charge = await chargeCredits({ userId, task: "ai_interview", ref: id });
-            } catch (err) {
-                // Quota wasn't consumed (already exhausted) — nothing to refund.
-                throw err;
-            }
+            // Quota wasn't consumed (already exhausted) — nothing to refund.
+            const charge = await chargeCredits({ userId, task: "ai_interview", ref: id });
             if (!charge.ok) {
                 return NextResponse.json(
                     {
