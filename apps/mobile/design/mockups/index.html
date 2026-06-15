@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PlacementRanker Mobile — Bold Redesign · Gallery</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--ink:#07201C;--teal-deep:#0B7C72;--aqua:#34E7CE;--flare:#FF6B3D;--app:#EEF3F1;--muted:#5B6B68;--subtle:#94A39F;--border:#E2EAE7}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--app);font-family:'Inter',sans-serif;color:#0B1A18;padding:40px 28px 80px}
+  header{max-width:1300px;margin:0 auto 30px;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(160deg,#0E3A33,#07201C);color:#fff;padding:34px 38px}
+  header .blob{position:absolute;width:280px;height:280px;border-radius:50%;background:#13B59E;filter:blur(54px);opacity:.4;right:-60px;top:-120px}
+  header .e{position:relative;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;color:#8FE0D2}
+  header h1{position:relative;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;letter-spacing:-.02em;margin-top:8px}
+  header h1 .lit{background:linear-gradient(135deg,#0B7C72,#34E7CE);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  header p{position:relative;color:#AFCFC8;margin-top:8px;font-size:14px;max-width:640px}
+  .group{max-width:1300px;margin:0 auto}
+  .glabel{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:34px 6px 14px;display:flex;align-items:center;gap:10px}
+  .glabel::before{content:"";width:24px;height:2px;background:var(--teal-deep);border-radius:2px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:24px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 2px 12px rgba(7,32,28,.05)}
+  .card .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-bottom:1px solid var(--border)}
+  .card .bar b{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px}
+  .card .bar a{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--teal-deep);text-decoration:none}
+  .frame{height:710px;background:var(--app);overflow:hidden}
+  .frame iframe{width:200%;height:1420px;border:0;transform:scale(.5);transform-origin:top left}
+  .wide .frame iframe{width:143%;height:1420px;transform:scale(.7)}
+  .foot{max-width:1300px;margin:40px auto 0;text-align:center;color:var(--subtle);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<header>
+  <div class="blob"></div>
+  <div class="e">PLACEMENTRANKER MOBILE · BOLD REDESIGN</div>
+  <h1>25 screens, one <span class="lit">class-centric</span> system.</h1>
+  <p>Student + teacher, built on the teal brand pushed louder. Click any title to open that screen full-size. Same files live on the claude.ai Design canvas.</p>
+</header>
+
+<div class="group" id="g"></div>
+
+<div class="foot">LOCAL GALLERY · NOT A CANVAS CARD · OPEN ANY TILE TO INSPECT FULL-SIZE</div>
+
+<script>
+  const groups = [
+    ["Foundations", [["00-foundations.html","Visual System",1]]],
+    ["Class — the spine", [["01-class-hub.html","Class hub · student + teacher",1],["17-class-community.html","Class community",0]]],
+    ["Student", [
+      ["02-home-student.html","Home",0],["03-classes-list.html","My subjects",0],["18-timetable-student.html","Timetable · weekly",0],["12-schedule.html","Schedule · deadlines",0],
+      ["04-practice-list.html","Practice",0],["05-problem-detail.html","Problem detail",0],["14-course-detail.html","Course detail",0],
+      ["06-quiz-catalog.html","Quizzes",0],["13-profile-student.html","Profile",0],
+      ["15-notifications.html","Notifications",0],["16-messages.html","Messages",0]
+    ]],
+    ["Quiz & test results", [["07-quiz-attempt-result.html","Quiz · attempt + result",1],["08-test-scorecard.html","Mock-test scorecard",0]]],
+    ["Compete & interview", [["09-contest-leaderboard.html","Contest + leaderboard",1],["10-interview-debrief.html","AI interview debrief",0],["11-interviews-list.html","Interviews",0]]],
+    ["Teacher", [
+      ["20-teacher-dashboard.html","Dashboard",0],["21-teacher-students.html","Students · at-risk",0],["22-teacher-student-detail.html","Student detail",0],
+      ["23-teacher-content-assign.html","Content + assign",0],["24-teacher-announce.html","Announce + moderate",0],["25-teacher-class-analytics.html","Class analytics",0]
+    ]]
+  ];
+  const root = document.getElementById('g');
+  for (const [label, items] of groups){
+    const h = document.createElement('div'); h.className='glabel'; h.textContent=label+' · '+items.length; root.appendChild(h);
+    const grid = document.createElement('div'); grid.className='grid'; root.appendChild(grid);
+    for (const [file,name,wide] of items){
+      const c = document.createElement('div'); c.className='card'+(wide?' wide':'');
+      c.innerHTML = '<div class="bar"><b>'+name+'</b><a href="'+file+'" target="_blank">open ↗</a></div>'+
+        '<div class="frame"><iframe loading="lazy" src="'+file+'"></iframe></div>';
+      grid.appendChild(c);
+    }
+  }
+</script>
+</body>
+</html>

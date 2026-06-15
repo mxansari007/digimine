@@ -1,0 +1,346 @@
+<!-- @dsCard group="Class (the spine)" name="Class hub — student + teacher" subtitle="subject for students · section for teachers" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Class hub — student + teacher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#07201C; --ink2:#0B2E28; --teal-deep:#0B7C72; --teal:#0D9488; --aqua:#34E7CE;
+    --flare:#FF6B3D; --flare-deep:#E8491B;
+    --app:#F6F8F8; --surface:#FFFFFF; --surface2:#EEF3F1;
+    --text:#0B1A18; --muted:#5B6B68; --subtle:#94A39F; --border:#E2EAE7; --border-strong:#CED9D5;
+    --success:#15803D; --warning:#B45309; --danger:#DC2626;
+    --grad-signal:linear-gradient(135deg,#0B7C72 0%,#0E9C8E 42%,#34E7CE 100%);
+    --grad-ink:linear-gradient(160deg,#0E3A33 0%,#07201C 100%);
+    --grad-flare:linear-gradient(135deg,#FF8A3D 0%,#FF6B3D 55%,#E8491B 100%);
+    --d:'Space Grotesk',sans-serif; --b:'Inter',sans-serif; --m:'JetBrains Mono',monospace;
+    --sh1:0 2px 10px rgba(7,32,28,.06); --sh2:0 18px 44px rgba(7,32,28,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--app);color:var(--text);font-family:var(--b);-webkit-font-smoothing:antialiased;padding:38px 24px 56px;line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto}
+  .num{font-family:var(--m);font-variant-numeric:tabular-nums}
+
+  /* masthead */
+  .head{position:relative;overflow:hidden;border-radius:26px;background:var(--grad-ink);color:#fff;padding:30px 36px;margin-bottom:30px}
+  .head .blob{position:absolute;width:280px;height:280px;border-radius:50%;background:#13B59E;filter:blur(50px);opacity:.4;right:-60px;top:-120px}
+  .head .e{position:relative;font-family:var(--m);font-size:11px;letter-spacing:.22em;color:#8FE0D2;font-weight:500}
+  .head h1{position:relative;font-family:var(--d);font-weight:700;font-size:34px;letter-spacing:-.02em;margin-top:8px}
+  .head h1 .lit{background:var(--grad-signal);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .head p{position:relative;color:#AFCFC8;max-width:560px;margin-top:10px;font-size:14px}
+
+  .stage{display:flex;gap:36px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:14px;width:312px}
+  .role-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--d);font-weight:600;font-size:14px;padding:8px 16px;border-radius:999px}
+  .role-tag.stu{background:#E9FBF6;color:var(--teal-deep)}
+  .role-tag.tea{background:#FFF1E9;color:var(--flare-deep)}
+  .role-tag .dot{width:8px;height:8px;border-radius:50%}
+  .role-tag.stu .dot{background:var(--teal)} .role-tag.tea .dot{background:var(--flare)}
+  .col > .cap{color:var(--muted);font-size:12.5px;text-align:center;max-width:300px;min-height:34px}
+
+  /* phone */
+  .phone{width:312px;height:660px;border-radius:44px;background:var(--app);border:9px solid #0A1614;box-shadow:var(--sh2);overflow:hidden;position:relative}
+  .scr{position:absolute;inset:0;overflow:hidden;display:flex;flex-direction:column}
+  .status{display:flex;justify-content:space-between;align-items:center;padding:13px 22px 4px;font-family:var(--m);font-size:11px;font-weight:600;flex-shrink:0}
+  .body{flex:1;overflow:hidden;padding:6px 14px 0}
+  .clsbar{display:flex;align-items:center;gap:10px;padding:6px 2px 12px}
+  .clsbar .bk{color:var(--muted);font-size:18px}
+  .clsbar .sw{flex:1;font-family:var(--d);font-weight:700;font-size:17px;display:flex;align-items:center;gap:6px}
+  .clsbar .sw small{color:var(--subtle);font-size:13px;font-weight:500}
+  .clsbar .gear{color:var(--subtle);font-size:16px}
+
+  .hero{position:relative;overflow:hidden;border-radius:22px;padding:16px;color:#04241f}
+  .hero.signal{background:var(--grad-signal)}
+  .hero.ink{background:var(--grad-ink);color:#fff}
+  .hero .hb{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(34px);opacity:.5;right:-44px;top:-54px}
+  .hero.signal .hb{background:#9CFFEF}
+  .hero.ink .hb{background:#14A892;opacity:.4}
+  .hero .top{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;font-family:var(--m);font-size:9.5px;letter-spacing:.14em;font-weight:600}
+  .hero.signal .top{color:#073e36} .hero.ink .top{color:#8FE0D2}
+  .hrow{position:relative;z-index:2;display:flex;align-items:center;gap:14px;margin-top:8px}
+  .gz{position:relative;width:96px;height:84px;flex-shrink:0}
+  .gz svg{width:96px;height:96px;margin-top:-8px}
+  .gz .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:3px}
+  .gz .c b{font-family:var(--d);font-weight:700;font-size:27px;line-height:1}
+  .gz .c small{font-family:var(--m);font-size:8px;margin-top:1px}
+  .hero.signal .gz .c b{color:#04241f} .hero.signal .gz .c small{color:#0a4d43}
+  .hero.ink .gz .c b{color:#fff} .hero.ink .gz .c small{color:#9FE8DA}
+  .hstat{flex:1;display:flex;flex-direction:column;gap:7px;font-family:var(--m);font-size:11px}
+  .hero.signal .hstat{color:#063b33} .hero.ink .hstat{color:#cfe9e3}
+  .hstat .l{display:flex;justify-content:space-between;align-items:center}
+  .hstat .l b{font-family:var(--d);font-size:14px}
+  .hstat .l .warn{color:#fff;background:var(--grad-flare);padding:1px 8px;border-radius:999px;font-weight:700;font-size:11px}
+  .cmpbar{position:relative;z-index:2;margin-top:11px}
+  .cmpbar .lab{display:flex;justify-content:space-between;font-family:var(--m);font-size:9.5px;color:#063b33;margin-bottom:4px}
+  .cmpbar .track{height:7px;border-radius:999px;background:rgba(4,36,31,.18);position:relative;overflow:hidden}
+  .cmpbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:#04241f}
+  .cmpbar .avg{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;border-radius:2px}
+
+  .sect{font-family:var(--m);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin:15px 2px 8px;display:flex;justify-content:space-between;align-items:center}
+  .sect a{color:var(--teal-deep);font-family:var(--b);font-weight:600;font-size:11px;letter-spacing:0;text-transform:none}
+
+  .due{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:11px 13px;margin-bottom:8px}
+  .due .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;flex-shrink:0;background:var(--surface2)}
+  .due.live .ic{background:var(--grad-flare)}
+  .due .tx{flex:1;min-width:0}
+  .due .tx b{font-weight:600;font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .due .tx small{color:var(--muted);font-size:11px;font-family:var(--m)}
+  .due .rt{font-family:var(--m);font-weight:700;font-size:12px;flex-shrink:0}
+  .due.live .rt{color:var(--flare-deep)}
+  .pill-live{display:inline-flex;align-items:center;gap:5px;background:var(--grad-flare);color:#fff;font-family:var(--m);font-size:9px;font-weight:700;letter-spacing:.08em;padding:3px 7px;border-radius:999px}
+  .pld{width:5px;height:5px;border-radius:50%;background:#fff}
+
+  .ann{background:#FBFBF9;border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:13px;padding:11px 13px;margin-bottom:4px}
+  .ann .h{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;margin-bottom:3px}
+  .ann .h .pin{color:var(--teal-deep)}
+  .ann .h small{margin-left:auto;color:var(--subtle);font-family:var(--m);font-size:10px;font-weight:400}
+  .ann p{font-size:11.5px;color:var(--muted);line-height:1.4}
+
+  .lanes{display:flex;gap:7px;overflow:hidden}
+  .lane{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:10px 6px;text-align:center}
+  .lane .n{font-family:var(--m);font-weight:700;font-size:17px}
+  .lane .l{font-size:9px;color:var(--muted);margin-top:1px}
+  .lane.hot{border-color:#FFD9C9;background:#FFF6F2}
+  .lane.hot .n{color:var(--flare-deep)}
+
+  /* teacher bits */
+  .tstats{display:flex;gap:8px;margin-top:11px;position:relative;z-index:2}
+  .tstat{flex:1;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:8px 6px;text-align:center;backdrop-filter:blur(4px)}
+  .tstat .n{font-family:var(--m);font-weight:700;font-size:17px;color:#fff}
+  .tstat .l{font-size:8.5px;color:#9FE8DA;margin-top:1px;letter-spacing:.04em}
+  .tstat.alert{background:var(--grad-flare);border-color:transparent}
+  .tstat.alert .l{color:#ffe6dc}
+
+  .attn{background:#FFF6F2;border:1px solid #FFD9C9;border-radius:15px;padding:12px 13px;margin-bottom:8px}
+  .attn .h{display:flex;align-items:center;gap:7px;font-family:var(--d);font-weight:600;font-size:12.5px;color:var(--flare-deep);margin-bottom:9px}
+  .attn .srow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid #FBE0D5}
+  .attn .srow:first-of-type{border-top:none}
+  .attn .av{width:28px;height:28px;border-radius:9px;background:#fff;border:1px solid #FFD9C9;display:grid;place-items:center;font-family:var(--d);font-weight:700;font-size:12px;color:var(--flare-deep)}
+  .attn .si{flex:1;min-width:0}
+  .attn .si b{font-weight:600;font-size:12px;display:block}
+  .attn .si small{color:var(--muted);font-family:var(--m);font-size:10px}
+  .riskdot{width:8px;height:8px;border-radius:50%;background:var(--danger);flex-shrink:0}
+
+  .acts{display:flex;gap:7px;margin:4px 0 4px}
+  .act{flex:1;border:none;border-radius:13px;padding:11px 4px;font-family:var(--d);font-weight:600;font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+  .act .i{font-size:15px}
+  .act.p{background:var(--grad-signal);color:#042521}
+  .act.s{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+
+  .rost{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:4px 13px}
+  .rrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
+  .rrow:first-child{border-top:none}
+  .rrow .ra{width:30px;height:30px;border-radius:9px;background:var(--surface2);display:grid;place-items:center;font-family:var(--d);font-weight:700;font-size:12px;color:var(--muted)}
+  .rrow .ri{flex:1;min-width:0}
+  .rrow .ri b{font-weight:600;font-size:12.5px;display:block}
+  .rrow .ri .cv{height:4px;border-radius:999px;background:var(--surface2);margin-top:4px;overflow:hidden;position:relative}
+  .rrow .ri .cv i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--grad-signal)}
+  .rrow .pct{font-family:var(--m);font-weight:700;font-size:13px}
+  .rrow .pct.lo{color:var(--danger)}
+
+  /* tabbar */
+  .tabs{display:flex;justify-content:space-between;padding:9px 18px 16px;background:linear-gradient(0deg,var(--app) 70%,rgba(246,248,248,0));flex-shrink:0}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--subtle)}
+  .tab .ic{width:18px;height:18px;border-radius:6px;background:currentColor;opacity:.7}
+  .tab.on{color:var(--teal-deep)}
+  .tab.on .ic{opacity:1;background:var(--grad-signal)}
+
+  .legend{margin-top:30px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 28px}
+  .legend h3{font-family:var(--d);font-weight:600;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+  .legend h3::before{content:"";width:20px;height:2px;background:var(--teal);border-radius:2px}
+  .lg{display:grid;grid-template-columns:1fr 1fr;gap:12px 30px}
+  .lg li{list-style:none;color:var(--muted);font-size:13px;padding-left:20px;position:relative;line-height:1.5}
+  .lg li::before{content:"";position:absolute;left:0;top:7px;width:8px;height:8px;border-radius:3px;background:var(--grad-signal)}
+  .lg li b{color:var(--text);font-weight:600}
+
+  /* subject ↔ section model bits */
+  .smeta{display:flex;align-items:center;gap:9px;padding:1px 2px 11px}
+  .smeta .ava{width:30px;height:30px;border-radius:9px;background:#E9FBF6;color:var(--teal-deep);display:grid;place-items:center;font-family:var(--d);font-weight:700;font-size:12px;flex-shrink:0}
+  .smeta .mt{flex:1;min-width:0;font-family:var(--m);font-size:10px;color:var(--muted);line-height:1.35}
+  .smeta .mt .tt{display:block;font-weight:500}
+  .smeta a{color:var(--teal-deep);font-family:var(--b);font-weight:600;font-size:10.5px;white-space:nowrap;flex-shrink:0}
+  .subrow{display:flex;align-items:center;gap:8px;padding:1px 2px 11px}
+  .pill-acc{font-family:var(--m);font-size:11px;font-weight:500;padding:5px 11px;border-radius:999px;background:#E9FBF6;color:var(--teal-deep);flex-shrink:0}
+  .subrow small{font-size:10.5px;color:var(--muted);font-family:var(--m);min-width:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="blob"></div>
+    <div class="e">CLASS-CENTRIC · ONE HUB, TWO ROLES</div>
+    <h1>The class is the <span class="lit">spine.</span></h1>
+    <p>One section, many subjects. Students see the <b style="color:#fff">subject</b> (Data Structures, DBMS, OS…) so the same section never repeats; teachers see the <b style="color:#fff">section</b> they teach. The gauge is <span class="lit">“my standing”</span> for a student, “class pulse” for a teacher.</p>
+  </div>
+
+  <div class="stage">
+
+    <!-- ───────── STUDENT ───────── -->
+    <div class="col">
+      <div class="role-tag stu"><span class="dot"></span>STUDENT · inside a subject</div>
+      <div class="phone"><div class="scr">
+        <div class="status"><span>9:41</span><span>● ● ●  ▮</span></div>
+        <div class="body">
+          <div class="clsbar"><span class="bk">‹</span><span class="sw">Data Structures <small>· CSE-A ▾</small></span><span class="gear">⋯</span></div>
+
+          <div class="smeta">
+            <div class="ava">DS</div>
+            <div class="mt"><span class="tt">Prof. Aman Verma · CSE-A</span>Mon/Wed/Fri 10:00 · Room 301</div>
+            <a>Timetable ›</a>
+          </div>
+
+          <div class="hero signal">
+            <div class="hb"></div>
+            <div class="top"><span>YOUR STANDING IN THIS SUBJECT</span><span>▲ 2 THIS WEEK</span></div>
+            <div class="hrow">
+              <div class="gz">
+                <svg viewBox="0 0 200 200">
+                  <defs><linearGradient id="s1" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#063b33"/><stop offset="100%" stop-color="#ffffff"/></linearGradient></defs>
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(4,36,31,.2)" stroke-width="16" stroke-linecap="round" stroke-dasharray="395.8 131.9" transform="rotate(135 100 100)"/>
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="url(#s1)" stroke-width="16" stroke-linecap="round" stroke-dasharray="345 527.7" transform="rotate(135 100 100)"/>
+                </svg>
+                <div class="c"><b>#5</b><small>OF 42</small></div>
+              </div>
+              <div class="hstat">
+                <div class="l"><span>Top percentile</span><b>12%</b></div>
+                <div class="l"><span>Your avg</span><b>78%</b></div>
+                <div class="l"><span>🔥 streak</span><b>7d</b></div>
+              </div>
+            </div>
+            <div class="cmpbar">
+              <div class="lab"><span>YOU 78%</span><span>CLASS AVG 64%</span></div>
+              <div class="track"><div class="fill" style="width:78%"></div><div class="avg" style="left:64%"></div></div>
+            </div>
+          </div>
+
+          <div class="sect">Due soon <a>Schedule ›</a></div>
+          <div class="due live">
+            <div class="ic">⚡</div>
+            <div class="tx"><b>DSA Sprint #12</b><small><span class="pill-live"><span class="pld"></span>LIVE</span> &nbsp;contest</small></div>
+            <div class="rt">42:15</div>
+          </div>
+          <div class="due">
+            <div class="ic">📝</div>
+            <div class="tx"><b>Mock Test 4 · DP &amp; Graphs</b><small>200 marks · 90 min</small></div>
+            <div class="rt" style="color:var(--warning)">Tue</div>
+          </div>
+
+          <div class="sect">From Aman <a>All ›</a></div>
+          <div class="ann">
+            <div class="h"><span class="pin">📌</span>Aman Verma<small>2h</small></div>
+            <p>Test 4 covers DP + graph traversals. Revise Dijkstra &amp; 0/1 knapsack tonight.</p>
+          </div>
+
+          <div class="sect">Assigned to you</div>
+          <div class="lanes">
+            <div class="lane"><div class="n">6</div><div class="l">Tests</div></div>
+            <div class="lane"><div class="n">5</div><div class="l">Quizzes</div></div>
+            <div class="lane hot"><div class="n">1</div><div class="l">Live</div></div>
+            <div class="lane"><div class="n">2</div><div class="l">Courses</div></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic"></div>Home</div>
+          <div class="tab on"><div class="ic"></div>Classes</div>
+          <div class="tab"><div class="ic"></div>Practice</div>
+          <div class="tab"><div class="ic"></div>Compete</div>
+          <div class="tab"><div class="ic"></div>You</div>
+        </div>
+      </div></div>
+      <div class="cap">A <b style="color:var(--text)">SUBJECT</b> hub: standing, the teacher’s word, what’s due — section shown only as context.</div>
+    </div>
+
+    <!-- ───────── TEACHER ───────── -->
+    <div class="col">
+      <div class="role-tag tea"><span class="dot"></span>TEACHER · running the section</div>
+      <div class="phone"><div class="scr">
+        <div class="status"><span>9:41</span><span>● ● ●  ▮</span></div>
+        <div class="body">
+          <div class="clsbar"><span class="bk">‹</span><span class="sw">CSE 6th Sem · A <small>▾</small></span><span class="gear">⚙</span></div>
+
+          <div class="subrow">
+            <span class="pill-acc">Data Structures</span>
+            <small>you teach this to 3 sections</small>
+          </div>
+
+          <div class="hero ink">
+            <div class="hb"></div>
+            <div class="top"><span>CLASS PULSE</span><span>42 STUDENTS · 38 ACTIVE</span></div>
+            <div class="hrow">
+              <div class="gz">
+                <svg viewBox="0 0 200 200">
+                  <defs><linearGradient id="t1" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#0B7C72"/><stop offset="100%" stop-color="#34E7CE"/></linearGradient></defs>
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="16" stroke-linecap="round" stroke-dasharray="395.8 131.9" transform="rotate(135 100 100)"/>
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="url(#t1)" stroke-width="16" stroke-linecap="round" stroke-dasharray="285 527.7" transform="rotate(135 100 100)" style="filter:drop-shadow(0 3px 9px rgba(52,231,206,.5))"/>
+                </svg>
+                <div class="c"><b>64</b><small>CLASS AVG</small></div>
+              </div>
+              <div class="hstat">
+                <div class="l"><span>Pass rate</span><b>71%</b></div>
+                <div class="l"><span>Coverage</span><b>68%</b></div>
+                <div class="l"><span>At risk</span><span class="warn">5 ⚠</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="acts">
+            <button class="act p"><span class="i">📣</span>Announce</button>
+            <button class="act s"><span class="i">➕</span>Assign</button>
+            <button class="act s"><span class="i">👤</span>Add</button>
+          </div>
+
+          <div class="sect">Needs attention <a>All 5 ›</a></div>
+          <div class="attn">
+            <div class="h">⚠ 5 students slipping</div>
+            <div class="srow"><div class="av">RS</div><div class="si"><b>Riya Sharma</b><small>No activity · 9 days</small></div><span class="riskdot"></span></div>
+            <div class="srow"><div class="av">KM</div><div class="si"><b>Karan Mehta</b><small>Avg 32% · ▼ falling</small></div><span class="riskdot"></span></div>
+          </div>
+
+          <div class="sect">Mock Test 4 <a>Remind ›</a></div>
+          <div class="due">
+            <div class="ic">⏳</div>
+            <div class="tx"><b>12 of 42 haven’t started</b><small>due Tue 9:00 PM</small></div>
+            <div class="rt" style="color:var(--warning)">29%</div>
+          </div>
+
+          <div class="sect">Roster <a>Open 42 ›</a></div>
+          <div class="rost">
+            <div class="rrow"><div class="ra">AP</div><div class="ri"><b>Aarav Patel</b><div class="cv"><i style="width:92%"></i></div></div><span class="pct">88%</span></div>
+            <div class="rrow"><div class="ra">SR</div><div class="ri"><b>Sneha Rao</b><div class="cv"><i style="width:71%"></i></div></div><span class="pct">74%</span></div>
+            <div class="rrow"><div class="ra">KM</div><div class="ri"><b>Karan Mehta</b><div class="cv"><i style="width:28%"></i></div></div><span class="pct lo">32%</span></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic"></div>Dash</div>
+          <div class="tab on"><div class="ic"></div>Classes</div>
+          <div class="tab"><div class="ic"></div>Students</div>
+          <div class="tab"><div class="ic"></div>Content</div>
+          <div class="tab"><div class="ic"></div>You</div>
+        </div>
+      </div></div>
+      <div class="cap">A <b style="color:var(--text)">SECTION</b> command center: same subject across CSE-A / CSE-B / ECE-A, told apart by section.</div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <h3>What makes this class-centric</h3>
+    <ul class="lg">
+      <li><b>Subject vs section.</b> Students see the subject (so CSE-A never repeats); teachers see the section (same subject across CSE-A/B). Same data, two lenses.</li>
+      <li><b>The gauge does double duty</b> — “my standing #5/42” for students, “class avg 64” for teachers.</li>
+      <li><b>Gamification = class leaderboard</b> — rank in cohort, you-vs-class-average bar, streaks. Not floating XP.</li>
+      <li><b>Teacher’s at-risk panel</b> uses the real risk score (band + reason) — the warm flare flags trouble.</li>
+      <li><b>Run it on the go</b> — Announce, Assign existing content + deadline, Add students, nudge non-starters.</li>
+      <li><b>Authoring stays on web</b> — building tests/questions is a desktop job; mobile is monitor + communicate + assign.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>
