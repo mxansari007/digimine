@@ -154,7 +154,7 @@ export async function getGroupByInviteCode(code: string): Promise<Group | null> 
     return snap.empty ? null : docToGroup(snap.docs[0]);
 }
 
-export async function resolveOrCreateGroup(section: Section, name: string, uid: string): Promise<Group> {
+export async function resolveOrCreateGroup(section: Section, name: string, _uid: string): Promise<Group> {
     const nm = (name || "").trim();
     if (!nm) throw new Error("Group name is required");
     const existing = await adminDb.collection(GROUPS).where("sectionId", "==", section.id).get();
