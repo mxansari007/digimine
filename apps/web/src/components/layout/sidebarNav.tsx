@@ -58,6 +58,17 @@ const ContestIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const MapIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+        />
+    </svg>
+);
+
 const DownloadIcon = ({ className }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -67,6 +78,12 @@ const DownloadIcon = ({ className }: { className?: string }) => (
 const ClassroomIcon = ({ className }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+);
+
+const CalendarIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
 );
 
@@ -191,9 +208,11 @@ export const studentNav: AppSidebarNavItem[] = [
     { name: "Test Series", href: "/dashboard/tests", icon: TestIcon },
     { name: "Quizzes", href: "/dashboard/quizzes", icon: QuizIcon },
     { name: "Contests", href: "/dashboard/contests", icon: ContestIcon },
+    { name: "Job Map", href: "/student/jobs", icon: MapIcon },
     { name: "Project Evals", href: "/dashboard/project-evals", icon: ProjectIcon },
     { name: "Downloads", href: "/dashboard/downloads", icon: DownloadIcon },
     { name: "My Classrooms", href: "/student/classrooms", icon: ClassroomIcon },
+    { name: "Timetable", href: "/student/timetable", icon: CalendarIcon },
     { name: "Messages", href: "/messages", icon: MessagesIcon },
     { name: "My Plan", href: "/dashboard/plan", icon: PlanIcon },
     { name: "Profile & Settings", href: "/dashboard/profile", icon: ProfileIcon },

@@ -1,4 +1,8 @@
 packages:
   - "apps/*"
+  # The Expo app manages its own npm install — React Native's Metro bundler
+  # and pnpm's symlinked node_modules don't mix reliably, so it lives outside
+  # the pnpm workspace on purpose.
+  - "!apps/mobile"
   - "packages/*"
   - "firebase/functions"

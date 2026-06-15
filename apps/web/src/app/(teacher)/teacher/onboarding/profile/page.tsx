@@ -34,6 +34,7 @@ import {
     FormField,
     textInputClass,
 } from "@/components/onboarding";
+import { UniversitySelect, type UniversityValue } from "@/components/UniversitySelect";
 
 function generateInviteCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -60,7 +61,8 @@ export default function ProfileOnboardingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [inviteCode] = useState(generateInviteCode());
-    const [form, setForm] = useState({ institute: "", subjects: "", bio: "" });
+    const [form, setForm] = useState({ subjects: "", bio: "" });
+    const [university, setUniversity] = useState<UniversityValue>({ name: "" });
     const [fallbackName, setFallbackName] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [finalising, setFinalising] = useState(false);
@@ -111,11 +113,11 @@ export default function ProfileOnboardingPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!firebaseUser || !effectiveName || !form.institute.trim()) {
+        if (!firebaseUser || !effectiveName || !university.name.trim()) {
             setError(
                 !effectiveName
                     ? "We couldn't find your name — please add it below."
-                    : "Institute is required."
+                    : "Your university is required."
             );
             return;
         }
@@ -128,7 +130,8 @@ export default function ProfileOnboardingPage() {
                     step: "profile",
                     uid: firebaseUser.uid,
                     name: effectiveName,
-                    institute: form.institute.trim(),
+                    institute: university.name.trim(),
+                    universityId: university.id ?? null,
                     phone,
                     bio: form.bio.trim(),
                     avatarUrl: avatarUrl || firebaseUser.photoURL || null,
@@ -156,8 +159,8 @@ export default function ProfileOnboardingPage() {
     };
 
     const disabled = useMemo(
-        () => submitting || finalising || !effectiveName || !form.institute.trim(),
-        [submitting, finalising, effectiveName, form.institute]
+        () => submitting || finalising || !effectiveName || !university.name.trim(),
+        [submitting, finalising, effectiveName, university.name]
     );
 
     // Friendly first-name greeting for the header. Falls back to "there".
@@ -278,18 +281,12 @@ export default function ProfileOnboardingPage() {
                         </FormField>
                     )}
 
-                    <FormField label="Institute" required>
-                        <input
-                            type="text"
-                            required
-                            value={form.institute}
-                            onChange={(e) =>
-                                setForm((p) => ({ ...p, institute: e.target.value }))
-                            }
-                            className={textInputClass}
-                            placeholder="IIT Madras"
+                    <FormField label="University / College" required hint="Pick yours — or add it if it's not listed">
+                        <UniversitySelect
+                            firebaseUser={firebaseUser}
+                            value={university}
+                            onChange={setUniversity}
                             disabled={submitting}
-                            autoFocus={!!derivedName}
                         />
                     </FormField>
 

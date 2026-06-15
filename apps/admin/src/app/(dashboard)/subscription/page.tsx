@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Card, InfoTip } from "@digimine/ui";
 import { X } from "lucide-react";
 import {
+    AI_QUOTA_PERIODS,
+    AI_QUOTA_TASKS,
     ENTITLEMENT_FEATURES,
     ENTITLEMENT_QUOTAS,
     TEACHING_FEATURES,
     TEACHING_LIMITS,
     UNLIMITED_TEACHING_LIMITS,
     formatINR,
+    type AiAllowanceMap,
     type AiProvider,
     type AiProviderConfig,
     type AppSubscriptionPlan,
@@ -21,6 +24,12 @@ import {
     type TeachingLimitKey,
     type TeachingLimits,
 } from "@digimine/types";
+
+/** Every metered AI task defaulted to unlimited (free under the plan). */
+const DEFAULT_AI_ALLOWANCES: AiAllowanceMap = AI_QUOTA_TASKS.reduce((acc, t) => {
+    acc[t.key] = { limit: -1, period: "month" };
+    return acc;
+}, {} as AiAllowanceMap);
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import {
     deletePlan,
@@ -60,6 +69,10 @@ function emptyPlan(roleScope: PlanRoleScope = "student"): Partial<AppSubscriptio
         teachingLimits:
             roleScope === "teacher" || roleScope === "institute"
                 ? { ...UNLIMITED_TEACHING_LIMITS }
+                : undefined,
+        aiAllowances:
+            roleScope === "teacher" || roleScope === "institute"
+                ? { ...DEFAULT_AI_ALLOWANCES }
                 : undefined,
         isFree: false,
         isActive: true,
@@ -799,26 +812,79 @@ function PlanEditor({
                             </div>
                         </div>
 
-                        <Field label="AI questions per day (blank = unlimited, 0 = disabled)">
-                            <input
-                                type="number"
-                                min={0}
-                                className="field"
-                                value={draft.aiQuestionsPerDay ?? ""}
-                                onChange={(e) =>
-                                    setDraft({
-                                        ...draft,
-                                        aiQuestionsPerDay: e.target.value === ""
-                                            ? null
-                                            : Math.max(0, Number(e.target.value) || 0),
-                                    })
-                                }
-                                placeholder="e.g. 50"
-                            />
-                            <p className="mt-1 text-xs text-slate-500">
-                                Applies only when the AI question generation flag above is ticked. Counter resets at midnight IST.
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                AI allowances (included free, then billed in credits)
                             </p>
-                        </Field>
+                            <p className="mb-3 text-xs text-slate-500">
+                                How many of each AI task this plan includes, and over what window.
+                                Anything beyond the allowance is charged to the user&apos;s AI credit
+                                wallet (rates set on the <span className="font-mono text-[11px]">AI Credits</span> page).
+                                <span className="font-medium"> Unlimited</span> = blank or −1; <span className="font-medium">0</span> = none included (every use needs credits).
+                                Applies only when the matching feature flag above is ticked.
+                            </p>
+                            <div className="space-y-2.5">
+                                {AI_QUOTA_TASKS.map((task) => {
+                                    const a =
+                                        (draft.aiAllowances || {})[task.key] ?? {
+                                            limit: -1,
+                                            period: "month" as const,
+                                        };
+                                    const setAllowance = (patch: Partial<typeof a>) =>
+                                        setDraft({
+                                            ...draft,
+                                            aiAllowances: {
+                                                ...(draft.aiAllowances || {}),
+                                                [task.key]: { ...a, ...patch },
+                                            },
+                                        });
+                                    return (
+                                        <div
+                                            key={task.key}
+                                            className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 p-3"
+                                        >
+                                            <span className="min-w-[150px] flex-1 text-sm font-medium text-slate-700">
+                                                {task.label}
+                                                <span className="block text-[11px] font-normal text-slate-400">
+                                                    {task.unit}
+                                                </span>
+                                            </span>
+                                            <input
+                                                type="number"
+                                                min={-1}
+                                                className="field w-24"
+                                                aria-label={`${task.label} limit`}
+                                                value={a.limit < 0 ? "" : a.limit}
+                                                placeholder="∞"
+                                                onChange={(e) =>
+                                                    setAllowance({
+                                                        limit:
+                                                            e.target.value === ""
+                                                                ? -1
+                                                                : Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                                                    })
+                                                }
+                                            />
+                                            <select
+                                                className="field w-32"
+                                                aria-label={`${task.label} period`}
+                                                value={a.period}
+                                                disabled={a.limit < 0}
+                                                onChange={(e) =>
+                                                    setAllowance({ period: e.target.value as typeof a.period })
+                                                }
+                                            >
+                                                {AI_QUOTA_PERIODS.map((p) => (
+                                                    <option key={p.key} value={p.key}>
+                                                        {p.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">

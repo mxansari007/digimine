@@ -3,6 +3,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { checkPlanLimits } from "@/lib/middleware/checkPlanLimits";
 import { getClassById, getClassByInviteCode } from "@/lib/server/classes";
+import { enrollStudentInGroup, getGroupByInviteCode } from "@/lib/server/sections";
 import { requireVerifiedUser } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
@@ -78,23 +79,55 @@ export async function POST(req: Request) {
             }
         }
 
+        // Group invite codes (GRP-…): join the GROUP, which auto-enrolls the
+        // student into every non-archived class that targets that group
+        // (combined classes included). One code → potentially several classes.
+        if (!classDoc && inviteCode) {
+            const group = await getGroupByInviteCode(String(inviteCode).trim());
+            if (group) {
+                const result = await enrollStudentInGroup(group, {
+                    studentId,
+                    studentEmail,
+                    studentName,
+                    rollNumber,
+                });
+                return NextResponse.json({
+                    success: true,
+                    joined: "group",
+                    groupId: group.id,
+                    sectionId: group.sectionId,
+                    classIds: result.joinedClassIds,
+                    message: result.alreadyMember ? "Already in this group" : "Joined",
+                });
+            }
+        }
+
         if (!classDoc) {
             return NextResponse.json({ error: "Invalid invite code or class." }, { status: 404 });
         }
         if (classDoc.isArchived) {
             return NextResponse.json({ error: "This class is archived." }, { status: 410 });
         }
-        teacherId = classDoc.teacherId;
+        // Institute classes (the "section") have no single owning teacher —
+        // teachers are assigned per subject — so `teacherId` is "" for them.
+        // Everything below must tolerate an empty teacherId.
+        teacherId = classDoc.teacherId || "";
         const classId = classDoc.id;
+        const instituteId = classDoc.instituteId || null;
 
         if (!studentId) {
             return NextResponse.json({ error: "studentId is required" }, { status: 400 });
         }
 
-        // Enforce the teacher's student cap.
-        const limitCheck = await checkPlanLimits(teacherId, "enroll_student");
-        if (!limitCheck.allowed) {
-            return NextResponse.json({ error: limitCheck.message }, { status: 403 });
+        // Enforce the teacher's student cap — independent-teacher classes only.
+        // Institute classes aren't metered per teacher (capacity belongs to the
+        // institute), and checkPlanLimits keys on a teacher doc that doesn't
+        // exist when teacherId is "".
+        if (teacherId) {
+            const limitCheck = await checkPlanLimits(teacherId, "enroll_student");
+            if (!limitCheck.allowed) {
+                return NextResponse.json({ error: limitCheck.message }, { status: 403 });
+            }
         }
 
         // New shape: classes/{classId}/students/{studentId}
@@ -107,6 +140,24 @@ export async function POST(req: Request) {
         const now = Timestamp.now();
 
         const userRef = adminDb.collection("users").doc(studentId);
+
+        // User-side denormalised membership. enrolledTeacherIds is only stamped
+        // for independent-teacher classes (Firestore rules read it to gate that
+        // teacher's private content). Institute classes have no owning teacher,
+        // so membership is tracked by classId / instituteId and we never write
+        // an empty teacherId into the array.
+        const membership: Record<string, any> = {
+            classId,
+            teacherId: teacherId || null,
+            status: "active",
+            joinedAt: now,
+        };
+        if (instituteId) membership.instituteId = instituteId;
+        const userUpdate: Record<string, any> = {
+            classMemberships: FieldValue.arrayUnion(membership),
+            updatedAt: now,
+        };
+        if (teacherId) userUpdate.enrolledTeacherIds = FieldValue.arrayUnion(teacherId);
 
         // Batch the enrollment doc + user-side denormalised arrays in a
         // single commit. Firestore rules read `users/{uid}.enrolledTeacherIds`
@@ -128,20 +179,7 @@ export async function POST(req: Request) {
                     { merge: true }
                 );
             }
-            batch.set(
-                userRef,
-                {
-                    enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
-                    classMemberships: FieldValue.arrayUnion({
-                        classId,
-                        teacherId,
-                        status: "active",
-                        joinedAt: now,
-                    }),
-                    updatedAt: now,
-                },
-                { merge: true }
-            );
+            batch.set(userRef, userUpdate, { merge: true });
             await batch.commit();
             return NextResponse.json({
                 success: true,
@@ -153,7 +191,7 @@ export async function POST(req: Request) {
 
         batch.set(enrollmentRef, {
             classId,
-            teacherId,
+            teacherId: teacherId || null,
             studentId,
             studentEmail: studentEmail || "",
             studentName: studentName || studentEmail || "Student",
@@ -174,36 +212,26 @@ export async function POST(req: Request) {
             { merge: true }
         );
 
-        batch.set(
-            userRef,
-            {
-                enrolledTeacherIds: FieldValue.arrayUnion(teacherId),
-                classMemberships: FieldValue.arrayUnion({
-                    classId,
-                    teacherId,
-                    status: "active",
-                    joinedAt: now,
-                }),
-                updatedAt: now,
-            },
-            { merge: true }
-        );
+        batch.set(userRef, userUpdate, { merge: true });
 
         await batch.commit();
 
         // Teacher usage counter is best-effort and outside the batch on
         // purpose — it doesn't gate read access, so we don't want to fail
-        // the enrollment if the teacher doc is missing.
-        await adminDb
-            .collection("teachers")
-            .doc(teacherId)
-            .update({
-                "usage.currentStudents": FieldValue.increment(1),
-                updatedAt: now,
-            })
-            .catch(() => {
-                /* counters are not load-bearing */
-            });
+        // the enrollment if the teacher doc is missing. Skipped for institute
+        // classes (no owning teacher → `.doc("")` would throw).
+        if (teacherId) {
+            await adminDb
+                .collection("teachers")
+                .doc(teacherId)
+                .update({
+                    "usage.currentStudents": FieldValue.increment(1),
+                    updatedAt: now,
+                })
+                .catch(() => {
+                    /* counters are not load-bearing */
+                });
+        }
 
         return NextResponse.json({ success: true, classId, teacherId });
     } catch (error: any) {

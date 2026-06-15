@@ -58,10 +58,15 @@ export async function GET(req: Request, { params }: { params: { classId: string 
 
         // Public-ish read of the class shell — teacher info, name, invite code.
         // We don't return content lists here unless the caller is enrolled.
-        const teacherSnap = await adminDb.collection("teachers").doc(classDoc.teacherId).get();
-        const teacherData = teacherSnap.exists ? teacherSnap.data() : null;
+        // Institute classes (the section) have no single owning teacher —
+        // `teacherId` is "" — so guard against `.doc("")`.
+        const ownerTeacherId = classDoc.teacherId || "";
+        const teacherSnap = ownerTeacherId
+            ? await adminDb.collection("teachers").doc(ownerTeacherId).get()
+            : null;
+        const teacherData = teacherSnap?.exists ? teacherSnap.data() : null;
         const teacher = {
-            id: classDoc.teacherId,
+            id: ownerTeacherId,
             profile: teacherData?.profile || {},
             subjects: teacherData?.profile?.subjects || [],
         };

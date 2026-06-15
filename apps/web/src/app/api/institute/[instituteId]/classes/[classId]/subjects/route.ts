@@ -34,6 +34,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { assertInstituteAdmin } from "@/lib/server/institutes";
 import { toIsoDate } from "@/lib/server/classroomAccess";
+import { sanitizeMeetings } from "@/lib/server/sections";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ interface SubjectPayload {
     teacherName: string;
     teacherEmail: string;
     order: number;
+    room: string | null;
+    meetings: { day: string; startTime: string; endTime: string; room: string | null }[];
     createdAt: string | null;
     updatedAt: string | null;
 }
@@ -59,6 +62,8 @@ function serializeSubject(
         teacherName: data.teacherName || "",
         teacherEmail: data.teacherEmail || "",
         order: typeof data.order === "number" ? data.order : 0,
+        room: data.room ?? null,
+        meetings: Array.isArray(data.meetings) ? data.meetings : [],
         createdAt: toIsoDate(data.createdAt),
         updatedAt: toIsoDate(data.updatedAt),
     };
@@ -210,6 +215,10 @@ export async function POST(
             0
         ) + 1;
 
+        const meetings = sanitizeMeetings((body as { meetings?: unknown }).meetings);
+        const roomRaw = (body as { room?: string }).room;
+        const room = typeof roomRaw === "string" && roomRaw.trim() ? roomRaw.trim().slice(0, 40) : null;
+
         const now = Timestamp.now();
         const ref = guard.classRef.collection("subjects").doc();
         await ref.set({
@@ -218,6 +227,8 @@ export async function POST(
             teacherName: teacher.name,
             teacherEmail: teacher.email,
             order: nextOrder,
+            room,
+            meetings,
             createdAt: now,
             updatedAt: now,
             createdBy: auth.userId,

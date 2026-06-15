@@ -46,7 +46,13 @@ export async function resolveClassMember(classId: string, userId: string): Promi
     if (!userId) return { ok: false, status: 401, error: "Sign in to continue." };
     const classDoc = await getClassById(classId);
     if (!classDoc) return { ok: false, status: 404, error: "Class not found." };
-    if (classDoc.teacherId === userId) {
+    // The class owner OR a subject-teacher of an institute class (uid present in
+    // the denormalised teacherIds[]) acts as the teacher for community actions
+    // (post announcements, moderate threads, mark answers, share resources).
+    if (
+        classDoc.teacherId === userId ||
+        (Array.isArray(classDoc.teacherIds) && classDoc.teacherIds.includes(userId))
+    ) {
         return { ok: true, userId, role: "teacher", classDoc, block: NO_BLOCK };
     }
     // Read the roster doc directly so we get membership AND the moderation

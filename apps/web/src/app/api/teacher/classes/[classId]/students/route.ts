@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { assertClassOwner } from "@/lib/server/classes";
+import { assertClassTeacher } from "@/lib/server/classes";
 import { toIsoDate } from "@/lib/server/classroomAccess";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ function serializeStudent(doc: FirebaseFirestore.DocumentSnapshot) {
 
 export async function GET(req: Request, { params }: { params: { classId: string } }) {
     try {
-        const ownership = await assertClassOwner(req, params.classId);
+        const ownership = await assertClassTeacher(req, params.classId);
         if (!ownership.ok) {
             return NextResponse.json({ error: ownership.error }, { status: ownership.status });
         }
@@ -53,7 +53,7 @@ export async function GET(req: Request, { params }: { params: { classId: string 
 
 export async function POST(req: Request, { params }: { params: { classId: string } }) {
     try {
-        const ownership = await assertClassOwner(req, params.classId);
+        const ownership = await assertClassTeacher(req, params.classId);
         if (!ownership.ok) {
             return NextResponse.json({ error: ownership.error }, { status: ownership.status });
         }

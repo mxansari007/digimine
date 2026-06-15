@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { assertInstituteAdmin } from "@/lib/server/institutes";
+import { sanitizeMeetings } from "@/lib/server/sections";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,8 @@ export async function PATCH(
             name?: string;
             teacherId?: string;
             order?: number;
+            meetings?: unknown;
+            room?: string;
         };
         const update: Record<string, unknown> = { updatedAt: Timestamp.now() };
 
@@ -172,6 +175,13 @@ export async function PATCH(
             update.order = body.order;
         }
 
+        if (Array.isArray(body.meetings)) {
+            update.meetings = sanitizeMeetings(body.meetings);
+        }
+        if (typeof body.room === "string") {
+            update.room = body.room.trim() ? body.room.trim().slice(0, 40) : null;
+        }
+
         await subjectRef.set(update, { merge: true });
         await syncClassDenorm(guard.classRef);
 
@@ -203,6 +213,8 @@ export async function PATCH(
                 teacherName: data.teacherName || "",
                 teacherEmail: data.teacherEmail || "",
                 order: typeof data.order === "number" ? data.order : 0,
+                room: data.room ?? null,
+                meetings: Array.isArray(data.meetings) ? data.meetings : [],
             },
         });
     } catch (error) {

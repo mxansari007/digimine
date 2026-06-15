@@ -4,7 +4,15 @@
 
 export interface TeacherProfile {
     name: string;
+    /** Canonical university/college display name (resolved via the directory). */
     institute: string;
+    /**
+     * Resolved University directory id (see `university.ts`). `institute`
+     * holds the canonical display name; this links to the shared row so
+     * sections/classes can be scoped to the same university. Optional for
+     * back-compat with profiles created before the directory existed.
+     */
+    universityId?: string | null;
     phone: string;
     bio: string;
     avatarUrl: string | null;

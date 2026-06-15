@@ -9,15 +9,68 @@ import {
     Timestamp,
 } from "firebase/firestore";
 import {
+    AI_QUOTA_PERIODS,
+    AI_QUOTA_TASKS,
     DEFAULT_AI_PROVIDER_CONFIG,
     DEFAULT_SUBSCRIPTION_CONFIG,
+    type AiAllowance,
+    type AiAllowanceMap,
     type AiProvider,
     type AiProviderConfig,
+    type AiQuotaPeriod,
+    type AiQuotaTask,
     type AppSubscriptionPlan,
     type PromoCode,
     type SubscriptionGlobalConfig,
     type TeachingLimits,
 } from "@digimine/types";
+
+const VALID_PERIODS = new Set<AiQuotaPeriod>(AI_QUOTA_PERIODS.map((p) => p.key));
+
+/**
+ * Read the per-task AI allowance map off a raw plan doc. Back-compat: when
+ * `aiAllowances` is absent, derive the question-gen allowance from the
+ * legacy `aiQuestionsPerDay` (daily). Missing tasks default to unlimited.
+ */
+function mapAiAllowances(raw: any): AiAllowanceMap {
+    const out: AiAllowanceMap = {};
+    const src = (raw?.aiAllowances || {}) as Record<string, any>;
+    for (const t of AI_QUOTA_TASKS) {
+        const a = src[t.key];
+        if (a && typeof a.limit === "number" && Number.isFinite(a.limit)) {
+            out[t.key] = {
+                limit: Math.trunc(a.limit),
+                period: VALID_PERIODS.has(a.period) ? a.period : "month",
+            };
+        } else if (t.key === "ai_question_generation" && typeof raw?.aiQuestionsPerDay === "number") {
+            out[t.key] = { limit: raw.aiQuestionsPerDay, period: "day" };
+        } else {
+            out[t.key] = { limit: -1, period: "month" };
+        }
+    }
+    return out;
+}
+
+/** Project a question-gen allowance to the legacy daily cap (null unless daily). */
+function legacyDayCap(a: AiAllowance | undefined): number | null {
+    if (!a || typeof a.limit !== "number") return null;
+    if (a.limit === 0) return 0;
+    if (a.limit < 0) return null;
+    return a.period === "day" ? a.limit : null;
+}
+
+/** Sanitize an allowance map for persistence. */
+function cleanAiAllowances(map: AiAllowanceMap | undefined): Record<string, AiAllowance> {
+    const out: Record<string, AiAllowance> = {};
+    for (const t of AI_QUOTA_TASKS) {
+        const a = map?.[t.key];
+        out[t.key] = {
+            limit: a && typeof a.limit === "number" ? Math.trunc(a.limit) : -1,
+            period: a && VALID_PERIODS.has(a.period) ? a.period : "month",
+        };
+    }
+    return out;
+}
 
 function mapTeachingLimits(raw: any): TeachingLimits | undefined {
     if (!raw || typeof raw !== "object") return undefined;
@@ -106,6 +159,7 @@ function mapPlan(id: string, d: any): AppSubscriptionPlan {
         teachingLimits: mapTeachingLimits(d.teachingLimits),
         aiQuestionsPerDay:
             typeof d.aiQuestionsPerDay === "number" ? d.aiQuestionsPerDay : null,
+        aiAllowances: mapAiAllowances(d),
         isFree: Boolean(d.isFree),
         isActive: d.isActive !== false,
         isPublic: d.isPublic !== false,
@@ -154,8 +208,15 @@ export async function savePlan(plan: Partial<AppSubscriptionPlan> & { id?: strin
             (rs === "teacher" || rs === "institute") && plan.teachingLimits
                 ? plan.teachingLimits
                 : null,
-        aiQuestionsPerDay:
-            typeof plan.aiQuestionsPerDay === "number" ? plan.aiQuestionsPerDay : null,
+        // Per-task AI allowances (limit + period) — only for teaching plans.
+        aiAllowances:
+            rs === "teacher" || rs === "institute"
+                ? cleanAiAllowances(plan.aiAllowances)
+                : null,
+        // Legacy daily cap kept in sync for back-compat readers: the
+        // question-gen allowance projected to a daily number (null unless
+        // its period is "day").
+        aiQuestionsPerDay: legacyDayCap(plan.aiAllowances?.ai_question_generation),
         isFree: Boolean(plan.isFree),
         isActive: plan.isActive !== false,
         isPublic: plan.isPublic !== false,

@@ -54,3 +54,6 @@ infra/meilisearch/
 
 # Deploy env files — VM-specific, may carry endpoints / tokens.
 .deploy/*.env
+
+# Local-only reference checkouts (open-source RN apps + design systems we study).
+reference-libs/

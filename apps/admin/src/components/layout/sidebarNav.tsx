@@ -73,6 +73,12 @@ const PayoutIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const CreditIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+);
+
 const ArticleIcon = ({ className }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
@@ -101,6 +107,7 @@ export const adminNav: AppSidebarNavItem[] = [
     { name: "Articles", href: "/articles", icon: ArticleIcon },
     { name: "Discussions", href: "/discussions", icon: DiscussionIcon },
     { name: "Subscription", href: "/subscription", icon: PayoutIcon },
+    { name: "AI Credits", href: "/ai-credits", icon: CreditIcon },
     { name: "Orders", href: "/orders", icon: ShoppingCartIcon },
     { name: "Test Series", href: "/tests", icon: TestIcon },
     { name: "Question Bank", href: "/question-bank", icon: QuestionBankIcon },

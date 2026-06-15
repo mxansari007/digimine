@@ -667,6 +667,35 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // University directory — a shared, lightweight lookup (canonical name +
+    // aliases) used to dedupe what teachers type at signup. All writes go
+    // through the server (Admin SDK, which bypasses rules); clients only read
+    // it, and they actually go through /api/universities, so reads can stay
+    // limited to signed-in users without breaking anything.
+    match /universities/{universityId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Sections & groups — the cohort structure under a university. All writes
+    // go through the server (Admin SDK, which bypasses rules); clients read via
+    // /api/sections, so reads stay open to signed-in users only. Group
+    // membership is written server-side on join and is readable by the member
+    // (and admins); teachers see students through the materialised class roster.
+    match /sections/{sectionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+
+      match /members/{studentId} {
+        allow read: if isAuthenticated() && (request.auth.uid == studentId || isAdmin());
+        allow write: if isAdmin();
+      }
+    }
+
     // Teachers collection
     //
     // - Profile fields (name, bio, avatarUrl, payout, etc.) are owner-editable.
@@ -1291,6 +1320,15 @@ service cloud.firestore {
     }
     match /communityReports/{reportId} {
       allow read, write: if false;
+    }
+
+    // Job openings shown on the student job-map. Readable by any signed-in user
+    // (the API serves them via the admin SDK; this also permits a direct client
+    // read). Writes are server-only — the sync/cron use the admin SDK; admins
+    // may also write directly.
+    match /jobOpenings/{jobId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

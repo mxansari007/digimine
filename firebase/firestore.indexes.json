@@ -1,6 +1,14 @@
 {
     "indexes": [
         {
+            "collectionGroup": "jobOpenings",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "active", "order": "ASCENDING" },
+                { "fieldPath": "syncedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "aiInterviewSessions",
             "queryScope": "COLLECTION",
             "fields": [

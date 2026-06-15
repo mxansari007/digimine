@@ -21,10 +21,10 @@
  *   - Reuses the same analytics helpers so we don't duplicate the
  *     risk-scoring math.
  *
- * Access: teacher must own the class (assertClassOwner).
+ * Access: a teacher who owns OR teaches a subject in the class (assertClassTeacher).
  */
 import { NextResponse } from "next/server";
-import { assertClassOwner } from "@/lib/server/classes";
+import { assertClassTeacher } from "@/lib/server/classes";
 import {
     buildDailyActivity,
     clampPercent,
@@ -46,7 +46,7 @@ const WEAK_TOPIC_LIMIT = 3;
 
 export async function GET(req: Request, { params }: { params: { classId: string } }) {
     try {
-        const ownership = await assertClassOwner(req, params.classId);
+        const ownership = await assertClassTeacher(req, params.classId);
         if (!ownership.ok) {
             return NextResponse.json({ error: ownership.error }, { status: ownership.status });
         }

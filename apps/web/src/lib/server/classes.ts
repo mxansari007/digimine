@@ -119,18 +119,52 @@ export async function assertClassOwner(
     return { ok: true, teacherId: userId, classDoc };
 }
 
+/**
+ * Like {@link assertClassOwner}, but also allows a teacher who teaches a SUBJECT
+ * in the class — their uid is in `classDoc.teacherIds[]` (institute classes the
+ * teacher is assigned to but doesn't "own"). Use this for READ + student/content
+ * management on assigned classes; keep `assertClassOwner` for structural changes
+ * (rename / archive), which only the owner / institute admin should do.
+ */
+export async function assertClassTeacher(
+    req: Request,
+    classId: string
+): Promise<{ ok: true; teacherId: string; classDoc: any } | { ok: false; status: number; error: string }> {
+    const userId = await getBearerUserId(req).catch(() => null);
+    if (!userId) return { ok: false, status: 401, error: "Authentication required" };
+    const classDoc = await getClassById(classId);
+    if (!classDoc) return { ok: false, status: 404, error: "Class not found" };
+    const isOwner = classDoc.teacherId === userId;
+    const isSubjectTeacher =
+        Array.isArray(classDoc.teacherIds) && classDoc.teacherIds.includes(userId);
+    if (!isOwner && !isSubjectTeacher) {
+        return { ok: false, status: 403, error: "You don't teach this class" };
+    }
+    return { ok: true, teacherId: userId, classDoc };
+}
+
 export async function listTeacherClasses(teacherId: string): Promise<any[]> {
-    const snap = await adminDb
-        .collection("classes")
-        .where("teacherId", "==", teacherId)
-        .get();
-    return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a: any, b: any) => {
-            const aTime = (a.createdAt?.toMillis?.() || 0);
-            const bTime = (b.createdAt?.toMillis?.() || 0);
-            return bTime - aTime;
-        });
+    // A teacher should see two kinds of class:
+    //   1. ones they OWN — `teacherId == them` (independent-teacher classes, and
+    //      institute classes where they're the lead teacher);
+    //   2. institute classes where they teach a SUBJECT — the institute subjects
+    //      route denormalises every subject's teacher into `class.teacherIds[]`,
+    //      so we also match `teacherIds array-contains them`.
+    // Without (2), a teacher assigned only as a subject teacher (teacherId on the
+    // class is "" or the lead) never sees the institute class they teach in.
+    const [owned, assigned] = await Promise.all([
+        adminDb.collection("classes").where("teacherId", "==", teacherId).get(),
+        adminDb.collection("classes").where("teacherIds", "array-contains", teacherId).get(),
+    ]);
+    const byId = new Map<string, any>();
+    for (const d of [...owned.docs, ...assigned.docs]) {
+        if (!byId.has(d.id)) byId.set(d.id, { id: d.id, ...d.data() });
+    }
+    return Array.from(byId.values()).sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+    });
 }
 
 /**
@@ -179,6 +213,21 @@ export function serializeClass(doc: any) {
         studentsCount: data.studentsCount ?? 0,
         activeStudentsCount: data.activeStudentsCount ?? 0,
         isArchived: data.isArchived ?? false,
+        // Institute classes set instituteId + teacherIds[] (all subject teachers);
+        // independent-teacher classes leave instituteId null. Callers use these to
+        // tell the two shapes apart and to know every teacher of a class.
+        instituteId: data.instituteId ?? null,
+        teacherIds: Array.isArray(data.teacherIds) ? data.teacherIds : [],
+        // Section / subject / schedule (new model; absent on legacy classes).
+        universityId: data.universityId ?? null,
+        sectionId: data.sectionId ?? null,
+        sectionName: data.sectionName ?? null,
+        subject: data.subject ?? null,
+        groupIds: Array.isArray(data.groupIds) ? data.groupIds : [],
+        groupNames: Array.isArray(data.groupNames) ? data.groupNames : [],
+        groupCodes: Array.isArray(data.groupCodes) ? data.groupCodes : [],
+        room: data.room ?? null,
+        meetings: Array.isArray(data.meetings) ? data.meetings : [],
         createdAt: toIsoDate(data.createdAt),
         updatedAt: toIsoDate(data.updatedAt),
     };

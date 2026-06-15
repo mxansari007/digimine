@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { allocateUniqueInviteCode, assertClassOwner, serializeClass } from "@/lib/server/classes";
+import { allocateUniqueInviteCode, assertClassOwner, assertClassTeacher, serializeClass } from "@/lib/server/classes";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: { classId: string } }) {
     try {
-        const ownership = await assertClassOwner(req, params.classId);
+        // Read: owner OR a subject-teacher (institute classes) may view it.
+        const ownership = await assertClassTeacher(req, params.classId);
         if (!ownership.ok) {
             return NextResponse.json({ error: ownership.error }, { status: ownership.status });
         }

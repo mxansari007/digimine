@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { assertClassOwner } from "@/lib/server/classes";
+import { assertClassTeacher } from "@/lib/server/classes";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export async function PATCH(
     { params }: { params: { classId: string; studentId: string } }
 ) {
     try {
-        const ownership = await assertClassOwner(req, params.classId);
+        const ownership = await assertClassTeacher(req, params.classId);
         if (!ownership.ok) {
             return NextResponse.json({ error: ownership.error }, { status: ownership.status });
         }

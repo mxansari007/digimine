@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@digimine/web", "exec", "next", "dev"],
+      "autoPort": true
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@digimine/admin", "exec", "next", "dev"],
+      "autoPort": true
+    }
+  ]
+}

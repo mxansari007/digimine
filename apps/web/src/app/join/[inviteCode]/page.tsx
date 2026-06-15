@@ -18,6 +18,13 @@ type LookupResult = {
         profile?: { name?: string; institute?: string; avatarUrl?: string | null };
         inviteCode?: string;
     } | null;
+    group?: {
+        id: string;
+        name: string;
+        sectionName: string;
+        classCount: number;
+        subjects: string[];
+    } | null;
 };
 
 export default function JoinPage() {
@@ -42,6 +49,7 @@ export default function JoinPage() {
 
     const classDoc = data.class || null;
     const teacher = data.teacher || null;
+    const group = data.group || null;
 
     const handleJoin = async () => {
         if (!firebaseUser) return;
@@ -67,8 +75,13 @@ export default function JoinPage() {
             });
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || "Failed to join");
+            // Group joins return classIds[] (the classes the group is in); class
+            // joins return classId; legacy returns teacherId.
+            const firstGroupClass = Array.isArray(result.classIds) ? result.classIds[0] : null;
             const target = result.classId
                 ? `/classroom/${result.classId}`
+                : firstGroupClass
+                ? `/classroom/${firstGroupClass}`
                 : result.teacherId
                 ? `/classroom/legacy:${result.teacherId}`
                 : "/dashboard";
@@ -87,7 +100,7 @@ export default function JoinPage() {
         );
     }
 
-    if (!classDoc && !teacher) {
+    if (!classDoc && !teacher && !group) {
         return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center">
                 <Card className="p-8 text-center">
@@ -98,31 +111,54 @@ export default function JoinPage() {
         );
     }
 
+    const title = classDoc?.name || group?.sectionName || teacher?.profile?.name || "Class";
+    const avatarLetter = (
+        classDoc?.name?.[0] ||
+        group?.sectionName?.[0] ||
+        teacher?.profile?.name?.[0] ||
+        "C"
+    ).toUpperCase();
+
     return (
         <div className="min-h-screen bg-slate-100 flex items-center justify-center py-12 px-4">
             <Card className="max-w-md w-full p-8 text-center">
                 <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-400 p-[2px]">
                     <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-3xl font-bold text-indigo-700">
-                        {(classDoc?.name?.[0] || teacher?.profile?.name?.[0] || "C").toUpperCase()}
+                        {avatarLetter}
                     </div>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                    {classDoc?.name || teacher?.profile?.name || "Class"}
-                </h1>
-                <p className="text-gray-500">
-                    {classDoc
-                        ? `Taught by ${teacher?.profile?.name || "Teacher"}${teacher?.profile?.institute ? ` · ${teacher.profile.institute}` : ""}`
-                        : teacher?.profile?.institute || ""}
-                </p>
-                {classDoc?.description && (
-                    <p className="text-sm text-gray-500 mt-3">{classDoc.description}</p>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{title}</h1>
+
+                {group ? (
+                    <>
+                        <p className="text-gray-500">
+                            Group {group.name}
+                            {group.classCount > 0
+                                ? ` · ${group.classCount} ${group.classCount === 1 ? "class" : "classes"}`
+                                : ""}
+                        </p>
+                        {group.subjects.length > 0 && (
+                            <p className="text-sm text-gray-500 mt-3">{group.subjects.join(" · ")}</p>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <p className="text-gray-500">
+                            {classDoc
+                                ? `Taught by ${teacher?.profile?.name || "Teacher"}${teacher?.profile?.institute ? ` · ${teacher.profile.institute}` : ""}`
+                                : teacher?.profile?.institute || ""}
+                        </p>
+                        {classDoc?.description && (
+                            <p className="text-sm text-gray-500 mt-3">{classDoc.description}</p>
+                        )}
+                    </>
                 )}
 
                 {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
 
                 {!authLoading && firebaseUser ? (
                     <Button variant="primary" className="mt-6 w-full" onClick={handleJoin} isLoading={joining}>
-                        Join {classDoc ? "Class" : "Classroom"}
+                        {group ? "Join Section" : classDoc ? "Join Class" : "Join Classroom"}
                     </Button>
                 ) : !authLoading ? (
                     <Link href={`/login?redirect=/join/${inviteCode}`}>

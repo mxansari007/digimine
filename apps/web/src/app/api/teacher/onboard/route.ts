@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { requireVerifiedUser } from "@/lib/server/classroomAccess";
+import { resolveOrCreateUniversity } from "@/lib/server/universities";
 
 export async function POST(req: Request) {
     try {
@@ -33,6 +34,24 @@ export async function POST(req: Request) {
 
             if (!name || !institute || !inviteCode) {
                 return NextResponse.json({ error: "Name, institute and invite code are required" }, { status: 400 });
+            }
+
+            // Resolve the typed institute to a canonical University directory
+            // entry so duplicates ("CU" / "Chandigarh University" / "chandigarh
+            // university") collapse to ONE shared row that sections + classes
+            // can be scoped to. This is the server-side safety net — it runs
+            // even when the client didn't pick from the dropdown. If it fails
+            // for any reason we fall back to the raw text so onboarding never
+            // breaks on a directory hiccup.
+            let canonicalInstitute = String(institute).trim();
+            let universityId: string | null =
+                (typeof body.universityId === "string" && body.universityId) || null;
+            try {
+                const resolved = await resolveOrCreateUniversity(canonicalInstitute, uid);
+                canonicalInstitute = resolved.university.name;
+                universityId = resolved.university.id;
+            } catch (e) {
+                console.warn("[teacher/onboard] university resolve failed, using raw input:", e);
             }
 
             const now = Timestamp.now();
@@ -68,7 +87,8 @@ export async function POST(req: Request) {
                 userId: uid,
                 profile: {
                     name,
-                    institute,
+                    institute: canonicalInstitute,
+                    universityId,
                     phone: phone || "",
                     bio: bio || "",
                     avatarUrl: avatarUrl || null,
@@ -104,7 +124,7 @@ export async function POST(req: Request) {
             }, { merge: true });
 
             await batch.commit();
-            return NextResponse.json({ success: true });
+            return NextResponse.json({ success: true, universityId });
         }
 
         return NextResponse.json({ error: "Invalid step" }, { status: 400 });
