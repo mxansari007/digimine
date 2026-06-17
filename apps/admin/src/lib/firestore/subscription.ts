@@ -18,7 +18,6 @@ import {
     type AiProvider,
     type AiProviderConfig,
     type AiQuotaPeriod,
-    type AiQuotaTask,
     type AppSubscriptionPlan,
     type PromoCode,
     type SubscriptionGlobalConfig,
