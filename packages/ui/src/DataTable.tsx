@@ -33,6 +33,14 @@ export interface DataTableProps<T> {
   skeletonRows?: number;
   /** Optional click handler per row (adds pointer + keyboard affordance). */
   onRowClick?: (row: T, index: number) => void;
+  /**
+   * Custom card renderer for the mobile (<768px) layout. If omitted, a card is
+   * auto-built from the columns (first column = title, the rest = label→value
+   * rows; columns with an empty/string-less header render full-width).
+   */
+  mobileCard?: (row: T, index: number) => React.ReactNode;
+  /** Column key used as the card title on mobile (defaults to the first column). */
+  primaryColumn?: string;
 }
 
 export interface PaginationControlsProps {
@@ -110,8 +118,16 @@ export function DataTable<T>({
   dense = false,
   skeletonRows = 6,
   onRowClick,
+  mobileCard,
+  primaryColumn,
 }: DataTableProps<T>): React.JSX.Element {
   const cellY = dense ? "py-2.5" : "py-3.5";
+  const titleColumn = primaryColumn
+    ? columns.find((c) => c.key === primaryColumn) ?? columns[0]
+    : columns[0];
+  const detailColumns = columns.filter((c) => c !== titleColumn);
+  const columnLabel = (column: DataTableColumn<T>) =>
+    typeof column.header === "string" ? column.header.trim() : "";
   const headProps = (column: DataTableColumn<T>) => ({
     style: column.width ? { width: column.width, minWidth: column.width } : undefined,
   });
@@ -120,7 +136,7 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft-sm">
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full border-separate border-spacing-0 text-left">
           <thead>
             <tr>
@@ -212,6 +228,90 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+
+      {/* Mobile (<768px): the same data as a stacked card list — wide tables are
+          unusable on a phone, so each row becomes a title + label/value card. */}
+      <div className="md:hidden">
+        {isLoading ? (
+          loadingState ? (
+            <div className="px-4 py-12 text-center text-sm text-slate-500">{loadingState}</div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {Array.from({ length: skeletonRows }).map((_, r) => (
+                <li key={`mk-${r}`} className="space-y-2 p-4">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-20" />
+                </li>
+              ))}
+            </ul>
+          )
+        ) : data.length === 0 ? (
+          <div className="px-4 py-14 text-center">
+            <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-slate-500">
+              <svg className="h-8 w-8 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
+              </svg>
+              <div className="text-sm">{emptyState}</div>
+            </div>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {data.map((row, index) => {
+              const clickable = Boolean(onRowClick);
+              return (
+                <li
+                  key={keyExtractor(row, index)}
+                  onClick={clickable ? () => onRowClick?.(row, index) : undefined}
+                  className={[
+                    "p-4",
+                    clickable ? "cursor-pointer active:bg-slate-50" : "",
+                    rowClassName?.(row, index) || "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {mobileCard ? (
+                    mobileCard(row, index)
+                  ) : (
+                    <div className="space-y-2">
+                      {titleColumn && (
+                        <div className="text-sm font-semibold text-slate-900">
+                          {titleColumn.render(row, index)}
+                        </div>
+                      )}
+                      <div className="space-y-1.5">
+                        {detailColumns.map((column) => {
+                          const label = columnLabel(column);
+                          const value = column.render(row, index);
+                          if (!label) {
+                            return (
+                              <div key={column.key} className="pt-1">
+                                {value}
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={column.key} className="flex items-start justify-between gap-3 text-sm">
+                              <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-400">
+                                {label}
+                              </span>
+                              <span className={["min-w-0 text-right text-slate-700", column.numeric ? "tabular-nums" : ""].filter(Boolean).join(" ")}>
+                                {value}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
       {footer && (
         <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-3">{footer}</div>
       )}

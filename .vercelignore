@@ -1,0 +1,10 @@
+# Build outputs + caches — Vercel rebuilds from source, so never upload these.
+# (Their absence here is what caused the 1.1GB / >5000-file upload failure.)
+.git
+.next
+.turbo
+node_modules
+dist
+coverage
+*.log
+.DS_Store

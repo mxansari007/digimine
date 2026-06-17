@@ -9,6 +9,7 @@ import { signOut } from "@/lib/firebase/auth";
 import { PageLoading } from "@/components/common";
 import { userHomePath, ROLE_SELECT_PATH } from "@/lib/auth/redirects";
 import { studentNav, portalSwitchNav, withCredits } from "@/components/layout/sidebarNav";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
 import { useCredits } from "@/contexts/CreditsContext";
@@ -113,6 +114,7 @@ function DashboardLayoutInner({
   return (
     <DashboardShell
       role="student"
+      bottomBar={({ onOpenNav }) => <MobileTabBar role="student" onMore={onOpenNav} />}
       sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
         <AppSidebar
           role="student"

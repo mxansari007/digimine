@@ -471,7 +471,7 @@ export default function TeacherClassDetailPage() {
                         </p>
                     )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:flex-shrink-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
                     {classroom.isArchived && (
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                             Archived
@@ -742,32 +742,43 @@ export default function TeacherClassDetailPage() {
                             : "No students match the current filters."}
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[1080px] text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    <th className="px-5 py-2.5">Student</th>
-                                    <th className="px-5 py-2.5">Risk</th>
-                                    <th className="px-5 py-2.5">Avg / Best</th>
-                                    <th className="px-5 py-2.5">Coverage</th>
-                                    <th className="px-5 py-2.5">Activity (14d)</th>
-                                    <th className="px-5 py-2.5">Last active</th>
-                                    <th className="px-5 py-2.5">Attempts</th>
-                                    <th className="px-5 py-2.5"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredStudents.map((s) => (
-                                    <RosterRow
-                                        key={s.id}
-                                        s={s}
-                                        classAverage={insights.classAverage}
-                                        onStatus={handleStatus}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <>
+                        {/* Desktop: full roster table. */}
+                        <div className="hidden overflow-x-auto md:block">
+                            <table className="w-full min-w-[1080px] text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                        <th className="px-5 py-2.5">Student</th>
+                                        <th className="px-5 py-2.5">Risk</th>
+                                        <th className="px-5 py-2.5">Avg / Best</th>
+                                        <th className="px-5 py-2.5">Coverage</th>
+                                        <th className="px-5 py-2.5">Activity (14d)</th>
+                                        <th className="px-5 py-2.5">Last active</th>
+                                        <th className="px-5 py-2.5">Attempts</th>
+                                        <th className="px-5 py-2.5"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredStudents.map((s) => (
+                                        <RosterRow
+                                            key={s.id}
+                                            s={s}
+                                            classAverage={insights.classAverage}
+                                            onStatus={handleStatus}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Mobile: triage cards. */}
+                        <ul className="divide-y divide-slate-100 md:hidden">
+                            {filteredStudents.map((s) => (
+                                <li key={s.id}>
+                                    <RosterCard s={s} classAverage={insights.classAverage} onStatus={handleStatus} />
+                                </li>
+                            ))}
+                        </ul>
+                    </>
                 )}
             </Card>
 
@@ -1055,6 +1066,122 @@ function RosterRow({
                 </div>
             </td>
         </tr>
+    );
+}
+
+/** Mobile (<768px) card form of a RosterRow — the wide table is unusable on a
+ *  phone, so a teacher gets the triage essentials + the same status actions. */
+function RosterCard({
+    s,
+    classAverage,
+    onStatus,
+}: {
+    s: StudentRow;
+    classAverage: number | null;
+    onStatus: (id: string, status: "active" | "banned" | "removed") => void;
+}) {
+    const riskTone: Record<RiskBand, string> = {
+        low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-500/25",
+        medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-500/25",
+        high: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-200 dark:ring-rose-500/25",
+    };
+    const avg = s.stats.averagePercentage;
+    const best = s.stats.bestPercentage;
+    const delta = avg != null && classAverage != null ? Math.round(avg - classAverage) : null;
+    const topWeak = s.weakTopics[0];
+    return (
+        <div className="p-4">
+            <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10 text-xs font-semibold text-primary-700 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-500/25">
+                    {initialsOf(s.studentName)}
+                </span>
+                <div className="min-w-0 flex-1">
+                    {s.isPending ? (
+                        <p className="truncate text-sm font-medium text-slate-700">
+                            {s.studentName}
+                            <span className="ml-1.5 rounded-md bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                                Pending
+                            </span>
+                        </p>
+                    ) : (
+                        <Link
+                            href={`/teacher/students/${encodeURIComponent(s.studentId)}`}
+                            className="block truncate text-sm font-medium text-slate-900 hover:text-primary-700"
+                        >
+                            {s.studentName}
+                        </Link>
+                    )}
+                    <p className="truncate text-xs text-slate-500">{s.studentEmail}</p>
+                    {topWeak && (
+                        <span className="mt-1 inline-flex items-center rounded-md bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-100 dark:ring-rose-500/25">
+                            Weak: {topWeak.category} · {topWeak.avgPercentage}%
+                        </span>
+                    )}
+                </div>
+                {s.stats.completedAttempts > 0 && (
+                    <span
+                        className={`inline-flex flex-shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${riskTone[s.risk.band]}`}
+                        title={s.risk.reasons.join(" · ")}
+                    >
+                        {s.risk.band} · {s.risk.score}
+                    </span>
+                )}
+            </div>
+
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Avg / Best</dt>
+                    <dd className="font-medium text-slate-800">
+                        {avg != null ? `${avg}%` : "—"} <span className="text-slate-400">/ {best != null ? `${best}%` : "—"}</span>
+                        {delta != null && (
+                            <span className={`ml-1 text-[10px] font-medium ${delta > 0 ? "text-emerald-600" : delta < 0 ? "text-rose-600" : "text-slate-400"}`}>
+                                ({delta > 0 ? "+" : ""}{delta})
+                            </span>
+                        )}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Coverage</dt>
+                    <dd className="font-medium text-slate-800">{s.stats.coveragePercent}%</dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Last active</dt>
+                    <dd className="font-medium text-slate-800">{formatRelative(s.stats.lastActiveAt)}</dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Attempts</dt>
+                    <dd className="font-medium text-slate-800">
+                        {s.stats.completedAttempts}
+                        {s.stats.inProgressAttempts > 0 && <span className="ml-1 text-amber-600">+{s.stats.inProgressAttempts}</span>}
+                    </dd>
+                </div>
+            </dl>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs">
+                {!s.isPending && (
+                    <Link
+                        href={`/teacher/students/${encodeURIComponent(s.studentId)}`}
+                        className="font-medium text-primary-700 hover:text-primary-800"
+                    >
+                        View →
+                    </Link>
+                )}
+                {s.status === "active" ? (
+                    <button onClick={() => onStatus(s.studentId, "banned")} className="text-amber-600 hover:text-amber-700">
+                        Ban
+                    </button>
+                ) : s.status === "banned" ? (
+                    <button onClick={() => onStatus(s.studentId, "active")} className="text-emerald-600 hover:text-emerald-700">
+                        Reinstate
+                    </button>
+                ) : null}
+                {s.status !== "removed" && (
+                    <button onClick={() => onStatus(s.studentId, "removed")} className="text-rose-600 hover:text-rose-700">
+                        Remove
+                    </button>
+                )}
+            </div>
+        </div>
     );
 }
 

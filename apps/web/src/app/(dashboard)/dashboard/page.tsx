@@ -1,19 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@digimine/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useCredits } from "@/contexts/CreditsContext";
 
-import type { Order, Product, TestSeries, TestAttempt } from "@digimine/types";
+import type { Product, TestSeries, TestAttempt } from "@digimine/types";
 import { BookOpenIcon } from "@/components/icons/AppIcons";
+
+// Jump-back-in tiles — the core learning/placement tools (replaces the old
+// e-commerce "Products/Orders" stat grid).
+const I = (d: string) => (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+    </svg>
+);
+const QUICK_ACTIONS: { label: string; desc: string; href: string; color: string; icon: ReactNode }[] = [
+    { label: "Coding Practice", desc: "DSA & SQL by pattern", href: "/practice", color: "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300", icon: I("M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4") },
+    { label: "Mock Tests", desc: "Timed exam papers", href: "/tests", color: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300", icon: I("M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z") },
+    { label: "Quizzes", desc: "Quick topic revision", href: "/quizzes", color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300", icon: I("M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h4.5M5 6.75h.01M5 12h.01M5 17.25h.01") },
+    { label: "Resume Maker", desc: "ATS resume + score", href: "/student/resume", color: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300", icon: I("M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z") },
+    { label: "AI Interview", desc: "Practice with feedback", href: "/dashboard/interviews", color: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-300", icon: I("M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v3a3 3 0 01-3 3z") },
+    { label: "Contests", desc: "Live leaderboard", href: "/dashboard/contests", color: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300", icon: I("M16.5 18.75h-9m9 0a3 3 0 003-3V5.25h-15v10.5a3 3 0 003 3m9 0v1.5a1.5 1.5 0 01-1.5 1.5h-6a1.5 1.5 0 01-1.5-1.5v-1.5") },
+    { label: "Jobs", desc: "Openings for you", href: "/student/jobs", color: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300", icon: I("M21 13.255A23.9 23.9 0 0112 15c-3.18 0-6.22-.62-9-1.745M16 6V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v1m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z") },
+    { label: "Project Eval", desc: "AI project review", href: "/dashboard/project-evals", color: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-300", icon: I("M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z") },
+];
 
 export default function DashboardPage() {
     const { user, firebaseUser } = useAuthContext();
     const credits = useCredits();
-    const [orders, setOrders] = useState<Order[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [purchasedSeries, setPurchasedSeries] = useState<TestSeries[]>([]);
     const [activeAttempt, setActiveAttempt] = useState<{ attempt: TestAttempt; series: TestSeries } | null>(null);
@@ -33,7 +50,6 @@ export default function DashboardPage() {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                setOrders(data.orders || []);
                 setProducts(data.products || []);
                 setPurchasedSeries(data.purchasedSeries || []);
                 setActiveAttempt(data.activeAttempt || null);
@@ -161,9 +177,9 @@ export default function DashboardPage() {
                             className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-50 dark:hover:bg-primary-500/10"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
-                            Browse Store
+                            Explore catalog
                         </Link>
                         {classrooms.length === 0 && (
                             <Link
@@ -212,58 +228,28 @@ export default function DashboardPage() {
                 </Link>
             )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    {
-                        label: "Products Owned",
-                        value: products.length,
-                        icon: (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                        ),
-                        color: "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-300",
-                    },
-                    {
-                        label: "Test Series",
-                        value: purchasedSeries.length,
-                        icon: (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                        ),
-                        color: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300",
-                    },
-                    {
-                        label: "My Classrooms",
-                        value: classrooms.length,
-                        icon: (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                            </svg>
-                        ),
-                        color: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-                    },
-                    {
-                        label: "Total Orders",
-                        value: orders.length,
-                        icon: (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        ),
-                        color: "bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-300",
-                    },
-                ].map((stat) => (
-                    <div key={stat.label} className="surface-panel p-6 transition-all hover:-translate-y-0.5 hover:border-primary-200/80 hover:shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
-                        <div className={`w-12 h-12 rounded-xl ${stat.color} flex items-center justify-center mb-4`}>
-                            {stat.icon}
-                        </div>
-                        <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
-                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                    </div>
-                ))}
+            {/* Quick actions — the core prep tools, front and centre. Replaces
+                the old "Products Owned / Total Orders" e-commerce stat grid so
+                the dashboard opens onto things to DO, not things bought. */}
+            <div>
+                <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-slate-100">Jump back in</h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {QUICK_ACTIONS.map((a) => (
+                        <Link
+                            key={a.href}
+                            href={a.href}
+                            className="surface-panel group flex items-center gap-3 p-4 transition-all hover:-translate-y-0.5 hover:border-primary-200/80 hover:shadow-[0_20px_50px_rgba(15,23,42,0.12)]"
+                        >
+                            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${a.color}`}>
+                                {a.icon}
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block truncate text-sm font-bold text-gray-900 dark:text-slate-100">{a.label}</span>
+                                <span className="block truncate text-xs text-gray-500 dark:text-slate-400">{a.desc}</span>
+                            </span>
+                        </Link>
+                    ))}
+                </div>
             </div>
 
             {/* My Classrooms Section */}

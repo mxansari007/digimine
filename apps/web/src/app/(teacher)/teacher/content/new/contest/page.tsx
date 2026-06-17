@@ -19,6 +19,7 @@ import {
 import { getTeacherTestsInSeries } from "@/lib/firestore/tests";
 import { QuestionBankPicker as TeacherQuestionBankPicker } from "@/components/question-bank/QuestionBankPicker";
 import { incrementTeacherQuestionBankUsage } from "@/lib/firestore/questionBank";
+import { MobileAuthoringNotice } from "@/components/teacher/MobileAuthoringNotice";
 import {
   parseQuizQuestionsMarkdown,
   QUIZ_QUESTION_TEMPLATE_MD,
@@ -103,6 +104,8 @@ export default function CreateTeacherContestPage() {
           </p>
         </div>
       </div>
+
+      <MobileAuthoringNotice what="Building a contest" />
 
       <ContestForm
         actingUserId={firebaseUser?.uid || ""}

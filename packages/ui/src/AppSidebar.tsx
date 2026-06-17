@@ -468,8 +468,9 @@ export function AppSidebar({
         className={
           "fixed bottom-0 left-0 top-0 z-40 flex h-full transform flex-col border-r border-slate-200/80 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur-xl transition-[width,transform] duration-200 ease-out lg:translate-x-0 " +
           (isRailCollapsed ? "lg:w-[72px] " : "lg:w-64 ") +
-          // Mobile drawer is always the full width so labels are readable.
-          "w-64 " +
+          // Mobile drawer: 256px but capped at 85vw so small phones (≤320px)
+          // keep a usable strip of content visible behind the overlay.
+          "w-64 max-w-[85vw] lg:max-w-none " +
           (isOpen ? "translate-x-0" : "-translate-x-full")
         }
         data-collapsed={isRailCollapsed ? "true" : "false"}

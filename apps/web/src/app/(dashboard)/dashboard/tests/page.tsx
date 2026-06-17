@@ -200,8 +200,8 @@ export default function MyTestSeriesPage() {
 
                         return (
                             <Card key={series.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-none shadow-md">
-                                <div className="flex h-full">
-                                    <div className="w-1/3 relative overflow-hidden bg-gray-200">
+                                <div className="flex h-full flex-col sm:flex-row">
+                                    <div className="h-40 w-full overflow-hidden bg-gray-200 sm:h-auto sm:w-1/3 relative">
                                         {series.thumbnailURL ? (
                                             <img 
                                                 src={series.thumbnailURL} 
@@ -214,7 +214,7 @@ export default function MyTestSeriesPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="w-2/3 p-6 flex flex-col justify-between bg-white">
+                                    <div className="w-full sm:w-2/3 p-6 flex flex-col justify-between bg-white">
                                         <div>
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="text-[10px] uppercase tracking-wider font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-500/10 px-2 py-0.5 rounded">

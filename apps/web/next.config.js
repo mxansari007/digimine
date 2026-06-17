@@ -94,6 +94,12 @@ const nextConfig = {
             "onnxruntime-node",
             "@huggingface/transformers",
             "kokoro-js",
+            // Resume Maker: puppeteer-core renders the PDF via headless Chromium;
+            // unpdf/mammoth parse uploaded resumes. All are Node libs that must
+            // be required at runtime from node_modules, not webpack-bundled.
+            "puppeteer-core",
+            "unpdf",
+            "mammoth",
         ],
         // The /api/ai-interview/tts route imports kokoroTts (in-process Kokoro)
         // as a LOCAL-DEV fallback. Next's file-tracing follows the dynamic

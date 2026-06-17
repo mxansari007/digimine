@@ -43,11 +43,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Failsafe: a persisted session whose token refresh can't reach the auth
+    // backend (emulator mode with the emulators down, or a device that can't
+    // see `localhost`/`10.0.2.2`) can otherwise leave `loading` true forever —
+    // pinning the splash. Force it down after a few seconds so the app always
+    // proceeds to the login screen instead of freezing.
+    const failsafe = setTimeout(() => setLoading(false), 6000);
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
+      clearTimeout(failsafe);
     });
-    return unsub;
+    return () => {
+      clearTimeout(failsafe);
+      unsub();
+    };
   }, []);
 
   // Probe the role once a user is known. The teacher dashboard endpoint is
@@ -60,6 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
     setIsTeacher(null);
+    // The role probe gates the splash, so it must never leave `isTeacher` at
+    // `null`. `apiFetch` has no timeout, so a slow/unreachable API would hang
+    // here forever. Default to "not a teacher" after a short wait (the student
+    // tabs are the safe fallback); the probe still upgrades to the real answer
+    // if/when it lands.
+    const timer = setTimeout(() => {
+      if (!cancelled) setIsTeacher((cur) => (cur === null ? false : cur));
+    }, 5000);
     api
       .teacherDashboard(user.uid)
       .then(() => {
@@ -67,9 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (!cancelled) setIsTeacher(false);
-      });
+      })
+      .finally(() => clearTimeout(timer));
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [user]);
 

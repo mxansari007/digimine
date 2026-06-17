@@ -450,7 +450,8 @@ export default function TeacherStudentsPage() {
                 </Card>
             ) : (
                 <Card className="overflow-hidden p-0">
-                    <div className="overflow-x-auto">
+                    {/* Desktop: full roster table. */}
+                    <div className="hidden overflow-x-auto md:block">
                         <table className="w-full min-w-[1080px] text-sm">
                             <thead>
                                 <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -475,6 +476,14 @@ export default function TeacherStudentsPage() {
                             </tbody>
                         </table>
                     </div>
+                    {/* Mobile: the same students as triage cards. */}
+                    <ul className="divide-y divide-slate-100 md:hidden">
+                        {filtered.map((s) => (
+                            <li key={s.id}>
+                                <RosterCard s={s} onStatus={handleStatusChange} />
+                            </li>
+                        ))}
+                    </ul>
                 </Card>
             )}
         </div>
@@ -773,6 +782,121 @@ function RosterRow({
                 </div>
             </td>
         </tr>
+    );
+}
+
+/**
+ * Mobile (<768px) equivalent of a RosterRow. The 8-column table is unusable on
+ * a phone, so each student becomes a compact card with the triage essentials —
+ * risk, average, coverage, last-active — plus the same status actions.
+ */
+function RosterCard({
+    s,
+    onStatus,
+}: {
+    s: StudentRow;
+    onStatus: (id: string, status: "active" | "banned" | "removed") => void;
+}) {
+    const riskTone: Record<RiskBand, string> = {
+        low: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-500/25",
+        medium: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-500/25",
+        high: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-200 dark:ring-rose-500/25",
+    };
+    const avg = s.progress.averagePercentage;
+    const best = s.progress.bestPercentage;
+    return (
+        <div className="p-4">
+            <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10 text-xs font-semibold text-primary-700 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-500/25">
+                    {initialsOf(s.studentName)}
+                </span>
+                <div className="min-w-0 flex-1">
+                    <Link
+                        href={`/teacher/students/${encodeURIComponent(s.studentId)}`}
+                        className="block truncate text-sm font-medium text-slate-900 hover:text-primary-700"
+                    >
+                        {s.studentName}
+                    </Link>
+                    <p className="truncate text-xs text-slate-500">{s.studentEmail}</p>
+                    {s.status !== "active" && (
+                        <span
+                            className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                                s.status === "banned"
+                                    ? "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                                    : "bg-slate-100 text-slate-600"
+                            }`}
+                        >
+                            {s.status}
+                        </span>
+                    )}
+                </div>
+                {s.progress.completedAttempts > 0 && (
+                    <span
+                        className={`inline-flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${riskTone[s.risk.band]}`}
+                        title={s.risk.reasons.join(" · ")}
+                    >
+                        {s.risk.band} · {s.risk.score}
+                    </span>
+                )}
+            </div>
+
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Avg / Best</dt>
+                    <dd className="font-medium text-slate-800">
+                        {avg != null ? `${avg}%` : "—"} <span className="text-slate-400">/ {best != null ? `${best}%` : "—"}</span>
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Coverage</dt>
+                    <dd className="font-medium text-slate-800">
+                        {s.progress.progressPercent}%{" "}
+                        <span className="text-slate-400">
+                            {s.progress.completedContentCount}/{s.progress.totalAssignedContent}
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Last active</dt>
+                    <dd className="font-medium text-slate-800">{formatRelative(s.progress.lastActiveAt)}</dd>
+                </div>
+                <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Classes</dt>
+                    <dd className="truncate font-medium text-slate-800">
+                        {s.classes.length === 0 ? "—" : s.classes.map((c) => c.className).join(", ")}
+                    </dd>
+                </div>
+            </dl>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs">
+                <Link
+                    href={`/teacher/students/${encodeURIComponent(s.studentId)}`}
+                    className="font-medium text-primary-700 hover:text-primary-800"
+                >
+                    View →
+                </Link>
+                <Link
+                    href={`/teacher/students/compare?a=${encodeURIComponent(s.studentId)}`}
+                    className="text-slate-500 hover:text-slate-700"
+                >
+                    Compare
+                </Link>
+                {s.status === "active" ? (
+                    <button onClick={() => onStatus(s.id, "banned")} className="text-amber-600 hover:text-amber-700">
+                        Ban
+                    </button>
+                ) : s.status === "banned" ? (
+                    <button onClick={() => onStatus(s.id, "active")} className="text-emerald-600 hover:text-emerald-700">
+                        Reinstate
+                    </button>
+                ) : null}
+                {s.status !== "removed" && (
+                    <button onClick={() => onStatus(s.id, "removed")} className="text-rose-600 hover:text-rose-700">
+                        Remove
+                    </button>
+                )}
+            </div>
+        </div>
     );
 }
 

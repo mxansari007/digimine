@@ -85,7 +85,7 @@ export default function DownloadsPage() {
                     </span>
                 </h1>
                 <p className="text-gray-600 text-lg">
-                    Access your premium content and assets below.
+                    Course materials, notes, and resources you&apos;ve unlocked — ready to download.
                 </p>
             </div>
 
@@ -97,13 +97,13 @@ export default function DownloadsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Nothing to download yet</h3>
                     <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                        Your library is empty. Discover premium templates, courses, and assets in our marketplace.
+                        Notes, assets, and resources from your courses and test series will show up here once you enroll.
                     </p>
                     <Link href="/products">
                         <Button variant="primary" size="lg" className="shadow-xl shadow-primary-500/20">
-                            Explore Marketplace
+                            Browse courses
                         </Button>
                     </Link>
                 </div>
@@ -133,7 +133,7 @@ export default function DownloadsPage() {
                                     )}
                                     <div className="hidden md:block absolute top-3 right-3">
                                         <span className="bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded-md text-gray-900 shadow-sm">
-                                            {product.purchaseType === 'subscription' ? 'Sub' : 'Owned'}
+                                            {product.purchaseType === 'subscription' ? 'Active' : 'Unlocked'}
                                         </span>
                                     </div>
                                 </div>
@@ -145,7 +145,7 @@ export default function DownloadsPage() {
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="md:hidden bg-gray-100 text-[10px] font-bold px-1.5 py-0.5 rounded text-gray-600 uppercase tracking-wide">
-                                            {product.purchaseType === 'subscription' ? 'Sub' : 'Owned'}
+                                            {product.purchaseType === 'subscription' ? 'Active' : 'Unlocked'}
                                         </span>
                                         <p className="text-xs text-gray-500">{files.length} {files.length === 1 ? 'File' : 'Files'}</p>
                                     </div>
@@ -197,7 +197,7 @@ export default function DownloadsPage() {
 
                                 <div className="mt-4 pt-3 border-t border-gray-100 hidden md:block">
                                     <Link href={`/products/${product.id}`} className="text-xs text-gray-500 hover:text-primary-600 flex items-center justify-center gap-1 group">
-                                        View Product Details
+                                        View details
                                         <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>

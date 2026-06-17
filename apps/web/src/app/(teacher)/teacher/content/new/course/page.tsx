@@ -7,6 +7,7 @@ import { CourseForm } from "@digimine/shared";
 import { storage } from "@/lib/firebase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { createTeacherCourse, getTeacherQuizzes, getTeacherTests } from "@/lib/firestore/teacherContent";
+import { MobileAuthoringNotice } from "@/components/teacher/MobileAuthoringNotice";
 import type { Quiz, TestSeries } from "@digimine/types";
 
 export default function CreateTeacherCoursePage() {
@@ -52,6 +53,8 @@ export default function CreateTeacherCoursePage() {
                     </p>
                 </div>
             </div>
+
+            <MobileAuthoringNotice what="Building a course" />
 
             <CourseForm
                 actingUserId={firebaseUser?.uid || ""}

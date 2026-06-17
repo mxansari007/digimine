@@ -1338,3 +1338,8 @@ body.test-attempt-mode > div > footer {
 .dark .phone-input-unified .react-international-phone-input { color: rgb(var(--foreground)) !important; }
 .dark .phone-input-unified .react-international-phone-input::placeholder { color: rgb(var(--muted-foreground)) !important; }
 .dark .phone-input-unified .react-international-phone-country-selector-button:hover { background-color: rgb(var(--surface-muted) / 0.8) !important; }
+
+/* Resume rich-text editor — placeholder + list rendering */
+.rz-rich:empty::before { content: attr(data-ph); color: rgb(var(--muted-foreground)); pointer-events: none; }
+.rz-rich strong { font-weight: 700; }
+.rz-rich em { font-style: italic; }

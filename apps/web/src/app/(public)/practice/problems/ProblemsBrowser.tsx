@@ -68,24 +68,24 @@ export default function ProblemsBrowser({
         <>
             <div className="mt-4 flex flex-wrap items-center gap-3">
                 <input
-                    className="min-w-[200px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                    className="w-full flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 sm:w-auto sm:min-w-[200px]"
                     placeholder="Search problems…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     aria-label="Search problems"
                 />
-                <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={kind} onChange={(e) => { setKind(e.target.value); setPattern("all"); }} aria-label="Filter by type">
+                <select className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm sm:flex-none" value={kind} onChange={(e) => { setKind(e.target.value); setPattern("all"); }} aria-label="Filter by type">
                     <option value="all">All types</option>
                     <option value="dsa">DSA</option>
                     <option value="sql">SQL</option>
                 </select>
-                <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} aria-label="Filter by difficulty">
+                <select className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm sm:flex-none" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} aria-label="Filter by difficulty">
                     <option value="all">All difficulty</option>
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                 </select>
-                <select className="max-w-[220px] rounded-lg border border-slate-200 px-3 py-2 text-sm" value={pattern} onChange={(e) => setPattern(e.target.value)} aria-label="Filter by pattern">
+                <select className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm sm:max-w-[220px] sm:flex-none" value={pattern} onChange={(e) => setPattern(e.target.value)} aria-label="Filter by pattern">
                     <option value="all">All patterns</option>
                     {patternOptions.map((p) => (
                         <option key={p.id} value={p.id}>{p.label}</option>

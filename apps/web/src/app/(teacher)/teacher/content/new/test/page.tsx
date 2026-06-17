@@ -5,6 +5,7 @@ import { TestSeriesForm } from "@digimine/shared";
 import { storage } from "@/lib/firebase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { createTeacherTest } from "@/lib/firestore/teacherContent";
+import { MobileAuthoringNotice } from "@/components/teacher/MobileAuthoringNotice";
 import type { CreateTestSeriesInput } from "@digimine/types";
 
 export default function CreateTeacherTestPage() {
@@ -34,12 +35,15 @@ export default function CreateTeacherTestPage() {
     };
 
     return (
-        <TestSeriesForm
-            actingUserId={firebaseUser?.uid || ""}
-            storage={storage}
-            onSubmit={handleSubmit}
-            onCancelPath="/teacher/content"
-            mode="teacher"
-        />
+        <>
+            <MobileAuthoringNotice what="Building a test series" />
+            <TestSeriesForm
+                actingUserId={firebaseUser?.uid || ""}
+                storage={storage}
+                onSubmit={handleSubmit}
+                onCancelPath="/teacher/content"
+                mode="teacher"
+            />
+        </>
     );
 }

@@ -37,6 +37,12 @@ export interface DashboardShellProps {
   brand?: string;
   /** Used only for soft role-aware dashboard surfaces. */
   role?: "student" | "teacher" | "admin" | "institute";
+  /**
+   * Optional fixed bottom navigation, shown on phones. Receives `onOpenNav`
+   * so a "More" tab can open the same mobile drawer as the hamburger. The
+   * node positions itself (fixed) and hides itself on md+.
+   */
+  bottomBar?: (state: { onOpenNav: () => void }) => ReactNode;
   children: ReactNode;
 }
 
@@ -44,6 +50,7 @@ export function DashboardShell({
   sidebar,
   brand = "PlacementRanker",
   role,
+  bottomBar,
   children,
 }: DashboardShellProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -118,9 +125,11 @@ export function DashboardShell({
         </div>
 
         <div className="flex-1 p-4 sm:p-8 overflow-y-auto min-w-0 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto w-full">{children}</div>
+          <div className={"max-w-7xl mx-auto w-full" + (bottomBar ? " pb-20 md:pb-0" : "")}>{children}</div>
         </div>
       </main>
+
+      {bottomBar?.({ onOpenNav: () => setIsMobileOpen(true) })}
     </div>
   );
 }

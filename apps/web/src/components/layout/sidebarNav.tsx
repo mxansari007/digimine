@@ -154,6 +154,13 @@ const MessagesIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const ResumeIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h2M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 3v5h5" />
+    </svg>
+);
+
 const ProjectIcon = ({ className }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
@@ -209,6 +216,7 @@ export const studentNav: AppSidebarNavItem[] = [
     { name: "Quizzes", href: "/dashboard/quizzes", icon: QuizIcon },
     { name: "Contests", href: "/dashboard/contests", icon: ContestIcon },
     { name: "Job Map", href: "/student/jobs", icon: MapIcon },
+    { name: "Resume Maker", href: "/student/resume", icon: ResumeIcon },
     { name: "Project Evals", href: "/dashboard/project-evals", icon: ProjectIcon },
     { name: "Downloads", href: "/dashboard/downloads", icon: DownloadIcon },
     { name: "My Classrooms", href: "/student/classrooms", icon: ClassroomIcon },

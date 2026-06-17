@@ -2019,6 +2019,13 @@ export default function TestAttemptPage() {
                         {/* Code Editor */}
                         {currentQuestion.type === 'code' && (
                             <div className={editorSize === 'fullscreen' ? 'hidden' : 'space-y-4'} ref={editorContainerRef}>
+                                {/* Phone heads-up: coding is workable here but better on a wider screen. */}
+                                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 lg:hidden dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200">
+                                    <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Coding questions are easier on a desktop — you can still write and submit your code here, but a laptop gives you the full editor and test-case panel.</span>
+                                </div>
                                 {/* Toolbar */}
                                 <div className="flex flex-wrap items-center gap-3 justify-between">
                                     <div className="flex items-center gap-3">

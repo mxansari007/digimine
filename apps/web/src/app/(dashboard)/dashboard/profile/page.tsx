@@ -228,7 +228,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label
                                         htmlFor="firstName"
@@ -441,7 +441,7 @@ export default function ProfilePage() {
                     {/* Purchase History */}
                     <Card padding="lg">
                         <h2 className="font-display text-lg font-semibold text-gray-900 mb-6">
-                            Purchase History
+                            Enrollments &amp; Billing
                         </h2>
 
                         {loadingOrders ? (
@@ -453,9 +453,9 @@ export default function ProfilePage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                     </svg>
                                 </div>
-                                <p className="text-gray-500 mb-4">No purchases yet</p>
+                                <p className="text-gray-500 mb-4">You haven&apos;t enrolled in anything yet</p>
                                 <Link href="/products">
-                                    <Button variant="primary" size="sm">Browse Products</Button>
+                                    <Button variant="primary" size="sm">Browse courses</Button>
                                 </Link>
                             </div>
                         ) : (
@@ -554,14 +554,14 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Account Type</p>
-                                <p className="text-gray-900 capitalize">{user?.role || "Customer"}</p>
+                                <p className="text-gray-900 capitalize">{user?.role || "Student"}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">Products Owned</p>
+                                <p className="text-sm text-gray-500">Courses unlocked</p>
                                 <p className="text-gray-900">{user?.purchasedProducts?.length || 0}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">Test Series Owned</p>
+                                <p className="text-sm text-gray-500">Test series</p>
                                 <p className="text-gray-900">{testPurchases.length}</p>
                             </div>
                         </div>
@@ -570,9 +570,9 @@ export default function ProfilePage() {
                     {/* My Downloads Quick Access */}
                     {user?.purchasedProducts && user.purchasedProducts.length > 0 && (
                         <Card padding="lg" className="mt-6">
-                            <h3 className="font-semibold text-gray-900 mb-4">Quick Downloads</h3>
+                            <h3 className="font-semibold text-gray-900 mb-4">Course materials</h3>
                             <p className="text-sm text-gray-500 mb-4">
-                                Access your purchased products
+                                Your downloadable notes &amp; resources
                             </p>
                             <Link href="/dashboard/downloads">
                                 <Button variant="outline" className="w-full">

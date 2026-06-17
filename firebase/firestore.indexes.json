@@ -772,6 +772,14 @@
             ]
         },
         {
+            "collectionGroup": "resumes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "updatedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
             "collectionGroup": "dmThreads",
             "queryScope": "COLLECTION",
             "fields": [

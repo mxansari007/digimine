@@ -27,7 +27,8 @@
 export type AiCreditTask =
     | "ai_interview" // one full AI mock interview (charged at booking / instant start)
     | "ai_question_generation" // per generated question
-    | "project_evaluation"; // per student submission evaluated (charged to the eval owner)
+    | "project_evaluation" // per student submission evaluated (charged to the eval owner)
+    | "resume_ats"; // one AI resume action (ATS score, bullet rewrite, summary, tailor, or import)
 
 export interface AiCreditTaskMeta {
     key: AiCreditTask;
@@ -55,6 +56,12 @@ export const AI_CREDIT_TASK_META: AiCreditTaskMeta[] = [
         label: "AI Project Evaluation",
         unit: "per submission",
         blurb: "Charged to the evaluation owner (teacher/institute) for each student repo scored; refunded if the run fails.",
+    },
+    {
+        key: "resume_ats",
+        label: "AI Resume Action",
+        unit: "per action",
+        blurb: "Charged per AI resume action (ATS score, bullet rewrite, summary, JD tailor, or import) once the monthly plan allowance is used up; refunded if the AI call fails.",
     },
 ];
 
@@ -90,6 +97,7 @@ export const DEFAULT_AI_CREDIT_RATES: Record<AiCreditTask, number> = {
     ai_interview: 25,
     ai_question_generation: 1,
     project_evaluation: 10,
+    resume_ats: 5,
 };
 
 export const DEFAULT_AI_CREDITS_CONFIG: AiCreditsConfig = {

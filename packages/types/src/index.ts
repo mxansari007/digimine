@@ -48,3 +48,4 @@ export * from "./jobOpening";
 export * from "./projectEvaluation";
 export * from "./classCommunity";
 export * from "./credits";
+export * from "./resume";

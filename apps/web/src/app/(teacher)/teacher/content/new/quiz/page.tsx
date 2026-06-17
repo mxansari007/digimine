@@ -12,6 +12,7 @@ import { QuizForm } from "@digimine/shared";
 import { storage } from "@/lib/firebase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { createTeacherQuiz } from "@/lib/firestore/teacherContent";
+import { MobileAuthoringNotice } from "@/components/teacher/MobileAuthoringNotice";
 
 export default function CreateTeacherQuizPage() {
     const router = useRouter();
@@ -41,6 +42,8 @@ export default function CreateTeacherQuizPage() {
                     </p>
                 </div>
             </div>
+
+            <MobileAuthoringNotice what="Building a quiz" />
 
             <QuizForm
                 onSubmit={handleSubmit}

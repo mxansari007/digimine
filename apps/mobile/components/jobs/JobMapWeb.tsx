@@ -12,7 +12,15 @@ const HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<style>html,body,#map{height:100%;margin:0;padding:0;background:#0b1220}.leaflet-control-attribution{display:none}</style>
+<style>
+html,body,#map{height:100%;margin:0;padding:0;background:#0b1220}
+.leaflet-control-attribution{display:none}
+/* Dark-theme the zoom control to match the app's intel-console palette. */
+.leaflet-control-zoom{border:none!important;box-shadow:0 2px 12px rgba(0,0,0,0.55)!important;border-radius:10px!important;overflow:hidden}
+.leaflet-control-zoom a{background:#0f1b2d!important;color:#cbd5e1!important;border-color:rgba(255,255,255,0.12)!important;width:34px;height:34px;line-height:34px;font-size:18px}
+.leaflet-control-zoom a:hover{background:#16243a!important;color:#5eead4!important}
+.leaflet-bar a.leaflet-disabled{background:#0b1220!important;color:#475569!important}
+</style>
 </head>
 <body>
 <div id="map"></div>

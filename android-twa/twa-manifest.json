@@ -1,0 +1,32 @@
+{
+  "packageId": "com.placementranker.app",
+  "host": "www.placementranker.com",
+  "name": "PlacementRanker",
+  "launcherName": "PlacementRanker",
+  "display": "standalone",
+  "themeColor": "#0d9488",
+  "themeColorDark": "#16161e",
+  "navigationColor": "#0d9488",
+  "navigationColorDark": "#16161e",
+  "navigationDividerColor": "#0d9488",
+  "navigationDividerColorDark": "#16161e",
+  "backgroundColor": "#f8fafc",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://www.placementranker.com/logo.png",
+  "maskableIconUrl": "https://www.placementranker.com/logo.png",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://www.placementranker.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": ["placementranker.com"],
+  "retainedBundles": [],
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "placementranker"
+  }
+}

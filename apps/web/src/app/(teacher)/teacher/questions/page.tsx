@@ -6,6 +6,7 @@ import { RichTextEditor, NumberInput } from "@digimine/shared";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { HelpTutorial } from "@/components/help/HelpTutorial";
 import { TUTORIALS } from "@/components/help/tutorials";
+import { MobileAuthoringNotice } from "@/components/teacher/MobileAuthoringNotice";
 import { useTeachingFeatures } from "@/hooks/useTeachingFeatures";
 import {
     AiQuestionGenerator,
@@ -601,6 +602,7 @@ export default function TeacherQuestionBankPage() {
 
     return (
         <div className="space-y-6">
+            <MobileAuthoringNotice what="Managing the question bank" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <div className="flex items-center gap-1.5">

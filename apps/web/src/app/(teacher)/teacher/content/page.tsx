@@ -356,7 +356,7 @@ export default function TeacherContentPage() {
                                     </div>
                                     {renderClassChips(itemClassIds)}
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                                <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:flex-shrink-0 sm:w-auto sm:shrink-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
                                     <Link href={`/teacher/content/${tab}/${item.id}/edit`}>
                                         <Button variant="outline" size="sm">
                                             Edit

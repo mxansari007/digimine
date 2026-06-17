@@ -1278,6 +1278,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Resume Maker — SERVER-ONLY (admin SDK via /api/resume*). Each doc is
+    // owned by `userId`; the routes verify the caller's bearer token. Uploaded
+    // source resumes live in Storage under resumes/{uid}/... (see storage.rules).
+    // Default-deny already covers it; the explicit rule documents the intent.
+    match /resumes/{resumeId} {
+      allow read, write: if false;
+    }
+
     // Classroom community (discussion threads + 1:1 direct messages).
     // SERVER-ONLY: reads/writes go through /api/classes/[classId]/threads*,
     // /api/classes/[classId]/members and /api/dm* (admin SDK), which gate on

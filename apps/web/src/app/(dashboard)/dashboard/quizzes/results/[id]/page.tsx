@@ -456,10 +456,15 @@ function ReviewQuestion({
             ) : null}
 
             {showExplanation && result?.explanation ? (
-                <div className="mt-5 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4">
-                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">Explanation</p>
-                    <FormattedContent html={result.explanation} size="sm" />
-                </div>
+                <details className="group mt-5 rounded-2xl border border-primary-100 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 p-4">
+                    <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-2 text-xs font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">
+                        <span>Explanation</span>
+                        <span className="text-[10px] font-bold normal-case tracking-normal text-primary-500/80 group-open:hidden">Tap to reveal</span>
+                    </summary>
+                    <div className="mt-2">
+                        <FormattedContent html={result.explanation} size="sm" />
+                    </div>
+                </details>
             ) : null}
         </article>
     );

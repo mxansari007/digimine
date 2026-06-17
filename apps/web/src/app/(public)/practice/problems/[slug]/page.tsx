@@ -198,6 +198,9 @@ export default function SolveProblemPage() {
 
     // Layout: resizable panes + maximize
     const [maximized, setMaximized] = useState(false);
+    // On phones the desktop split-screen doesn't fit, so Problem and Code
+    // become tabs (ignored on lg+ where both panes show side by side).
+    const [mobilePane, setMobilePane] = useState<"problem" | "code">("problem");
     const [leftPaneSize, setLeftPaneSize] = useState(50); // % width of the problem pane (lg+)
     const [editorPaneSize, setEditorPaneSize] = useState(64); // % height of editor within the right column
     const [isLgUp, setIsLgUp] = useState(false);
@@ -510,9 +513,28 @@ export default function SolveProblemPage() {
             </div>
 
             <div ref={horizSplitRef} className="container-page flex flex-col items-stretch gap-3 py-5 lg:flex-row lg:gap-0">
+                {/* Mobile pane switcher — the lg split-screen can't fit a phone. */}
+                <div className="flex gap-1.5 rounded-xl border border-slate-200 bg-white p-1 lg:hidden">
+                    {([["problem", "Problem"], ["code", "Code & run"]] as const).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setMobilePane(key)}
+                            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                                mobilePane === key ? "bg-primary-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                {mobilePane === "code" && (
+                    <p className="-mt-1 px-1 text-[11px] text-slate-400 lg:hidden">Tip: the code editor is easier on a larger screen.</p>
+                )}
+
                 {/* ───────────── Left: problem panel ───────────── */}
                 <div
-                    className={`flex h-auto min-h-[24rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem] ${maximized ? "lg:hidden" : ""}`}
+                    className={`${mobilePane === "problem" ? "flex" : "hidden"} lg:flex h-auto min-h-[24rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem] ${maximized ? "lg:hidden" : ""}`}
                     style={isLgUp && !maximized ? { width: `${leftPaneSize}%`, flexBasis: `${leftPaneSize}%`, flexShrink: 0 } : undefined}
                 >
                     {/* Tabs */}
@@ -836,7 +858,7 @@ export default function SolveProblemPage() {
                     className={
                         maximized
                             ? "fixed inset-0 z-[60] flex flex-col gap-0 bg-slate-100 p-3"
-                            : "flex h-[78vh] min-h-[26rem] flex-1 flex-col gap-0 lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem]"
+                            : `${mobilePane === "code" ? "flex" : "hidden"} lg:flex h-[78vh] min-h-[26rem] flex-1 flex-col gap-0 lg:h-[calc(100vh-9.5rem)] lg:min-h-[32rem]`
                     }
                     style={isLgUp && !maximized ? { width: `${100 - leftPaneSize}%` } : undefined}
                 >

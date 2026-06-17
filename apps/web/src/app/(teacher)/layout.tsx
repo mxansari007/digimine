@@ -9,6 +9,7 @@ import { signOut } from "@/lib/firebase/auth";
 import { userHomePath } from "@/lib/auth/redirects";
 import { PageLoading } from "@/components/common";
 import { teacherNav, portalSwitchNav, withCredits } from "@/components/layout/sidebarNav";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { ThemeToggle } from "@/components/theme";
 import { useCredits } from "@/contexts/CreditsContext";
@@ -86,6 +87,7 @@ function TeacherLayoutInner({
   return (
     <DashboardShell
       role="teacher"
+      bottomBar={({ onOpenNav }) => <MobileTabBar role="teacher" onMore={onOpenNav} />}
       sidebar={({ isOpen, onClose, collapsed, onToggleCollapsed }) => (
         <AppSidebar
           role="teacher"

@@ -149,7 +149,12 @@ export default function JobsScreen() {
       </View>
 
       {/* Filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2], paddingHorizontal: space[3] }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ gap: space[2], paddingHorizontal: space[3], alignItems: "center" }}
+      >
         {TYPE_FILTERS.map((t) => (
           <Chip key={t.key} label={t.label} active={typeFilter === t.key} onPress={() => setTypeFilter(t.key)} />
         ))}
@@ -161,7 +166,12 @@ export default function JobsScreen() {
 
       {/* Layers (per-source toggles) */}
       {sources.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space[2], paddingHorizontal: space[3], paddingTop: space[2] }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{ gap: space[2], paddingHorizontal: space[3], paddingTop: space[2], alignItems: "center" }}
+        >
           <Text variant="caption" style={{ color: "#64748b", alignSelf: "center", textTransform: "uppercase", letterSpacing: 0.6 }}>
             Layers
           </Text>

@@ -21,6 +21,8 @@ export default function manifest(): MetadataRoute.Manifest {
         categories: ["education", "productivity"],
         icons: [
             { src: "/logo.png", sizes: "1024x1024", type: "image/png", purpose: "any" },
+            { src: "/logo.png", sizes: "1024x1024", type: "image/png", purpose: "maskable" },
+            { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png", purpose: "any" },
         ],
     };
 }

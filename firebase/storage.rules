@@ -46,6 +46,16 @@ service firebase.storage {
         : request.resource.size < 60 * 1024 * 1024;
     }
 
+    // Resume Maker "bring your own resume" uploads — PDF / Word / plain text.
+    function isResumeUploadType() {
+      return request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          || request.resource.contentType == 'application/msword'
+          || request.resource.contentType == 'text/plain'
+          || request.resource.contentType == 'text/markdown'
+          || request.resource.contentType == 'text/x-markdown';
+    }
+
     // Only an enrolled student (roster doc exists) or the class teacher may
     // upload into a class's resource folder — stops any signed-in user
     // dumping large files into arbitrary class folders. Resource-doc creation
@@ -103,6 +113,19 @@ service firebase.storage {
                    && isClassMemberOrTeacher(classId)
                    && isClassResourceType()
                    && isValidClassResourceSize();
+    }
+
+    // Resume Maker source uploads — the user's existing resume, uploaded so the
+    // server (/api/resume/import) can parse it. Only the owner may upload under
+    // their own folder, restricted to resume document types under 8MB. Reads
+    // are owner-only (the server parses via the file's tokenized download URL,
+    // which works independently of these rules).
+    match /resumes/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && isResumeUploadType()
+                   && isValidFileSize(8);
     }
   }
 }

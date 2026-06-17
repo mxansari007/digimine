@@ -31,6 +31,7 @@ export type EntitlementFeature =
     | "courses_premium" // premium courses
     | "contests" // join contests
     | "ai_interview" // AI mock coding interviews + behaviour tracker
+    | "resume_ats" // AI resume maker: ATS scoring + AI writing assist
     | "downloads" // downloadable resources
     | "ad_free" // no ads
     | "certificates"; // completion certificates
@@ -42,7 +43,8 @@ export type EntitlementQuota =
     | "mockTestsPerMonth"
     | "premiumQuizzesPerMonth"
     | "courseEnrollmentsActive"
-    | "aiInterviewsPerWeek";
+    | "aiInterviewsPerWeek"
+    | "resumeAtsPerMonth";
 
 export interface EntitlementFeatureMeta {
     key: EntitlementFeature;
@@ -70,6 +72,7 @@ export const ENTITLEMENT_FEATURES: EntitlementFeatureMeta[] = [
     { key: "courses_premium", label: "Premium courses", blurb: "Access enrollment-required courses.", group: "courses" },
     { key: "contests", label: "Contests", blurb: "Join live contests.", group: "general" },
     { key: "ai_interview", label: "AI mock interviews", blurb: "AI coding interviews with a behaviour-tracker scorecard.", group: "practice" },
+    { key: "resume_ats", label: "AI Resume Maker", blurb: "ATS-friendly resume builder with AI scoring and writing assistance.", group: "general" },
     { key: "downloads", label: "Downloads", blurb: "Downloadable PDFs and resources.", group: "general" },
     { key: "ad_free", label: "Ad-free", blurb: "Remove ads across the platform.", group: "general" },
     { key: "certificates", label: "Certificates", blurb: "Earn completion certificates.", group: "general" },
@@ -82,6 +85,7 @@ export const ENTITLEMENT_QUOTAS: EntitlementQuotaMeta[] = [
     { key: "premiumQuizzesPerMonth", label: "Premium quizzes / month", blurb: "Premium quizzes attemptable.", group: "quizzes", freeDefault: 5 },
     { key: "courseEnrollmentsActive", label: "Active premium course enrollments", blurb: "Premium courses enrolled at once.", group: "courses", freeDefault: 1 },
     { key: "aiInterviewsPerWeek", label: "AI interviews / week", blurb: "AI mock interviews a user can run per week.", group: "practice", freeDefault: 1 },
+    { key: "resumeAtsPerMonth", label: "AI resume checks / month", blurb: "AI ATS scores + writing-assist actions a user can run per month.", group: "practice", freeDefault: 3 },
 ];
 
 export type EntitlementFeatureMap = Partial<Record<EntitlementFeature, boolean>>;

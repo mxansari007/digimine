@@ -37,6 +37,9 @@ export const viewport: Viewport = {
     colorScheme: "light dark",
     width: "device-width",
     initialScale: 1,
+    // cover → `env(safe-area-inset-*)` resolves to real values on notched
+    // phones, which the mobile bottom tab bar relies on for its padding.
+    viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -100,9 +103,19 @@ export const metadata: Metadata = {
         },
     },
     icons: {
-        icon: "/favicon.ico",
+        icon: [
+            { url: "/favicon.ico" },
+            { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+        ],
         shortcut: "/favicon.ico",
-        apple: "/favicon.ico",
+        apple: "/apple-touch-icon.png",
+    },
+    // iOS "Add to Home Screen": run standalone (no Safari chrome) with a
+    // proper title + status-bar treatment, so the installed app feels native.
+    appleWebApp: {
+        capable: true,
+        title: SITE_NAME,
+        statusBarStyle: "default",
     },
     formatDetection: {
         email: false,
