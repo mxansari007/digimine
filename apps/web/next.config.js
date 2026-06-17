@@ -130,8 +130,13 @@ const nextConfig = {
         // Make sure the serverless Chromium binary (a Brotli pack decompressed
         // to /tmp at runtime) is bundled into the resume PDF function — Next's
         // file tracing won't otherwise follow @sparticuz/chromium's bin assets.
+        // NOTE: point at pnpm's REAL `.pnpm` dir, not the symlinked
+        // `node_modules/@sparticuz/chromium` (Vercel rejects "files in
+        // symlinked directories" in a serverless function package).
         outputFileTracingIncludes: {
-            "/api/resume/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+            "/api/resume/pdf": [
+                "./node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**",
+            ],
         },
     },
 };
