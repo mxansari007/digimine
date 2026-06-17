@@ -131,6 +131,7 @@ function RootLayoutNav() {
           <Stack.Screen name="messages/[threadId]" options={{ headerBackTitle: "Messages" }} />
           <Stack.Screen name="notifications" options={{ headerBackTitle: "Home" }} />
           <Stack.Screen name="notification-settings" options={{ title: "Notifications", headerBackTitle: "Profile" }} />
+          <Stack.Screen name="resume" options={{ title: "Résumés", headerBackTitle: "Profile" }} />
           <Stack.Screen name="class/[classId]/resources" options={{ headerBackTitle: "Class" }} />
           <Stack.Screen name="timetable" options={{ title: "Timetable", headerBackTitle: "Classes" }} />
           <Stack.Screen name="schedule" options={{ title: "Schedule", headerBackTitle: "Home" }} />

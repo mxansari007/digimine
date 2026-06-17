@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { api, type CourseDetail } from "@/lib/api";
 import { useColors } from "@/design/theme";
@@ -15,6 +15,7 @@ export default function CourseReaderScreen() {
   const [error, setError] = useState<string | null>(null);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!courseId || !classId) return;
@@ -47,7 +48,18 @@ export default function CourseReaderScreen() {
   return (
     <Screen edges={[]}>
       <Stack.Screen options={{ title: course?.title || title || "Course" }} />
-      <ScreenScroll>
+      <ScreenScroll
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load().finally(() => setRefreshing(false));
+            }}
+            tintColor={c.textSubtle}
+          />
+        }
+      >
         {error ? <ErrorState message={error} onRetry={load} /> : null}
         {loading ? (
           <ListSkeleton rows={5} />

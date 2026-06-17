@@ -57,3 +57,6 @@ infra/meilisearch/
 
 # Local-only reference checkouts (open-source RN apps + design systems we study).
 reference-libs/
+
+# Abandoned TWA wrapper experiment (not the real app; apps/mobile is)
+android-twa/

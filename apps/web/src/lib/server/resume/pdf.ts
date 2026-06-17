@@ -44,11 +44,26 @@ export async function renderResumePdf(
 ): Promise<Buffer> {
     const html = resumePdfDocument(data, spec, opts);
     const puppeteer = (await import("puppeteer-core")).default;
-    const browser = await puppeteer.launch({
-        executablePath: resolveChromePath(),
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--font-render-hinting=none"],
-    });
+
+    // On Vercel / AWS Lambda there is no system Chrome, so use the bundled
+    // serverless Chromium (@sparticuz/chromium). Locally we drive the user's
+    // own Chrome via resolveChromePath().
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const browser = isServerless
+        ? await (async () => {
+              const chromium = (await import("@sparticuz/chromium")).default;
+              chromium.setGraphicsMode = false;
+              return puppeteer.launch({
+                  args: [...chromium.args, "--font-render-hinting=none"],
+                  executablePath: await chromium.executablePath(),
+                  headless: true,
+              });
+          })()
+        : await puppeteer.launch({
+              executablePath: resolveChromePath(),
+              headless: true,
+              args: ["--no-sandbox", "--disable-setuid-sandbox", "--font-render-hinting=none"],
+          });
     try {
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: "load", timeout: 15_000 });

@@ -280,6 +280,13 @@ export default function HomeScreen() {
                 onPress={() => router.push("/jobs" as Href)}
               />
               <ListItem
+                title="Timetable"
+                subtitle="Your weekly class schedule"
+                left={<TileIcon icon="grid" />}
+                showChevron
+                onPress={() => router.push("/timetable" as Href)}
+              />
+              <ListItem
                 title="Schedule"
                 subtitle="Deadlines & due dates"
                 left={<TileIcon icon="calendar" />}

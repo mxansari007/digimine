@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type UsageResponse, type WalletResponse } from "@/lib/api";
 import { useColors } from "@/design/theme";
@@ -196,6 +196,23 @@ export default function ProfileScreen() {
                 ) : null}
               </>
             ) : null}
+
+            <View style={{ height: space[8] }} />
+            <SectionHeader title="Career" />
+            <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+              <ListItem
+                title="My Résumés"
+                subtitle="Preview and download your resumes"
+                left={
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.surfaceAlt, alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="file-text" size={20} color="textMuted" />
+                  </View>
+                }
+                showChevron
+                divider={false}
+                onPress={() => router.push("/resume" as Href)}
+              />
+            </Card>
 
             <View style={{ height: space[8] }} />
             <SectionHeader title="Settings" />

@@ -98,6 +98,9 @@ const nextConfig = {
             // unpdf/mammoth parse uploaded resumes. All are Node libs that must
             // be required at runtime from node_modules, not webpack-bundled.
             "puppeteer-core",
+            // Serverless Chromium binary for the resume PDF route on Vercel
+            // (puppeteer-core ships no browser; locally we use the user's Chrome).
+            "@sparticuz/chromium",
             "unpdf",
             "mammoth",
         ],
@@ -123,6 +126,12 @@ const nextConfig = {
                 "**/kokoro-js/**",
                 "**/phonemizer/**",
             ],
+        },
+        // Make sure the serverless Chromium binary (a Brotli pack decompressed
+        // to /tmp at runtime) is bundled into the resume PDF function — Next's
+        // file tracing won't otherwise follow @sparticuz/chromium's bin assets.
+        outputFileTracingIncludes: {
+            "/api/resume/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
         },
     },
 };

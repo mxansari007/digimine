@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { api, type ProblemDetail, type ProblemProgress } from "@/lib/api";
@@ -21,26 +21,31 @@ export default function ProblemScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [shownHints, setShownHints] = useState(0);
+  const [showSolution, setShowSolution] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.problemDetail(String(slug));
+      setProblem(res.problem);
+      setProgress(res.progress);
+    } catch (e: any) {
+      setError(e?.message || "Couldn't load this problem.");
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.problemDetail(String(slug));
-        setProblem(res.problem);
-        setProgress(res.progress);
-      } catch (e: any) {
-        setError(e?.message || "Couldn't load this problem.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [slug]);
+    load();
+  }, [load]);
 
   return (
     <Screen edges={[]}>
       <Stack.Screen options={{ title: problem?.title || "Problem" }} />
       <ScreenScroll>
-        {error ? <ErrorState message={error} /> : null}
+        {error ? <ErrorState message={error} onRetry={load} /> : null}
         {loading ? <ListSkeleton rows={6} /> : null}
         {problem ? (
           <>
@@ -113,6 +118,34 @@ export default function ProblemScreen() {
                 {shownHints < problem.hints.length ? (
                   <Button label={`Reveal hint ${shownHints + 1} of ${problem.hints.length}`} variant="secondary" onPress={() => setShownHints((n) => n + 1)} />
                 ) : null}
+              </>
+            ) : null}
+
+            {problem.editorialLocked ? (
+              <>
+                <SectionHeader title="Solution" />
+                <Card style={{ backgroundColor: c.warningSubtle, borderColor: c.warning }}>
+                  <Text variant="subhead" color="warning">Premium solution</Text>
+                  <Text variant="footnote" color="textMuted" style={{ marginTop: space[1] }}>
+                    Upgrade your plan on the website to read the full editorial solution.
+                  </Text>
+                </Card>
+              </>
+            ) : problem.editorialHtml ? (
+              <>
+                <SectionHeader title="Solution" />
+                {showSolution ? (
+                  <Card>
+                    <HtmlView html={problem.editorialHtml} />
+                  </Card>
+                ) : (
+                  <Card style={{ gap: space[2] }}>
+                    <Text variant="footnote" color="textMuted">
+                      Hidden so you can try it yourself first — reveal the full solution when you&apos;re ready to review.
+                    </Text>
+                    <Button label="Reveal solution" variant="secondary" onPress={() => setShowSolution(true)} />
+                  </Card>
+                )}
               </>
             ) : null}
 

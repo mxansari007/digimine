@@ -270,6 +270,11 @@ export interface ProblemDetail extends ProblemSummary {
   samples?: { input: string; expectedOutput: string; explanation: string | null }[];
   constraintsHtml?: string | null;
   hints?: string[];
+  /** Official editorial/solution HTML — null when premium-gated for this user. */
+  editorialHtml?: string | null;
+  editorialAccess?: "free" | "premium" | string;
+  /** True when the editorial exists but is locked behind premium. */
+  editorialLocked?: boolean;
   locked?: boolean;
   sql?: { schemaSql: string } | null;
 }
@@ -755,8 +760,54 @@ export interface StudentJobsResponse {
   cities: number;
 }
 
+// ── Resume (view + download; building happens on the web) ──────────────────
+export interface ResumeSummary {
+  id: string;
+  title: string;
+  templateId: string;
+  /** Cached overall ATS score for the list card, or null. */
+  atsScore: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the PDF."));
+    reader.onloadend = () => {
+      const dataUrl = String(reader.result || "");
+      resolve(dataUrl.split(",")[1] || "");
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Render an owned resume to a PDF on the server (authoritative Chrome render)
+ * and return it base64-encoded, ready to write to a file + share. The PDF
+ * route is a binary POST, so it bypasses the JSON `apiFetch`.
+ */
+export async function resumePdfBase64(resumeId: string): Promise<string> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(`${API_URL}/api/resume/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ resumeId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body);
+  }
+  return blobToBase64(await res.blob());
+}
+
 export const api = {
   dashboard: (userId: string) => apiFetch<DashboardData>(`/api/dashboard?userId=${userId}`),
+  resumes: () => apiFetch<{ resumes: ResumeSummary[] }>(`/api/resume`),
   quizzes: () => apiFetch<{ items: QuizSummary[] }>(`/api/catalog/quizzes`),
   myEnrollments: () => apiFetch<{ classes: EnrolledClass[] }>(`/api/classroom/my-enrollments`),
   timetable: () => apiFetch<{ entries: TimetableEntry[] }>(`/api/student/timetable`),
