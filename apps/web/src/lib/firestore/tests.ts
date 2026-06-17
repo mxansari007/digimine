@@ -1066,7 +1066,7 @@ function detectProvider(): "direct" | "piston" | "judge0" {
   if (provider === "piston") return "piston";
   if (provider === "judge0") return "judge0";
 
-  const url = process.env.CODE_EXECUTION_URL;
+  const url = process.env.CODE_EXECUTION_URL || process.env.PISTON_URL;
   if (!url) return "judge0";
   if (url.includes("judge0")) return "judge0";
   if (url.includes("piston") || url.endsWith("/api/v2/execute"))
@@ -1092,7 +1092,7 @@ async function runCode(
     };
   }
 
-  const executionUrl = process.env.CODE_EXECUTION_URL || DEFAULT_JUDGE0_URL;
+  const executionUrl = process.env.CODE_EXECUTION_URL || process.env.PISTON_URL || DEFAULT_JUDGE0_URL;
   if (provider === "piston") {
     return runCodeOnPiston(executionUrl, language, code, stdin);
   }

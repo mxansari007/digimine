@@ -13,9 +13,10 @@ import { FieldValue } from "firebase-admin/firestore";
 //
 // Auto-detection order:
 //   - If CODE_EXECUTION_PROVIDER=direct → use child_process (local/Railway)
-//   - If CODE_EXECUTION_URL contains "piston" or ends with /api/v2/execute → Piston
-//   - If CODE_EXECUTION_URL contains "judge0" → Judge0
+//   - If CODE_EXECUTION_URL/PISTON_URL contains "piston" or ends with /api/v2/execute → Piston
+//   - If CODE_EXECUTION_URL/PISTON_URL contains "judge0" → Judge0
 //   - Otherwise → Judge0 CE (default)
+// URL resolution: CODE_EXECUTION_URL takes precedence, falling back to PISTON_URL.
 // ============================================================
 
 const DEFAULT_JUDGE0_URL = "https://ce.judge0.com/submissions";
@@ -49,7 +50,7 @@ function detectProvider(): "direct" | "piston" | "judge0" {
     if (provider === "piston") return "piston";
     if (provider === "judge0") return "judge0";
 
-    const url = process.env.CODE_EXECUTION_URL;
+    const url = process.env.CODE_EXECUTION_URL || process.env.PISTON_URL;
     if (!url) return "judge0"; // default to Judge0 CE
     if (url.includes("judge0")) return "judge0";
     if (url.includes("piston") || url.endsWith("/api/v2/execute")) return "piston";
@@ -208,10 +209,10 @@ export async function POST(req: NextRequest) {
             }
 
             // Execute directly or create dedicated job
-            const url = process.env.CODE_EXECUTION_URL;
+            const url = process.env.CODE_EXECUTION_URL || process.env.PISTON_URL;
             if (!url) {
                 return NextResponse.json(
-                    { error: "CODE_EXECUTION_URL is required for Piston provider" },
+                    { error: "CODE_EXECUTION_URL/PISTON_URL is required for Piston provider" },
                     { status: 500 }
                 );
             }
