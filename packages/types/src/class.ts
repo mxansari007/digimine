@@ -22,6 +22,10 @@ export interface Class {
     studentsCount: number;
     activeStudentsCount: number;
     isArchived: boolean;
+    /** When true, this class can host Virtual Lab sessions. The teacher opts in
+     *  at creation (editable later in settings); the lab entry point + the
+     *  session/token APIs are inert for classes where this is not true. */
+    labEnabled?: boolean;
     // ── Section / subject / schedule (new model; all optional for back-compat) ──
     /** University directory id (the teacher's college). */
     universityId?: string | null;

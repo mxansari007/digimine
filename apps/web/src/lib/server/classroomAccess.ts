@@ -1,4 +1,5 @@
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { isLocalhostRequest } from "@/lib/dev";
 
 export type ClassroomAccessResult =
     | { allowed: true; userId: string | null }
@@ -84,8 +85,11 @@ export async function requireVerifiedUser(req: Request): Promise<BearerAuth> {
 
     const email = (decoded.email as string | undefined) || null;
     const emailVerified = decoded.email_verified === true;
-    // Only accounts that actually have an email must verify it.
-    if (email && !emailVerified) {
+
+    // Localhost dev bypass: when running locally against the emulators we
+    // skip the email-verification gate so sign-up flows can be tested without
+    // sending real emails. Production still enforces verification.
+    if (email && !emailVerified && !isLocalhostRequest(req)) {
         return {
             ok: false,
             status: 403,

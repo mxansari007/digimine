@@ -49,3 +49,6 @@ export * from "./projectEvaluation";
 export * from "./classCommunity";
 export * from "./credits";
 export * from "./resume";
+
+// Virtual Lab (gamified live lab session) types
+export * from "./lab";

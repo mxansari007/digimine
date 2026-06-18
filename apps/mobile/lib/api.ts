@@ -717,6 +717,74 @@ export interface RosterStudent {
   lastActiveAt: string | null;
 }
 
+// ── Virtual Lab (view-only companion) ──────────────────────────────────────
+// Shapes mirrored from the web serializers (apps/web/src/lib/server/labStore.ts
+// serializeLabSession/serializeLabRecording) + packages/types/src/lab.ts. The
+// mobile companion is VIEW-ONLY: watch the teacher broadcast, see the live
+// participant map, raise a hand, replay recordings.
+
+export type LabRole = "teacher" | "student" | "observer";
+export type LabSessionStatus = "scheduled" | "live" | "ended";
+export type LabStatus = "on_task" | "idle" | "needs_help" | "sharing" | "watching";
+export type LabRecordingStatus = "processing" | "ready" | "failed";
+
+export interface LabSessionView {
+  id: string;
+  classId: string;
+  teacherId: string;
+  title: string;
+  status: LabSessionStatus;          // companion shows "Join" only when "live"
+  livekitRoom: string;
+  startedAt: string | null;          // ISO
+  endedAt: string | null;            // ISO
+  recordingId: string | null;
+  settings: { allowPeerShare: boolean; allowChat: boolean; autoRecord: boolean };
+  stats: { peakParticipants: number };
+}
+
+export interface LabTokenResponse {
+  token: string;                     // LiveKit JWT
+  url: string;                       // LiveKit ws(s) URL — SOURCE OF TRUTH (connect with this)
+  role: LabRole;                     // server-resolved; never trust client role
+  identity: string;                  // == Firebase uid
+  room: string;                      // livekitRoom
+}
+
+export interface LabRecordingChapter {
+  tsSec: number;
+  title: string;
+}
+
+export interface LabRecordingView {
+  id: string;
+  sessionId: string;
+  classId: string;
+  storagePath: string;
+  status: LabRecordingStatus;        // playback only when "ready"
+  durationSec: number;
+  chapters: LabRecordingChapter[];
+  captionsUrl: string | null;
+  createdAt: string | null;          // ISO
+  url?: string;                      // signed playback URL — ONLY on the detail call when ready
+  sessionTitle?: string;             // ONLY on the list call (denormalized)
+}
+
+/** Event vocabulary the companion may emit. Only "hand_raise"/"hand_lower" used by mobile. */
+export type LabEventType =
+  | "join"
+  | "leave"
+  | "share_start"
+  | "share_end"
+  | "hand_raise"
+  | "hand_lower"
+  | "feedback"
+  | "control_request"
+  | "control_grant"
+  | "control_revoke"
+  | "spotlight"
+  | "record_start"
+  | "record_stop";
+
 // ── Typed helpers ─────────────────────────────────────────────────────────
 
 // ── Job openings (student map) — mirrors packages/types/src/jobOpening.ts ──
@@ -997,6 +1065,47 @@ export const api = {
   usage: () => apiFetch<UsageResponse>(`/api/subscription/usage`),
   creditsConfig: () => apiFetch<{ enabled: boolean }>(`/api/credits/config`),
   wallet: () => apiFetch<WalletResponse>(`/api/credits/wallet`),
+  // ── Virtual Lab (view-only companion) ─────────────────────────────────────
+  // GET /api/lab/sessions?classId=... → { sessions, role }. The call itself
+  // enforces the labEnabled + class-membership gate server-side, so an empty/
+  // 403 result already means "no lab here" — a live entry means there's a
+  // session to join. Live sessions float to the top of the list.
+  labSessions: (classId: string) =>
+    apiFetch<{ sessions: LabSessionView[]; role: LabRole }>(
+      `/api/lab/sessions?classId=${encodeURIComponent(classId)}`
+    ),
+  // POST /api/lab/token  body: { sessionId }  → LabTokenResponse.
+  // 409 if the session isn't "live", 403 if not a class member, 404 if missing.
+  // Connect LiveKit with the returned { url, token } pair (same room + SFU).
+  getLabToken: (sessionId: string) =>
+    apiFetch<LabTokenResponse>(`/api/lab/token`, {
+      method: "POST",
+      body: JSON.stringify({ sessionId }),
+    }),
+  // POST /api/lab/events  body: { sessionId, type, targetUid?, meta? } → 201
+  // { event }. actorUid is stamped server-side from the verified token. Mobile
+  // uses ONLY type "hand_raise" | "hand_lower".
+  raiseHand: (sessionId: string, raised: boolean) =>
+    apiFetch<{
+      event: { id: string; sessionId: string; type: LabEventType; actorUid: string; ts: number };
+    }>(`/api/lab/events`, {
+      method: "POST",
+      body: JSON.stringify({ sessionId, type: raised ? "hand_raise" : "hand_lower" }),
+    }),
+  // GET /api/lab/recordings?classId=... → { recordings, role }. Each row is
+  // denormalised with `sessionTitle`; `url` is NOT minted here (detail-only).
+  labRecordings: (classId: string) =>
+    apiFetch<{ recordings: LabRecordingView[]; role: LabRole }>(
+      `/api/lab/recordings?classId=${encodeURIComponent(classId)}`
+    ),
+  // GET /api/lab/recordings/[id] → { recording } with `recording.url` (a
+  // short-lived signed GCS URL) present ONLY when status === "ready". The route
+  // re-reconciles + re-signs on each call, so it's safe to re-poll while
+  // "processing".
+  labRecording: (recordingId: string) =>
+    apiFetch<{ recording: LabRecordingView | null }>(
+      `/api/lab/recordings/${encodeURIComponent(recordingId)}`
+    ),
   // ── Teacher portal ────────────────────────────────────────────────────────
   teacherDashboard: (teacherId: string) =>
     apiFetch<{ stats: TeacherStats; usage: Record<string, any>; subscription: Record<string, any> }>(

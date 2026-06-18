@@ -51,6 +51,12 @@
       ],
       "expo-video",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PlacementRanker to use the camera to scan class QR codes."
+        }
+      ],
+      [
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_REVERSED_CLIENT_ID"

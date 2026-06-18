@@ -22,9 +22,13 @@ const LABELS: Record<SlugKeyedCollection, string> = {
 };
 
 /**
- * Validate a slug's format and guarantee it is free before it is used as a
- * document ID. Throws a human-readable error (surfaced by the builder forms'
- * try/catch → inline banner) when the slug is malformed or already taken.
+ * Validate a slug's format and reserve it before it is used as a document ID.
+ *
+ * If the exact slug is already taken, the helper automatically appends an
+ * incrementing suffix (`-2`, `-3`, ...) until a free slug is found, so a
+ * creator never gets blocked by a collision with content they cannot see
+ * (e.g. another author's private draft or a soft-deleted catalog entry).
+ * The returned value is the slug the caller should actually use as the doc ID.
  *
  * `excludeId` lets an edit flow keep its own slug — pass the document's
  * current ID so a no-op rename doesn't report itself as a collision.
@@ -55,12 +59,24 @@ export async function assertSlugAvailable(
         return trimmed;
     }
 
-    const snap = await getDoc(doc(db, collectionName, trimmed));
-    if (snap.exists()) {
-        throw new Error(
-            `The slug "${trimmed}" is already used by another ${label}. ` +
-                "Please choose a different slug."
-        );
+    let candidate = trimmed;
+    let attempt = 0;
+    const maxAttempts = 20;
+
+    while (attempt < maxAttempts) {
+        const snap = await getDoc(doc(db, collectionName, candidate));
+        if (!snap.exists()) {
+            return candidate;
+        }
+        if (excludeId && candidate === excludeId) {
+            return candidate;
+        }
+        attempt++;
+        candidate = `${trimmed}-${attempt + 1}`;
     }
-    return trimmed;
+
+    throw new Error(
+        `Could not find a free slug for "${trimmed}" after ${maxAttempts} attempts ` +
+            `(another ${label} may be using this slug). Please choose a different slug.`
+    );
 }

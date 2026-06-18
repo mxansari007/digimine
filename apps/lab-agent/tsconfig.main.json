@@ -1,0 +1,10 @@
+{
+  "//": "Main process + preload + renderer logic. All emitted as CommonJS into dist/. Electron loads dist/main.js; the renderer HTML pulls dist/renderer.js as a classic <script> (see scripts/copy-renderer.js).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

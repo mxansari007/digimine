@@ -8,6 +8,7 @@ import {
   type ClassPageData,
   type ClassProjectEvalRow,
   type ClassThread,
+  type LabSessionView,
 } from "@/lib/api";
 import { useColors } from "@/design/theme";
 import { radius, space } from "@/design/tokens";
@@ -65,6 +66,10 @@ export default function ClassHubScreen() {
   const { classId } = useLocalSearchParams<{ classId: string }>();
   const [data, setData] = useState<ClassPageData | null>(null);
   const [notices, setNotices] = useState<ClassThread[]>([]);
+  // Virtual Lab sessions (view-only companion). The labSessions call enforces
+  // the labEnabled + membership gate server-side, so a non-empty list already
+  // means a lab exists for this class; a `live` entry means it's joinable now.
+  const [labSessions, setLabSessions] = useState<LabSessionView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +79,16 @@ export default function ClassHubScreen() {
     if (!classId) return;
     setError(null);
     try {
-      const [res, threads] = await Promise.all([
+      const [res, threads, lab] = await Promise.all([
         api.classPageData(classId),
         api.classThreads(classId, { sort: "new" }).then((r) => r.threads || []).catch(() => [] as ClassThread[]),
+        // Best-effort: a 403 (lab disabled / not a member) just means no lab CTA.
+        api.labSessions(classId).then((r) => r.sessions || []).catch(() => [] as LabSessionView[]),
       ]);
       setData(res);
       // Noticeboard = teacher's broadcast surface: announcements + teacher-shared resources.
       setNotices(threads.filter((t) => t.tag === "announcement" || (t.tag === "resource" && t.authorRole !== "student")).slice(0, 4));
+      setLabSessions(lab);
     } catch (e: any) {
       setError(e?.message || "Couldn't load this class.");
     } finally {
@@ -111,11 +119,31 @@ export default function ClassHubScreen() {
     router.push({ pathname: "/course/[courseId]", params: { courseId: cr.id, classId: String(classId), title: cr.title } });
   const openType = (type: string) => router.push({ pathname: "/class/[classId]/content/[type]", params: { classId: String(classId), type } });
 
-  // Up Next — schedule rail: live/upcoming contests, due projects, new tests/quizzes.
+  // A currently-live lab session, if any (companion can only join a `live` one).
+  const liveLab = useMemo(() => labSessions.find((s) => s.status === "live") ?? null, [labSessions]);
+  // Any lab activity at all (live, ended, or scheduled) → surface the recordings entry point.
+  const hasLab = labSessions.length > 0;
+
+  const openLiveLab = (sessionId: string) =>
+    router.push({ pathname: "/lab/[sessionId]", params: { sessionId } });
+
+  // Up Next — schedule rail: a live lab first, then live/upcoming contests, due projects, new tests/quizzes.
   const upNext = useMemo<UpNextEntry[]>(() => {
     if (!data) return [];
     const now = Date.now();
     const out: UpNextEntry[] = [];
+    // A live lab is the most time-sensitive thing on the board — surface it as a
+    // LIVE rail entry (rank 0, so it sorts to the very top with a LivePill).
+    if (liveLab) {
+      out.push({
+        key: `lab-${liveLab.id}`,
+        label: "LIVE",
+        tone: "live",
+        title: liveLab.title || "Live lab",
+        meta: "Virtual lab in session · tap to join",
+        onPress: () => openLiveLab(liveLab.id),
+      });
+    }
     data.content.contests.forEach((ct) => {
       const p = contestPhase(ct, now);
       if (p === "live") out.push({ key: `c-${ct.id}`, label: "LIVE", tone: "live", title: ct.title, meta: metaFor.contest(ct), onPress: () => openType("contests") });
@@ -139,7 +167,7 @@ export default function ClassHubScreen() {
     const rank = { live: 0, due: 1, new: 2 } as const;
     return out.sort((a, b) => rank[a.tone] - rank[b.tone]).slice(0, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, liveLab]);
 
   if (loading) {
     return (
@@ -263,6 +291,14 @@ export default function ClassHubScreen() {
             <CommunityTile icon="users" label="People" sub={`Message ${teacherName.split(" ")[0]} & classmates`} onPress={() => router.push("/messages/new")} />
           </View>
           <CommunityTile icon="folder" label="Resources" sub="Slide decks, PDFs & videos shared in class" onPress={() => router.push(`/class/${classId}/resources`)} />
+          {hasLab ? (
+            <CommunityTile
+              icon="video"
+              label="Lab recordings"
+              sub="Replay past live lab sessions"
+              onPress={() => router.push({ pathname: "/lab/recordings", params: { classId: String(classId) } })}
+            />
+          ) : null}
         </View>
 
         {/* Content lanes */}

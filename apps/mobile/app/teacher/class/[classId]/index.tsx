@@ -17,6 +17,7 @@ import {
   Text,
 } from "@/design/ui";
 import { GradientHero } from "@/design/bold";
+import { InviteQRCard } from "@/components/InviteQRCard";
 
 const NAV: { key: string; icon: IconName; label: string; sub: string; path: string }[] = [
   { key: "students", icon: "users", label: "Students", sub: "Roster, progress & at-risk", path: "students" },
@@ -142,6 +143,11 @@ export default function TeacherClassHub() {
               </Card>
             </PressableScale>
           ))}
+        </View>
+
+        <SectionHeader title="Invite students" />
+        <View style={{ marginBottom: space[6] }}>
+          <InviteQRCard inviteCode={ov.class.inviteCode} className={ov.class.name} />
         </View>
 
         {needs.length ? (

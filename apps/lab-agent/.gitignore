@@ -1,0 +1,14 @@
+# Build output + packaged installers
+dist/
+release/
+
+# Dependencies (this project npm-installs on its own, outside the pnpm workspace)
+node_modules/
+
+# Local env (pairing endpoint override, etc.) — never commit
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

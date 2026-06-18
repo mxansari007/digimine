@@ -41,10 +41,12 @@ describe("assertSlugAvailable (admin)", () => {
         expect(mockGetDoc).not.toHaveBeenCalled();
     });
 
-    it("rejects a slug already taken by another document", async () => {
-        mockGetDoc.mockResolvedValue(existing(true));
-        await expect(assertSlugAvailable("quizzes", "arrays-basics")).rejects.toThrow(
-            /already used by another quiz/i
+    it("auto-resolves a slug already taken by another document", async () => {
+        mockGetDoc
+            .mockResolvedValueOnce(existing(true))
+            .mockResolvedValueOnce(existing(false));
+        await expect(assertSlugAvailable("quizzes", "arrays-basics")).resolves.toBe(
+            "arrays-basics-2"
         );
     });
 

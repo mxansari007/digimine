@@ -62,6 +62,7 @@ export function ClassCreateModal({
     const [subject, setSubject] = useState("");
     const [room, setRoom] = useState("");
     const [description, setDescription] = useState("");
+    const [labEnabled, setLabEnabled] = useState(false);
 
     // Section picker
     const [sectionQuery, setSectionQuery] = useState("");
@@ -192,6 +193,7 @@ export function ClassCreateModal({
                 subject: subject.trim(),
                 description: description.trim() || undefined,
                 room: room.trim() || undefined,
+                labEnabled,
                 meetings: meetings.map((m) => ({
                     day: m.day,
                     startTime: m.startTime,
@@ -406,6 +408,22 @@ export function ClassCreateModal({
                             />
                         </Field>
                     )}
+
+                    {/* Virtual Lab opt-in — applies to any class, editable later. */}
+                    <Field label="Virtual Lab" hint="Optional · editable later">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-2.5 transition hover:border-primary-300 dark:border-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={labEnabled}
+                                onChange={(e) => setLabEnabled(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-slate-700 dark:text-slate-200">
+                                Enable the <strong>Virtual Lab</strong> for this class — students join a live room map,
+                                share screens with you and each other, and you can broadcast &amp; record the session.
+                            </span>
+                        </label>
+                    </Field>
 
                     {/* Timetable */}
                     {showSectionUI && (

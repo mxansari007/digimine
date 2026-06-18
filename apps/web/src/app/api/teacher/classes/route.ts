@@ -51,6 +51,8 @@ export async function POST(req: Request) {
         }
         const body = await req.json().catch(() => ({}));
         const description = typeof body.description === "string" ? body.description.trim() : "";
+        // Per-class opt-in to the Virtual Lab (teacher decides at creation).
+        const labEnabled = body.labEnabled === true;
 
         // Institute-affiliated teachers can't create classes themselves — the
         // institute owns class creation and assigns teachers.
@@ -97,6 +99,7 @@ export async function POST(req: Request) {
                 studentsCount: 0,
                 activeStudentsCount: 0,
                 isArchived: false,
+                labEnabled,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -221,6 +224,7 @@ export async function POST(req: Request) {
             studentsCount: 0,
             activeStudentsCount: 0,
             isArchived: false,
+            labEnabled,
             createdAt: now,
             updatedAt: now,
         };

@@ -53,11 +53,16 @@ import {
     MessageSquare,
     Megaphone,
     FolderOpen,
+    FlaskConical,
+    BarChart3,
 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { teacherFetch } from "@/lib/api/teacherFetch";
 import { HelpTutorial } from "@/components/help/HelpTutorial";
 import { TUTORIALS } from "@/components/help/tutorials";
+import { InviteQR } from "@/components/classroom/InviteQR";
+import { isVirtualLabEnabled } from "@/lib/flags";
+import { fetchClassLabState, type LabSessionSummary } from "@/lib/lab/labClient";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -67,6 +72,8 @@ type ClassMeta = {
     description: string | null;
     inviteCode: string;
     isArchived: boolean;
+    /** Per-class Virtual Lab opt-in — gates the "Start Lab" card below. */
+    labEnabled: boolean;
     studentsCount: number;
     activeStudentsCount: number;
     createdAt: string | null;
@@ -143,7 +150,14 @@ export default function TeacherClassDetailPage() {
     const [statusFilter, setStatusFilter] =
         useState<"all" | "active" | "banned" | "removed">("active");
     const [copyState, setCopyState] = useState<"idle" | "code" | "link">("idle");
+    // Virtual Lab: the live session for this class (if any) drives Start vs
+    // Resume on the lab card. Only fetched when the feature flag + labEnabled
+    // are both on, so a class without the lab never hits the lab API.
+    const [liveLab, setLiveLab] = useState<LabSessionSummary | null>(null);
+    const [startingLab, setStartingLab] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    const labFeatureOn = isVirtualLabEnabled();
+    const labEnabled = labFeatureOn && data?.class.labEnabled === true;
 
     const load = useCallback(async () => {
         if (!firebaseUser) return;
@@ -167,6 +181,50 @@ export default function TeacherClassDetailPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    // Look up the class's live lab session so the card shows Resume (live) vs
+    // Start (none). Gated on the flag + labEnabled; skipped otherwise so a
+    // non-lab class makes no lab API call.
+    useEffect(() => {
+        if (!firebaseUser || !labEnabled) {
+            setLiveLab(null);
+            return;
+        }
+        let cancelled = false;
+        fetchClassLabState(firebaseUser, classId)
+            .then((s) => {
+                if (!cancelled) setLiveLab(s.live);
+            })
+            .catch(() => {
+                if (!cancelled) setLiveLab(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [firebaseUser, classId, labEnabled]);
+
+    const startLab = async () => {
+        if (!firebaseUser) return;
+        // If a session is already live, just resume into it.
+        if (liveLab) {
+            router.push(`/teacher/lab/${liveLab.id}?classId=${encodeURIComponent(classId)}`);
+            return;
+        }
+        setStartingLab(true);
+        try {
+            const res = await teacherFetch(firebaseUser, "/api/lab/sessions", {
+                method: "POST",
+                body: JSON.stringify({ classId }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || "Could not start the lab.");
+            const session = body.session as LabSessionSummary;
+            router.push(`/teacher/lab/${session.id}?classId=${encodeURIComponent(classId)}`);
+        } catch (err) {
+            toast.error((err as Error)?.message || "Could not start the lab.");
+            setStartingLab(false);
+        }
+    };
 
     const copyInviteCode = () => {
         if (!data?.class) return;
@@ -588,6 +646,65 @@ export default function TeacherClassDetailPage() {
                 </div>
             )}
 
+            {/* ─── Virtual Lab ─────────────────────────────────────── */}
+            {labEnabled && (
+                <Card className="overflow-hidden border-primary-200 bg-gradient-to-br from-primary-50/70 to-white p-5 dark:border-primary-500/25 dark:from-primary-500/10 dark:to-surface">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">
+                                <FlaskConical className="h-5 w-5" strokeWidth={2} aria-hidden />
+                            </span>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-slate-900">
+                                        Virtual Lab
+                                    </h3>
+                                    {liveLab && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
+                                            <span className="relative flex h-1.5 w-1.5">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-60 motion-reduce:animate-none" />
+                                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                            </span>
+                                            Live
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="mt-0.5 max-w-md text-xs text-slate-500">
+                                    {liveLab
+                                        ? "A live lab is running for this class. Jump back in to run the room."
+                                        : "Open a live, hands-on lab room for this class — a real-time map of who's on task, stuck, or sharing."}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                    <Link
+                                        href={`/teacher/classes/${classroom.id}/lab-library`}
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 focus-visible:underline"
+                                    >
+                                        <FolderOpen className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                                        Lab recordings
+                                    </Link>
+                                    <Link
+                                        href={`/teacher/classes/${classroom.id}/lab-insights`}
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 focus-visible:underline"
+                                    >
+                                        <BarChart3 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                                        Lab insights
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                        <Button
+                            variant="primary"
+                            onClick={startLab}
+                            isLoading={startingLab}
+                            disabled={startingLab}
+                        >
+                            <FlaskConical className="mr-1.5 h-4 w-4" strokeWidth={2} aria-hidden />
+                            {liveLab ? "Resume lab" : "Start lab"}
+                        </Button>
+                    </div>
+                </Card>
+            )}
+
             {/* ─── Invite + add ────────────────────────────────────── */}
             <Card className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -624,7 +741,12 @@ export default function TeacherClassDetailPage() {
                                 Regenerate
                             </button>
                         </div>
+                        <p className="mt-3 text-xs text-slate-500">
+                            Show this QR for students to scan — they join instantly, no code to type.
+                        </p>
                     </div>
+
+                    <InviteQR path={`/join/${classroom.inviteCode}`} title={classroom.name} />
 
                     <div className="min-w-[240px] flex-1 sm:flex-initial">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

@@ -1338,5 +1338,131 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
+
+    // ===== Virtual Lab =====
+    //
+    // A gamified live lab session that runs inside a class (see
+    // docs/VIRTUAL_LAB.md + @digimine/types `lab.ts`). The authoritative state
+    // lives across three planes; only the Firestore plane is governed here:
+    //   labSessions/{id}                    — the session document
+    //   labSessions/{id}/participants/{uid} — authoritative roster row
+    //   labSessions/{id}/events/{autoId}    — append-only audit log
+    //   labRecordings/{id}                  — one row per recording
+    //
+    // Almost every write goes through /api/lab/* + /api/teacher/lab/* (admin
+    // SDK, which bypasses these rules) — minting LiveKit tokens, opening/ending
+    // sessions, mirroring the live data channel into the audit log, etc. The
+    // rules below scope the *direct client reads* (rendering the map + replay
+    // lists) and keep the few client-allowed writes (a student owning their own
+    // participant row; any member appending an audit event) safe in isolation.
+    //
+    // Class membership is the access unit: the owning teacher (isClassTeacher),
+    // the teacher's enrolled students (isEnrolledStudent / the denormalized
+    // users.enrolledTeacherIds array, both already folded into that helper), and
+    // platform admins. Reuses the helpers defined at the top of this file.
+    //
+    // We resolve the class's teacher from the `classes/{classId}` doc (mirroring
+    // the classes/{classId}/students rules) rather than trusting a denormalized
+    // teacherId on every lab doc — labRecordings, for one, carries only classId.
+    // A lab "teacher" = the class owner (isClassTeacher) OR an assigned subject
+    // teacher (institute classes carry a teacherIds[] of all subject teachers) OR
+    // a platform admin. This mirrors the API's resolveClassLabRole() exactly, so
+    // anyone the token endpoint treats as a teacher is also a teacher to the rules.
+    function isLabTeacher(classId) {
+      return classId != ''
+          && (
+            isAdmin()
+            || isClassTeacher(classId)
+            || (
+              isAuthenticated()
+              && exists(/databases/$(database)/documents/classes/$(classId))
+              && get(/databases/$(database)/documents/classes/$(classId))
+                   .data.get('teacherIds', []).hasAny([request.auth.uid])
+            )
+          );
+    }
+
+    function isLabClassMember(classId) {
+      return classId != ''
+          && (
+            isLabTeacher(classId)
+            || (
+              exists(/databases/$(database)/documents/classes/$(classId))
+              && isEnrolledStudent(
+                   get(/databases/$(database)/documents/classes/$(classId)).data.get('teacherId', '')
+                 )
+            )
+          );
+    }
+
+    match /labSessions/{sessionId} {
+      // Read: any member of the session's class (teacher / enrolled student /
+      // admin).
+      allow read: if isLabClassMember(resource.data.get('classId', ''));
+
+      // Write: only the owning class teacher or a platform admin. The API
+      // (admin SDK) does the real lifecycle work; this keeps any direct client
+      // write locked to the teacher who owns the class.
+      allow create: if isLabTeacher(request.resource.data.get('classId', ''));
+      allow update, delete: if isLabTeacher(resource.data.get('classId', ''));
+
+      // Authoritative roster row. One doc per participant uid.
+      match /participants/{uid} {
+        // Read: any member of the parent session's class (to render the map).
+        allow read: if isLabClassMember(
+                         get(/databases/$(database)/documents/labSessions/$(sessionId)).data.get('classId', '')
+                       );
+
+        // Write: a student manages ONLY their own row and only as a 'student'
+        // (they can't self-promote to teacher/observer); the class teacher and
+        // admins may write ANY uid's row (seat, status, removal).
+        allow create, update: if (
+                                request.auth.uid == uid
+                                && request.resource.data.get('role', '') == 'student'
+                              )
+                              || isLabTeacher(
+                                   get(/databases/$(database)/documents/labSessions/$(sessionId)).data.get('classId', '')
+                                 );
+
+        // Delete: teacher/admin only (a student leaving sets leftAt, it does
+        // not delete the row — the roster is the durable "who was here").
+        allow delete: if isLabTeacher(
+                           get(/databases/$(database)/documents/labSessions/$(sessionId)).data.get('classId', '')
+                         );
+      }
+
+      // Append-only audit log (mirror of the LiveKit data channel). Live
+      // signals are persisted here for the consent trail + replay markers.
+      match /events/{eventId} {
+        // Read: any member of the parent session's class.
+        allow read: if isLabClassMember(
+                         get(/databases/$(database)/documents/labSessions/$(sessionId)).data.get('classId', '')
+                       );
+
+        // Create: any class member may append an event, but ONLY as themselves
+        // (actorUid must equal the caller) so events can't be forged.
+        allow create: if request.resource.data.get('actorUid', '') == request.auth.uid
+                      && isLabClassMember(
+                           get(/databases/$(database)/documents/labSessions/$(sessionId)).data.get('classId', '')
+                         );
+
+        // APPEND-ONLY: the audit trail is immutable. No edits, no deletes
+        // (server cleanup, if ever needed, uses the admin SDK).
+        allow update, delete: if false;
+      }
+    }
+
+    // Session recordings (one row per recording; classId denormalized for a
+    // class-scoped "recordings" list without a session read).
+    match /labRecordings/{recordingId} {
+      // Read: any member of the recording's class.
+      allow read: if isLabClassMember(resource.data.get('classId', ''));
+
+      // Write: teacher / admin only. In practice every write is server-side
+      // (egress webhook + the lab API, both admin SDK); this locks down any
+      // direct client write.
+      allow create: if isLabTeacher(request.resource.data.get('classId', ''));
+      allow update, delete: if isLabTeacher(resource.data.get('classId', ''));
+    }
   }
 }

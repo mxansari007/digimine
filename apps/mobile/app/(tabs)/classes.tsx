@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, ApiError, type EnrolledClass } from "@/lib/api";
+import { api, type EnrolledClass } from "@/lib/api";
+import { joinByCode } from "@/lib/classJoin";
 import { useColors } from "@/design/theme";
 import { space } from "@/design/tokens";
 import {
@@ -55,70 +56,18 @@ export default function ClassesScreen() {
     if (!trimmed || joining) return;
     setJoining(true);
     setError(null);
-
-    // Shared: redeem the code, refresh, and land in a class. A GROUP code
-    // (GRP-…) enrolls in several classes and returns `classIds[]`; a class
-    // code (CLS-…) returns a single `classId`.
-    const doJoin = async () => {
-      try {
-        const res = await api.joinClass({
-          inviteCode: trimmed,
-          studentEmail: user?.email || undefined,
-          studentName: user?.displayName || undefined,
-        });
+    await joinByCode({
+      code: trimmed,
+      email: user?.email,
+      name: user?.displayName,
+      onJoined: (classId) => {
         setCode("");
-        await load();
-        const firstClass = res.classId || res.classIds?.[0];
-        if (firstClass) router.push(`/class/${firstClass}`);
-      } catch (e: any) {
-        if (e instanceof ApiError && e.body?.code === "email_not_verified") {
-          setError("Verify your email first (check your inbox), then try joining again.");
-        } else {
-          setError(e?.message || "Couldn't join the class.");
-        }
-      }
-    };
-
-    try {
-      const found = await api.lookupInvite(trimmed);
-
-      // Group code → joins all the section's subjects at once.
-      if (found.group) {
-        const g = found.group;
-        const subjects = g.subjects?.length ? `\n\nSubjects: ${g.subjects.join(", ")}` : "";
-        Alert.alert(
-          `Join ${g.sectionName || g.name}?`,
-          `Group ${g.name} · ${g.classCount} ${g.classCount === 1 ? "class" : "classes"}.${subjects}`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Join", onPress: doJoin },
-          ]
-        );
-        return;
-      }
-
-      // Single class code.
-      if (found.class) {
-        const teacherName =
-          found.teacher?.profile?.fullName || found.teacher?.profile?.displayName || "your teacher";
-        const target = found.class;
-        Alert.alert(
-          `Join "${target.name}"?`,
-          `Taught by ${teacherName}. You'll see its quizzes, courses and discussions here.`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Join class", onPress: doJoin },
-          ]
-        );
-        return;
-      }
-
-      setError("No class or group matches that code — double-check it with your teacher.");
-    } catch (e: any) {
-      setError(e?.message || "Couldn't look up that code.");
-    } finally {
-      setJoining(false);
-    }
+        router.push(`/class/${classId}`);
+      },
+      onError: setError,
+      onRefresh: load,
+    });
+    setJoining(false);
   };
 
   return (
@@ -148,17 +97,23 @@ export default function ClassesScreen() {
           }
         />
 
-        {/* Join with a code */}
+        {/* Join with a QR scan or a code */}
         <Card style={{ marginBottom: space[8] }}>
           <Text variant="bodyEm">Join a class</Text>
           <Text variant="footnote" color="textMuted" style={{ marginTop: space[1] }}>
-            Enter the class or group code your teacher shared — a group code joins all your subjects.
+            Scan your teacher&apos;s QR code, or enter the class / group code they shared.
           </Text>
-          <View style={{ flexDirection: "row", gap: space[2], marginTop: space[4] }}>
+          <Button
+            label="Scan QR code"
+            leftIcon="maximize"
+            onPress={() => router.push("/scan" as Href)}
+            style={{ marginTop: space[4] }}
+          />
+          <View style={{ flexDirection: "row", gap: space[2], marginTop: space[3] }}>
             <Input
               value={code}
               onChangeText={setCode}
-              placeholder="e.g. ABX4T9"
+              placeholder="or enter a code, e.g. ABX4T9"
               autoCapitalize="characters"
               autoCorrect={false}
               onSubmitEditing={join}
@@ -166,7 +121,13 @@ export default function ClassesScreen() {
               style={{ letterSpacing: 1, fontWeight: "600" }}
               containerStyle={{ flex: 1 }}
             />
-            <Button label="Join" onPress={join} loading={joining} disabled={!code.trim()} />
+            <Button
+              label="Join"
+              variant="secondary"
+              onPress={join}
+              loading={joining}
+              disabled={!code.trim()}
+            />
           </View>
         </Card>
 

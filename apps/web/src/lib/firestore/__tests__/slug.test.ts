@@ -1,57 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockGetDoc = vi.fn();
-vi.mock("firebase/firestore", () => ({
-    doc: (_db: unknown, col: string, id: string) => ({ col, id }),
-    getDoc: (ref: unknown) => mockGetDoc(ref),
+const mockGetIdToken = vi.fn().mockResolvedValue("test-token");
+vi.mock("../../firebase/client", () => ({
+    auth: { currentUser: { getIdToken: () => mockGetIdToken() } },
 }));
-
-vi.mock("../../firebase/client", () => ({ db: {} }));
 
 import { assertSlugAvailable } from "../slug";
 
-function existing(exists: boolean) {
-    return { exists: () => exists };
+function jsonRes(body: unknown, ok = true, status = 200): Response {
+    return { ok, status, json: async () => body } as unknown as Response;
 }
 
 describe("assertSlugAvailable (web / teacher)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetDoc.mockResolvedValue(existing(false));
+        vi.stubGlobal("fetch", vi.fn());
     });
 
-    it("returns the trimmed slug when free and well-formed", async () => {
+    it("returns the slug the server reserves (and trims the input)", async () => {
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(jsonRes({ slug: "my-quiz" }));
         await expect(assertSlugAvailable("quizzes", " my-quiz ")).resolves.toBe("my-quiz");
+        const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+            collection: "quizzes",
+            slug: "my-quiz",
+        });
     });
 
-    it("rejects malformed slugs before querying", async () => {
-        await expect(assertSlugAvailable("courses", "Bad Slug")).rejects.toThrow(
-            /lowercase letters/i
-        );
-        expect(mockGetDoc).not.toHaveBeenCalled();
+    it("rejects malformed slugs before calling the server", async () => {
+        await expect(assertSlugAvailable("courses", "Bad Slug")).rejects.toThrow(/lowercase letters/i);
+        expect(fetch).not.toHaveBeenCalled();
     });
 
-    it("rejects a slug taken by a readable document", async () => {
-        mockGetDoc.mockResolvedValue(existing(true));
-        await expect(assertSlugAvailable("tests", "ssc-cgl-2025")).rejects.toThrow(
-            /already taken/i
-        );
+    it("returns the server's auto-suffixed slug on a collision", async () => {
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(jsonRes({ slug: "ssc-cgl-2025-2" }));
+        await expect(assertSlugAvailable("tests", "ssc-cgl-2025")).resolves.toBe("ssc-cgl-2025-2");
     });
 
-    it("treats permission-denied (another author's private draft) as taken", async () => {
-        // A teacher cannot read another teacher's private doc — Firestore
-        // throws permission-denied. The helper must surface a friendly
-        // "already taken" rather than letting the cryptic error escape.
-        mockGetDoc.mockRejectedValue({ code: "permission-denied" });
-        await expect(assertSlugAvailable("quizzes", "shared-slug")).rejects.toThrow(
-            /already taken/i
+    it("skips the server when editing without changing the slug", async () => {
+        await expect(assertSlugAvailable("quizzes", "keep-slug", "keep-slug")).resolves.toBe(
+            "keep-slug"
         );
+        expect(fetch).not.toHaveBeenCalled();
     });
 
-    it("re-throws unexpected Firestore errors unchanged", async () => {
-        mockGetDoc.mockRejectedValue(new Error("network down"));
-        await expect(assertSlugAvailable("quizzes", "some-slug")).rejects.toThrow(
-            /network down/i
+    it("surfaces the server's error message", async () => {
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+            jsonRes({ error: "Could not find a free slug for \"x\"." }, false, 409)
         );
+        await expect(assertSlugAvailable("quizzes", "some-slug")).rejects.toThrow(/free slug/i);
     });
 });

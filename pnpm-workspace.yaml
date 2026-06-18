@@ -4,5 +4,8 @@ packages:
   # and pnpm's symlinked node_modules don't mix reliably, so it lives outside
   # the pnpm workspace on purpose.
   - "!apps/mobile"
+  # The Electron desktop agent (Virtual Lab) also manages its own install —
+  # Electron + native input modules don't belong in the web monorepo tree.
+  - "!apps/lab-agent"
   - "packages/*"
   - "firebase/functions"

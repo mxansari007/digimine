@@ -192,6 +192,8 @@ export async function GET(req: Request, { params }: { params: { classId: string 
                 description: ownership.classDoc.description || null,
                 inviteCode: ownership.classDoc.inviteCode,
                 isArchived: Boolean(ownership.classDoc.isArchived),
+                // Per-class Virtual Lab opt-in — gates the "Start Lab" card.
+                labEnabled: ownership.classDoc.labEnabled === true,
                 studentsCount: ownership.classDoc.studentsCount || 0,
                 activeStudentsCount: ownership.classDoc.activeStudentsCount || 0,
                 createdAt: ownership.classDoc.createdAt

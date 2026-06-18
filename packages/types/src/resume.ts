@@ -315,8 +315,17 @@ export type ResumeHeadingStyle = "accent" | "dark" | "muted";
 /** Layout family: "single" = classic single column; "sidebar" = section labels
  *  in a tinted left band with content on the right; "two-col" = two balanced
  *  columns with coloured section icons; "split" = narrow left column (skills /
- *  education) + wide right column (experience). */
-export type ResumeLayout = "single" | "sidebar" | "two-col" | "split";
+ *  education) + wide right column (experience); "academic" = section labels hang
+ *  in the left margin (no band) with a centred name; "hanging" = slim gutter label
+ *  + vertical accent rule down a single flow; "inline" = run-in headings. */
+export type ResumeLayout =
+    | "single"
+    | "sidebar"
+    | "two-col"
+    | "split"
+    | "academic"
+    | "hanging"
+    | "inline";
 
 /**
  * A resume template is fully DATA-DRIVEN: a set of typography/spacing knobs the
@@ -370,6 +379,19 @@ export interface ResumeTemplateSpec {
     headingCenter?: boolean;
     /** Entries put the date in a left column instead of the right (timeline look). */
     dateLeft?: boolean;
+    /** Render the header name inside a filled box (secondary accent) with the
+     *  contact block beside it — a bold "boxed name" header. */
+    nameBox?: boolean;
+    /** Render section headings as filled label tags (primary-accent fill, light
+     *  text) instead of plain text. */
+    headingTag?: boolean;
+    /** ALL-CAPS heading hugging the left with an accent rule extending to the right
+     *  margin (the "ascend" treatment). */
+    headingRuleRight?: boolean;
+    /** Heading framed between two fine rules, above and below (the "bracket" look). */
+    headingBracket?: boolean;
+    /** Heading trailed by a dotted leader out to the right margin (the "ledger" look). */
+    headingLeader?: boolean;
 }
 
 /** Clamp helper bounds — also used to validate admin input. */
@@ -390,12 +412,19 @@ export const BUILTIN_RESUME_TEMPLATES: ResumeTemplateSpec[] = [
     { id: "professional", label: "Professional", blurb: "Confident larger name, bold accent headings. Great for experienced candidates.", builtin: true, nameSize: 27, nameAccent: true, headingSize: 11, headingStyle: "accent", headingRule: false, letterSpacing: 1.2, bodySize: 10, sectionGap: 11, entryGap: 8, margin: 40 },
     { id: "minimal", label: "Minimal", blurb: "Understated, monochrome, lots of whitespace. Lets your content speak.", builtin: true, nameSize: 21, nameAccent: false, headingSize: 9.5, headingStyle: "muted", headingRule: false, letterSpacing: 1.6, bodySize: 10, sectionGap: 12, entryGap: 7, margin: 44 },
     { id: "compact", label: "Compact", blurb: "Tighter spacing to fit dense experience onto one page without losing parseability.", builtin: true, nameSize: 18, nameAccent: true, headingSize: 9.5, headingStyle: "dark", headingRule: false, letterSpacing: 0.6, bodySize: 9, sectionGap: 7, entryGap: 5, margin: 30 },
-    { id: "sidebar", label: "Sidebar", blurb: "Two-column layout: section labels sit in a tinted left band, content on the right. Bold serif headings — still ATS-parseable.", builtin: true, nameSize: 26, nameAccent: false, headingSize: 12.5, headingStyle: "dark", headingRule: false, letterSpacing: 0, bodySize: 10, sectionGap: 13, entryGap: 9, margin: 30, layout: "sidebar", sidebarWidth: 156, bandColor: "#dbe7f5", headingSerif: true },
+    { id: "sidebar", label: "Sidebar", blurb: "Two-tone two-column layout: section labels sit in a left band tinted with your secondary accent; labels take the primary accent, content on the right. Bold serif headings — still ATS-parseable.", builtin: true, nameSize: 26, nameAccent: false, headingSize: 12.5, headingStyle: "accent", headingRule: false, letterSpacing: 0, bodySize: 10, sectionGap: 13, entryGap: 9, margin: 30, layout: "sidebar", sidebarWidth: 156, bandColor: "#dbe7f5", headingSerif: true, usesAccent2: true },
     { id: "onyx", label: "Onyx", blurb: "Bold full-width header band with your name in it, then a clean single-column body. Two-tone: band uses the secondary accent, headings use the primary.", builtin: true, nameSize: 25, nameAccent: false, headingSize: 11, headingStyle: "accent", headingRule: true, letterSpacing: 1, bodySize: 10, sectionGap: 11, entryGap: 8, margin: 40, headerBand: true, usesAccent2: true },
-    { id: "helix", label: "Two-Column", blurb: "Compact two-column layout with coloured section icons that alternate between your two accents. Skills as chips. Great for fitting a lot on one page.", builtin: true, nameSize: 23, nameAccent: true, headingSize: 10.5, headingStyle: "accent", headingRule: false, letterSpacing: 0.8, bodySize: 9.5, sectionGap: 9, entryGap: 6, margin: 36, layout: "two-col", usesAccent2: true },
+    { id: "helix", label: "Two-Column", blurb: "Compact two-column layout with coloured section icons in a single accent. Skills as chips. Great for fitting a lot on one page.", builtin: true, nameSize: 23, nameAccent: true, headingSize: 10.5, headingStyle: "accent", headingRule: false, letterSpacing: 0.8, bodySize: 9.5, sectionGap: 9, entryGap: 6, margin: 36, layout: "two-col" },
     { id: "meridian", label: "Centered", blurb: "Elegant centred name and centred section headings flanked by rules. Calm, symmetric single-column layout.", builtin: true, nameSize: 26, nameAccent: true, headingSize: 11, headingStyle: "accent", headingRule: false, letterSpacing: 2, bodySize: 10, sectionGap: 12, entryGap: 8, margin: 44, headingCenter: true },
     { id: "timeline", label: "Timeline", blurb: "Dark header band with your name, then a timeline body — dates in a left column beside each entry. Two-tone (band + accent headings).", builtin: true, nameSize: 24, nameAccent: false, headingSize: 11, headingStyle: "accent", headingRule: true, letterSpacing: 1, bodySize: 10, sectionGap: 12, entryGap: 9, margin: 40, headerBand: true, dateLeft: true, usesAccent2: true },
     { id: "split", label: "Split", blurb: "Narrow left column for skills, education and certifications; wide right column for experience and projects. Two-tone accents.", builtin: true, nameSize: 24, nameAccent: false, headingSize: 10.5, headingStyle: "accent", headingRule: false, letterSpacing: 0.8, bodySize: 9.5, sectionGap: 10, entryGap: 7, margin: 34, layout: "split", usesAccent2: true },
+    { id: "academic", label: "Academic", blurb: "Centred name with section labels hanging in the left margin and a hairline rule per section — the clean academic-CV look. One accent, fully ATS-parseable.", builtin: true, nameSize: 24, nameAccent: false, headingSize: 10.5, headingStyle: "accent", headingRule: false, letterSpacing: 1, bodySize: 10, sectionGap: 12, entryGap: 7, margin: 44, layout: "academic" },
+    { id: "vertex", label: "Boxed", blurb: "Bold boxed name in the secondary accent with contact beside it, dates in a left timeline column, and section headings as filled accent tags. Two-tone, ATS-parseable.", builtin: true, nameSize: 20, nameAccent: false, headingSize: 9.5, headingStyle: "dark", headingRule: false, letterSpacing: 1, bodySize: 9.5, sectionGap: 12, entryGap: 8, margin: 38, dateLeft: true, nameBox: true, headingTag: true, usesAccent2: true },
+    { id: "ascend", label: "Ascend", blurb: "ALL-CAPS section headings with a thin accent rule running out to the right margin. The clean, modern, recruiter-safe single column.", builtin: true, nameSize: 24, nameAccent: true, headingSize: 10.5, headingStyle: "dark", headingRule: false, letterSpacing: 1.2, bodySize: 10, sectionGap: 11, entryGap: 8, margin: 40, headingRuleRight: true },
+    { id: "bracket", label: "Bracket", blurb: "Section headings framed between two fine rules — an architectural, quiet-luxury single column. Accent headings, fine rules, fully ATS-parseable.", builtin: true, nameSize: 23, nameAccent: false, headingSize: 10.5, headingStyle: "accent", headingRule: false, letterSpacing: 1.5, bodySize: 10, sectionGap: 12, entryGap: 8, margin: 42, headingBracket: true },
+    { id: "ledger", label: "Ledger", blurb: "Quiet single column with small-caps headings trailed by a dotted leader to the right margin — a refined, statement-like look. One accent, ATS-parseable.", builtin: true, nameSize: 22, nameAccent: false, headingSize: 10, headingStyle: "accent", headingRule: false, letterSpacing: 1, bodySize: 10, sectionGap: 11, entryGap: 7, margin: 42, headingLeader: true },
+    { id: "spine", label: "Spine", blurb: "Section labels in a slim left gutter with a vertical accent rule running down the body — a single clean flow with a coloured spine. One accent, ATS-parseable.", builtin: true, nameSize: 24, nameAccent: true, headingSize: 10, headingStyle: "accent", headingRule: false, letterSpacing: 1, bodySize: 10, sectionGap: 12, entryGap: 7, margin: 40, layout: "hanging" },
+    { id: "inline", label: "Inline", blurb: "Run-in headings sit on the same line as their content for a dense, editorial one-page layout. One accent, very ATS-parseable.", builtin: true, nameSize: 21, nameAccent: false, headingSize: 9.5, headingStyle: "accent", headingRule: false, letterSpacing: 1, bodySize: 9.5, sectionGap: 9, entryGap: 6, margin: 38, layout: "inline" },
 ];
 
 /** Back-compat alias: the gallery / pickers list templates from here. */
@@ -412,9 +441,9 @@ export const RESUME_TEMPLATE_FAMILIES = [
 export type ResumeTemplateFamily = (typeof RESUME_TEMPLATE_FAMILIES)[number];
 
 export function resumeTemplateFamily(spec: ResumeTemplateSpec): ResumeTemplateFamily {
-    if (spec.layout === "sidebar") return "Sidebar";
+    if (spec.layout === "sidebar" || spec.layout === "academic" || spec.layout === "hanging") return "Sidebar";
     if (spec.layout === "two-col" || spec.layout === "split") return "Two-column";
-    if (spec.headerBand) return "Header band";
+    if (spec.headerBand || spec.nameBox) return "Header band";
     if (spec.headingCenter) return "Centered";
     return "Single column";
 }
@@ -477,13 +506,24 @@ export function sanitizeTemplateSpec(raw: unknown, index: number): ResumeTemplat
         headerBand: r.headerBand === true,
         headingCenter: r.headingCenter === true,
         dateLeft: r.dateLeft === true,
+        nameBox: r.nameBox === true,
+        headingTag: r.headingTag === true,
+        headingRuleRight: r.headingRuleRight === true,
+        headingBracket: r.headingBracket === true,
+        headingLeader: r.headingLeader === true,
         layout: sidebar
             ? "sidebar"
             : r.layout === "two-col"
               ? "two-col"
               : r.layout === "split"
                 ? "split"
-                : "single",
+                : r.layout === "academic"
+                  ? "academic"
+                  : r.layout === "hanging"
+                    ? "hanging"
+                    : r.layout === "inline"
+                      ? "inline"
+                      : "single",
         ...(sidebar
             ? {
                   sidebarWidth: clampNum(r.sidebarWidth, B.sidebarWidth, 156),

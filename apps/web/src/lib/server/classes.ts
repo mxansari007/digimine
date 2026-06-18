@@ -213,6 +213,10 @@ export function serializeClass(doc: any) {
         studentsCount: data.studentsCount ?? 0,
         activeStudentsCount: data.activeStudentsCount ?? 0,
         isArchived: data.isArchived ?? false,
+        // Per-class opt-in for the Virtual Lab. Drives the in-class lab entry
+        // points (teacher "Start Lab" card + student "Join Live Lab"); the lab
+        // API also re-checks this server-side, so this is purely for the UI gate.
+        labEnabled: data.labEnabled === true,
         // Institute classes set instituteId + teacherIds[] (all subject teachers);
         // independent-teacher classes leave instituteId null. Callers use these to
         // tell the two shapes apart and to know every teacher of a class.

@@ -24,6 +24,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { isLocalhost } from "@/lib/dev";
 
 /**
  * Paths that must remain reachable without a verified email — ONLY the auth
@@ -81,8 +82,9 @@ export function EmailVerificationGate({ children }: EmailVerificationGateProps) 
         if (firebaseUser.emailVerified) return false;
         // Dev escape hatch — OFF by default so verification is enforced
         // everywhere (including localhost). A developer who needs to skip it
-        // locally must explicitly set NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION=1.
-        if (process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "1") {
+        // locally can either set NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION=1 or
+        // run the app on localhost, which is auto-detected below.
+        if (process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "1" || isLocalhost()) {
             return false;
         }
         // Trust Google / federated providers — their email is already verified

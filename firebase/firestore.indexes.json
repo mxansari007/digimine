@@ -771,6 +771,31 @@
                 { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         },
+
+        {
+            "collectionGroup": "labSessions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "classId", "order": "ASCENDING" },
+                { "fieldPath": "startedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "events",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                { "fieldPath": "sessionId", "order": "ASCENDING" },
+                { "fieldPath": "ts", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "labRecordings",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "classId", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
+            ]
+        },
         {
             "collectionGroup": "resumes",
             "queryScope": "COLLECTION",

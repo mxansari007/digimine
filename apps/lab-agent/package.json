@@ -1,0 +1,67 @@
+{
+  "name": "lab-agent",
+  "productName": "PlacementRanker Lab Agent",
+  "version": "0.1.0",
+  "description": "Installable desktop agent for the Virtual Lab — full-screen capture + consent-gated remote control that the browser sandbox can't do.",
+  "private": true,
+  "author": "PlacementRanker",
+  "main": "dist/main.js",
+  "comments": {
+    "workspace": "Like apps/mobile, this project lives OUTSIDE the pnpm workspace and manages its own install — run `npm install` HERE, not from the repo root.",
+    "nut-js": "@nut-tree-fork/nut-js (optionalDependencies) is the input-injection (mouse/keyboard) backend used ONLY when a student grants remote control. It ships native (N-API) binaries that target a stock Node ABI, so it needs a native rebuild for Electron's bundled Node — run `npm run rebuild` after install. It is OPTIONAL on purpose: the agent installs and screen-sharing works fine without it; remote control is simply disabled if it is missing or fails to load. See README.md → 'Remote control / native input'.",
+    "build": "electron-builder config below. appId/signing are placeholders — set a real signing identity + notarization (mac) / code-sign cert (win) before shipping a public installer. Screen Recording + Accessibility are TCC runtime grants, not entitlements (see README); the NS*UsageDescription strings live in build.mac.extendInfo."
+  },
+  "scripts": {
+    "clean": "rimraf dist release",
+    "build:main": "tsc -p tsconfig.main.json",
+    "copy:renderer": "node scripts/copy-renderer.js",
+    "build": "npm run clean && npm run build:main && npm run copy:renderer",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "type-check": "tsc --noEmit -p tsconfig.main.json",
+    "rebuild": "electron-rebuild -f -w @nut-tree-fork/nut-js",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "postinstall": "node scripts/check-native.js"
+  },
+  "dependencies": {
+    "livekit-client": "^2.5.0"
+  },
+  "optionalDependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/node": "^20.11.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.2"
+  },
+  "build": {
+    "appId": "com.placementranker.labagent",
+    "productName": "PlacementRanker Lab Agent",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.education",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Used to share your camera in a Virtual Lab session.",
+        "NSMicrophoneUsageDescription": "Used to share your microphone in a Virtual Lab session.",
+        "NSScreenCaptureUsageDescription": "Used to share your screen with your teacher in a Virtual Lab session."
+      }
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

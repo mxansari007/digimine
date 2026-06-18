@@ -104,6 +104,30 @@ function dateRange(start: string, end: string, current?: boolean): string {
     return [start, e].filter(Boolean).join(" – ");
 }
 
+/** Parse a #rgb or #rrggbb hex into [r,g,b]; falls back to slate on bad input. */
+function hexToRgb(hex: string): [number, number, number] {
+    let h = (hex || "").trim().replace(/^#/, "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return [30, 41, 59]; // #1e293b
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+/** Mix a hex colour with white. `weight` = fraction of the colour kept (0..1);
+ *  lower = lighter. Lets a band derive a soft tint from a strong accent. */
+export function tintWithWhite(hex: string, weight: number): string {
+    const [r, g, b] = hexToRgb(hex);
+    const mix = (c: number) => Math.round(c * weight + 255 * (1 - weight));
+    return `#${[mix(r), mix(g), mix(b)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** The sidebar's left-band colour: a light tint of the SECONDARY accent when the
+ *  template opts into two-tone (usesAccent2), else its fixed bandColor. Shared by
+ *  the live preview and the PDF renderer so the band always matches. */
+export function sidebarBandColor(spec: ResumeTemplateSpec, accent2?: string): string {
+    if (spec.usesAccent2) return tintWithWhite(accent2 || "#1e293b", 0.16);
+    return spec.bandColor ?? "#dbe7f5";
+}
+
 export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts: ResumeStyleOpts): string {
     const { accent, fontStack, fontScale } = opts;
     const accent2 = opts.accent2 || "#1e293b";
@@ -135,13 +159,31 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
             .map((x) => (editable ? `<span${ed(x.p)}>${esc(x.v)}</span>` : esc(x.v)))
             .join(sep);
 
+    const capStyle = `font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${ls}px;color:${headingColor};`;
     const headingHtml = (title: string, editPath?: string) => {
         const inner = editPath ? txt(title, editPath) : esc(title);
+        // Filled label tag (boxed-name family) — primary-accent fill, light text.
+        if (isHeadingTag) {
+            return `<div data-rz-stop data-rz-heading style="margin-bottom:5px;break-after:avoid;"><span style="display:inline-block;background:${accent};color:#fff;font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${ls}px;padding:2px 8px;">${inner}</span></div>`;
+        }
+        // ALL-CAPS heading hugging the left with an accent rule extending to the
+        // right margin (ascend).
+        if (isHeadingRuleRight) {
+            return `<div data-rz-stop data-rz-heading style="display:flex;align-items:center;gap:9px;margin-bottom:5px;break-after:avoid;"><span style="${capStyle}white-space:nowrap;">${inner}</span><span style="flex:1;height:1px;background:${accent};"></span></div>`;
+        }
+        // Heading framed between two fine rules (bracket).
+        if (isHeadingBracket) {
+            return `<div data-rz-stop data-rz-heading style="${capStyle}border-top:1px solid #3a3a3a;border-bottom:1px solid #3a3a3a;padding:2.5px 0;margin-bottom:5px;break-after:avoid;">${inner}</div>`;
+        }
+        // Heading trailed by a dotted leader to the right margin (ledger).
+        if (isHeadingLeader) {
+            return `<div data-rz-stop data-rz-heading style="display:flex;align-items:baseline;gap:7px;margin-bottom:5px;break-after:avoid;"><span style="${capStyle}white-space:nowrap;">${inner}</span><span style="flex:1;position:relative;top:-3px;border-bottom:1.5px dotted ${accent}99;"></span></div>`;
+        }
         if (isHeadingCenter) {
             const line = `<span style="flex:1;height:1px;background:${accent}59;"></span>`;
-            return `<div data-rz-stop data-rz-heading style="display:flex;align-items:center;gap:10px;margin:0 0 5px;break-after:avoid;">${line}<span style="font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${ls}px;color:${headingColor};white-space:nowrap;">${inner}</span>${line}</div>`;
+            return `<div data-rz-stop data-rz-heading style="display:flex;align-items:center;gap:10px;margin:0 0 5px;break-after:avoid;">${line}<span style="${capStyle}white-space:nowrap;">${inner}</span>${line}</div>`;
         }
-        return `<div data-rz-stop data-rz-heading style="font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${ls}px;color:${headingColor};margin-bottom:4px;break-after:avoid;${
+        return `<div data-rz-stop data-rz-heading style="${capStyle}margin-bottom:4px;break-after:avoid;${
             spec.headingRule ? `border-bottom:1px solid ${accent};padding-bottom:2px;` : ""
         }">${inner}</div>`;
     };
@@ -201,7 +243,16 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
     const isSidebar = spec.layout === "sidebar";
     const isTwoCol = spec.layout === "two-col";
     const isSplit = spec.layout === "split";
-    const isHeaderBand = spec.headerBand === true && !isSidebar && !isTwoCol;
+    const isAcademic = spec.layout === "academic";
+    const isHanging = spec.layout === "hanging";
+    const isInline = spec.layout === "inline";
+    const isNameBox = spec.nameBox === true && !isSidebar && !isTwoCol;
+    const isHeadingTag = spec.headingTag === true && !isSidebar && !isTwoCol;
+    // Single-column heading-rule treatments (mutually exclusive in practice).
+    const isHeadingRuleRight = spec.headingRuleRight === true && !isSidebar && !isTwoCol;
+    const isHeadingBracket = spec.headingBracket === true && !isSidebar && !isTwoCol;
+    const isHeadingLeader = spec.headingLeader === true && !isSidebar && !isTwoCol;
+    const isHeaderBand = spec.headerBand === true && !isSidebar && !isTwoCol && !isNameBox;
     const isHeadingCenter = spec.headingCenter === true;
     const isDateLeft = spec.dateLeft === true;
     const lpx = (pt: number) => Math.round(pt * PT_TO_PX * 100) / 100; // layout dims (no font scale)
@@ -223,7 +274,33 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
     // band + a gutter, with a rule above.
     const sidebarBlock = (title: string, inner: string, editPath?: string) =>
         `<section style="position:relative;border-top:1px solid #d2d2d2;padding:${secPadTopPx}px ${rightPadPx}px ${secPadBotPx}px ${contentLeftPx}px;">` +
-        `<div data-rz-skip style="position:absolute;left:${labelInsetPx}px;top:${secPadTopPx}px;width:${labelWidthPx}px;font-size:${heading}px;font-weight:700;font-style:italic;line-height:1.15;color:#1a1a1a;${spec.headingSerif ? `font-family:${SERIF};` : ""}">${editPath ? txt(title, editPath) : esc(title)}</div>` +
+        `<div data-rz-skip style="position:absolute;left:${labelInsetPx}px;top:${secPadTopPx}px;width:${labelWidthPx}px;font-size:${heading}px;font-weight:700;font-style:italic;line-height:1.15;color:${headingColor};${spec.headingSerif ? `font-family:${SERIF};` : ""}">${editPath ? txt(title, editPath) : esc(title)}</div>` +
+        `${inner}</section>`;
+
+    // An academic section: an ALL-CAPS label hangs in the left margin (absolute, so
+    // it never repeats across a page break), content in a right column, a hairline
+    // rule above. No tinted band, normal page margins — one accent (label = accent).
+    const acLabelW = lpx(104);
+    const acContentLeft = acLabelW + lpx(16);
+    const academicBlock = (title: string, inner: string, editPath?: string) =>
+        `<section style="position:relative;border-top:1px solid #e3e3e3;padding:${secPadTopPx}px 0 ${secPadBotPx}px ${acContentLeft}px;">` +
+        `<div data-rz-skip style="position:absolute;left:0;top:${secPadTopPx}px;width:${acLabelW}px;font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${Math.max(ls, 0.5)}px;line-height:1.25;color:${headingColor};">${editPath ? txt(title, editPath) : esc(title)}</div>` +
+        `${inner}</section>`;
+
+    // A spine section: a slim gutter label (absolute, so it never repeats across a
+    // page break) and the content in a single flow with a vertical accent rule
+    // (border-left, which DOES repeat per page) running down its left edge.
+    const spineLabelW = lpx(86);
+    const spineBlock = (title: string, inner: string, editPath?: string) =>
+        `<section style="position:relative;padding:${secPadTopPx}px 0 ${secPadBotPx}px ${spineLabelW}px;">` +
+        `<div data-rz-skip style="position:absolute;left:0;top:${secPadTopPx + 1}px;width:${spineLabelW - lpx(12)}px;font-size:${heading}px;font-weight:700;text-transform:uppercase;letter-spacing:${Math.max(ls, 0.5)}px;line-height:1.3;color:${headingColor};">${editPath ? txt(title, editPath) : esc(title)}</div>` +
+        `<div style="border-left:2px solid ${accent};padding-left:${lpx(13)}px;">${inner}</div></section>`;
+
+    // An inline (run-in) section: the heading floats left so the content runs in on
+    // the same line and wraps beneath it — dense, editorial.
+    const inlineBlock = (title: string, inner: string, editPath?: string) =>
+        `<section style="margin-top:${gap}px;overflow:hidden;">` +
+        `<span data-rz-heading style="float:left;margin:1px ${lpx(11)}px 0 0;${capStyle}line-height:1.35;">${editPath ? txt(title, editPath) : esc(title)}</span>` +
         `${inner}</section>`;
 
     // Two-column: a coloured round icon (alternating accent / accent2) beside each
@@ -239,7 +316,9 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
         Certifications: '<circle cx="8" cy="6.2" r="2.7"/><path d="M6.2 8.6L5.2 12l2.8-1.4L10.8 12l-1-3.4"/>',
     };
     const iconHeading = (title: string, idx: number, editPath?: string) => {
-        const color = idx % 2 === 0 ? accent : accent2;
+        // Two-tone templates alternate accent / accent2 by section; single-accent
+        // ones (usesAccent2 off) keep every icon on the primary accent.
+        const color = spec.usesAccent2 && idx % 2 === 1 ? accent2 : accent;
         const glyph = GLYPHS[title] || '<circle cx="8" cy="8" r="2.1"/>';
         return (
             `<div data-rz-stop data-rz-heading style="display:flex;align-items:center;gap:6px;margin-bottom:4px;break-after:avoid;">` +
@@ -254,9 +333,15 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
             ? ""
             : isSidebar
               ? sidebarBlock(title, inner, editPath)
-              : isTwoCol
-                ? `<section style="margin-bottom:${gap}px;">${iconHeading(title, idx, editPath)}${inner}</section>`
-                : `<section style="margin-top:${gap}px;">${headingHtml(title, editPath)}${inner}</section>`;
+              : isAcademic
+                ? academicBlock(title, inner, editPath)
+                : isHanging
+                  ? spineBlock(title, inner, editPath)
+                  : isInline
+                    ? inlineBlock(title, inner, editPath)
+                    : isTwoCol
+                      ? `<section style="margin-bottom:${gap}px;">${iconHeading(title, idx, editPath)}${inner}</section>`
+                      : `<section style="margin-top:${gap}px;">${headingHtml(title, editPath)}${inner}</section>`;
 
     // A dated entry. dateLeft → date in a left column (timeline); else date right.
     const entryBlock = (i: number, titleHtml: string, dateText: string, midHtml: string, bulletsHtml: string) =>
@@ -443,9 +528,40 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
               .join("")}</div>`
         : "";
 
+    // Boxed-name header: the name sits in a filled secondary-accent box with the
+    // contact block right-aligned beside it.
+    const nameBoxHeader =
+        `<header data-rz-stop style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:${lpx(8)}px;">` +
+        `<div style="min-width:0;">` +
+        (c.fullName
+            ? `<div${ed("contact.fullName")} style="display:inline-block;background:${accent2};color:#fff;font-size:${name}px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;line-height:1.05;padding:${lpx(6)}px ${lpx(11)}px;">${esc(c.fullName)}</div>`
+            : "") +
+        (c.headline
+            ? `<div${ed("contact.headline")} style="font-size:${body + 1}px;color:#555;margin-top:5px;">${esc(c.headline)}</div>`
+            : "") +
+        `</div>` +
+        `<div style="flex-shrink:0;text-align:right;font-size:${meta}px;color:#444;line-height:1.55;max-width:46%;">` +
+        (contactLine ? `<div>${contactLine}</div>` : "") +
+        linksHtml +
+        `</div></header>`;
+
+    // Academic header: centred name + contact, no band (the first section's top
+    // rule serves as the divider beneath it).
+    const academicHeader =
+        `<header data-rz-stop style="text-align:center;padding-bottom:${lpx(7)}px;">` +
+        (c.fullName
+            ? `<div${ed("contact.fullName")} style="font-size:${name}px;font-weight:700;color:${nameColor};line-height:1.1;letter-spacing:${Math.max(ls, 0.5)}px;">${esc(c.fullName)}</div>`
+            : "") +
+        (c.headline
+            ? `<div${ed("contact.headline")} style="font-size:${body + 1}px;color:#444;margin-top:2px;">${esc(c.headline)}</div>`
+            : "") +
+        (contactLine ? `<div style="font-size:${meta}px;color:#333;margin-top:3px;">${contactLine}</div>` : "") +
+        linksHtml +
+        `</header>`;
+
     const header = isSidebar
         ? `<header data-rz-stop style="position:relative;background:#fff;padding:${lpx(8)}px ${rightPadPx}px ${lpx(14)}px ${lpx(80)}px;">` +
-          `<div data-rz-skip style="position:absolute;left:0;top:0;width:${lpx(9)}px;height:${lpx(40)}px;background:#111;"></div>` +
+          `<div data-rz-skip style="position:absolute;left:0;top:0;width:${lpx(9)}px;height:${lpx(40)}px;background:${accent};"></div>` +
           (c.fullName
               ? `<div${ed("contact.fullName")} style="font-size:${name}px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#1a1a1a;line-height:1.05;${spec.headingSerif ? `font-family:${SERIF};` : ""}">${esc(c.fullName)}</div>`
               : "") +
@@ -455,7 +571,9 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
           (contactLine ? `<div style="font-size:${meta}px;color:#444;margin-top:6px;">${contactLine}</div>` : "") +
           linksHtml +
           `</header>`
-        : isHeaderBand
+        : isNameBox
+          ? nameBoxHeader
+          : isHeaderBand
           ? // Full-width tinted band (accent2) pulled to the page edges with
             // negative margins; light text inside.
             `<header data-rz-stop style="background:${accent2};color:#fff;margin:0;padding:${lpx(26)}px ${pagePadPx}px ${lpx(20)}px ${pagePadPx}px;">` +
@@ -477,6 +595,8 @@ export function resumeBodyHtml(data: ResumeData, spec: ResumeTemplateSpec, opts:
                       .join("")}</div>`
                 : "") +
             `</header>`
+          : isAcademic
+          ? academicHeader
           : `<header data-rz-stop${isHeadingCenter ? ' style="text-align:center;"' : ""}>${
                 c.fullName
                     ? `<div${ed("contact.fullName")} style="font-size:${name}px;font-weight:700;color:${nameColor};line-height:1.1;${isHeadingCenter ? `letter-spacing:${Math.max(ls, 1)}px;` : ""}">${esc(c.fullName)}</div>`
@@ -535,7 +655,7 @@ export function resumePdfDocument(
     const sidebar = spec.layout === "sidebar";
     const headerBand = spec.headerBand === true && !sidebar;
     const bandPx = Math.round((spec.sidebarWidth ?? 156) * PT_TO_PX * 10) / 10;
-    const band = spec.bandColor ?? "#dbe7f5";
+    const band = sidebarBandColor(spec, opts.accent2);
     // Sidebar: white margin only at the TOP; band runs to bottom + side edges.
     // Header-band: no top/side margin (band is full-bleed at the top); normal
     // bottom margin. Single: uniform margin. (top right bottom left)

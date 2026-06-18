@@ -11,6 +11,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { db } from "@/lib/firebase/client";
 import type { OnboardingStep, User } from "@digimine/types";
 import { resumeOnboardingPath } from "@/lib/auth/redirects";
+import { isLocalhost } from "@/lib/dev";
 
 type RoleChoice = "student" | "teacher" | "institute";
 
@@ -27,9 +28,25 @@ function afterSignupPath(role: RoleChoice): string {
  * onboarding or feature use. Already-verified accounts (e.g. Google) go
  * straight to their destination.
  */
-function postSignupDestination(role: RoleChoice, emailVerified: boolean): string {
-    const dest = afterSignupPath(role);
-    if (emailVerified) return dest;
+/** Sanitize an arbitrary redirect target: must be a same-origin path (single
+ *  leading slash, not a protocol-relative "//host"), else undefined. */
+function safeNext(v: string | null | undefined): string | undefined {
+    if (!v || !v.startsWith("/") || v.startsWith("//")) return undefined;
+    return v;
+}
+
+function postSignupDestination(
+    role: RoleChoice,
+    emailVerified: boolean,
+    nextOverride?: string
+): string {
+    // A safe redirect (e.g. a class invite link) wins over the role's default
+    // home, so a student who started from /join/<code> lands back there and is
+    // auto-joined — even across the email-verification hop.
+    const dest = nextOverride || afterSignupPath(role);
+    // On localhost we skip the verify-email step so developers can sign up
+    // quickly against the emulators. Production still requires verification.
+    if (emailVerified || isLocalhost()) return dest;
     return `/verify-email?next=${encodeURIComponent(dest)}`;
 }
 
@@ -55,7 +72,7 @@ async function runPostSignupHooks(
     firebaseUser: FirebaseUser,
     role: RoleChoice
 ): Promise<void> {
-    if (!firebaseUser.emailVerified) {
+    if (!firebaseUser.emailVerified && !isLocalhost()) {
         try {
             const token = await firebaseUser.getIdToken();
             await fetch("/api/auth/send-verification-email", {
@@ -85,6 +102,10 @@ export default function RegisterPage() {
     const searchParams = useSearchParams();
     const prefillEmail = searchParams.get("email") || "";
     const intent = (searchParams.get("intent") || "").toLowerCase();
+    // A post-signup destination carried from an invite link, e.g.
+    // /register?redirect=/join/<code>. Threaded through verification so the
+    // student auto-joins after creating their account.
+    const redirectParam = safeNext(searchParams.get("redirect") || searchParams.get("next"));
     const defaultRole: RoleChoice =
         intent === "institute" ? "institute" : intent === "teacher" ? "teacher" : "student";
 
@@ -158,7 +179,13 @@ export default function RegisterPage() {
             );
 
             // Email/password accounts start unverified → verify before onboarding.
-            router.push(postSignupDestination(role, credential.user.emailVerified));
+            router.push(
+                postSignupDestination(
+                    role,
+                    credential.user.emailVerified,
+                    role === "student" ? redirectParam : undefined
+                )
+            );
         } catch (err: unknown) {
             const code = (err as { code?: string })?.code || "";
             if (code === "auth/email-already-in-use") {
@@ -249,7 +276,13 @@ export default function RegisterPage() {
             );
 
             // Email/password accounts start unverified → verify before onboarding.
-            router.push(postSignupDestination(role, credential.user.emailVerified));
+            router.push(
+                postSignupDestination(
+                    role,
+                    credential.user.emailVerified,
+                    role === "student" ? redirectParam : undefined
+                )
+            );
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to sign up with Google";
             setError(errorMessage);
@@ -276,7 +309,7 @@ export default function RegisterPage() {
                         Sign in to complete your onboarding — we&apos;ll pick up right where you left off.
                     </p>
                     <Link
-                        href={`/login?email=${encodeURIComponent(existingAccountEmail)}&resume=1`}
+                        href={`/login?email=${encodeURIComponent(existingAccountEmail)}&resume=1${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ""}`}
                         className="mt-3 inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
                     >
                         Sign in to continue
@@ -511,7 +544,7 @@ export default function RegisterPage() {
                 <p className="text-gray-600">
                     Already have an account?{" "}
                     <Link
-                        href="/login"
+                        href={`/login${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ""}`}
                         className="text-primary-600 hover:text-primary-700 font-medium"
                     >
                         Sign in

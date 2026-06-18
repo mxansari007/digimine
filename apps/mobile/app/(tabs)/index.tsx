@@ -245,6 +245,13 @@ export default function HomeScreen() {
             <SectionHeader title="Keep going" />
             <Card padded={false} style={{ paddingHorizontal: space[4] }}>
               <ListItem
+                title="My Résumés"
+                subtitle="Preview & download your resume PDF"
+                left={<TileIcon icon="file-text" />}
+                showChevron
+                onPress={() => router.push("/resume" as Href)}
+              />
+              <ListItem
                 title="Practice problems"
                 subtitle="DSA & SQL — solve and track progress"
                 left={<TileIcon icon="code" />}

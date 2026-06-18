@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ResumeData, ResumeFont, ResumeTemplateSpec } from "@digimine/types";
-import { PAGE_W_PX, PT_TO_PX, resumeBodyHtml } from "@/lib/resume/html";
+import { PAGE_W_PX, PT_TO_PX, resumeBodyHtml, sidebarBandColor } from "@/lib/resume/html";
 import { getByPath } from "@/lib/resume/path";
 import { serializeInline } from "@/lib/resume/richtext";
 import { clearFormatTargetIf, notifyFormat, setFormatTarget, type Align, type FormatTarget } from "@/lib/resume/formatBus";
@@ -271,7 +271,7 @@ export default function ResumePreview({
         // Two-column flows into balanced CSS columns; the single-column sim can't
         // model that, so we don't draw page-break guides for it (the PDF still uses
         // the same multicol HTML, so layout matches — only the dashed guide is off).
-        if (mode !== "document" || spec.layout === "two-col" || spec.layout === "split") {
+        if (mode !== "document" || spec.layout === "two-col" || spec.layout === "split" || spec.layout === "inline") {
             setPageBreaks([]);
             return;
         }
@@ -403,7 +403,7 @@ export default function ResumePreview({
     // white bottom margin only. Content provides its own side insets.
     const isHeaderBand = spec.headerBand === true && !isSidebar;
     const bandPx = Math.round((spec.sidebarWidth ?? 156) * PT_TO_PX);
-    const band = spec.bandColor ?? "#dbe7f5";
+    const band = sidebarBandColor(spec, accent2);
     const bandGradient = `linear-gradient(to right, ${band} 0, ${band} ${bandPx}px, #fff ${bandPx}px, #fff 100%)`;
     const sheetPad: CSSProperties["padding"] = isSidebar ? 0 : isHeaderBand ? `0 0 ${marginPx}px 0` : marginPx;
     const sheetStyle: CSSProperties =

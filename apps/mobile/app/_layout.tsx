@@ -13,6 +13,19 @@ import { colors, colorsDark } from "@/design/tokens";
 
 export { ErrorBoundary } from "expo-router";
 
+// Virtual Lab realtime: @livekit/react-native must register its WebRTC globals
+// ONCE at startup, before any Room connects (the live-lab room screen relies on
+// this). Module scope is the documented place and is idempotent across fast
+// refresh. Guarded so the JS bundle still loads before the native LiveKit deps
+// are installed (the room/deps lane owns `npx expo install @livekit/...` + a
+// native rebuild); it is a no-op until then. See PR flag re: native rebuild.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require("@livekit/react-native").registerGlobals();
+} catch {
+  // @livekit/react-native not installed yet (deps lane) — safe no-op.
+}
+
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
@@ -132,7 +145,13 @@ function RootLayoutNav() {
           <Stack.Screen name="notifications" options={{ headerBackTitle: "Home" }} />
           <Stack.Screen name="notification-settings" options={{ title: "Notifications", headerBackTitle: "Profile" }} />
           <Stack.Screen name="resume" options={{ title: "Résumés", headerBackTitle: "Profile" }} />
+          <Stack.Screen name="scan" options={{ headerShown: false, presentation: "modal" }} />
           <Stack.Screen name="class/[classId]/resources" options={{ headerBackTitle: "Class" }} />
+          {/* Virtual Lab companion: live room → recordings list → replay. The
+              live room + replay paint their own full-screen video chrome. */}
+          <Stack.Screen name="lab/[sessionId]" options={{ headerShown: false }} />
+          <Stack.Screen name="lab/recordings" options={{ title: "Lab recordings", headerBackTitle: "Class" }} />
+          <Stack.Screen name="lab/replay/[recordingId]" options={{ headerShown: false }} />
           <Stack.Screen name="timetable" options={{ title: "Timetable", headerBackTitle: "Classes" }} />
           <Stack.Screen name="schedule" options={{ title: "Schedule", headerBackTitle: "Home" }} />
           <Stack.Screen

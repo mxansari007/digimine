@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card } from "@digimine/ui";
@@ -51,7 +51,7 @@ export default function JoinPage() {
     const teacher = data.teacher || null;
     const group = data.group || null;
 
-    const handleJoin = async () => {
+    const handleJoin = useCallback(async () => {
         if (!firebaseUser) return;
         setJoining(true);
         setError("");
@@ -90,7 +90,21 @@ export default function JoinPage() {
             setError(err.message || "Failed to join");
         }
         setJoining(false);
-    };
+    }, [firebaseUser, classDoc, inviteCode, router]);
+
+    // Auto-join the moment we have a signed-in user + a resolved invite. This is
+    // what makes the single invite link "just work": a brand-new student who
+    // registered via /register?redirect=/join/<code> lands back here already
+    // signed in and is enrolled without re-entering the code. Fires once; on
+    // error the manual button below is the fallback.
+    const autoJoinedRef = useRef(false);
+    useEffect(() => {
+        if (authLoading || loading || joining || !firebaseUser) return;
+        if (!classDoc && !group && !teacher) return;
+        if (autoJoinedRef.current) return;
+        autoJoinedRef.current = true;
+        void handleJoin();
+    }, [authLoading, loading, joining, firebaseUser, classDoc, group, teacher, handleJoin]);
 
     if (loading) {
         return (
@@ -158,12 +172,31 @@ export default function JoinPage() {
 
                 {!authLoading && firebaseUser ? (
                     <Button variant="primary" className="mt-6 w-full" onClick={handleJoin} isLoading={joining}>
-                        {group ? "Join Section" : classDoc ? "Join Class" : "Join Classroom"}
+                        {joining
+                            ? "Joining…"
+                            : group
+                            ? "Join Section"
+                            : classDoc
+                            ? "Join Class"
+                            : "Join Classroom"}
                     </Button>
                 ) : !authLoading ? (
-                    <Link href={`/login?redirect=/join/${inviteCode}`}>
-                        <Button className="mt-6 w-full">Sign in to join</Button>
-                    </Link>
+                    <div className="mt-6 space-y-3">
+                        <Link href={`/register?redirect=/join/${inviteCode}`} className="block">
+                            <Button variant="primary" className="w-full">
+                                Create account &amp; join
+                            </Button>
+                        </Link>
+                        <Link href={`/login?redirect=/join/${inviteCode}`} className="block">
+                            <Button variant="outline" className="w-full">
+                                I already have an account
+                            </Button>
+                        </Link>
+                        <p className="text-xs text-gray-400">
+                            New here? Sign up once and you&apos;ll be added to this{" "}
+                            {group ? "section" : "class"} automatically — no code to enter.
+                        </p>
+                    </div>
                 ) : null}
             </Card>
         </div>

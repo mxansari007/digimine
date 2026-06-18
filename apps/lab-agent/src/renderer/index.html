@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Tight CSP: the renderer only connects to LiveKit (wss) + our control
+      plane (the agent talks to the API via main, but the LiveKit client opens
+      its own wss/https from the renderer). No remote scripts; everything is the
+      bundled renderer.js copied next to this file at build time.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self';"
+    />
+    <title>PlacementRanker Lab Agent</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --panel: #161b22;
+        --border: #232a33;
+        --text: #e6edf3;
+        --muted: #8b97a6;
+        --accent: #0d9488;
+        --danger: #e5484d;
+        --warn: #f5a524;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        /* Leave headroom so the fixed consent banner never covers content. */
+        padding: 0 16px 16px;
+      }
+
+      /*
+        ALWAYS-ON, NON-DISMISSABLE banner. Shown whenever this machine is being
+        shared and/or remotely controlled. It is position:fixed at the very top,
+        has no close button, and is the single most important affordance in the
+        app — a covert share/control state must be impossible.
+      */
+      #consent-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        display: none; /* shown by JS when sharing/controlled */
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        font-weight: 600;
+        color: #fff;
+        background: var(--warn);
+      }
+      #consent-banner.controlling {
+        background: var(--danger);
+      }
+      #consent-banner button {
+        background: rgba(0, 0, 0, 0.25);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      /* When the banner is visible, push the body content down so nothing hides. */
+      body.has-banner {
+        padding-top: 52px;
+      }
+
+      h1 {
+        font-size: 16px;
+        margin: 18px 0 4px;
+      }
+      p.sub {
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 9px 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        color: var(--text);
+        font-size: 14px;
+      }
+      button.primary {
+        width: 100%;
+        margin-top: 10px;
+        padding: 10px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.danger {
+        width: 100%;
+        margin-top: 8px;
+        padding: 10px;
+        background: var(--danger);
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--border);
+        color: var(--muted);
+      }
+      .pill.on {
+        background: rgba(13, 148, 136, 0.2);
+        color: var(--accent);
+      }
+      #log {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        white-space: pre-wrap;
+        max-height: 140px;
+        overflow: auto;
+      }
+
+      /*
+        CONSENT DIALOG (modal). Blocks the UI when the teacher requests remote
+        control; the student must explicitly Allow or Deny. Nothing is injected
+        until Allow is pressed (and the server records the grant via /consent).
+      */
+      #consent-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+      }
+      #consent-modal .dialog {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        width: 320px;
+        text-align: center;
+      }
+      #consent-modal h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+      #consent-modal p {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      #consent-modal .row {
+        display: flex;
+        gap: 10px;
+      }
+      #consent-modal .row button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 7px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+      }
+      #consent-allow {
+        background: var(--accent);
+        color: #fff;
+      }
+      #consent-deny {
+        background: var(--border);
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Always-on banner (hidden until sharing/controlled). -->
+    <div id="consent-banner" role="alert" aria-live="assertive">
+      <span id="banner-text">Your screen is being shared</span>
+      <button id="banner-stop">Stop sharing / Revoke control</button>
+    </div>
+
+    <h1>PlacementRanker Lab Agent</h1>
+    <p class="sub">
+      Share your screen with your teacher and, only if you allow it, let them
+      control it.
+    </p>
+
+    <!-- Step 1: device pairing -->
+    <div class="card" id="pair-card">
+      <label for="pair-code">Pairing code (from the web app)</label>
+      <input id="pair-code" type="text" placeholder="e.g. 7QF3-22KD" />
+      <button class="primary" id="pair-btn">Pair this device</button>
+    </div>
+
+    <!-- Step 2: session + share -->
+    <div class="card" id="session-card">
+      <label for="session-id">Session ID</label>
+      <input id="session-id" type="text" placeholder="labSessions/{id}" />
+      <button class="primary" id="share-btn" disabled>Share my screen</button>
+      <button class="danger" id="stop-btn" style="display: none">
+        Stop sharing
+      </button>
+    </div>
+
+    <!-- Status row -->
+    <div class="card">
+      <span class="pill" id="state-share">screen: idle</span>
+      <span class="pill" id="state-control">control: off</span>
+      <span class="pill" id="state-native">input backend: ?</span>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <label>Activity</label>
+      <div id="log"></div>
+    </div>
+
+    <!-- Consent dialog (hidden until a control request arrives). -->
+    <div id="consent-modal" role="dialog" aria-modal="true">
+      <div class="dialog">
+        <h2>Allow remote control?</h2>
+        <p id="consent-text">
+          Your teacher is asking to control your mouse and keyboard. You can
+          revoke this at any time.
+        </p>
+        <div class="row">
+          <button id="consent-deny">Deny</button>
+          <button id="consent-allow">Allow</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bundled at build time next to this file by scripts/copy-renderer.js. -->
+    <script src="./renderer.js"></script>
+  </body>
+</html>

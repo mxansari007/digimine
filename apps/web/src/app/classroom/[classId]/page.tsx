@@ -28,6 +28,9 @@ import {
     ThreadRow,
     timeAgo,
 } from "@/components/classroom/community";
+import { isVirtualLabEnabled } from "@/lib/flags";
+import { fetchClassLabState, type LabSessionSummary } from "@/lib/lab/labClient";
+import { LabStats } from "@/components/lab/LabStats";
 
 type TeacherShape = {
     id: string;
@@ -47,6 +50,8 @@ type ClassShape = {
     description: string | null;
     inviteCode: string;
     isArchived: boolean;
+    /** Per-class Virtual Lab opt-in — gates the "Join Live Lab" entry. */
+    labEnabled?: boolean;
 };
 
 type ClassroomEval = EvalRow & { mySubmission: SubmissionRow | null };
@@ -86,6 +91,11 @@ export default function ClassroomPage() {
     const [counts, setCounts] = useState({ quizzes: 0, tests: 0, contests: 0, courses: 0, projectEvals: 0 });
     const [content, setContent] = useState<ContentBundle>(EMPTY_CONTENT);
     const [board, setBoard] = useState<{ notices: ThreadRow[]; total: number } | null>(null);
+    // Virtual Lab: the live session for this class (if any). Only fetched when
+    // the feature flag + the class's labEnabled are both on AND the student is
+    // enrolled — so a non-lab class never touches the lab API.
+    const [liveLab, setLiveLab] = useState<LabSessionSummary | null>(null);
+    const labEnabled = isVirtualLabEnabled() && classroom?.labEnabled === true && !isLegacy;
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -189,6 +199,26 @@ export default function ClassroomPage() {
             cancelled = true;
         };
     }, [firebaseUser, enrolled, isLegacy, classId]);
+
+    // Live Lab lookup (non-blocking). Only when enrolled + lab-enabled; the GET
+    // route is membership-gated, so a non-member/no-session resolves to null.
+    useEffect(() => {
+        if (!firebaseUser || !enrolled || !labEnabled) {
+            setLiveLab(null);
+            return;
+        }
+        let cancelled = false;
+        fetchClassLabState(firebaseUser, classId)
+            .then((s) => {
+                if (!cancelled) setLiveLab(s.live);
+            })
+            .catch(() => {
+                if (!cancelled) setLiveLab(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [firebaseUser, enrolled, labEnabled, classId]);
 
     const handleLeave = async () => {
         if (!firebaseUser) return;
@@ -445,6 +475,70 @@ export default function ClassroomPage() {
                     )
                 ) : (
                     <div className="mt-8 space-y-9">
+                        {/* Live Lab — only renders while a session is open. */}
+                        {liveLab && (
+                            <Link
+                                href={`/student/lab/${liveLab.id}?classId=${encodeURIComponent(classId)}`}
+                                className="group flex items-center gap-3 rounded-2xl border border-danger-200 bg-gradient-to-r from-danger-50/70 to-surface px-4 py-3.5 shadow-soft-sm transition-colors hover:border-danger-300 focus-visible:ring-2 focus-visible:ring-danger-500 focus:outline-none dark:border-danger-500/30 dark:from-danger-500/10 dark:to-surface"
+                            >
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-100 text-danger-700 dark:bg-danger-500/15 dark:text-danger-300">
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3h6m-5 0v5.5L5 18a2 2 0 001.8 3h10.4A2 2 0 0019 18l-5-9.5V3" />
+                                    </svg>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="flex items-center gap-2">
+                                        <span className="block text-sm font-semibold text-gray-900">
+                                            Live lab in session
+                                        </span>
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-danger-700 dark:bg-danger-500/15 dark:text-danger-300">
+                                            <span className="relative flex h-1.5 w-1.5">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger-500 opacity-60 motion-reduce:animate-none" />
+                                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-danger-500" />
+                                            </span>
+                                            Live
+                                        </span>
+                                    </span>
+                                    <span className="block truncate text-xs text-slate-500">
+                                        {liveLab.title} · join the room to work together in real time
+                                    </span>
+                                </span>
+                                <span className="shrink-0 rounded-lg bg-danger-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors group-hover:bg-danger-700">
+                                    Join lab
+                                </span>
+                            </Link>
+                        )}
+
+                        {/* Lab recordings — replays of past sessions. Shown
+                            whenever the class has the lab enabled (independent of
+                            a session being live), so members can always catch up. */}
+                        {labEnabled && (
+                            <Link
+                                href={`${basePath}/lab-library`}
+                                className="group flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-surface px-4 py-3.5 shadow-soft-sm transition-colors hover:border-primary-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus:outline-none"
+                            >
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300">
+                                    <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-medium text-gray-900">Lab recordings</span>
+                                    <span className="block truncate text-xs text-slate-500">
+                                        Replays of past live lab sessions — watch them back any time
+                                    </span>
+                                </span>
+                                <svg className="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        )}
+
+                        {/* Lab stats — the student's gamified lab profile (XP, level,
+                            streak, badges, leaderboard). Computed on read from the lab
+                            audit log; shown whenever the class has the lab enabled. */}
+                        {labEnabled && <LabStats classId={classId} />}
+
                         {/* Noticeboard — teacher announcements & shared resources */}
                         {!isLegacy && board && board.notices.length > 0 && (
                             <section aria-label="Noticeboard">

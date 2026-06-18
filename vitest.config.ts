@@ -13,11 +13,23 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      "@/": path.resolve(__dirname, "./apps/web/src/"),
-      "@digimine/utils": path.resolve(__dirname, "./packages/utils/src/index.ts"),
-      "@digimine/config": path.resolve(__dirname, "./packages/config/src/index.ts"),
-      "@digimine/types": path.resolve(__dirname, "./packages/types/src/index.ts"),
-    },
+    alias: [
+      {
+        find: /^@\/(.*)/,
+        replacement: path.resolve(__dirname, "./apps/web/src/$1"),
+      },
+      {
+        find: "@digimine/utils",
+        replacement: path.resolve(__dirname, "./packages/utils/src/index.ts"),
+      },
+      {
+        find: "@digimine/config",
+        replacement: path.resolve(__dirname, "./packages/config/src/index.ts"),
+      },
+      {
+        find: "@digimine/types",
+        replacement: path.resolve(__dirname, "./packages/types/src/index.ts"),
+      },
+    ],
   },
 });

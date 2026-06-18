@@ -45,6 +45,9 @@ export async function PATCH(req: Request, { params }: { params: { classId: strin
         if (typeof body.isArchived === "boolean") {
             update.isArchived = body.isArchived;
         }
+        if (typeof body.labEnabled === "boolean") {
+            update.labEnabled = body.labEnabled;
+        }
         if (body.regenerateInviteCode) {
             // Overwriting `inviteCode` revokes the old one — getClassByInviteCode
             // queries by field equality. We additionally stamp the rotation

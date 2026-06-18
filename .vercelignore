@@ -1,5 +1,6 @@
 # Build outputs + caches — Vercel rebuilds from source, so never upload these.
-# (Their absence here is what caused the 1.1GB / >5000-file upload failure.)
+# (When a .vercelignore exists, Vercel uses it INSTEAD of .gitignore, so this
+#  must list everything heavy that the web build doesn't need.)
 .git
 .next
 .turbo
@@ -8,3 +9,20 @@ dist
 coverage
 *.log
 .DS_Store
+
+# Native mobile app + TWA wrapper — separate builds, huge, not used by the web
+# build (apps/mobile is outside the pnpm workspace). These hold the 100MB+ APKs
+# and native .so libs that broke the upload.
+apps/mobile
+android-twa
+**/build
+**/.gradle
+*.apk
+*.aab
+*.idsig
+*.so
+*.keystore
+
+# Heavy gitignored extras not needed to build the web app.
+reference-libs
+**/.expo
