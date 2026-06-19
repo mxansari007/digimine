@@ -238,17 +238,32 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
     const onEndShare = useCallback(
         (uid: string) => {
             if (endShareBusy || !uid) return;
+            // The visible share is usually published by the student's desktop AGENT
+            // (now folded into their single avatar), not their browser — end
+            // whichever presence actually has a live screen track. Handles being
+            // called with the student uid (avatar menu) OR the agent uid (view stage).
+            const agentId = labAgentIdentity(uid);
+            const target = actions.getVideoTrack(agentId, "screen")
+                ? agentId
+                : actions.getVideoTrack(uid, "screen")
+                  ? uid
+                  : state.participants.some((p) => p.uid === agentId)
+                    ? agentId
+                    : uid;
             setEndShareBusy(true);
             setEndShareError(null);
-            void endParticipantShare(sessionId, uid)
+            void endParticipantShare(sessionId, target)
+                .then(() => setAskedNote("Ended their share."))
                 .catch((e: unknown) => {
-                    setEndShareError(
-                        e instanceof Error ? e.message : "Couldn't end that share."
-                    );
+                    const msg = e instanceof Error ? e.message : "Couldn't end that share.";
+                    setEndShareError(msg);
+                    // Also surface near the teacher bar — the inline error sits by
+                    // the view stage, which may be closed when ending from the menu.
+                    setAskedNote(msg);
                 })
                 .finally(() => setEndShareBusy(false));
         },
-        [endShareBusy, sessionId]
+        [endShareBusy, sessionId, actions, state.participants]
     );
 
     // Clicking an avatar opens a per-participant ACTION MENU (in LabMap). These
