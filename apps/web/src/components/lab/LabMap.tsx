@@ -215,8 +215,9 @@ interface Seat {
 /** Deterministic seat → {x,y}% so an avatar never jumps between renders. */
 function seatPosition(participant: LabParticipant, studentIndex: number): Seat {
     if (participant.role === "teacher") {
-        // Front of the room, centred.
-        return { x: 50, y: 12 };
+        // Front of the room, centred, with headroom for the chip + its ring/glow
+        // and the name + "Teacher" badge below it (kept inside the safe band).
+        return { x: 50, y: 18 };
     }
     const col = studentIndex % COLUMNS;
     const row = Math.floor(studentIndex / COLUMNS);
@@ -319,9 +320,20 @@ export function LabMap({
     // to `seatPosition(...)`. The SVG strings + control light derive from this,
     // so they track a dragged avatar live as it moves.
     const positions = useMemo(() => {
-        const merged = new Map<string, Seat>(seatPositions);
+        // Keep EVERY avatar (seat grid OR dragged) inside a safe band so the chip
+        // + its name/role/hand badges never clip the field's `overflow-hidden`
+        // edges. The band is asymmetric because the avatar is a fixed pixel size:
+        // it's a larger fraction of the field's HEIGHT (16:10) than its width,
+        // and the name + badges hang BELOW the chip, so the bottom needs the most
+        // room. These bounds match the live-drag clamp in `pointerToPercent`.
+        const fit = (s: Seat): Seat => ({
+            x: Math.min(92, Math.max(8, s.x)),
+            y: Math.min(85, Math.max(14, s.y)),
+        });
+        const merged = new Map<string, Seat>();
+        for (const [uid, s] of seatPositions) merged.set(uid, fit(s));
         for (const [uid, p] of Object.entries(dragPos)) {
-            if (merged.has(uid)) merged.set(uid, p);
+            if (merged.has(uid)) merged.set(uid, fit(p));
         }
         return merged;
     }, [seatPositions, dragPos]);
@@ -400,13 +412,12 @@ export function LabMap({
     const pointerToPercent = (clientX: number, clientY: number): { x: number; y: number } | null => {
         const rect = fieldRef.current?.getBoundingClientRect();
         if (!rect || rect.width === 0 || rect.height === 0) return null;
-        // Clamp with a margin so the avatar chip + its name label / badges
-        // (which extend past the centre point) stay inside the field instead of
-        // being cut off by its `overflow-hidden`. Extra room at the bottom for
-        // the name + role/hand badges that hang below the chip.
+        // Clamp to the same safe band the merged `positions` enforce, so the
+        // avatar chip + its name label / badges stay inside the field's
+        // `overflow-hidden`. Extra bottom room for the name + role/hand badges.
         return {
-            x: clamp(((clientX - rect.left) / rect.width) * 100, 6, 94),
-            y: clamp(((clientY - rect.top) / rect.height) * 100, 9, 88),
+            x: clamp(((clientX - rect.left) / rect.width) * 100, 8, 92),
+            y: clamp(((clientY - rect.top) / rect.height) * 100, 14, 85),
         };
     };
 
