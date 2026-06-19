@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { LabAgentDownload } from "./LabAgentDownload";
 
 /**
  * LabAgentConnect — the STUDENT's "connect my desktop" panel.
@@ -128,6 +129,7 @@ export function LabAgentConnect({
                         Connect my desktop
                     </button>
                 </div>
+                <LabAgentDownload variant="inline" className="mt-2.5" />
             </div>
         );
     }
@@ -185,6 +187,8 @@ export function LabAgentConnect({
                 <Step n={3}>Click <span className="font-medium">Share my screen</span> in the agent.</Step>
                 <Step n={4}>Your teacher can then view your desktop, and control it <span className="font-medium">only after you tap Allow</span> in the agent.</Step>
             </ol>
+
+            <LabAgentDownload variant="full" className="mt-3" />
 
             <div className="mt-3 flex items-center gap-2">
                 <button
