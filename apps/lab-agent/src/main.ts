@@ -141,12 +141,28 @@ function loadNativeInput(): void {
 // Window + tray
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * The app/tray icon, loaded from dist/icon.png (copied from build/icon.png at
+ * build time, and bundled via build.files = dist/**). Falls back to an empty
+ * image so a missing icon never crashes the tray — notably on Windows, where the
+ * tray would otherwise appear blank.
+ */
+function appIcon() {
+  try {
+    const img = nativeImage.createFromPath(path.join(__dirname, "icon.png"));
+    return img.isEmpty() ? nativeImage.createEmpty() : img;
+  } catch {
+    return nativeImage.createEmpty();
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 460,
     height: 640,
     resizable: false,
     title: "PlacementRanker Lab Agent",
+    icon: appIcon(),
     webPreferences: {
       // Hard sandbox: the renderer gets NO Node, NO remote module, and can only
       // reach main through the preload bridge below.
@@ -175,9 +191,11 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  // A 1x1 transparent placeholder so the scaffold runs without shipping an
-  // icon asset; replace with a real template image before packaging.
-  const icon = nativeImage.createEmpty();
+  // Resize the app icon (dist/icon.png) for the menu-bar / notification-area
+  // slot. A real icon is what makes the tray visible on Windows — the
+  // "Stop sharing / Revoke control" kill switch lives here.
+  const full = appIcon();
+  const icon = full.isEmpty() ? full : full.resize({ width: 16, height: 16 });
   tray = new Tray(icon);
   tray.setToolTip("PlacementRanker Lab Agent");
   const menu = Menu.buildFromTemplate([

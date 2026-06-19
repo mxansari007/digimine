@@ -8,7 +8,7 @@
   "main": "dist/main.js",
   "comments": {
     "workspace": "Like apps/mobile, this project lives OUTSIDE the pnpm workspace and manages its own install — run `npm install` HERE, not from the repo root.",
-    "nut-js": "@nut-tree-fork/nut-js (optionalDependencies) is the input-injection (mouse/keyboard) backend used ONLY when a student grants remote control. It ships native (N-API) binaries that target a stock Node ABI, so it needs a native rebuild for Electron's bundled Node — run `npm run rebuild` after install. It is OPTIONAL on purpose: the agent installs and screen-sharing works fine without it; remote control is simply disabled if it is missing or fails to load. See README.md → 'Remote control / native input'.",
+    "nut-js": "@nut-tree-fork/nut-js (optionalDependencies) is the input-injection (mouse/keyboard) backend used ONLY when a student grants remote control. It ships prebuilt N-API binaries (libnut-darwin on macOS, libnut-win32 on Windows) which are ABI-stable across Node and Electron, so they load as-is — NO native rebuild is needed (`npm run rebuild` is a no-op). It is OPTIONAL on purpose: the agent installs and screen-sharing works fine without it; remote control is simply disabled if it is missing or fails to load. See README.md → 'Remote control / native input'.",
     "build": "electron-builder config below. appId/signing are placeholders — set a real signing identity + notarization (mac) / code-sign cert (win) before shipping a public installer. Screen Recording + Accessibility are TCC runtime grants, not entitlements (see README); the NS*UsageDescription strings live in build.mac.extendInfo."
   },
   "scripts": {

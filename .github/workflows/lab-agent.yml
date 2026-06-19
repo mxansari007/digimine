@@ -1,0 +1,70 @@
+name: Lab Agent build
+
+# Builds the PlacementRanker Virtual Lab desktop agent (apps/lab-agent) for BOTH
+# macOS and Windows. Cross-building a Windows NSIS installer from macOS needs
+# wine and is fragile, so we build each target on its native runner instead.
+#
+# Trigger manually from the Actions tab (workflow_dispatch) or by pushing a
+# `lab-agent-v*` tag. Installers are uploaded as build artifacts (unsigned — add
+# signing certs as secrets before distributing publicly; see docs/LAB_RUNBOOK.md).
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "lab-agent-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS (dmg + zip)
+            flag: "--mac"
+          - os: windows-latest
+            label: Windows (nsis exe)
+            flag: "--win"
+    defaults:
+      run:
+        working-directory: apps/lab-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # apps/lab-agent is OUTSIDE the pnpm workspace and manages its own install.
+      # `npm install` pulls the per-platform Electron binary + the matching N-API
+      # libnut (libnut-darwin / libnut-win32) — no native rebuild is needed.
+      - name: Install
+        run: npm install
+
+      - name: Build (tsc + renderer)
+        run: npm run build
+
+      - name: Package installer
+        # CSC_IDENTITY_AUTO_DISCOVERY=false → don't attempt macOS code-signing in
+        # CI (no cert); produces an unsigned build. Remove + add certs to sign.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder ${{ matrix.flag }} --publish never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-agent-${{ runner.os }}
+          path: |
+            apps/lab-agent/release/*.dmg
+            apps/lab-agent/release/*.zip
+            apps/lab-agent/release/*.exe
+          if-no-files-found: warn
+          retention-days: 14
