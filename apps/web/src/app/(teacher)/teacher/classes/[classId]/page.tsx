@@ -262,7 +262,11 @@ export default function TeacherClassDetailPage() {
         }
     };
 
-    const renameClass = async (name: string, description: string | null) => {
+    const renameClass = async (
+        name: string,
+        description: string | null,
+        labEnabledNext?: boolean
+    ) => {
         if (!firebaseUser) return;
         setSavingName(true);
         try {
@@ -271,7 +275,13 @@ export default function TeacherClassDetailPage() {
                 `/api/teacher/classes/${encodeURIComponent(classId)}`,
                 {
                     method: "PATCH",
-                    body: JSON.stringify({ name, description }),
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        ...(typeof labEnabledNext === "boolean"
+                            ? { labEnabled: labEnabledNext }
+                            : {}),
+                    }),
                 }
             );
             const body = await res.json();
@@ -908,6 +918,7 @@ export default function TeacherClassDetailPage() {
                 <ClassSettingsModal
                     classroom={classroom}
                     saving={savingName}
+                    labFeatureOn={labFeatureOn}
                     onClose={() => setShowSettings(false)}
                     onSave={renameClass}
                 />
@@ -1357,16 +1368,20 @@ function ActivitySparkline({ points }: { points: number[] }) {
 function ClassSettingsModal({
     classroom,
     saving,
+    labFeatureOn,
     onClose,
     onSave,
 }: {
     classroom: ClassMeta;
     saving: boolean;
+    /** Whether the Virtual Lab feature flag is on (gates the lab toggle). */
+    labFeatureOn: boolean;
     onClose: () => void;
-    onSave: (name: string, description: string | null) => void;
+    onSave: (name: string, description: string | null, labEnabled: boolean) => void;
 }) {
     const [name, setName] = useState(classroom.name);
     const [description, setDescription] = useState(classroom.description || "");
+    const [labEnabled, setLabEnabled] = useState(classroom.labEnabled === true);
 
     return (
         <div
@@ -1392,11 +1407,30 @@ function ClassSettingsModal({
                     placeholder="Description (optional)"
                     className="mb-4 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
                 />
+                {labFeatureOn && (
+                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                        <input
+                            type="checkbox"
+                            checked={labEnabled}
+                            onChange={(e) => setLabEnabled(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-medium text-slate-900">
+                                Virtual Lab
+                            </span>
+                            <span className="block text-xs text-slate-500">
+                                Enable the live, hands-on lab room for this class — a real-time map
+                                of who&rsquo;s on task, screen sharing, and remote help.
+                            </span>
+                        </span>
+                    </label>
+                )}
                 <div className="flex gap-2">
                     <Button
                         variant="primary"
                         className="flex-1"
-                        onClick={() => onSave(name.trim(), description.trim() || null)}
+                        onClick={() => onSave(name.trim(), description.trim() || null, labEnabled)}
                         isLoading={saving}
                         disabled={!name.trim()}
                     >
