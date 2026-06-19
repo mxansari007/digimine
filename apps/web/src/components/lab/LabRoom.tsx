@@ -7,6 +7,7 @@ import { isLabAgentIdentity, labAgentIdentity, labBaseUid } from "@digimine/type
 import { useAuthContext } from "@/contexts/AuthContext";
 import { fetchLabSession } from "@/lib/lab/labClient";
 import { LabMap, type LabMapActions } from "./LabMap";
+import { LabPanel } from "./LabPanel";
 import { LabConnectionBanner } from "./LabConnectionBanner";
 import { LabVideoStage } from "./LabVideoStage";
 import { LabViewStage } from "./LabViewStage";
@@ -366,7 +367,9 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
             <div className="flex flex-col gap-4 xl:flex-row">
                 <div className="min-w-0 flex-1 space-y-4">
                     {/* Primary video stage — the teacher's broadcast. */}
-                    <LabVideoStage state={state} actions={actions} />
+                    <LabPanel title="Broadcast" icon={<BroadcastGlyph />}>
+                        <LabVideoStage state={state} actions={actions} />
+                    </LabPanel>
 
                     {/* Secondary view stage — the ONE participant the local user
                         (or the spotlight) is looking at. Mounts only when a
@@ -471,22 +474,25 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
 
                     {/* The live seat map + side rail (renders its own teacher
                         control bar when `state.you.role === "teacher"`). */}
-                    <LabMap
-                        state={state}
-                        actions={mapActions}
-                        allowPeerShare={peerShareAllowed}
-                        controlEdge={controlEdge}
-                    />
+                    <LabPanel title="Live map" icon={<MapGlyph />}>
+                        <LabMap
+                            state={state}
+                            actions={mapActions}
+                            allowPeerShare={peerShareAllowed}
+                            controlEdge={controlEdge}
+                        />
+                    </LabPanel>
                 </div>
 
                 {/* Chat rail. */}
                 <aside className="w-full shrink-0 xl:w-80">
-                    <LabChat
-                        messages={messages}
-                        onSend={actions.sendChat}
-                        disabled={!connected}
-                        className="xl:sticky xl:top-4"
-                    />
+                    <LabPanel title="Chat" icon={<ChatGlyph />} className="xl:sticky xl:top-4">
+                        <LabChat
+                            messages={messages}
+                            onSend={actions.sendChat}
+                            disabled={!connected}
+                        />
+                    </LabPanel>
                 </aside>
             </div>
         </div>
@@ -578,6 +584,35 @@ function RecordButton({
 }
 
 // ── Icons (stroke-based, currentColor) ───────────────────────────────────
+
+/** Panel-title glyph: broadcast waves. */
+function BroadcastGlyph() {
+    return (
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <circle cx="12" cy="12" r="2" strokeWidth={2} />
+            <path strokeLinecap="round" strokeWidth={2} d="M8.5 8.5a5 5 0 000 7M15.5 8.5a5 5 0 010 7" />
+        </svg>
+    );
+}
+
+/** Panel-title glyph: a pinned location map. */
+function MapGlyph() {
+    return (
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+            <path strokeLinecap="round" strokeWidth={2} d="M9 4v14M15 6v14" />
+        </svg>
+    );
+}
+
+/** Panel-title glyph: a chat bubble. */
+function ChatGlyph() {
+    return (
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v11H9l-4 3v-3H4z" />
+        </svg>
+    );
+}
 
 function RecordIcon({ className }: { className?: string }) {
     return (

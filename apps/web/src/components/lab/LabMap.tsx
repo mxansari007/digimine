@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { isLabAgentIdentity, labAgentIdentity, labBaseUid } from "@digimine/types";
 import type {
     LabConnection,
@@ -170,6 +170,9 @@ const LAB_MAP_CSS = `
   50% { transform: translateY(-6px); }
 }
 .lab-float { animation: lab-float 4s ease-in-out infinite; will-change: transform; }
+/* While an avatar is being dragged, freeze its bob so it doesn't fight the
+   pointer; the seat wrapper carries this class during a drag. */
+.lab-dragging .lab-float { animation: none; }
 @keyframes lab-control-dash {
   to { stroke-dashoffset: -24; }
 }
@@ -231,6 +234,16 @@ export function LabMap({
     // for THAT participant (view / spotlight / remote control / end share, or —
     // for a student — share your screen to them).
     const [menu, setMenu] = useState<{ uid: string; x: number; y: number } | null>(null);
+    // TEACHER-ONLY draggable canvas. `dragPos` holds per-uid CUSTOM positions
+    // (% of the seat field) the teacher has dragged an avatar to; when present
+    // for a uid it overrides the deterministic seat grid, and because the SVG
+    // strings + control light both derive from the merged `positions`, they
+    // follow a dragged avatar LIVE. The field ref converts pointer px → %.
+    const fieldRef = useRef<HTMLDivElement | null>(null);
+    const [dragPos, setDragPos] = useState<Record<string, { x: number; y: number }>>({});
+    // The uid currently being dragged (null = none), so we can pause its float
+    // and suppress the click→menu when the pointer actually moved.
+    const [draggingUid, setDraggingUid] = useState<string | null>(null);
     // The teacher's room-wide pin (if any), honoured only while present. Drives
     // the amber glow on the spotlit avatar + its connection lines, and a rail row.
     const spotlightUid = state.spotlightUid ?? null;
@@ -262,7 +275,7 @@ export function LabMap({
 
     // Index human participants by uid and pre-compute every avatar's seat
     // position once per render; the SVG layer and the rail both read from this.
-    const { positions, byUid, ordered } = useMemo(() => {
+    const { seatPositions, byUid, ordered } = useMemo(() => {
         const byUid = new Map<string, LabParticipant>();
         for (const p of humans) byUid.set(p.uid, p);
 
@@ -274,14 +287,26 @@ export function LabMap({
             .sort((a, b) => a.seat - b.seat);
         const ordered = teacher ? [teacher, ...students] : students;
 
-        const positions = new Map<string, Seat>();
+        const seatPositions = new Map<string, Seat>();
         let studentIndex = 0;
         for (const p of ordered) {
-            positions.set(p.uid, seatPosition(p, p.role === "teacher" ? 0 : studentIndex));
+            seatPositions.set(p.uid, seatPosition(p, p.role === "teacher" ? 0 : studentIndex));
             if (p.role !== "teacher") studentIndex += 1;
         }
-        return { positions, byUid, ordered };
+        return { seatPositions, byUid, ordered };
     }, [humans]);
+
+    // The AUTHORITATIVE positions the whole map reads from: a dragged avatar's
+    // custom `dragPos[uid]` overrides its grid seat, everything else falls back
+    // to `seatPosition(...)`. The SVG strings + control light derive from this,
+    // so they track a dragged avatar live as it moves.
+    const positions = useMemo(() => {
+        const merged = new Map<string, Seat>(seatPositions);
+        for (const [uid, p] of Object.entries(dragPos)) {
+            if (merged.has(uid)) merged.set(uid, p);
+        }
+        return merged;
+    }, [seatPositions, dragPos]);
 
     // REMAP connections onto the human avatars: an agent endpoint collapses onto
     // its student (so "agent → teacher" reads as "student → teacher"). Drop
@@ -336,6 +361,103 @@ export function LabMap({
         [drawableConnections, byUid, spotlightUid]
     );
 
+    // ── Draggable canvas (teacher only) ──────────────────────────────
+    // One pointer-drag-in-progress record. We track total travel so a
+    // (nearly) stationary pointer reads as a CLICK (opens the action menu)
+    // while real movement is a DRAG (repositions, no menu).
+    const dragRef = useRef<{
+        uid: string;
+        pointerId: number;
+        startX: number;
+        startY: number;
+        moved: boolean;
+    } | null>(null);
+    // Set true by pointerup when the gesture was a real drag, so the click that
+    // browsers synthesize right after is swallowed (no menu pops on drop).
+    const suppressClickRef = useRef(false);
+
+    const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+    // Translate a viewport pointer to a % position inside the seat field.
+    const pointerToPercent = (clientX: number, clientY: number): { x: number; y: number } | null => {
+        const rect = fieldRef.current?.getBoundingClientRect();
+        if (!rect || rect.width === 0 || rect.height === 0) return null;
+        return {
+            x: clamp(((clientX - rect.left) / rect.width) * 100, 3, 97),
+            y: clamp(((clientY - rect.top) / rect.height) * 100, 3, 97),
+        };
+    };
+
+    const onAvatarPointerDown = (uid: string, e: React.PointerEvent) => {
+        if (!isTeacher) return; // only the teacher can rearrange the canvas
+        // Don't hijack non-primary buttons (e.g. right-click context menus).
+        if (e.button !== 0) return;
+        // Fresh gesture: clear any stale click-suppression from a prior drag
+        // whose synthetic click never arrived (e.g. dragging a non-clickable
+        // avatar like the teacher's own).
+        suppressClickRef.current = false;
+        dragRef.current = {
+            uid,
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            moved: false,
+        };
+        try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+            /* setPointerCapture can throw if the pointer is already gone */
+        }
+    };
+
+    const onAvatarPointerMove = (uid: string, e: React.PointerEvent) => {
+        const d = dragRef.current;
+        if (!d || d.uid !== uid || d.pointerId !== e.pointerId) return;
+        const dist = Math.hypot(e.clientX - d.startX, e.clientY - d.startY);
+        if (!d.moved && dist < 4) return; // below the click/drag threshold
+        if (!d.moved) {
+            d.moved = true;
+            setDraggingUid(uid);
+        }
+        const pct = pointerToPercent(e.clientX, e.clientY);
+        if (pct) {
+            // Update only this uid's entry so we don't thrash the whole map.
+            setDragPos((prev) => ({ ...prev, [uid]: pct }));
+        }
+    };
+
+    const onAvatarPointerUp = (uid: string, e: React.PointerEvent) => {
+        const d = dragRef.current;
+        if (!d || d.uid !== uid || d.pointerId !== e.pointerId) return;
+        try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+            /* releasePointerCapture can throw if capture was already lost */
+        }
+        const wasDrag = d.moved;
+        dragRef.current = null;
+        if (wasDrag) setDraggingUid(null);
+        // Swallow the synthetic click that follows a drop so it doesn't open
+        // the action menu; a true click (no movement) leaves this false.
+        suppressClickRef.current = wasDrag;
+    };
+
+    // Gate the avatar click: if the just-finished gesture was a drag, eat the
+    // click; otherwise open the menu as before.
+    const onAvatarClick = (uid: string, anchor: { x: number; y: number }) => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+        }
+        setMenu({ uid, ...anchor });
+    };
+
+    const hasCustomLayout = Object.keys(dragPos).length > 0;
+    const resetLayout = () => {
+        setDragPos({});
+        setDraggingUid(null);
+    };
+
     return (
         <div className={`flex flex-col gap-4 lg:flex-row ${className}`}>
             {/* Local keyframes for the gentle avatar "float" (a slow vertical
@@ -362,12 +484,28 @@ export function LabMap({
                             )}
                             {state.recording && <LivePill label="REC" tone="danger" pulse />}
                         </div>
-                        <Legend />
+                        <div className="flex items-center gap-3">
+                            {/* Teacher-only: clear any dragged layout back to the
+                                seat grid. Only shown once something was moved. */}
+                            {isTeacher && hasCustomLayout && (
+                                <button
+                                    type="button"
+                                    onClick={resetLayout}
+                                    className="text-[11px] font-semibold text-primary-700 hover:underline dark:text-primary-300"
+                                    title="Snap every avatar back to its seat"
+                                >
+                                    Reset layout
+                                </button>
+                            )}
+                            <Legend />
+                        </div>
                     </div>
 
                     {/* The seat field. A fixed aspect keeps the % geometry sane;
-                        it scrolls on very short viewports rather than squashing. */}
-                    <div className="relative aspect-[16/10] w-full">
+                        it scrolls on very short viewports rather than squashing.
+                        The ref is the coordinate frame the teacher's drag maps
+                        pointer px → % against. */}
+                    <div ref={fieldRef} className="relative aspect-[16/10] w-full">
                         {/* Faint "floor" grid for a roomy, gamified feel. */}
                         <div
                             aria-hidden
@@ -394,7 +532,12 @@ export function LabMap({
                             teacher. The spotlit avatar gets an amber glow. */}
                         {ordered.map((p, i) => {
                             const pos = positions.get(p.uid)!;
+                            // The menu (View/Spotlight/Control/…) opens for any
+                            // avatar but your own — unchanged.
                             const selectable = p.uid !== state.you.uid;
+                            // The teacher may drag EVERY avatar (incl. their own);
+                            // nobody else can drag anything.
+                            const draggable = isTeacher;
                             return (
                                 <AvatarNode
                                     key={p.uid}
@@ -405,9 +548,22 @@ export function LabMap({
                                     spotlit={p.uid === spotlightUid}
                                     hasDesktop={desktopUids.has(p.uid)}
                                     menuOpen={menu?.uid === p.uid}
-                                    onOpenMenu={
-                                        selectable
-                                            ? (uid, anchor) => setMenu({ uid, ...anchor })
+                                    dragging={draggingUid === p.uid}
+                                    draggable={draggable}
+                                    onOpenMenu={selectable ? onAvatarClick : undefined}
+                                    onPointerDown={
+                                        draggable
+                                            ? (e) => onAvatarPointerDown(p.uid, e)
+                                            : undefined
+                                    }
+                                    onPointerMove={
+                                        draggable
+                                            ? (e) => onAvatarPointerMove(p.uid, e)
+                                            : undefined
+                                    }
+                                    onPointerUp={
+                                        draggable
+                                            ? (e) => onAvatarPointerUp(p.uid, e)
                                             : undefined
                                     }
                                 />
@@ -713,7 +869,12 @@ function AvatarNode({
     spotlit = false,
     hasDesktop = false,
     menuOpen = false,
+    dragging = false,
+    draggable = false,
     onOpenMenu,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
 }: {
     participant: LabParticipant;
     pos: Seat;
@@ -726,13 +887,24 @@ function AvatarNode({
     hasDesktop?: boolean;
     /** True while this avatar's action menu is open (keeps it visually active). */
     menuOpen?: boolean;
+    /** True while THIS avatar is actively being dragged (pauses the float). */
+    dragging?: boolean;
+    /** True when the local user (the teacher) may drag this avatar. */
+    draggable?: boolean;
     /** Open the action menu for this avatar, anchored at the given viewport point. */
     onOpenMenu?: (uid: string, anchor: { x: number; y: number }) => void;
+    /** Teacher drag: pointer handlers wired only when `draggable`. */
+    onPointerDown?: (e: React.PointerEvent) => void;
+    onPointerMove?: (e: React.PointerEvent) => void;
+    onPointerUp?: (e: React.PointerEvent) => void;
 }) {
     const style = STATUS_STYLES[participant.status];
     const isTeacher = participant.role === "teacher";
     const handUp = typeof participant.handRaisedAt === "number";
     const clickable = !!onOpenMenu;
+    // The button is interactive (not `disabled`) whenever it can be clicked OR
+    // dragged — a disabled button swallows the pointer events the drag needs.
+    const interactive = clickable || draggable;
 
     const size = isTeacher ? "h-14 w-14 text-base" : "h-12 w-12 text-sm";
 
@@ -740,7 +912,8 @@ function AvatarNode({
         <div
             // The absolutely-positioned SEAT wrapper. It only owns the seat
             // coordinates — never animated — so the float never fights geometry.
-            className="absolute -translate-x-1/2 -translate-y-1/2"
+            // `lab-dragging` freezes the inner float while this avatar is dragged.
+            className={`absolute -translate-x-1/2 -translate-y-1/2 ${dragging ? "lab-dragging z-20" : ""}`}
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
         >
             {/* INNER float wrapper: a gentle, staggered vertical bob. */}
@@ -772,7 +945,7 @@ function AvatarNode({
                         status ring so the pin is unmistakable. */}
                     <button
                         type="button"
-                        disabled={!clickable}
+                        disabled={!interactive}
                         onClick={
                             clickable
                                 ? (e) => {
@@ -784,6 +957,12 @@ function AvatarNode({
                                   }
                                 : undefined
                         }
+                        // Teacher drag (pointer-capture based). Wired only when
+                        // `draggable`; `touch-none` lets a touch drag the avatar
+                        // instead of scrolling the page.
+                        onPointerDown={onPointerDown}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-label={
@@ -796,6 +975,7 @@ function AvatarNode({
                             "flex items-center justify-center rounded-full font-semibold uppercase tracking-tight text-white shadow-soft",
                             "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-surface",
                             size,
+                            draggable ? "touch-none" : "",
                             spotlit
                                 ? "ring-amber-400 shadow-glow-accent"
                                 : menuOpen
@@ -804,7 +984,15 @@ function AvatarNode({
                             isTeacher
                                 ? "bg-gradient-to-br from-primary-600 to-primary-800"
                                 : "bg-gradient-to-br from-slate-500 to-slate-700",
-                            clickable ? "cursor-pointer transition-transform hover:scale-105" : "cursor-default",
+                            // Cursor: grabbing while dragged, grab when draggable,
+                            // pointer when only clickable, default otherwise.
+                            dragging
+                                ? "cursor-grabbing"
+                                : draggable
+                                  ? "cursor-grab transition-transform hover:scale-105"
+                                  : clickable
+                                    ? "cursor-pointer transition-transform hover:scale-105"
+                                    : "cursor-default",
                         ].join(" ")}
                     >
                         {initials(participant.displayName)}
