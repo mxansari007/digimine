@@ -131,6 +131,9 @@ export async function POST(req: Request, { params }: { params: { instituteId: st
             studentsCount: 0,
             activeStudentsCount: 0,
             isArchived: false,
+            // Per-class Virtual Lab opt-in (mirrors the teacher create flow). The
+            // institute admin chooses at creation; editable later in settings.
+            labEnabled: body.labEnabled === true,
             createdAt: now,
             updatedAt: now,
         };

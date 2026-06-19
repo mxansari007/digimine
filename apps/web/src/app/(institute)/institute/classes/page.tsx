@@ -103,6 +103,7 @@ export default function InstituteClassesPage() {
     const [newName, setNewName] = useState("");
     const [newDescription, setNewDescription] = useState("");
     const [newGroups, setNewGroups] = useState("");
+    const [newLabEnabled, setNewLabEnabled] = useState(false);
     const [createError, setCreateError] = useState("");
     const [creating, setCreating] = useState(false);
 
@@ -179,6 +180,7 @@ export default function InstituteClassesPage() {
                         name: newName.trim(),
                         description: newDescription.trim(),
                         groups,
+                        labEnabled: newLabEnabled,
                     }),
                 }
             );
@@ -188,6 +190,7 @@ export default function InstituteClassesPage() {
             setNewName("");
             setNewDescription("");
             setNewGroups("");
+            setNewLabEnabled(false);
             await loadAll();
         } catch (err) {
             setCreateError((err as Error)?.message || "Failed to create class");
@@ -388,6 +391,7 @@ export default function InstituteClassesPage() {
                     name={newName}
                     description={newDescription}
                     groups={newGroups}
+                    labEnabled={newLabEnabled}
                     error={createError}
                     existingKeys={
                         new Set(
@@ -400,6 +404,7 @@ export default function InstituteClassesPage() {
                     onName={setNewName}
                     onDescription={setNewDescription}
                     onGroups={setNewGroups}
+                    onLabEnabled={setNewLabEnabled}
                     onClose={() => {
                         if (!creating) {
                             setShowCreate(false);
@@ -857,24 +862,28 @@ function CreateClassModal({
     name,
     description,
     groups,
+    labEnabled,
     error,
     existingKeys,
     creating,
     onName,
     onDescription,
     onGroups,
+    onLabEnabled,
     onClose,
     onSubmit,
 }: {
     name: string;
     description: string;
     groups: string;
+    labEnabled: boolean;
     error: string;
     existingKeys: Set<string>;
     creating: boolean;
     onName: (v: string) => void;
     onDescription: (v: string) => void;
     onGroups: (v: string) => void;
+    onLabEnabled: (v: boolean) => void;
     onClose: () => void;
     onSubmit: () => void;
 }) {
@@ -958,6 +967,22 @@ function CreateClassModal({
                     placeholder="Description (optional)"
                     className={`mb-3 ${inputCls}`}
                 />
+
+                <label className="mb-3 flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 px-3 py-2.5">
+                    <input
+                        type="checkbox"
+                        checked={labEnabled}
+                        onChange={(e) => onLabEnabled(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-xs text-slate-600 dark:text-slate-300">
+                        <span className="font-semibold text-slate-800 dark:text-slate-100">
+                            Enable the Virtual Lab
+                        </span>{" "}
+                        for this class — teachers can run live, supervised lab sessions (screen share,
+                        broadcast, recording, remote help). Editable later in class settings.
+                    </span>
+                </label>
 
                 {error && (
                     <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">

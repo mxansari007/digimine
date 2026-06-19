@@ -48,6 +48,9 @@ export async function PATCH(req: Request, { params }: { params: { instituteId: s
         if (typeof body.isArchived === "boolean") {
             update.isArchived = body.isArchived;
         }
+        if (typeof body.labEnabled === "boolean") {
+            update.labEnabled = body.labEnabled;
+        }
         if (body.regenerateInviteCode) {
             update.inviteCode = await allocateUniqueInviteCode();
             update.inviteCodeRotatedAt = Timestamp.now();
