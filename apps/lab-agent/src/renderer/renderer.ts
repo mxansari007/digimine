@@ -564,8 +564,8 @@ function postConsent(kind: "control" | "record", accept: boolean): Promise<void>
 // ─────────────────────────────────────────────────────────────────────
 
 async function boot(): Promise<void> {
-  // Surface native-input availability up front so consent can be honest.
-  state.nativeInputAvailable = await window.labAgent.nativeInputAvailable();
+  // Wire the UI listeners FIRST so the buttons (especially Pair) always work,
+  // even if the async native-input probe at the END is slow or rejects.
 
   // Status/log + the tray "force-stop" kill switch coming from main.
   window.labAgent.onStatus((msg) => {
@@ -574,9 +574,15 @@ async function boot(): Promise<void> {
   });
 
   els.pairBtn.addEventListener("click", async () => {
+    const codeIn = els.pairCode.value.trim();
+    if (!codeIn) {
+      logLine("Enter the pairing code from the web app first.");
+      return;
+    }
     els.pairBtn.disabled = true;
+    logLine(`Pairing with code "${codeIn}"…`);
     try {
-      const res = await window.labAgent.pair(els.pairCode.value);
+      const res = await window.labAgent.pair(codeIn);
       state.paired = true;
       state.uid = res.uid;
       // The code carried which lab to join — auto-fill the session so the
@@ -602,6 +608,17 @@ async function boot(): Promise<void> {
 
   render();
   logLine("Lab Agent ready.");
+
+  // Probe native-input availability LAST + best-effort — a failure here must
+  // never stop the Pair/Share buttons wired above. It only decides whether the
+  // consent dialog can offer CONTROL (vs share-only).
+  try {
+    state.nativeInputAvailable = await window.labAgent.nativeInputAvailable();
+  } catch (err) {
+    state.nativeInputAvailable = false;
+    logLine(`Native-input probe failed: ${(err as Error).message}`);
+  }
+  render();
 }
 
 void boot();
