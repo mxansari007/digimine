@@ -546,22 +546,36 @@ export default LabMap;
  * sag is a fixed amount of the normalized 0..100 space, scaled down a touch for
  * very short segments so neighbours don't billow.
  */
+/**
+ * viewBox width for the 16:10 stage (height = 100). Rendering the SVG at this
+ * width (x mapped 0..100 → 0..160) makes its units ISOTROPIC — 1 unit is the same
+ * number of pixels in x and y — so `preserveAspectRatio="none"` no longer stretches
+ * the curve. That non-uniform stretch was exactly what made the strings look
+ * jagged + slanted.
+ */
+const LAB_SVG_W = 160;
+/** Seat x (0..100, the same % the avatar is positioned at) → isotropic SVG x. */
+function seatX(x: number): number {
+    return (x / 100) * LAB_SVG_W;
+}
+
+/**
+ * A hanging-rope path between two avatar seats. The endpoints sit at the avatar
+ * CENTRES (hidden beneath the avatars, which are drawn on top), so the visible
+ * string emerges from each avatar's rim — it reads as a cord ATTACHED to both,
+ * not a line on the canvas. The midpoint is pushed straight DOWN (gravity)
+ * proportional to the span, so it sags like a real cord. Computed in the isotropic
+ * 160×100 space so the curve is smooth + symmetric.
+ */
 function stringPath(a: Seat, b: Seat): string {
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy) || 1;
-    // Unit perpendicular to the segment.
-    const px = -dy / len;
-    const py = dx / len;
-    // Gentle droop (~6–10 units), eased down for short hops, with a consistent
-    // downward bias (+py side) so strings sag toward the floor like real rope.
-    const sag = Math.min(9, 5 + len * 0.06);
-    const bias = py >= 0 ? 1 : -1; // always push the curve downward on screen
-    const cx = mx + px * sag * bias;
-    const cy = my + py * sag * bias + 1.5; // a hair extra downward droop
-    return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
+    const ax = seatX(a.x);
+    const bx = seatX(b.x);
+    const span = Math.hypot(bx - ax, b.y - a.y);
+    // Longer spans droop more (a real cord), clamped so it never gets silly.
+    const sag = Math.min(20, Math.max(5, span * 0.18));
+    const mx = (ax + bx) / 2;
+    const my = (a.y + b.y) / 2 + sag;
+    return `M ${ax} ${a.y} Q ${mx} ${my} ${bx} ${b.y}`;
 }
 
 /**
@@ -592,7 +606,7 @@ function ConnectionLayer({
             aria-hidden
             className="pointer-events-none absolute inset-0 h-full w-full"
             preserveAspectRatio="none"
-            viewBox="0 0 100 100"
+            viewBox="0 0 160 100"
         >
             {/* Soft amber glow (spotlight) + indigo glow (control). */}
             <defs>
