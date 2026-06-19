@@ -38,6 +38,11 @@ export interface LabTeacherBarProps {
     recordBusy?: boolean;
     /** True before the room is connected (disables the button). */
     recordDisabled?: boolean;
+    /**
+     * End the whole lab session (teacher-only). Owned by `LabRoom` so it can
+     * confirm + navigate back to the class after the session ends. Omit to hide.
+     */
+    onEndSession?: () => void;
 }
 
 export function LabTeacherBar({
@@ -46,11 +51,13 @@ export function LabTeacherBar({
     onToggleRecording,
     recordBusy = false,
     recordDisabled = false,
+    onEndSession,
 }: LabTeacherBarProps) {
     const [busy, setBusy] = useState(false);
+    const [cameraBusy, setCameraBusy] = useState(false);
 
     // Is the teacher's own camera track currently published? Resolve from the
-    // hook so the indicator can't drift from what the room actually sees.
+    // hook so the toggle can't drift from what the room actually sees.
     const cameraLive = !!actions.getVideoTrack(state.you.uid, "camera");
 
     const toggleBroadcast = async () => {
@@ -61,6 +68,16 @@ export function LabTeacherBar({
             else await actions.startBroadcast();
         } finally {
             setBusy(false);
+        }
+    };
+
+    const toggleCamera = async () => {
+        if (cameraBusy) return;
+        setCameraBusy(true);
+        try {
+            await actions.setCamera(!cameraLive);
+        } finally {
+            setCameraBusy(false);
         }
     };
 
@@ -88,19 +105,31 @@ export function LabTeacherBar({
                     {state.broadcasting ? "Stop broadcast" : "Go live"}
                 </button>
 
-                {/* Camera state indicator (reflects the published track). */}
-                <span
+                {/* Camera on/off — an independent toggle (not bundled into the
+                    broadcast), so the teacher can share their screen without the
+                    webcam. Reads the live published-track state. */}
+                <button
+                    type="button"
+                    onClick={toggleCamera}
+                    disabled={cameraBusy}
+                    aria-pressed={cameraLive}
+                    title={cameraLive ? "Turn your camera off" : "Turn your camera on"}
                     className={[
-                        "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
+                        "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         cameraLive
-                            ? "bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300"
-                            : "bg-slate-100 text-slate-500 dark:bg-slate-700/60 dark:text-slate-300",
+                            ? "bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-500/10 dark:text-primary-300"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-300",
                     ].join(" ")}
-                    title={cameraLive ? "Your camera is on (part of the broadcast)" : "Your camera is off — Go live to turn it on"}
                 >
-                    {cameraLive ? <CameraIcon className="h-4 w-4" /> : <CameraOffIcon className="h-4 w-4" />}
+                    {cameraBusy ? (
+                        <SpinnerIcon className="h-4 w-4 animate-spin" />
+                    ) : cameraLive ? (
+                        <CameraIcon className="h-4 w-4" />
+                    ) : (
+                        <CameraOffIcon className="h-4 w-4" />
+                    )}
                     <span className="hidden sm:inline">{cameraLive ? "Camera on" : "Camera off"}</span>
-                </span>
+                </button>
 
                 <div className="ml-auto" />
 
@@ -144,6 +173,20 @@ export function LabTeacherBar({
                         </span>
                     </button>
                 )}
+
+                {/* End the whole session (teacher-only). LabRoom confirms +
+                    navigates back to the class once the session is marked ended. */}
+                {onEndSession && (
+                    <button
+                        type="button"
+                        onClick={onEndSession}
+                        title="End this lab session for everyone"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-danger-200 bg-white px-3 py-2 text-xs font-semibold text-danger-600 transition-colors hover:bg-danger-50 dark:border-danger-500/30 dark:bg-surface dark:text-danger-300 dark:hover:bg-danger-500/10"
+                    >
+                        <PowerIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">End session</span>
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -182,6 +225,14 @@ function CameraOffIcon({ className }: { className?: string }) {
     return (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h6m4 4v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8M3 3l18 18" />
+        </svg>
+    );
+}
+
+function PowerIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v8m5.66-5.66a8 8 0 11-11.32 0" />
         </svg>
     );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { fetchLabSession } from "@/lib/lab/labClient";
 import { LabMap, type LabMapActions } from "./LabMap";
@@ -68,6 +69,7 @@ export interface LabRoomProps {
 export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabRoomProps) {
     const { state, actions, status, connected, error, messages, role } = useLabRoom(sessionId);
     const { firebaseUser } = useAuthContext();
+    const router = useRouter();
 
     const isTeacher = role === "teacher";
 
@@ -178,6 +180,36 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
             })
             .finally(() => setRecordBusy(false));
     }, [recordBusy, state.recording, actions]);
+
+    // End the whole session (teacher-only): confirm, end it via the control plane
+    // (the hook stops local media + leaves the room), then navigate back to the
+    // class. A busy guard prevents double-taps; a failure surfaces inline.
+    const [endingSession, setEndingSession] = useState(false);
+    const [endSessionError, setEndSessionError] = useState<string | null>(null);
+    const onEndSession = useCallback(() => {
+        if (endingSession) return;
+        if (
+            typeof window !== "undefined" &&
+            !window.confirm(
+                "End this lab session for everyone? Students will be disconnected and you'll return to the class."
+            )
+        ) {
+            return;
+        }
+        setEndingSession(true);
+        setEndSessionError(null);
+        void actions
+            .endSession()
+            .then(() => {
+                router.push(backHref);
+            })
+            .catch((e: unknown) => {
+                setEndSessionError(
+                    e instanceof Error ? e.message : "Couldn't end the session. Please try again."
+                );
+                setEndingSession(false);
+            });
+    }, [endingSession, actions, router, backHref]);
 
     // Map the hook's verb-y action bag onto LabMap's control-bar callbacks. The
     // map's broadcast button is the same intent as the teacher bar's Go-live, so
@@ -325,13 +357,24 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                     {/* Role bar — primary self-actions. */}
                     {role &&
                         (isTeacher ? (
-                            <LabTeacherBar
-                                state={state}
-                                actions={actions}
-                                recordBusy={recordBusy}
-                                recordDisabled={!connected}
-                                onToggleRecording={toggleRecording}
-                            />
+                            <>
+                                <LabTeacherBar
+                                    state={state}
+                                    actions={actions}
+                                    recordBusy={recordBusy}
+                                    recordDisabled={!connected}
+                                    onToggleRecording={toggleRecording}
+                                    onEndSession={onEndSession}
+                                />
+                                {endSessionError && (
+                                    <p
+                                        role="alert"
+                                        className="px-1 text-[11px] font-medium text-danger-600 dark:text-danger-400"
+                                    >
+                                        {endSessionError}
+                                    </p>
+                                )}
+                            </>
                         ) : (
                             <>
                                 <LabStudentBar state={state} actions={actions} />

@@ -33,7 +33,6 @@ import {
     controlRevoke,
     decode,
     encode,
-    encodeParticipantMeta,
     parseParticipantMeta,
     parseRoomPolicy,
     LAB_MAX_CHAT_LEN,
@@ -217,6 +216,14 @@ export interface LabRoomActions {
     startBroadcast: () => Promise<void>;
     /** Teacher: stop the broadcast (unpublish camera + screen). */
     stopBroadcast: () => Promise<void>;
+    /** Teacher: turn your own camera on/off independently of the screen broadcast. */
+    setCamera: (on: boolean) => Promise<void>;
+    /**
+     * Teacher: END the whole lab session via the control plane (PATCH
+     * action:'end' → status 'ended' + endedAt), stop local media, and leave the
+     * room. No-op for non-teachers; the page navigates away once it resolves.
+     */
+    endSession: () => Promise<void>;
     /** Set your own live-map status (metadata + data pulse + event mirror). */
     setStatus: (status: LabStatus) => Promise<void>;
     /** Raise your hand (stamps handRaisedAt now). */
@@ -642,6 +649,32 @@ async function recordingApi(sessionId: string, action: "start" | "stop"): Promis
 }
 
 /**
+ * End the whole session via the control plane: PATCH /api/lab/sessions/{id} with
+ * { action: 'end' } + the Firebase Bearer (the route is teacher-only server-side
+ * — a student's call 403s). Awaited so the teacher learns of a failure; throws
+ * the server's message on a non-2xx for the caller to surface.
+ */
+async function endSessionApi(sessionId: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("You must be signed in to end the session.");
+    const idToken = await user.getIdToken();
+    const res = await fetch(`/api/lab/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "end" }),
+    });
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(
+            (json as { error?: string })?.error || "Could not end the session."
+        );
+    }
+}
+
+/**
  * Best-effort durable mirror of a live signal into the Firestore events log.
  * Fire-and-forget: a failed/absent /api/lab/events route must NEVER break the
  * live room (the map runs off LiveKit). We swallow everything.
@@ -847,6 +880,20 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             setMessages((prev) => [...prev, entry]);
         },
         []
+    );
+
+    /**
+     * Encode our participant metadata PRESERVING the server-baked identity
+     * ({ sessionId, role }) in the SAME `participant.metadata` JSON that
+     * `roleFromParticipant` reads. Without this, any metadata update (status /
+     * share / spotlight) overwrites metadata with lab-only fields and DROPS our
+     * role — so the map stops recognizing the teacher (the stage shows
+     * "waiting", broadcasting reads false). The role is the token-resolved one.
+     */
+    const encodeIdentityMeta = useCallback(
+        (m: LabParticipantMeta): string =>
+            JSON.stringify({ sessionId, role: youRef.current.role, ...m }),
+        [sessionId]
     );
 
     // ── Connect / teardown ──────────────────────────────────────────
@@ -1055,7 +1102,7 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             policyRef.current = parseRoomPolicy(room.metadata);
             // (a) re-assert our own metadata (status/seat/sharingTo/hand/spotlight).
             void room.localParticipant
-                .setMetadata(encodeParticipantMeta(myMetaRef.current))
+                .setMetadata(encodeIdentityMeta(myMetaRef.current))
                 .catch(() => {});
             // (b) teacher-owned one-shot directives that don't auto-replay.
             if (youRef.current.role === "teacher") {
@@ -1170,7 +1217,7 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                 myMetaRef.current = seeded;
                 // (No write needed if metadata already present; only push if empty.)
                 if (!room.localParticipant.metadata) {
-                    await room.localParticipant.setMetadata(encodeParticipantMeta(seeded));
+                    await room.localParticipant.setMetadata(encodeIdentityMeta(seeded));
                 }
 
                 setStatus_("connected");
@@ -1219,12 +1266,12 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             myMetaRef.current = next;
             const room = roomRef.current;
             if (room && room.state === ConnectionState.Connected) {
-                await room.localParticipant.setMetadata(encodeParticipantMeta(next));
+                await room.localParticipant.setMetadata(encodeIdentityMeta(next));
                 recompute(); // reflect our own change immediately (no echo wait)
             }
             return next;
         },
-        [recompute]
+        [recompute, encodeIdentityMeta]
     );
 
     /**
@@ -1437,9 +1484,18 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             startBroadcast: async () => {
                 const lp = localParticipant();
                 if (!lp) return;
-                // Teacher broadcast = camera + screen to the whole room.
-                await lp.setCameraEnabled(true);
-                await lp.setScreenShareEnabled(true, { audio: true });
+                // The SCREEN is the broadcast — publish it FIRST and on its own so
+                // a missing/denied camera can't abort the share. Screen audio is
+                // best-effort: macOS frequently can't capture it and forcing it
+                // (`{ audio: true }`) can fail the whole publish, so we don't.
+                await lp.setScreenShareEnabled(true);
+                // Camera rides along best-effort; the teacher can toggle it off via
+                // setCamera. A camera error must NOT break the screen broadcast.
+                try {
+                    await lp.setCameraEnabled(true);
+                } catch {
+                    /* no camera / permission denied — the screen broadcast still goes */
+                }
                 await patchMyMeta({ status: "sharing" });
                 postEvent("share_start", { meta: { kind: "broadcast" } });
                 recompute();
@@ -1448,10 +1504,45 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                 const lp = localParticipant();
                 if (!lp) return;
                 await lp.setScreenShareEnabled(false);
-                await lp.setCameraEnabled(false);
+                try {
+                    await lp.setCameraEnabled(false);
+                } catch {
+                    /* camera may already be off */
+                }
                 await patchMyMeta({ status: "on_task" });
                 postEvent("share_end", { meta: { kind: "broadcast" } });
                 recompute();
+            },
+            setCamera: async (on: boolean) => {
+                const lp = localParticipant();
+                if (!lp) return;
+                try {
+                    await lp.setCameraEnabled(on);
+                } catch {
+                    /* best-effort: no camera / permission denied */
+                }
+                recompute();
+            },
+            endSession: async () => {
+                // Teacher-only. End the session server-side (PATCH action:'end'),
+                // then stop our local media + leave the room. The page navigates
+                // away once this resolves.
+                if (youRef.current.role !== "teacher") return;
+                const lp = localParticipant();
+                if (lp) {
+                    try {
+                        await lp.setScreenShareEnabled(false);
+                        await lp.setCameraEnabled(false);
+                    } catch {
+                        /* best-effort local cleanup */
+                    }
+                }
+                await endSessionApi(sessionId);
+                try {
+                    await roomRef.current?.disconnect();
+                } catch {
+                    /* already gone */
+                }
             },
             setStatus: async (s: LabStatus) => {
                 await patchMyMeta({ status: s });
