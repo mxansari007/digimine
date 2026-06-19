@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getLabSessionById, labPolicyFromSession } from "@/lib/server/labStore";
+import {
+    getLabSessionById,
+    labPolicyFromSession,
+    sanitizeDisplayName,
+} from "@/lib/server/labStore";
 import { redeemPairingCode } from "@/lib/server/labAgentPairing";
 import { mintLabToken, getLiveKitWsUrl } from "@/lib/server/livekit";
 import { rateLimit, clientIp } from "@/lib/server/ratelimit";
@@ -63,10 +67,13 @@ export async function POST(req: Request) {
         }
 
         const identity = labAgentIdentity(redeemed.studentUid);
+        // Re-sanitize the redeemed name before it lands on the token's display
+        // name — strip control / zero-width / bidi chars, collapse, hard-cap.
+        const displayName = sanitizeDisplayName(redeemed.studentName);
         const token = await mintLabToken({
             room: session.livekitRoom,
             identity,
-            name: redeemed.studentName,
+            name: displayName,
             // The desktop agent publishes the student's screen + handles control —
             // the student grant (publish cam/screen + data, no admin) is exactly right.
             role: "student",

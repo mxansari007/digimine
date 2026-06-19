@@ -71,6 +71,38 @@ function clamp01(v: number): number {
     return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
+/**
+ * Resolve the shared-SCREEN <video> the surface overlays, ignoring any camera
+ * picture-in-picture <video> in the same frame (which would skew remote-control
+ * coordinates). Order: an explicit `[data-control-target]`, then the largest
+ * rendered video (the screen fills the frame; the PiP is small), then the first.
+ */
+function resolveTargetVideo(surface: HTMLElement): HTMLVideoElement | null {
+    const parent = surface.parentElement;
+    if (!parent) return null;
+    const tagged = parent.querySelector<HTMLVideoElement>(
+        "video[data-control-target]"
+    );
+    if (tagged) return tagged;
+
+    const videos = Array.from(parent.querySelectorAll<HTMLVideoElement>("video"));
+    if (videos.length <= 1) return videos[0] ?? null;
+
+    // Multiple videos (e.g. a camera PiP is present): pick the largest by
+    // rendered area — the shared screen, never the small PiP.
+    let best: HTMLVideoElement | null = null;
+    let bestArea = -1;
+    for (const v of videos) {
+        const r = v.getBoundingClientRect();
+        const area = r.width * r.height;
+        if (area > bestArea) {
+            bestArea = area;
+            best = v;
+        }
+    }
+    return best ?? videos[0] ?? null;
+}
+
 export function LabControlSurface({ name, onInput, onStop }: LabControlSurfaceProps) {
     const surfaceRef = useRef<HTMLDivElement | null>(null);
     // rAF handle + the latest pending pointer fraction, so move events coalesce
@@ -98,12 +130,13 @@ export function LabControlSurface({ name, onInput, onStop }: LabControlSurfacePr
             const box = surface.getBoundingClientRect();
             if (box.width <= 0 || box.height <= 0) return null;
 
-            // The <video> we're overlaying is the previous sibling in the frame
-            // (the parent renders <LabVideo> then this surface). Read its
-            // intrinsic size to reconstruct the contained content rect.
-            const video = surface.parentElement?.querySelector("video") as
-                | HTMLVideoElement
-                | null;
+            // The <video> we're overlaying is the shared SCREEN in this frame.
+            // Resolve it deterministically — NOT just the first <video>, since a
+            // camera picture-in-picture <video> in the same parent would otherwise
+            // be picked and skew the mapping. Prefer an explicit
+            // `[data-control-target]`; else fall back to the LARGEST-area video
+            // (the screen fills the frame, the PiP is small); else the first one.
+            const video = resolveTargetVideo(surface);
             const vw = video?.videoWidth ?? 0;
             const vh = video?.videoHeight ?? 0;
 
@@ -122,8 +155,10 @@ export function LabControlSurface({ name, onInput, onStop }: LabControlSurfacePr
                 contentY = box.top + (box.height - contentH) / 2;
             }
 
-            const x = clamp01((clientX - contentX) / contentW);
-            const y = clamp01((clientY - contentY) / contentH);
+            // Guard the divide: a zero content width/height (degenerate layout)
+            // would yield NaN/Infinity and stream a garbage coordinate. Pin to 0.
+            const x = contentW > 0 ? clamp01((clientX - contentX) / contentW) : 0;
+            const y = contentH > 0 ? clamp01((clientY - contentY) / contentH) : 0;
             return { x, y };
         },
         []

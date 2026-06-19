@@ -698,12 +698,14 @@ export function controlInput(to: string, ev: LabControlInputEvent): LabControlIn
 export function isControlMsg(
     msg: LabDataMsg
 ): msg is
+    | LabControlAskMsg
     | LabControlRequestMsg
     | LabControlGrantMsg
     | LabControlDenyMsg
     | LabControlRevokeMsg
     | LabControlInputMsg {
     return (
+        msg.t === "ctl_ask" ||
         msg.t === "ctl_req" ||
         msg.t === "ctl_grant" ||
         msg.t === "ctl_deny" ||

@@ -75,6 +75,15 @@ export interface LabMapProps {
      * both ends are placed on the map.
      */
     controlEdge?: { fromUid: string; toUid: string } | null;
+    /**
+     * Optional CONTROLLED store for the dragged-avatar layout (uid → % seat).
+     * Lift it to the parent so a custom arrangement survives the map panel
+     * remounting (e.g. when it's maximized). Omit for self-contained local state.
+     */
+    dragPositions?: Record<string, { x: number; y: number }>;
+    onDragPositionsChange?: React.Dispatch<
+        React.SetStateAction<Record<string, { x: number; y: number }>>
+    >;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -227,6 +236,8 @@ export function LabMap({
     className = "",
     allowPeerShare = false,
     controlEdge = null,
+    dragPositions,
+    onDragPositionsChange,
 }: LabMapProps) {
     const isTeacher = state.you.role === "teacher";
     // The avatar action menu: which participant + where to anchor the popover.
@@ -234,13 +245,20 @@ export function LabMap({
     // for THAT participant (view / spotlight / remote control / end share, or —
     // for a student — share your screen to them).
     const [menu, setMenu] = useState<{ uid: string; x: number; y: number } | null>(null);
-    // TEACHER-ONLY draggable canvas. `dragPos` holds per-uid CUSTOM positions
-    // (% of the seat field) the teacher has dragged an avatar to; when present
-    // for a uid it overrides the deterministic seat grid, and because the SVG
-    // strings + control light both derive from the merged `positions`, they
-    // follow a dragged avatar LIVE. The field ref converts pointer px → %.
+    // Draggable canvas. `dragPos` holds per-uid CUSTOM positions (% of the seat
+    // field) a user has dragged an avatar to; when present for a uid it overrides
+    // the deterministic seat grid, and because the SVG strings + control light
+    // both derive from the merged `positions`, they follow a dragged avatar LIVE.
+    // It's local-only view state, so it never moves anyone else's map. The field
+    // ref converts pointer px → %.
     const fieldRef = useRef<HTMLDivElement | null>(null);
-    const [dragPos, setDragPos] = useState<Record<string, { x: number; y: number }>>({});
+    // `dragPos` is controlled by the parent when wired (so it survives a panel
+    // remount), else falls back to self-contained local state.
+    const [internalDragPos, setInternalDragPos] = useState<
+        Record<string, { x: number; y: number }>
+    >({});
+    const dragPos = dragPositions ?? internalDragPos;
+    const setDragPos = onDragPositionsChange ?? setInternalDragPos;
     // The uid currently being dragged (null = none), so we can pause its float
     // and suppress the click→menu when the pointer actually moved.
     const [draggingUid, setDraggingUid] = useState<string | null>(null);
@@ -382,9 +400,13 @@ export function LabMap({
     const pointerToPercent = (clientX: number, clientY: number): { x: number; y: number } | null => {
         const rect = fieldRef.current?.getBoundingClientRect();
         if (!rect || rect.width === 0 || rect.height === 0) return null;
+        // Clamp with a margin so the avatar chip + its name label / badges
+        // (which extend past the centre point) stay inside the field instead of
+        // being cut off by its `overflow-hidden`. Extra room at the bottom for
+        // the name + role/hand badges that hang below the chip.
         return {
-            x: clamp(((clientX - rect.left) / rect.width) * 100, 3, 97),
-            y: clamp(((clientY - rect.top) / rect.height) * 100, 3, 97),
+            x: clamp(((clientX - rect.left) / rect.width) * 100, 6, 94),
+            y: clamp(((clientY - rect.top) / rect.height) * 100, 9, 88),
         };
     };
 
@@ -436,9 +458,22 @@ export function LabMap({
         const wasDrag = d.moved;
         dragRef.current = null;
         if (wasDrag) setDraggingUid(null);
-        // Swallow the synthetic click that follows a drop so it doesn't open
-        // the action menu; a true click (no movement) leaves this false.
-        suppressClickRef.current = wasDrag;
+        // Swallow the synthetic click that follows a drop so it doesn't open the
+        // action menu — but ONLY for avatars that actually open a menu. A
+        // non-selectable avatar (your own) fires no click to clear the flag, so
+        // setting it here would eat the NEXT genuine click on another avatar.
+        const selectable = uid !== state.you.uid;
+        suppressClickRef.current = wasDrag && selectable;
+    };
+
+    // Touch/system interruptions fire pointercancel, not pointerup — mirror the
+    // teardown so a drag can't get stuck (frozen float, raised z, stale refs).
+    const onAvatarPointerCancel = (uid: string, e: React.PointerEvent) => {
+        const d = dragRef.current;
+        if (!d || d.uid !== uid || d.pointerId !== e.pointerId) return;
+        dragRef.current = null;
+        setDraggingUid(null);
+        suppressClickRef.current = false;
     };
 
     // Gate the avatar click: if the just-finished gesture was a drag, eat the
@@ -564,6 +599,11 @@ export function LabMap({
                                     onPointerUp={
                                         draggable
                                             ? (e) => onAvatarPointerUp(p.uid, e)
+                                            : undefined
+                                    }
+                                    onPointerCancel={
+                                        draggable
+                                            ? (e) => onAvatarPointerCancel(p.uid, e)
                                             : undefined
                                     }
                                 />
@@ -781,7 +821,7 @@ function ConnectionLayer({
                     </feMerge>
                 </filter>
             </defs>
-            {connections.map((c, i) => {
+            {connections.map((c) => {
                 const a = positions.get(c.fromUid)!;
                 const b = positions.get(c.toUid)!;
                 const style = CONNECTION_STYLES[c.kind];
@@ -790,7 +830,7 @@ function ConnectionLayer({
                     !!spotlightUid && (c.fromUid === spotlightUid || c.toUid === spotlightUid);
                 return (
                     <path
-                        key={`${c.fromUid}-${c.toUid}-${c.kind}-${i}`}
+                        key={`${c.fromUid}-${c.toUid}-${c.kind}`}
                         d={d}
                         fill="none"
                         stroke={touchesSpotlight ? CONNECTION_STYLES_SPOTLIGHT.stroke : style.stroke}
@@ -875,6 +915,7 @@ function AvatarNode({
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    onPointerCancel,
 }: {
     participant: LabParticipant;
     pos: Seat;
@@ -897,6 +938,7 @@ function AvatarNode({
     onPointerDown?: (e: React.PointerEvent) => void;
     onPointerMove?: (e: React.PointerEvent) => void;
     onPointerUp?: (e: React.PointerEvent) => void;
+    onPointerCancel?: (e: React.PointerEvent) => void;
 }) {
     const style = STATUS_STYLES[participant.status];
     const isTeacher = participant.role === "teacher";
@@ -963,6 +1005,7 @@ function AvatarNode({
                         onPointerDown={onPointerDown}
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}
+                        onPointerCancel={onPointerCancel}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-label={

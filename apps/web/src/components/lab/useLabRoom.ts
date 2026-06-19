@@ -1056,11 +1056,16 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
         // (which IS replayed on join), so this is belt-and-braces for latency.
         const onParticipantJoin = (_participant: RemoteParticipant) => {
             onChange();
+            // Only the TEACHER re-announces room-wide state to a late joiner.
+            // Receivers drop non-teacher record/spotlight pulses anyway, but
+            // without this gate every student also re-broadcast `record` on each
+            // join — an N× packet storm and inconsistent with spotlight below.
+            if (youRef.current.role !== "teacher") return;
             if (recordingRef.current) {
                 void publishRef.current?.({ t: "record", on: true });
             }
             const spot = myMetaRef.current.spotlightUid;
-            if (youRef.current.role === "teacher" && spot) {
+            if (spot) {
                 void publishRef.current?.({ t: "spotlight", uid: spot });
             }
         };
@@ -1153,6 +1158,12 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             }
             // (c) re-apply the peer-share subscription restriction on a live share.
             applyShareSubscriptionPermissions();
+            // (d) a remote-control session can't survive a reconnect — both ends
+            // lost their grant/handshake state during the outage — so drop to
+            // idle and require a fresh request rather than show ghost control.
+            if (controlRef.current.phase !== "idle") {
+                setControl.current({ targetUid: null, phase: "idle" });
+            }
             recompute();
         };
 
@@ -1205,6 +1216,10 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                         const tok = await mintToken(sessionId);
                         if (cancelled) return;
                         youRef.current = { uid: tok.identity, role: tok.role };
+                        // The re-mint re-resolves role server-side; reflect any
+                        // change in the returned `role`/state too (not just the
+                        // ref) so the UI doesn't show a stale role after reconnect.
+                        setRole(tok.role);
                         await room.connect(tok.url, tok.token, { autoSubscribe: true });
                         if (cancelled) {
                             void room.disconnect();
@@ -1389,6 +1404,11 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                     : p.getTrackPublication(Track.Source.Camera);
             const track = pub?.track;
             if (!track) return null;
+            // A MUTED publication is NOT a live share — the rest of the system
+            // (hasScreenShare, connection derivation) already treats muted as
+            // "not sharing", so a stage/view that paints `getVideoTrack` would
+            // otherwise show a frozen last frame after a share is ended/muted.
+            if (pub?.isMuted) return null;
             return {
                 uid,
                 source,
@@ -1498,6 +1518,10 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
         const stopSharing = async () => {
             const lp = localParticipant();
             const prevTargets = myMetaRef.current.sharingTo;
+            // Remember the KIND of the share that's ending so the teardown packet
+            // carries the right kind (a peer-share teardown must announce
+            // kind:"peer", not "view") — capture before we null the ref.
+            const prevKind = shareInfoRef.current?.kind ?? "view";
             // Unpublish exactly our lab-share track (stop=true releases the OS
             // capture); never touches the camera or anyone else's track.
             const pub = sharePubRef.current;
@@ -1518,9 +1542,9 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             // Only meaningful if we actually had a share up; clear targets + reset
             // status, then announce the teardown.
             await patchMyMeta({ sharingTo: [], status: "on_task" });
-            await publish({ t: "share", kind: "view", targets: prevTargets, on: false });
+            await publish({ t: "share", kind: prevKind, targets: prevTargets, on: false });
             if (prevTargets.length > 0) {
-                postEvent("share_end", { meta: { targets: prevTargets } });
+                postEvent("share_end", { meta: { kind: prevKind, targets: prevTargets } });
             }
         };
 

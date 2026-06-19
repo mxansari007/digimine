@@ -30,21 +30,36 @@ export interface LabVideoProps {
 export function LabVideo({ track, mirror = false, className = "" }: LabVideoProps) {
     const ref = useRef<HTMLVideoElement | null>(null);
 
-    // Bind the track to our element on mount + whenever the underlying source
-    // changes. We key the effect on the handle's identity (uid+source) rather
-    // than the object reference, since the hook may hand back a fresh handle on
-    // every render while pointing at the same media.
+    // Bind the track to our element on mount, and re-bind whenever the UNDERLYING
+    // media changes — even when uid+source stay equal (teacher Stop broadcast → Go
+    // live again; a muted track replaced by a fresh publish; an agent re-publish).
+    // Keying only on uid+source (or on the handle's object reference, which the
+    // hook regenerates every render) would leave the <video> on the old/ended
+    // stream — a frozen/black frame.
+    //
+    // Re-bind every render. `attach()` is idempotent and flicker-safe in
+    // livekit-client: it reuses the element's existing srcObject MediaStream and
+    // only swaps the track (and only reassigns srcObject) when the underlying
+    // MediaStreamTrack actually differs. So re-attaching the same live track is a
+    // no-op, while a NEW underlying track — which carries a different
+    // MediaStreamTrack id — gets re-bound here and the old/ended one is dropped.
+    // That is the STABLE per-track identity we ultimately key on, and it's what
+    // fixes the frozen/black frame after a track swap (teacher Stop → Go live, a
+    // muted track replaced by a fresh publish, an agent re-publish).
     useEffect(() => {
         const el = ref.current;
-        if (!el) return;
-        track.attach(el);
+        if (el) track.attach(el);
+    });
+
+    // Detach exactly this element (not all) on unmount, so the hook can hand the
+    // same track to another mounted <video> without us tearing it off there.
+    useEffect(() => {
+        const el = ref.current;
         return () => {
-            // Detach exactly this element (not all), so swapping handles doesn't
-            // tear the same track off some other mounted <video>.
-            track.detach(el);
+            if (el) track.detach(el);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [track.uid, track.source]);
+    }, []);
 
     return (
         <video

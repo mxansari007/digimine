@@ -71,18 +71,26 @@ const LAB_SHARE_TRACK_NAME = "lab-share";
 const LAB_BROADCAST_TRACK_NAME = "lab-broadcast";
 
 /**
- * Find the target participant's screen-share `TrackInfo`, or undefined. Keyed on
- * the SCREEN_SHARE source first, then the known publish names as a fallback.
+ * Find the target participant's screen-share `TrackInfo`, or undefined. We ONLY
+ * ever consider tracks whose `source === SCREEN_SHARE` — moderation must never
+ * target a non-screen track just because it borrowed the `lab-share` /
+ * `lab-broadcast` name (and a screenshare under any other name is still caught
+ * by its source). The known publish names are used solely as a TIEBREAKER to
+ * pick the canonical share when a participant has multiple screen-share tracks.
  */
 function findScreenShareTrack(p: ParticipantInfo): TrackInfo | undefined {
     const tracks = Array.isArray(p.tracks) ? p.tracks : [];
+    const screenTracks = tracks.filter(
+        (t) => t.source === TrackSource.SCREEN_SHARE
+    );
+    // Prefer a screen-share published under the known lab name; otherwise fall
+    // back to the first screen-share track. Either way it IS a screen share.
     return (
-        tracks.find((t) => t.source === TrackSource.SCREEN_SHARE) ??
-        tracks.find(
+        screenTracks.find(
             (t) =>
                 t.name === LAB_SHARE_TRACK_NAME ||
                 t.name === LAB_BROADCAST_TRACK_NAME
-        )
+        ) ?? screenTracks[0]
     );
 }
 

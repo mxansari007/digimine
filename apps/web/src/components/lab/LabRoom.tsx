@@ -75,6 +75,12 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
     const { firebaseUser } = useAuthContext();
     const router = useRouter();
 
+    // The dragged-avatar layout for the map, lifted here so a custom arrangement
+    // survives the map panel remounting when it's maximized/restored.
+    const [mapLayout, setMapLayout] = useState<Record<string, { x: number; y: number }>>(
+        {}
+    );
+
     // Teacher's transient "asked the student to connect their desktop" note.
     const [askedNote, setAskedNote] = useState<string | null>(null);
     useEffect(() => {
@@ -468,7 +474,11 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                                 {/* Connect the desktop agent for full-machine
                                     remote help (screen + consent-gated control).
                                     Auto-opens when the teacher asks for control. */}
-                                <LabAgentConnect sessionId={sessionId} forceOpen={!!controlAsk} />
+                                <LabAgentConnect
+                                    sessionId={sessionId}
+                                    forceOpen={!!controlAsk}
+                                    askSignal={controlAsk}
+                                />
                             </>
                         ))}
 
@@ -480,6 +490,8 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                             actions={mapActions}
                             allowPeerShare={peerShareAllowed}
                             controlEdge={controlEdge}
+                            dragPositions={mapLayout}
+                            onDragPositionsChange={setMapLayout}
                         />
                     </LabPanel>
                 </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LabRoomState } from "@digimine/types";
+import { useLabWindow } from "./labWindow";
 import { LabVideo } from "./LabVideo";
 import { LabControlSurface } from "./LabControlSurface";
 import type { LabControlInputEvent } from "./labProtocol";
@@ -91,17 +92,23 @@ export function LabViewStage({
     const [spotBusy, setSpotBusy] = useState(false);
 
     // Window chrome — collapse to the header (minimize) or lift into a
-    // full-viewport portal overlay (maximize), like the other lab panels.
+    // full-viewport portal overlay (maximize). Maximize is the same app-wide
+    // singleton the other lab panels use, so this stage and a maximized panel
+    // can never overlap or both grab Escape.
     const [minimized, setMinimized] = useState(false);
-    const [maximized, setMaximized] = useState(false);
+    const { maximized, maximize, restore } = useLabWindow();
+    const setMaximized = (next: boolean) => (next ? maximize() : restore());
     useEffect(() => {
         if (!maximized) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setMaximized(false);
+            if (e.key === "Escape") restore();
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [maximized]);
+    }, [maximized, restore]);
+    // If this stage unmounts (participant leaves, spotlight redirect, parent
+    // clears viewedUid) while maximized, release the slot so no overlay strands.
+    useEffect(() => () => restore(), [restore]);
 
     const viewed = useMemo(
         () => state.participants.find((p) => p.uid === viewedUid) ?? null,
@@ -127,6 +134,23 @@ export function LabViewStage({
     const controlsThis = !!control && control.targetUid === viewedUid;
     const phase = controlsThis ? control!.phase : "idle";
     const isControlling = phase === "active";
+
+    // If this stage unmounts while a remote-control session is live (the student
+    // leaves, a spotlight redirect swaps the viewed screen, the parent clears
+    // viewedUid) we must end control — otherwise the capture surface is gone but
+    // the agent's grant stays open. `closeView` covers the explicit-close path;
+    // this covers every implicit-unmount path. Refs keep the cleanup current
+    // without re-running it each render. endControl is idempotent.
+    const controllingRef = useRef(false);
+    const endControlRef = useRef(onEndControl);
+    controllingRef.current = isControlling;
+    endControlRef.current = onEndControl;
+    useEffect(
+        () => () => {
+            if (controllingRef.current) endControlRef.current?.();
+        },
+        []
+    );
 
     // A "Request denied" toast that the teacher can dismiss. We surface it while
     // `phase === "denied"` for this screen and auto-hide after a few seconds; a
@@ -209,7 +233,7 @@ export function LabViewStage({
                     <WinBtn
                         title={maximized ? "Restore" : "Maximize"}
                         onClick={() => {
-                            setMaximized((m) => !m);
+                            setMaximized(!maximized);
                             if (!maximized) setMinimized(false);
                         }}
                     >

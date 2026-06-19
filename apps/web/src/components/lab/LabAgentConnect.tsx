@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { auth } from "@/lib/firebase/client";
 
 /**
@@ -16,10 +16,19 @@ import { auth } from "@/lib/firebase/client";
 export function LabAgentConnect({
     sessionId,
     forceOpen = false,
+    askSignal = null,
 }: {
     sessionId: string;
     /** Open the panel + generate a code automatically (e.g. when the teacher asks). */
     forceOpen?: boolean;
+    /**
+     * Identity of the CURRENT teacher control-ask, or null when there's none. The
+     * hook hands a FRESH object on every new ask, so its reference doubles as a
+     * nonce: a second ask re-opens the panel even after the student closed it (and
+     * even from the same teacher), where keying on `forceOpen`'s rising edge alone
+     * would miss it.
+     */
+    askSignal?: object | null;
 }) {
     const [open, setOpen] = useState(false);
     const [code, setCode] = useState<string | null>(null);
@@ -57,17 +66,47 @@ export function LabAgentConnect({
         if (!code) void generate();
     };
 
-    // Auto-open + generate a code when the teacher asks for remote control.
+    // Auto-open + generate a code when the teacher asks for remote control. We key
+    // on the ask's IDENTITY (a fresh object per ask), not `forceOpen`'s rising
+    // edge, so a SECOND ask re-opens the panel even after the student closed it.
+    // `forceOpen` is still honoured for the initial open / when no signal is wired.
+    const lastAskRef = useRef<object | null>(null);
     useEffect(() => {
-        if (forceOpen) onOpen();
+        if (askSignal != null) {
+            if (askSignal !== lastAskRef.current) {
+                lastAskRef.current = askSignal;
+                onOpen();
+            }
+        } else if (forceOpen) {
+            onOpen();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [forceOpen]);
+    }, [forceOpen, askSignal]);
+
+    // Reset to copy-button state after a moment; keep a ref so we can cancel a
+    // pending reset on unmount (no setState-after-unmount).
+    const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (copyResetRef.current != null) clearTimeout(copyResetRef.current);
+        },
+        []
+    );
 
     const copy = () => {
         if (!code) return;
-        void navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        // Only show "Copied" when the write actually succeeds — in insecure
+        // contexts `writeText` rejects, and we must not claim success then.
+        navigator.clipboard
+            .writeText(code)
+            .then(() => {
+                setCopied(true);
+                if (copyResetRef.current != null) clearTimeout(copyResetRef.current);
+                copyResetRef.current = setTimeout(() => setCopied(false), 1500);
+            })
+            .catch(() => {
+                /* clipboard blocked (insecure context / denied) — leave state as-is */
+            });
     };
 
     if (!open) {

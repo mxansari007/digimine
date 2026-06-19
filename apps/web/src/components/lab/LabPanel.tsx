@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLabWindow } from "./labWindow";
 
 /**
  * LabPanel — a lightweight "window" chrome wrapper for the lab's main widgets.
@@ -12,9 +13,9 @@ import { createPortal } from "react-dom";
  *     max-height transition); click again to restore.
  *   • MAXIMIZE — lift the panel into a fixed full-viewport overlay (`fixed
  *     inset-3 z-50`) over a dimmed backdrop, with its own scroll, a Restore
- *     button, and Escape-to-restore. Each panel owns its own state, so at most
- *     one is maximized at a time only by convention (open a second and the first
- *     simply stays put behind the backdrop — but typically you maximize one).
+ *     button, and Escape-to-restore. Maximize is a singleton across all lab
+ *     panels (see {@link useLabWindow}) — opening one restores any other, so
+ *     there's never more than one overlay, backdrop, or Escape target.
  *   • RESIZE — when neither minimized nor maximized, the body is user-resizable
  *     via the browser's native handle (`resize: vertical` + `overflow: auto`),
  *     so a teacher can grow the map or shrink the chat to taste. Resize is
@@ -49,19 +50,27 @@ export function LabPanel({
     actions,
 }: LabPanelProps) {
     const [minimized, setMinimized] = useState(defaultMinimized);
-    const [maximized, setMaximized] = useState(false);
     const bodyId = useId();
+    // Maximize is a SINGLETON across all lab panels (see labWindow): opening one
+    // restores any other, so we never get stacked overlays / ambiguous Escape.
+    const { maximized, maximize, restore } = useLabWindow();
+    const setMaximized = (next: boolean) => (next ? maximize() : restore());
 
     // Escape restores a maximized panel (and only then — we don't want it
-    // stealing Escape from menus/inputs while docked).
+    // stealing Escape from menus/inputs while docked). Only one panel is ever
+    // maximized at a time, so at most one of these listeners is active.
     useEffect(() => {
         if (!maximized) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setMaximized(false);
+            if (e.key === "Escape") restore();
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [maximized]);
+    }, [maximized, restore]);
+
+    // Release the maximize slot if this panel unmounts while maximized, so a
+    // stranded full-screen overlay can never outlive its panel.
+    useEffect(() => () => restore(), [restore]);
 
     // The header bar — identical chrome whether docked or maximized.
     const header = (
@@ -84,7 +93,7 @@ export function LabPanel({
                 <PanelButton
                     title={maximized ? "Restore" : "Maximize"}
                     onClick={() => {
-                        setMaximized((m) => !m);
+                        setMaximized(!maximized);
                         // Coming out of minimized straight into maximized would
                         // show an empty overlay; expand on maximize.
                         if (!maximized) setMinimized(false);
