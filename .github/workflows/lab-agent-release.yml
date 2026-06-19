@@ -1,0 +1,75 @@
+name: Build Lab Agent
+
+# Builds the Virtual Lab desktop agent (apps/lab-agent) installers for macOS and
+# Windows and (when the FIREBASE_SERVICE_ACCOUNT secret is set) uploads them to
+# Firebase Storage with stable public download URLs the in-app download buttons
+# point at. The installers are also attached to the workflow run as artifacts.
+#
+# Run it from the Actions tab (workflow_dispatch) or by pushing a tag
+# `lab-agent-v*` (e.g. `git tag lab-agent-v0.1.0 && git push origin lab-agent-v0.1.0`).
+#
+# Required repo secret for the Firebase upload step:
+#   FIREBASE_SERVICE_ACCOUNT  — the full service-account JSON for digimine-1c33f
+# (without it the build still runs; you just download the installers from the
+# run's Artifacts instead of them landing in Storage).
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "lab-agent-v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            cmd: dist:mac
+            ext: dmg
+            dest: lab-agent/PlacementRanker-Lab-Agent-macOS-arm64.dmg
+            token: 7c1e9a40-6b2d-4f83-9a1e-2d5b8c4f0a11
+          - os: windows-latest
+            cmd: dist:win
+            ext: exe
+            dest: lab-agent/PlacementRanker-Lab-Agent-Windows-x64.exe
+            token: b2d4f6a8-1c3e-4b5d-8e7f-0a1b2c3d4e5f
+    runs-on: ${{ matrix.os }}
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      STORAGE_BUCKET: digimine-1c33f.firebasestorage.app
+    defaults:
+      run:
+        working-directory: apps/lab-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build installer
+        run: npm run ${{ matrix.cmd }}
+        env:
+          # Do not attempt code-signing in CI (no certs); produces unsigned
+          # installers (Gatekeeper / SmartScreen will warn — expected).
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload installer as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-agent-${{ matrix.os }}
+          path: |
+            apps/lab-agent/release/*.dmg
+            apps/lab-agent/release/*.exe
+          if-no-files-found: error
+
+      - name: Publish to Firebase Storage
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
+        run: |
+          npm i firebase-admin@^12 --no-save
+          node scripts/ci-upload-firebase.cjs ${{ matrix.ext }} "${{ matrix.dest }}" ${{ matrix.token }}
