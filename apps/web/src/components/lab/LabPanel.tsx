@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * LabPanel — a lightweight "window" chrome wrapper for the lab's main widgets.
@@ -96,17 +97,20 @@ export function LabPanel({
     );
 
     // ── Maximized: a fixed full-viewport overlay over a dimmed backdrop. ──
-    if (maximized) {
-        return (
+    // Rendered through a portal on document.body so it escapes the page's
+    // stacking/transform context and sits ABOVE the app chrome (header z-50,
+    // the left nav rail, etc.) instead of being clipped behind the sidebar.
+    if (maximized && typeof document !== "undefined") {
+        return createPortal(
             <>
                 {/* Backdrop dims the rest of the page; a click restores. */}
                 <div
-                    className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px]"
+                    className="fixed inset-0 z-[190] bg-slate-900/50 backdrop-blur-[2px]"
                     onClick={() => setMaximized(false)}
                     aria-hidden
                 />
                 <section
-                    className="fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-surface"
+                    className="fixed inset-3 z-[200] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-surface"
                     role="dialog"
                     aria-modal="true"
                     aria-label={title}
@@ -114,7 +118,8 @@ export function LabPanel({
                     {header}
                     <div className="min-h-0 flex-1 overflow-auto p-3">{children}</div>
                 </section>
-            </>
+            </>,
+            document.body
         );
     }
 

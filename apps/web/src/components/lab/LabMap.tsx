@@ -389,7 +389,6 @@ export function LabMap({
     };
 
     const onAvatarPointerDown = (uid: string, e: React.PointerEvent) => {
-        if (!isTeacher) return; // only the teacher can rearrange the canvas
         // Don't hijack non-primary buttons (e.g. right-click context menus).
         if (e.button !== 0) return;
         // Fresh gesture: clear any stale click-suppression from a prior drag
@@ -485,9 +484,9 @@ export function LabMap({
                             {state.recording && <LivePill label="REC" tone="danger" pulse />}
                         </div>
                         <div className="flex items-center gap-3">
-                            {/* Teacher-only: clear any dragged layout back to the
-                                seat grid. Only shown once something was moved. */}
-                            {isTeacher && hasCustomLayout && (
+                            {/* Clear any dragged layout back to the seat grid.
+                                Only shown once something was moved. */}
+                            {hasCustomLayout && (
                                 <button
                                     type="button"
                                     onClick={resetLayout}
@@ -535,9 +534,10 @@ export function LabMap({
                             // The menu (View/Spotlight/Control/…) opens for any
                             // avatar but your own — unchanged.
                             const selectable = p.uid !== state.you.uid;
-                            // The teacher may drag EVERY avatar (incl. their own);
-                            // nobody else can drag anything.
-                            const draggable = isTeacher;
+                            // Anyone may drag EVERY avatar (incl. their own) to
+                            // rearrange their own view — `dragPos` is local-only
+                            // state, so it never moves anyone else's map.
+                            const draggable = true;
                             return (
                                 <AvatarNode
                                     key={p.uid}
