@@ -188,6 +188,22 @@ function createWindow(): void {
   // packaged app.
   void mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
 
+  // Pipe the renderer's console (incl. uncaught errors) to the main process'
+  // stdout, so a renderer failure is visible in the terminal that launched the
+  // agent — invaluable for "nothing happens" debugging.
+  mainWindow.webContents.on(
+    "console-message",
+    (_e, _level, message, line, sourceId) => {
+      // eslint-disable-next-line no-console
+      console.log(`[renderer] ${message}${line ? ` (${sourceId}:${line})` : ""}`);
+    }
+  );
+
+  // In dev (unpackaged), open DevTools so any renderer error is visible at once.
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: "detach" });
+  }
+
   // Open external links (e.g. "open the web app") in the user's real browser,
   // never inside this privileged window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

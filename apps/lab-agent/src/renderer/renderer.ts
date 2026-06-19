@@ -68,6 +68,30 @@ type LkRemoteParticipant = import("livekit-client").RemoteParticipant;
 const $ = <T extends HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
 
+// Surface ANY uncaught renderer error into the Activity panel + console, so a
+// boot/runtime failure is never silent (a throw in this sandboxed page would
+// otherwise just vanish — which is what made "nothing happens" so opaque).
+// Registered FIRST so it catches everything below, including boot().
+function reportFatal(message: string): void {
+  // eslint-disable-next-line no-console
+  console.error("[renderer]", message);
+  const logEl = document.getElementById("log");
+  if (logEl) {
+    const line = document.createElement("div");
+    line.textContent = `⚠ ${message}`;
+    line.style.color = "#fda4af";
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+window.addEventListener("error", (ev) =>
+  reportFatal(ev.message || (ev.error && String(ev.error)) || "Script error")
+);
+window.addEventListener("unhandledrejection", (ev) => {
+  const r = ev.reason as { message?: string } | undefined;
+  reportFatal(`Unhandled rejection: ${(r && r.message) || String(ev.reason)}`);
+});
+
 const els = {
   body: document.body,
   banner: $("consent-banner"),

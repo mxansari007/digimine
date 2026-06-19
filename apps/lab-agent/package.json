@@ -14,7 +14,7 @@
   "scripts": {
     "clean": "rimraf dist release",
     "build:main": "tsc -p tsconfig.main.json",
-    "build:renderer": "esbuild src/renderer/renderer.ts --bundle --platform=browser --format=iife --target=chrome120 --outfile=dist/renderer/renderer.js",
+    "build:renderer": "esbuild src/renderer/renderer.ts --bundle --platform=browser --format=iife --target=chrome120 --define:process.env.NODE_ENV=\\\"production\\\" --inject:src/renderer/node-shims.js --outfile=dist/renderer/renderer.js",
     "copy:renderer": "node scripts/copy-renderer.js",
     "build": "npm run clean && npm run build:main && npm run build:renderer && npm run copy:renderer",
     "dev": "npm run build && electron .",
