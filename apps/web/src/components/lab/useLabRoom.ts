@@ -1516,11 +1516,11 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             setCamera: async (on: boolean) => {
                 const lp = localParticipant();
                 if (!lp) return;
-                try {
-                    await lp.setCameraEnabled(on);
-                } catch {
-                    /* best-effort: no camera / permission denied */
-                }
+                // Let a failure (no camera / permission blocked) PROPAGATE so the
+                // explicit toggle can tell the teacher WHY nothing happened —
+                // unlike startBroadcast, where the camera is intentionally
+                // best-effort and must never abort the screen share.
+                await lp.setCameraEnabled(on);
                 recompute();
             },
             endSession: async () => {

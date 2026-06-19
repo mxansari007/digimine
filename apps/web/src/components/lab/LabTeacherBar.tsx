@@ -55,6 +55,7 @@ export function LabTeacherBar({
 }: LabTeacherBarProps) {
     const [busy, setBusy] = useState(false);
     const [cameraBusy, setCameraBusy] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
 
     // Is the teacher's own camera track currently published? Resolve from the
     // hook so the toggle can't drift from what the room actually sees.
@@ -74,8 +75,17 @@ export function LabTeacherBar({
     const toggleCamera = async () => {
         if (cameraBusy) return;
         setCameraBusy(true);
+        setCameraError(null);
         try {
             await actions.setCamera(!cameraLive);
+        } catch (e) {
+            // Surface WHY (e.g. the browser blocked camera access / no device) so
+            // the toggle isn't a silent no-op.
+            setCameraError(
+                e instanceof Error
+                    ? e.message
+                    : "Couldn't toggle the camera. Allow camera access in your browser and try again."
+            );
         } finally {
             setCameraBusy(false);
         }
@@ -188,6 +198,14 @@ export function LabTeacherBar({
                     </button>
                 )}
             </div>
+            {cameraError && (
+                <p
+                    role="alert"
+                    className="px-2 pt-1.5 text-[11px] font-medium text-danger-600 dark:text-danger-400"
+                >
+                    {cameraError}
+                </p>
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type {
     LabConnection,
     LabParticipant,
@@ -38,19 +38,22 @@ import type {
 export interface LabMapActions {
     /** Toggle the teacher's room-wide live broadcast (cam/screen → everyone). */
     onToggleBroadcast?: () => void;
-    /** Open the "view a student's screen" picker (student → teacher share). */
-    onViewScreen?: () => void;
-    /** Begin the remote-assist (desktop-agent) consent + control flow. */
-    onRemoteAssist?: () => void;
     /** Start/stop the session recording (consent-gated server-side). */
     onToggleRecording?: () => void;
     /**
-     * Click an avatar on the map to VIEW that participant's screen. Wired for
-     * everyone (the room shell's `viewScreen` enforces who may actually see whom:
-     * a teacher → any student; a student → a peer sharing to them or the spotlit
-     * one). Spotlight/end-share moderation then live on the view stage itself.
+     * VIEW a participant's screen (opens the view stage). The room shell's
+     * `viewScreen` enforces who may actually see whom (a teacher → any student; a
+     * student → a peer sharing to them or the spotlit one).
      */
     onSelectParticipant?: (uid: string) => void;
+    /** TEACHER: spotlight a participant for the whole room (or pass null to clear). */
+    onSpotlight?: (uid: string | null) => void;
+    /** TEACHER: request remote control of a participant's desktop agent. */
+    onRemoteControl?: (uid: string) => void;
+    /** TEACHER: force-end a participant's screen share. */
+    onEndShare?: (uid: string) => void;
+    /** STUDENT: share MY screen to a specific peer (peer share). */
+    onShareToPeer?: (uid: string) => void;
 }
 
 export interface LabMapProps {
@@ -60,6 +63,8 @@ export interface LabMapProps {
     actions?: LabMapActions;
     /** Extra classes on the outer wrapper. */
     className?: string;
+    /** Whether student↔student peer share is on (gates the avatar "share to them" action). */
+    allowPeerShare?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -176,8 +181,13 @@ function seatPosition(participant: LabParticipant, studentIndex: number): Seat {
 // Component
 // ─────────────────────────────────────────────────────────────────────
 
-export function LabMap({ state, actions, className = "" }: LabMapProps) {
+export function LabMap({ state, actions, className = "", allowPeerShare = false }: LabMapProps) {
     const isTeacher = state.you.role === "teacher";
+    // The avatar action menu: which participant + where to anchor the popover.
+    // Clicking an avatar opens it; the menu lists the actions available to YOU
+    // for THAT participant (view / spotlight / remote control / end share, or —
+    // for a student — share your screen to them).
+    const [menu, setMenu] = useState<{ uid: string; x: number; y: number } | null>(null);
     // The teacher's room-wide pin (if any), honoured only while present. Drives
     // the amber glow on the spotlit avatar + its connection lines, and a rail row.
     const spotlightUid = state.spotlightUid ?? null;
@@ -292,8 +302,11 @@ export function LabMap({ state, actions, className = "" }: LabMapProps) {
                                     pos={pos}
                                     isYou={p.uid === state.you.uid}
                                     spotlit={p.uid === spotlightUid}
-                                    onSelect={
-                                        selectable ? actions?.onSelectParticipant : undefined
+                                    menuOpen={menu?.uid === p.uid}
+                                    onOpenMenu={
+                                        selectable
+                                            ? (uid, anchor) => setMenu({ uid, ...anchor })
+                                            : undefined
                                     }
                                 />
                             );
@@ -395,6 +408,21 @@ export function LabMap({ state, actions, className = "" }: LabMapProps) {
                     </div>
                 </div>
             </aside>
+
+            {/* Per-avatar action menu (click an avatar). Rendered position:fixed
+                so it never clips the map's rounded/overflow-hidden frame. */}
+            {menu && (
+                <AvatarActionMenu
+                    participant={byUid.get(menu.uid)}
+                    anchor={{ x: menu.x, y: menu.y }}
+                    isTeacher={isTeacher}
+                    isSharing={state.connections.some((c) => c.fromUid === menu.uid)}
+                    isSpotlit={spotlightUid === menu.uid}
+                    allowPeerShare={allowPeerShare}
+                    actions={actions}
+                    onClose={() => setMenu(null)}
+                />
+            )}
         </div>
     );
 }
@@ -484,19 +512,23 @@ function AvatarNode({
     pos,
     isYou,
     spotlit = false,
-    onSelect,
+    menuOpen = false,
+    onOpenMenu,
 }: {
     participant: LabParticipant;
     pos: Seat;
     isYou: boolean;
     /** True when this is the teacher's room-wide spotlit participant (amber glow). */
     spotlit?: boolean;
-    onSelect?: (uid: string) => void;
+    /** True while this avatar's action menu is open (keeps it visually active). */
+    menuOpen?: boolean;
+    /** Open the action menu for this avatar, anchored at the given viewport point. */
+    onOpenMenu?: (uid: string, anchor: { x: number; y: number }) => void;
 }) {
     const style = STATUS_STYLES[participant.status];
     const isTeacher = participant.role === "teacher";
     const handUp = typeof participant.handRaisedAt === "number";
-    const clickable = !!onSelect;
+    const clickable = !!onOpenMenu;
 
     const size = isTeacher ? "h-14 w-14 text-base" : "h-12 w-12 text-sm";
 
@@ -531,18 +563,34 @@ function AvatarNode({
                     <button
                         type="button"
                         disabled={!clickable}
-                        onClick={clickable ? () => onSelect!(participant.uid) : undefined}
+                        onClick={
+                            clickable
+                                ? (e) => {
+                                      const r = e.currentTarget.getBoundingClientRect();
+                                      onOpenMenu!(participant.uid, {
+                                          x: r.left + r.width / 2,
+                                          y: r.bottom,
+                                      });
+                                  }
+                                : undefined
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
                         aria-label={
                             clickable
-                                ? `View ${participant.displayName}'s screen — ${style.label}`
+                                ? `Actions for ${participant.displayName} — ${style.label}`
                                 : `${participant.displayName} — ${style.label}`
                         }
-                        title={clickable ? `View ${firstName(participant.displayName)}'s screen` : undefined}
+                        title={clickable ? `Actions for ${firstName(participant.displayName)}` : undefined}
                         className={[
                             "flex items-center justify-center rounded-full font-semibold uppercase tracking-tight text-white shadow-soft",
                             "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-surface",
                             size,
-                            spotlit ? "ring-amber-400 shadow-glow-accent" : style.ring,
+                            spotlit
+                                ? "ring-amber-400 shadow-glow-accent"
+                                : menuOpen
+                                  ? "ring-primary-500"
+                                  : style.ring,
                             isTeacher
                                 ? "bg-gradient-to-br from-primary-600 to-primary-800"
                                 : "bg-gradient-to-br from-slate-500 to-slate-700",
@@ -580,6 +628,157 @@ function AvatarNode({
     );
 }
 
+/**
+ * The per-avatar action menu. Opened by clicking an avatar; lists exactly the
+ * actions the local user can take on THAT participant right now. Rendered
+ * position:fixed at the click anchor so it escapes the map's overflow-hidden
+ * frame, with a full-screen backdrop that closes it on an outside click.
+ *
+ *   TEACHER → student : View screen · Spotlight · Remote control · End share
+ *   STUDENT → peer    : View screen · Share my screen to them (when peer-share on)
+ */
+function AvatarActionMenu({
+    participant,
+    anchor,
+    isTeacher,
+    isSharing,
+    isSpotlit,
+    allowPeerShare,
+    actions,
+    onClose,
+}: {
+    participant: LabParticipant | undefined;
+    anchor: { x: number; y: number };
+    isTeacher: boolean;
+    isSharing: boolean;
+    isSpotlit: boolean;
+    allowPeerShare: boolean;
+    actions?: LabMapActions;
+    onClose: () => void;
+}) {
+    if (!participant) return null;
+    const uid = participant.uid;
+    const targetIsTeacher = participant.role === "teacher";
+
+    type Item = {
+        key: string;
+        label: string;
+        icon: React.ReactNode;
+        tone?: "danger";
+        run: () => void;
+    };
+    // Run an action then close. Optional-chained so a missing callback is a safe
+    // no-op (the push conditions already gate availability).
+    const run = (fn: () => void) => () => {
+        fn();
+        onClose();
+    };
+    const items: Item[] = [];
+
+    // VIEW — available when the target is sharing something (the shell re-checks
+    // who may actually see whom).
+    if (isSharing && actions?.onSelectParticipant) {
+        items.push({
+            key: "view",
+            label: "View screen",
+            icon: <EyeIcon className="h-4 w-4" />,
+            run: run(() => actions?.onSelectParticipant?.(uid)),
+        });
+    }
+
+    if (isTeacher) {
+        if (actions?.onSpotlight) {
+            items.push({
+                key: "spotlight",
+                label: isSpotlit ? "Remove spotlight" : "Spotlight to class",
+                icon: <SpotlightIcon className="h-4 w-4" />,
+                run: run(() => actions?.onSpotlight?.(isSpotlit ? null : uid)),
+            });
+        }
+        if (!targetIsTeacher && actions?.onRemoteControl) {
+            items.push({
+                key: "control",
+                label: "Remote control",
+                icon: <CursorIcon className="h-4 w-4" />,
+                run: run(() => actions?.onRemoteControl?.(uid)),
+            });
+        }
+        if (isSharing && actions?.onEndShare) {
+            items.push({
+                key: "endshare",
+                label: "End their share",
+                icon: <StopSquareIcon className="h-4 w-4" />,
+                tone: "danger",
+                run: run(() => actions?.onEndShare?.(uid)),
+            });
+        }
+    } else if (allowPeerShare && !targetIsTeacher && actions?.onShareToPeer) {
+        items.push({
+            key: "sharepeer",
+            label: "Share my screen to them",
+            icon: <ShareIcon className="h-4 w-4" />,
+            run: run(() => actions?.onShareToPeer?.(uid)),
+        });
+    }
+
+    // Clamp the popover into the viewport.
+    const W = 224;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const left = Math.max(8, Math.min(anchor.x - W / 2, vw - W - 8));
+    const top = anchor.y + 8;
+
+    return (
+        <>
+            {/* Backdrop: a click anywhere dismisses the menu. */}
+            <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
+            <div
+                role="menu"
+                aria-label={`Actions for ${participant.displayName}`}
+                className="fixed z-50 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-surface"
+                style={{ left, top, width: W }}
+            >
+                <div className="px-2.5 py-1.5">
+                    <p className="truncate text-xs font-bold text-gray-900">
+                        {participant.displayName}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                        {STATUS_STYLES[participant.status].label}
+                        {targetIsTeacher ? " · Teacher" : ""}
+                    </p>
+                </div>
+                <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
+                {items.length === 0 ? (
+                    <p className="px-2.5 py-2 text-[11px] text-slate-400">
+                        {targetIsTeacher
+                            ? "The teacher's broadcast shows on the main stage."
+                            : "Nothing to do until they share or raise a hand."}
+                    </p>
+                ) : (
+                    items.map((it) => (
+                        <button
+                            key={it.key}
+                            type="button"
+                            role="menuitem"
+                            onClick={it.run}
+                            className={[
+                                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
+                                it.tone === "danger"
+                                    ? "text-danger-600 hover:bg-danger-50 dark:text-danger-300 dark:hover:bg-danger-500/10"
+                                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/60",
+                            ].join(" ")}
+                        >
+                            <span className={it.tone === "danger" ? "text-danger-500" : "text-slate-400"}>
+                                {it.icon}
+                            </span>
+                            {it.label}
+                        </button>
+                    ))
+                )}
+            </div>
+        </>
+    );
+}
+
 /** The teacher-only control bar. Buttons reflect live state and call actions. */
 function ControlBar({ state, actions }: { state: LabRoomState; actions?: LabMapActions }) {
     return (
@@ -595,16 +794,9 @@ function ControlBar({ state, actions }: { state: LabRoomState; actions?: LabMapA
                     activeTone="accent"
                     onClick={actions?.onToggleBroadcast}
                 />
-                <ControlButton
-                    label="View screen"
-                    icon={<EyeIcon className="h-4 w-4" />}
-                    onClick={actions?.onViewScreen}
-                />
-                <ControlButton
-                    label="Remote assist"
-                    icon={<CursorIcon className="h-4 w-4" />}
-                    onClick={actions?.onRemoteAssist}
-                />
+                <span className="hidden px-1 text-[11px] text-slate-400 md:inline">
+                    Tip: click a student to view, spotlight, remote-control or end their share.
+                </span>
                 <div className="ml-auto" />
                 <ControlButton
                     label={state.recording ? "Stop recording" : "Record"}
@@ -887,6 +1079,14 @@ function CursorIcon({ className }: { className?: string }) {
     return (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 7-6 2-2 6-6-15z" />
+        </svg>
+    );
+}
+
+function StopSquareIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <rect x="6" y="6" width="12" height="12" rx="2" strokeWidth={2} />
         </svg>
     );
 }

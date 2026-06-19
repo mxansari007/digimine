@@ -219,18 +219,6 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
         else void actions.startBroadcast();
     }, [state.broadcasting, actions]);
 
-    // The map's generic "View screen" button has no per-avatar target, so it
-    // opens the screen of whoever is currently sharing (the first `view`/`peer`
-    // connection's source) — a one-click "show me what someone's sharing". Per-
-    // participant viewing flows through the avatar click (`onSelectParticipant`)
-    // below. No-op if nobody's sharing yet.
-    const onViewScreen = useCallback(() => {
-        const sharer = state.connections.find(
-            (c) => c.kind === "view" || c.kind === "peer"
-        )?.fromUid;
-        if (sharer) openView(sharer);
-    }, [state.connections, openView]);
-
     // Force-end the viewed student's share via the control plane (teacher-only).
     // Shares one busy/error pair across the view-stage button; on success the
     // student's `lab-share` track drops and the map redraws off the metadata.
@@ -252,16 +240,28 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
         [endShareBusy, sessionId]
     );
 
-    // Clicking an avatar opens the view stage on that participant for EVERYONE
-    // (the hook's `viewScreen` enforces who may actually see whom: a teacher can
-    // view any student; a student only a peer sharing to them or the spotlit
-    // one). Spotlighting itself is offered from the view stage's teacher bar.
+    // Clicking an avatar opens a per-participant ACTION MENU (in LabMap). These
+    // callbacks back each menu item; the hook enforces permissions (a teacher may
+    // view/spotlight/control/end-share any student; a student may view a peer
+    // sharing to them and — when allowed — share their own screen to a peer).
     const mapActions: LabMapActions = {
         onToggleBroadcast,
         onToggleRecording: toggleRecording,
-        onViewScreen,
-        onRemoteAssist: () => actions.requestRemoteAssist(),
         onSelectParticipant: (uid) => openView(uid),
+        onSpotlight: (uid) => actions.spotlight(uid),
+        onRemoteControl: (uid) => {
+            // Open the student's screen stage + request control of their desktop
+            // agent. Control only connects if they're running the agent; in a
+            // browser-only session it stays "Requesting…", which is expected.
+            openView(uid);
+            actions.requestControl(uid);
+        },
+        onEndShare: (uid) => onEndShare(uid),
+        onShareToPeer: (uid) => {
+            void actions.shareToPeer(uid).catch(() => {
+                /* peer share off / cancelled — best-effort from the map menu */
+            });
+        },
     };
 
     return (
@@ -390,7 +390,7 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
 
                     {/* The live seat map + side rail (renders its own teacher
                         control bar when `state.you.role === "teacher"`). */}
-                    <LabMap state={state} actions={mapActions} />
+                    <LabMap state={state} actions={mapActions} allowPeerShare={peerShareAllowed} />
                 </div>
 
                 {/* Chat rail. */}
