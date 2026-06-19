@@ -48,7 +48,7 @@ const contentType =
             metadata: {
                 contentType,
                 contentDisposition: `attachment; filename="${path.basename(dest)}"`,
-                cacheControl: "public, max-age=3600",
+                cacheControl: "public, max-age=300",
                 metadata: { firebaseStorageDownloadTokens: token },
             },
         });
