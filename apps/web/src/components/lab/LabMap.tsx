@@ -703,12 +703,13 @@ function AvatarActionMenu({
                 run: run(() => actions?.onSpotlight?.(isSpotlit ? null : uid)),
             });
         }
-        // Remote control targets the DESKTOP AGENT (a browser tab can't be
-        // OS-controlled), so only offer it on the student's "Desktop" avatar.
-        if (isAgent && actions?.onRemoteControl) {
+        // Remote control needs the DESKTOP AGENT (a browser tab can't be
+        // OS-controlled). On the "Desktop" avatar it controls directly; on a
+        // student's browser avatar it ASKS them to connect their desktop first.
+        if (!targetIsTeacher && actions?.onRemoteControl) {
             items.push({
                 key: "control",
-                label: "Remote control",
+                label: isAgent ? "Remote control" : "Request remote control",
                 icon: <CursorIcon className="h-4 w-4" />,
                 run: run(() => actions?.onRemoteControl?.(uid)),
             });

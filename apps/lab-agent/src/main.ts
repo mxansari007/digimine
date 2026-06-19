@@ -24,6 +24,7 @@ import {
   Menu,
   nativeImage,
   shell,
+  systemPreferences,
   Tray,
 } from "electron";
 import * as path from "path";
@@ -568,6 +569,23 @@ function registerIpc(): void {
 
   // Enumerate capturable screens/windows for the picker.
   ipcMain.handle(IPC.listSources, async (): Promise<CaptureSource[]> => {
+    // macOS gates screen capture behind the Screen Recording permission. Check it
+    // FIRST so a denial is a clear, actionable message instead of the opaque
+    // "Failed to get sources" that desktopCapturer throws without it. We also open
+    // the Screen Recording settings pane so the user can grant it in one click.
+    if (process.platform === "darwin") {
+      const status = systemPreferences.getMediaAccessStatus("screen");
+      if (status !== "granted") {
+        void shell.openExternal(
+          "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        );
+        throw new Error(
+          "Screen Recording permission is required to share your screen. Enable it " +
+            "for the Lab Agent (or your terminal/Electron) in System Settings → " +
+            "Privacy & Security → Screen Recording, then QUIT and restart the agent."
+        );
+      }
+    }
     const sources = await desktopCapturer.getSources({
       types: ["screen", "window"],
       thumbnailSize: { width: 320, height: 200 },

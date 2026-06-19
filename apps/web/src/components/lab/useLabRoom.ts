@@ -28,6 +28,7 @@ import type {
     LabTokenResponse,
 } from "@digimine/types";
 import {
+    controlAsk,
     controlInput,
     controlRequest,
     controlRevoke,
@@ -292,6 +293,14 @@ export interface LabRoomActions {
      */
     requestControl: (uid: string) => void;
     /**
+     * TEACHER-only: ASK a student (who hasn't connected their desktop agent yet)
+     * to enable remote control — sends a `ctl_ask` so their BROWSER prompts them
+     * to connect the agent. Once the agent joins, use requestControl(agentId).
+     */
+    askControl: (studentUid: string) => void;
+    /** STUDENT: dismiss the "your teacher wants to control your desktop" prompt. */
+    dismissControlAsk: () => void;
+    /**
      * End the current control session (or cancel a pending request): sends a
      * `ctl_revoke` to the target's agent and clears `state.control` back to
      * idle. Safe to call in any phase / when there's nothing in flight.
@@ -368,6 +377,12 @@ export interface UseLabRoomResult {
     messages: LabChatMessage[];
     /** Your resolved role (server-minted), or null until the token arrives. */
     role: LabRole | null;
+    /**
+     * Set when a TEACHER has asked THIS student to enable remote control but they
+     * haven't connected their desktop agent — the UI shows a prompt to connect.
+     * Null otherwise. (Only ever set for a student.)
+     */
+    controlAsk: { fromUid: string; fromName: string } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -797,6 +812,12 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<LabChatMessage[]>([]);
     const [role, setRole] = useState<LabRole | null>(null);
+    // A teacher's "please enable remote control" ask to THIS student (browser),
+    // surfaced as a prompt that walks them through connecting their desktop agent.
+    const [controlAskFrom, setControlAskFrom] = useState<{
+        fromUid: string;
+        fromName: string;
+    } | null>(null);
 
     // Latest derived snapshot, mirrored into a ref so the (referentially stable)
     // action callbacks can read live fields (e.g. `spotlightUid` for a student's
@@ -985,6 +1006,18 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                     setControl.current({ targetUid: null, phase: "idle" });
                     postEvent("control_revoke", { targetUid: ctl.targetUid });
                 }
+            } else if (msg.t === "ctl_ask") {
+                // A teacher is asking ME (a student's browser) to enable remote
+                // control by connecting my desktop agent. Honour only when
+                // addressed to me AND from a real teacher (a peer can't fake it),
+                // then surface the connect prompt.
+                const me = youRef.current.uid;
+                if (msg.to !== me) return;
+                if (!participant || roleFromParticipant(participant) !== "teacher") return;
+                setControlAskFrom({
+                    fromUid: msg.from,
+                    fromName: participant.name || "Your teacher",
+                });
             } else {
                 // hand / status / share / spotlight — the sender's metadata is
                 // authoritative (and fires its own ParticipantMetadataChanged);
@@ -1696,6 +1729,24 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
                 if (targetUid) requestControl(targetUid);
                 else postEvent("control_request", {});
             },
+            askControl: (studentUid: string) => {
+                // TEACHER → a student's BROWSER: ask them to connect their desktop
+                // agent so control becomes possible. No-op for non-teachers / self
+                // / an absent target. The student's browser shows the connect prompt.
+                if (youRef.current.role !== "teacher") return;
+                const room = roomRef.current;
+                const me = youRef.current.uid;
+                if (
+                    !studentUid ||
+                    studentUid === me ||
+                    !room?.remoteParticipants.has(studentUid)
+                ) {
+                    return;
+                }
+                void publish(controlAsk(me, studentUid), { to: studentUid });
+                postEvent("control_request", { targetUid: studentUid });
+            },
+            dismissControlAsk: () => setControlAskFrom(null),
             startRecording: async () => {
                 // Optimistically light up "● REC" for the whole room: flip the
                 // local flag, recompute, and broadcast the `record` pulse so every
@@ -1761,5 +1812,6 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
         error,
         messages,
         role,
+        controlAsk: controlAskFrom,
     };
 }

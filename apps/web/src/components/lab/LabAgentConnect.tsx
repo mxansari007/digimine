@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
 
 /**
@@ -13,7 +13,14 @@ import { auth } from "@/lib/firebase/client";
  * LiveKit token and joins the room as the student's desktop. Nothing is shared
  * or controlled without the student's explicit action in the agent.
  */
-export function LabAgentConnect({ sessionId }: { sessionId: string }) {
+export function LabAgentConnect({
+    sessionId,
+    forceOpen = false,
+}: {
+    sessionId: string;
+    /** Open the panel + generate a code automatically (e.g. when the teacher asks). */
+    forceOpen?: boolean;
+}) {
     const [open, setOpen] = useState(false);
     const [code, setCode] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -49,6 +56,12 @@ export function LabAgentConnect({ sessionId }: { sessionId: string }) {
         setOpen(true);
         if (!code) void generate();
     };
+
+    // Auto-open + generate a code when the teacher asks for remote control.
+    useEffect(() => {
+        if (forceOpen) onOpen();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [forceOpen]);
 
     const copy = () => {
         if (!code) return;

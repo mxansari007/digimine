@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { isLabAgentIdentity, labAgentIdentity, labBaseUid } from "@digimine/types";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { fetchLabSession } from "@/lib/lab/labClient";
 import { LabMap, type LabMapActions } from "./LabMap";
@@ -68,9 +69,18 @@ export interface LabRoomProps {
 }
 
 export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabRoomProps) {
-    const { state, actions, status, connected, error, messages, role } = useLabRoom(sessionId);
+    const { state, actions, status, connected, error, messages, role, controlAsk } =
+        useLabRoom(sessionId);
     const { firebaseUser } = useAuthContext();
     const router = useRouter();
+
+    // Teacher's transient "asked the student to connect their desktop" note.
+    const [askedNote, setAskedNote] = useState<string | null>(null);
+    useEffect(() => {
+        if (!askedNote) return;
+        const t = setTimeout(() => setAskedNote(null), 6000);
+        return () => clearTimeout(t);
+    }, [askedNote]);
 
     const isTeacher = role === "teacher";
 
@@ -251,11 +261,21 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
         onSelectParticipant: (uid) => openView(uid),
         onSpotlight: (uid) => actions.spotlight(uid),
         onRemoteControl: (uid) => {
-            // Open the student's screen stage + request control of their desktop
-            // agent. Control only connects if they're running the agent; in a
-            // browser-only session it stays "Requesting…", which is expected.
-            openView(uid);
-            actions.requestControl(uid);
+            const agentId = isLabAgentIdentity(uid) ? uid : labAgentIdentity(uid);
+            const studentUid = isLabAgentIdentity(uid) ? labBaseUid(uid) : uid;
+            if (state.participants.some((p) => p.uid === agentId)) {
+                // Desktop agent is connected → view it + request control of it.
+                openView(agentId);
+                actions.requestControl(agentId);
+            } else {
+                // No desktop agent yet → ASK the student to connect theirs (their
+                // browser shows a prompt). Control needs the agent.
+                actions.askControl(studentUid);
+                const name =
+                    state.participants.find((p) => p.uid === studentUid)?.displayName ||
+                    "the student";
+                setAskedNote(`Asked ${name} to connect their desktop for remote control.`);
+            }
         },
         onEndShare: (uid) => onEndShare(uid),
         onShareToPeer: (uid) => {
@@ -375,10 +395,35 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                                         {endSessionError}
                                     </p>
                                 )}
+                                {askedNote && (
+                                    <p className="px-1 text-[11px] font-medium text-primary-700 dark:text-primary-300">
+                                        {askedNote}
+                                    </p>
+                                )}
                             </>
                         ) : (
                             <>
                                 <LabStudentBar state={state} actions={actions} />
+                                {/* Teacher asked to remote-control this student → prompt to connect. */}
+                                {controlAsk && (
+                                    <div className="rounded-2xl border border-primary-300 bg-primary-50 p-3 shadow-soft-sm dark:border-primary-500/40 dark:bg-primary-500/10">
+                                        <p className="text-sm font-semibold text-primary-900 dark:text-primary-100">
+                                            {controlAsk.fromName} wants to control your computer
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-primary-800/80 dark:text-primary-200/80">
+                                            Connect your desktop below to allow it — you&apos;ll still tap
+                                            <span className="font-medium"> Allow</span> in the Lab Agent
+                                            before anything happens.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => actions.dismissControlAsk()}
+                                            className="mt-2 rounded-lg border border-primary-200 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-100 dark:border-primary-500/30 dark:text-primary-300 dark:hover:bg-primary-500/15"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Student "show your work" — share to teacher or,
                                     when the session allows it, a classmate. */}
                                 <LabShareControls
@@ -387,8 +432,9 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                                     allowPeerShare={peerShareAllowed}
                                 />
                                 {/* Connect the desktop agent for full-machine
-                                    remote help (screen + consent-gated control). */}
-                                <LabAgentConnect sessionId={sessionId} />
+                                    remote help (screen + consent-gated control).
+                                    Auto-opens when the teacher asks for control. */}
+                                <LabAgentConnect sessionId={sessionId} forceOpen={!!controlAsk} />
                             </>
                         ))}
 

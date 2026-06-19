@@ -355,6 +355,21 @@ export interface LabControlRequestMsg {
     to: string;
 }
 
+/**
+ * The teacher ASKS a student (their BROWSER) to enable remote control — used
+ * when the student hasn't connected their desktop agent yet. The student's
+ * browser shows a prompt walking them through connecting the agent (OS-level
+ * control needs the agent; a browser tab can't be controlled). Distinct from
+ * `ctl_req`, which goes to the agent + arms the actual control handshake.
+ */
+export interface LabControlAskMsg {
+    t: "ctl_ask";
+    /** Teacher's identity (the would-be controller). */
+    from: string;
+    /** Student's BROWSER identity being asked to connect their desktop. */
+    to: string;
+}
+
 /** The student's agent CONSENTED to `to`'s (the teacher's) pending request. */
 export interface LabControlGrantMsg {
     t: "ctl_grant";
@@ -477,6 +492,7 @@ export type LabDataMsg =
     | LabRecordMsg
     | LabSpotlightMsg
     | LabControlRequestMsg
+    | LabControlAskMsg
     | LabControlGrantMsg
     | LabControlDenyMsg
     | LabControlRevokeMsg
@@ -491,6 +507,7 @@ const LAB_MSG_TYPES: readonly LabDataMsg["t"][] = [
     "record",
     "spotlight",
     "ctl_req",
+    "ctl_ask",
     "ctl_grant",
     "ctl_deny",
     "ctl_revoke",
@@ -556,16 +573,17 @@ export function decode(payload: Uint8Array): LabDataMsg | null {
                 uid: typeof o.uid === "string" && o.uid.length <= LAB_MAX_UID_LEN ? o.uid : null,
             };
         case "ctl_req":
+        case "ctl_ask":
         case "ctl_grant":
         case "ctl_deny":
         case "ctl_revoke": {
-            // All four handshake messages share the `{ from, to }` shape. Both
+            // All five handshake messages share the `{ from, to }` shape. Both
             // must be non-empty identities or the packet is meaningless (and a
             // missing `to` would let a control message be mis-addressed) — drop
             // it rather than honour a half-formed grant/revoke. `t` is taken from
             // the validated discriminant (not the raw `o.t`) so it narrows to the
             // exact literal union member.
-            const t = o.t as "ctl_req" | "ctl_grant" | "ctl_deny" | "ctl_revoke";
+            const t = o.t as "ctl_req" | "ctl_ask" | "ctl_grant" | "ctl_deny" | "ctl_revoke";
             if (typeof o.from !== "string" || !o.from) return null;
             if (typeof o.to !== "string" || !o.to) return null;
             return { t, from: o.from, to: o.to };
@@ -649,6 +667,11 @@ export function decodeControlInputEvent(raw: unknown): LabControlInputEvent | nu
 /** Build a `ctl_req` (teacher → student's agent). */
 export function controlRequest(from: string, to: string): LabControlRequestMsg {
     return { t: "ctl_req", from, to };
+}
+
+/** Build a `ctl_ask` (teacher → student's BROWSER: "connect your desktop to allow control"). */
+export function controlAsk(from: string, to: string): LabControlAskMsg {
+    return { t: "ctl_ask", from, to };
 }
 
 /** Build a `ctl_grant` (student's agent → teacher). */
