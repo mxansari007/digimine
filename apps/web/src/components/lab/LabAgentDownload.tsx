@@ -19,13 +19,14 @@ import { useEffect, useState } from "react";
  */
 
 // Defaults point at the binaries hosted in the project's Firebase Storage
-// bucket (public, non-secret download URLs). Override per-env if they move.
-// macOS is published (arm64 .dmg); Windows is empty until CI publishes it, so
-// its button shows "coming soon" rather than 404ing.
+// bucket (public, non-secret download URLs), published by the "Build Lab Agent"
+// CI workflow at stable fixed-token paths. Override per-env if they move.
 const MAC_URL =
     process.env.NEXT_PUBLIC_LAB_AGENT_MAC_URL ||
     "https://firebasestorage.googleapis.com/v0/b/digimine-1c33f.firebasestorage.app/o/lab-agent%2FPlacementRanker-Lab-Agent-macOS-arm64.dmg?alt=media&token=7c1e9a40-6b2d-4f83-9a1e-2d5b8c4f0a11";
-const WIN_URL = process.env.NEXT_PUBLIC_LAB_AGENT_WIN_URL || "";
+const WIN_URL =
+    process.env.NEXT_PUBLIC_LAB_AGENT_WIN_URL ||
+    "https://firebasestorage.googleapis.com/v0/b/digimine-1c33f.firebasestorage.app/o/lab-agent%2FPlacementRanker-Lab-Agent-Windows-x64.exe?alt=media&token=b2d4f6a8-1c3e-4b5d-8e7f-0a1b2c3d4e5f";
 
 type OS = "mac" | "win" | "other";
 
