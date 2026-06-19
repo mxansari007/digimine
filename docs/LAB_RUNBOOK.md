@@ -75,12 +75,23 @@ explicitly consents** — with an always-on, non-dismissable banner and instant 
 ### Install / run (student machine)
 ```
 cd ~/digimine/apps/lab-agent
-npm install
-# nut-js ships native N-API binaries for stock Node, not Electron's ABI — rebuild them:
-npx @electron/rebuild -f -w @nut-tree-fork/nut-js
-npm run build
-npm start
+npm install      # installs deps + downloads the Electron 31 binary
+npm run build    # tsc + bundle the renderer → dist/
+npm start        # launch the agent
 ```
+**No native rebuild is needed.** `@nut-tree-fork/libnut` (mouse/keyboard) and
+`node-mac-permissions` ship as **N-API** prebuilts (they export `napi_register_module_v1`
+and load cleanly under Electron 31), so they're ABI-compatible as-is — `npm run rebuild` is
+a harmless no-op (`No native modules found`). Don't use `npx @electron/rebuild` — it pulls a
+throwaway copy that can't see the local Electron.
+
+Two gotchas if `npm start` fails:
+- **Electron binary missing** (`node_modules/electron/dist/` absent — the postinstall
+  download was skipped/blocked behind a proxy): run `node node_modules/electron/install.js`.
+- **`electron-rebuild` crashes on Node ≥ 22/24/26** (old `@electron/rebuild@3` + a non-ESM
+  `yargs`): the agent now pins **`@electron/rebuild@^4`** (Node ≥ 22.12), so `npm install`
+  picks it up. (Rebuild is a no-op anyway — see above.)
+
 Point the agent at your API with `LAB_AGENT_API_URL` (defaults to localhost in dev; set it
 to `https://www.placementranker.com` against prod). The agent mints its LiveKit token via
 `POST /api/lab/token` (Bearer) — **no LiveKit secret ever lives in the agent**.
