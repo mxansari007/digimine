@@ -44,6 +44,8 @@
   "build": {
     "appId": "com.placementranker.labagent",
     "productName": "PlacementRanker Lab Agent",
+    "compression": "maximum",
+    "afterPack": "build/afterPack.js",
     "files": [
       "dist/**/*",
       "package.json"
@@ -53,7 +55,9 @@
     },
     "mac": {
       "category": "public.app-category.education",
-      "hardenedRuntime": true,
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
@@ -62,8 +66,15 @@
         "NSScreenCaptureUsageDescription": "Used to share your screen with your teacher in a Virtual Lab session."
       }
     },
+    "dmg": {
+      "format": "ULFO"
+    },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
     }
   }
 }
