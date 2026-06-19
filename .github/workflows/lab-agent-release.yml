@@ -50,7 +50,11 @@ jobs:
           node-version: 20
 
       - name: Install deps
-        run: npm ci
+        # `npm install` (not `npm ci`): the agent's package-lock.json is
+        # gitignored under the pnpm-monorepo policy, so there's no committed
+        # lockfile to `ci` against. The agent is self-contained (livekit-client
+        # + dev deps); native modules (nut-js) ship per-platform prebuilds.
+        run: npm install --no-audit --no-fund
 
       - name: Build installer
         run: npm run ${{ matrix.cmd }}
