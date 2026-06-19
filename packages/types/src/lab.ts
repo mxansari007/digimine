@@ -546,3 +546,33 @@ export const LAB_BADGE_THRESHOLDS = {
     marathonerMs: 60 * 60 * 1000,
     perfectWeekStreak: 5,
 } as const;
+
+// ─────────────────────────────────────────────────────────────────────
+// Desktop-agent identity
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * A student's desktop AGENT joins the LiveKit room as a SEPARATE participant
+ * from their browser (LiveKit identities are unique per room, so the agent
+ * can't reuse the student's uid). The agent's identity is the student's uid +
+ * this suffix, so any client can derive it and tell the two presences apart
+ * (the browser = the student's presence; the agent = their controllable desktop).
+ */
+export const LAB_AGENT_IDENTITY_SUFFIX = "__agent";
+
+/** The LiveKit identity a student's desktop agent joins under. */
+export function labAgentIdentity(studentUid: string): string {
+    return `${studentUid}${LAB_AGENT_IDENTITY_SUFFIX}`;
+}
+
+/** True when a participant identity is a desktop-agent identity (vs a browser). */
+export function isLabAgentIdentity(identity: string): boolean {
+    return identity.endsWith(LAB_AGENT_IDENTITY_SUFFIX);
+}
+
+/** The base student uid behind an agent identity (or the identity unchanged). */
+export function labBaseUid(identity: string): string {
+    return identity.endsWith(LAB_AGENT_IDENTITY_SUFFIX)
+        ? identity.slice(0, -LAB_AGENT_IDENTITY_SUFFIX.length)
+        : identity;
+}

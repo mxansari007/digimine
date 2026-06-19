@@ -579,7 +579,13 @@ async function boot(): Promise<void> {
       const res = await window.labAgent.pair(els.pairCode.value);
       state.paired = true;
       state.uid = res.uid;
-      logLine(`Paired as ${res.displayName ?? res.uid}.`);
+      // The code carried which lab to join — auto-fill the session so the
+      // student can go straight to "Share my screen".
+      if (res.sessionId) {
+        state.sessionId = res.sessionId;
+        els.sessionId.value = res.sessionId;
+      }
+      logLine(`Paired as ${res.displayName ?? res.uid}. Now click "Share my screen".`);
     } catch (err) {
       logLine(`Pairing failed: ${(err as Error).message}`);
     } finally {

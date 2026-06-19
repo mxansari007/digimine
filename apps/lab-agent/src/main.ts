@@ -30,9 +30,9 @@ import * as path from "path";
 import {
   API_URL,
   CaptureSource,
-  ENDPOINTS,
   IPC,
   LabControlInputEvent,
+  LabRole,
   LabTokenRequest,
   LabTokenResponse,
   PairResult,
@@ -46,11 +46,21 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 /**
- * The Bearer token + identity from the most recent successful pairing. Held in
- * the main process (never handed to the renderer wholesale) so the renderer
- * can't exfiltrate it; the renderer asks main to *use* it via IPC instead.
+ * The pairing result from the web (POST /api/lab/agent/pair): the session-scoped
+ * LiveKit token the agent connects with + the identity/session it paired to.
+ * Held in the main process (never handed to the renderer wholesale); the renderer
+ * asks main to *use* it via IPC. No Firebase login + no LiveKit secret ever live
+ * here — only the short-lived access token the control plane minted.
  */
-let auth: PairResult | null = null;
+let pairing:
+  | {
+      identity: string;
+      studentUid: string;
+      studentName: string;
+      sessionId: string;
+      liveKit: LabTokenResponse;
+    }
+  | null = null;
 
 /**
  * Lazily-loaded native input backend (nut-js, `@nut-tree-fork/nut-js`). OPTIONAL
@@ -236,78 +246,75 @@ function log(message: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Pairing + token (control plane) — STUBBED for the scaffold
+// Pairing + token (control plane)
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Resolve a Firebase ID token from a one-time pairing code.
+ * Redeem a one-time pairing code with the control plane (the REAL flow).
  *
- * REAL FLOW (Phase 5): POST the code to a web-app pairing route, get back a
- * Firebase custom token, exchange it via the Firebase Auth REST API for an ID
- * token, return that + the uid. The agent then sends the ID token as
- * `Authorization: Bearer` on every control-plane call.
- *
- * STUB: we don't have the pairing route yet, so we accept any non-empty code
- * and return a placeholder token/uid. This keeps the whole IPC + UI flow
- * exercisable end-to-end without a live backend. The shape returned is the real
- * `PairResult`, so swapping in the real fetch later touches only this function.
+ * POSTs the code to the PUBLIC `/api/lab/agent/pair` route, which validates +
+ * BURNS the single-use code and returns a session-scoped LiveKit token for this
+ * student's desktop-AGENT identity (`<uid>__agent`, a distinct participant from
+ * their browser). We hold that token in main; the renderer asks main to USE it
+ * via `getToken`. No Firebase login + no LiveKit secret ever live here.
  */
-async function resolveAuthToken(pairingCode: string): Promise<PairResult> {
-  const code = pairingCode.trim();
+async function redeemPairing(pairingCode: string): Promise<PairResult> {
+  const code = (pairingCode || "").trim();
   if (!code) throw new Error("Enter the pairing code shown in the web app.");
-
-  // ── STUB START — replace with the real pairing exchange ──────────────
-  // Example of the real call (left commented so the contract is visible):
-  //
-  //   const res = await fetch(`${API_URL}/api/lab/agent/pair`, {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({ code }),
-  //   });
-  //   if (!res.ok) throw new Error(`Pairing failed (${res.status})`);
-  //   const { customToken, uid, displayName } = await res.json();
-  //   const idToken = await exchangeCustomTokenForIdToken(customToken);
-  //   return { idToken, uid, displayName };
-  //
-  log(`(stub) Pairing with code "${code}" against ${API_URL}`);
-  const result: PairResult = {
-    idToken: `stub-id-token-for-${code}`,
-    uid: `stub-uid-${code}`,
-    displayName: "Paired Device",
+  const res = await fetch(`${API_URL}/api/lab/agent/pair`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    token?: string;
+    url?: string;
+    role?: LabRole;
+    identity?: string;
+    room?: string;
+    sessionId?: string;
+    studentUid?: string;
+    studentName?: string;
   };
-  // ── STUB END ─────────────────────────────────────────────────────────
-
-  auth = result;
-  return result;
+  if (!res.ok || !data.token || !data.identity || !data.room || !data.sessionId) {
+    throw new Error(data.error || `Pairing failed (${res.status}).`);
+  }
+  pairing = {
+    identity: data.identity,
+    studentUid: data.studentUid || data.identity,
+    studentName: data.studentName || "Student",
+    sessionId: data.sessionId,
+    liveKit: {
+      token: data.token,
+      url: data.url || "",
+      role: data.role || "student",
+      identity: data.identity,
+      room: data.room,
+    },
+  };
+  log(`Paired to session ${data.sessionId} as ${pairing.identity}.`);
+  return {
+    idToken: "",
+    uid: pairing.identity,
+    displayName: pairing.studentName,
+    sessionId: pairing.sessionId,
+  };
 }
 
 /**
- * Mint a LiveKit access token for a session by calling the control plane with
- * the paired Bearer token. This is the EXACT same route the web + mobile apps
- * use (`POST /api/lab/sessions/[id]/token`); the server re-resolves the role
- * and bakes the grants in. The agent never computes grants itself.
- *
- * The network call is real (so wiring is correct), but with the stub token it
- * will 401 against a live server — caught and surfaced as a status line. Once
- * `resolveAuthToken` returns a real ID token this works as-is.
+ * Return the session-scoped LiveKit token obtained during pairing. The agent has
+ * no Firebase login, so (unlike the web/mobile clients) it doesn't mint a token
+ * itself — the pairing redeem already returned one and we just hand it back.
  */
 async function mintLiveKitToken(
   req: LabTokenRequest
 ): Promise<LabTokenResponse> {
-  if (!auth) throw new Error("Not paired yet — pair the device first.");
-  const res = await fetch(`${API_URL}${ENDPOINTS.token(req.sessionId)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${auth.idToken}`,
-    },
-    body: JSON.stringify(req),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error || `Token mint failed (${res.status})`);
+  if (!pairing) throw new Error("Not paired yet — pair the device first.");
+  if (req.sessionId && req.sessionId !== pairing.sessionId) {
+    throw new Error("This device is paired to a different session.");
   }
-  return (await res.json()) as LabTokenResponse;
+  return pairing.liveKit;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -524,10 +531,16 @@ async function injectInput(ev: LabControlInputEvent): Promise<void> {
 function registerIpc(): void {
   // Pair the device from a one-time code → resolve a Bearer token.
   ipcMain.handle(IPC.pair, async (_e, code: string): Promise<PairResult> => {
-    const result = await resolveAuthToken(code);
-    // Hand the renderer only what it needs to render (uid + name), never the
-    // raw token — the token stays in main and is attached server-side here.
-    return { idToken: "", uid: result.uid, displayName: result.displayName };
+    const result = await redeemPairing(code);
+    // Hand the renderer what it needs to render + auto-fill (uid + name +
+    // session), never the raw LiveKit token — that stays in main and is attached
+    // via getToken.
+    return {
+      idToken: "",
+      uid: result.uid,
+      displayName: result.displayName,
+      sessionId: result.sessionId,
+    };
   });
 
   // Mint a LiveKit token for a session.

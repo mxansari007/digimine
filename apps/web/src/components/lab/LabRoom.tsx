@@ -10,6 +10,7 @@ import { LabConnectionBanner } from "./LabConnectionBanner";
 import { LabVideoStage } from "./LabVideoStage";
 import { LabViewStage } from "./LabViewStage";
 import { LabShareControls } from "./LabShareControls";
+import { LabAgentConnect } from "./LabAgentConnect";
 import { LabTeacherBar } from "./LabTeacherBar";
 import { LabStudentBar } from "./LabStudentBar";
 import { LabChat } from "./LabChat";
@@ -385,6 +386,9 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                                     actions={actions}
                                     allowPeerShare={peerShareAllowed}
                                 />
+                                {/* Connect the desktop agent for full-machine
+                                    remote help (screen + consent-gated control). */}
+                                <LabAgentConnect sessionId={sessionId} />
                             </>
                         ))}
 

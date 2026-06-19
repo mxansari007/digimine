@@ -89,12 +89,15 @@ export interface LabTokenResponse {
  * src/main.ts → resolveAuthToken) so the IPC surface + UI are exercisable now.
  */
 export interface PairResult {
-  /** Firebase ID token to put in the Bearer header. */
+  /** Legacy field, kept for the IPC shape. The real flow returns a session-scoped
+   *  LiveKit token (held in main), not a Firebase ID token — this stays "". */
   idToken: string;
-  /** The signed-in uid (also the LiveKit identity). */
+  /** The LiveKit participant identity the agent joins under (`<uid>__agent`). */
   uid: string;
   /** Display name for the local UI (optional). */
   displayName?: string;
+  /** The lab session the code paired to — auto-fills the Session ID field. */
+  sessionId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────

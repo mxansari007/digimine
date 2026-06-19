@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { isLabAgentIdentity } from "@digimine/types";
 import type {
     LabConnection,
     LabParticipant,
@@ -527,6 +528,7 @@ function AvatarNode({
 }) {
     const style = STATUS_STYLES[participant.status];
     const isTeacher = participant.role === "teacher";
+    const isAgent = isLabAgentIdentity(participant.uid);
     const handUp = typeof participant.handRaisedAt === "number";
     const clickable = !!onOpenMenu;
 
@@ -611,15 +613,17 @@ function AvatarNode({
                     <p className="truncate text-[11px] font-medium leading-tight text-gray-900">
                         {firstName(participant.displayName)}
                     </p>
-                    {(isTeacher || isYou) && (
+                    {(isTeacher || isYou || isAgent) && (
                         <span
                             className={`mt-0.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold ${
                                 isTeacher
                                     ? "bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300"
-                                    : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                                    : isAgent
+                                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+                                      : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                             }`}
                         >
-                            {isTeacher ? "Teacher" : "You"}
+                            {isTeacher ? "Teacher" : isAgent ? "Desktop" : "You"}
                         </span>
                     )}
                 </div>
@@ -659,6 +663,10 @@ function AvatarActionMenu({
     if (!participant) return null;
     const uid = participant.uid;
     const targetIsTeacher = participant.role === "teacher";
+    const isAgent = isLabAgentIdentity(uid);
+    // A connected desktop agent is always sharing its screen (that's its whole
+    // job), even though it doesn't announce a `sharingTo` to derive a connection.
+    const sharing = isSharing || isAgent;
 
     type Item = {
         key: string;
@@ -677,7 +685,7 @@ function AvatarActionMenu({
 
     // VIEW — available when the target is sharing something (the shell re-checks
     // who may actually see whom).
-    if (isSharing && actions?.onSelectParticipant) {
+    if (sharing && actions?.onSelectParticipant) {
         items.push({
             key: "view",
             label: "View screen",
@@ -695,7 +703,9 @@ function AvatarActionMenu({
                 run: run(() => actions?.onSpotlight?.(isSpotlit ? null : uid)),
             });
         }
-        if (!targetIsTeacher && actions?.onRemoteControl) {
+        // Remote control targets the DESKTOP AGENT (a browser tab can't be
+        // OS-controlled), so only offer it on the student's "Desktop" avatar.
+        if (isAgent && actions?.onRemoteControl) {
             items.push({
                 key: "control",
                 label: "Remote control",
@@ -703,7 +713,7 @@ function AvatarActionMenu({
                 run: run(() => actions?.onRemoteControl?.(uid)),
             });
         }
-        if (isSharing && actions?.onEndShare) {
+        if (sharing && actions?.onEndShare) {
             items.push({
                 key: "endshare",
                 label: "End their share",
@@ -743,7 +753,7 @@ function AvatarActionMenu({
                     </p>
                     <p className="text-[10px] text-slate-500">
                         {STATUS_STYLES[participant.status].label}
-                        {targetIsTeacher ? " · Teacher" : ""}
+                        {targetIsTeacher ? " · Teacher" : isAgent ? " · Desktop agent" : ""}
                     </p>
                 </div>
                 <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
@@ -751,7 +761,9 @@ function AvatarActionMenu({
                     <p className="px-2.5 py-2 text-[11px] text-slate-400">
                         {targetIsTeacher
                             ? "The teacher's broadcast shows on the main stage."
-                            : "Nothing to do until they share or raise a hand."}
+                            : isTeacher
+                              ? "Ask them to share, or to connect their desktop agent for remote control."
+                              : "Nothing to do until they share or raise a hand."}
                     </p>
                 ) : (
                     items.map((it) => (
