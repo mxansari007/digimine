@@ -18,14 +18,17 @@
  * Where the PlacementRanker backend lives — the SAME Next.js API the web and
  * mobile apps hit. The agent only ever calls the control plane (Bearer token);
  * it never talks to LiveKit's REST API or holds any LiveKit secret. Override
- * with LAB_AGENT_API_URL; defaults to local `next dev`.
+ * with LAB_AGENT_API_URL; defaults to the production app.
  *
  * NOTE: there are no LiveKit creds here on purpose. The agent receives a
  * short-lived, role-scoped LiveKit *access token* + ws url from the control
  * plane (`POST /api/lab/sessions/[sessionId]/token`). `LIVEKIT_API_KEY` /
  * `LIVEKIT_API_SECRET` live server-side only and must never reach this process.
  */
-export const API_URL = process.env.LAB_AGENT_API_URL || "http://localhost:3000";
+// Defaults to the PRODUCTION app — the packaged agent students install must
+// pair against the live server, not a dev box. Override with LAB_AGENT_API_URL
+// (e.g. http://localhost:3000) for local development or a self-hosted institute.
+export const API_URL = process.env.LAB_AGENT_API_URL || "https://www.placementranker.com";
 
 /** Control-plane endpoints the agent calls (mirrors docs/VIRTUAL_LAB.md). */
 export const ENDPOINTS = {
