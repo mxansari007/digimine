@@ -258,7 +258,12 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
     const mapActions: LabMapActions = {
         onToggleBroadcast,
         onToggleRecording: toggleRecording,
-        onSelectParticipant: (uid) => openView(uid),
+        // Clicking a student views their DESKTOP (agent) screen when connected,
+        // else their browser share — the agent isn't a separate avatar anymore.
+        onSelectParticipant: (uid) => {
+            const agentId = labAgentIdentity(uid);
+            openView(state.participants.some((p) => p.uid === agentId) ? agentId : uid);
+        },
         onSpotlight: (uid) => actions.spotlight(uid),
         onRemoteControl: (uid) => {
             const agentId = isLabAgentIdentity(uid) ? uid : labAgentIdentity(uid);
@@ -288,6 +293,13 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
             });
         },
     };
+
+    // The active remote-control link to light up on the map (controller → student
+    // being controlled). Held only by the controller (the teacher).
+    const controlEdge =
+        state.control.phase === "active" && state.control.targetUid
+            ? { fromUid: state.you.uid, toUid: state.control.targetUid }
+            : null;
 
     return (
         <div className="space-y-4">
@@ -444,7 +456,12 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
 
                     {/* The live seat map + side rail (renders its own teacher
                         control bar when `state.you.role === "teacher"`). */}
-                    <LabMap state={state} actions={mapActions} allowPeerShare={peerShareAllowed} />
+                    <LabMap
+                        state={state}
+                        actions={mapActions}
+                        allowPeerShare={peerShareAllowed}
+                        controlEdge={controlEdge}
+                    />
                 </div>
 
                 {/* Chat rail. */}

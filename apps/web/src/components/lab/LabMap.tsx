@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { isLabAgentIdentity } from "@digimine/types";
+import { isLabAgentIdentity, labAgentIdentity, labBaseUid } from "@digimine/types";
 import type {
     LabConnection,
     LabParticipant,
@@ -66,6 +66,15 @@ export interface LabMapProps {
     className?: string;
     /** Whether student↔student peer share is on (gates the avatar "share to them" action). */
     allowPeerShare?: boolean;
+    /**
+     * The ACTIVE remote-control link (controller → controllee), if any. The
+     * caller passes it from the control plane; the map draws it as a prominent
+     * indigo "string" with a light pulse travelling controller → controllee so
+     * the direction of control is unmistakable. Endpoints are base-uid-remapped
+     * (an agent identity collapses onto its human avatar) and only drawn when
+     * both ends are placed on the map.
+     */
+    controlEdge?: { fromUid: string; toUid: string } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -144,6 +153,33 @@ const CONNECTION_STYLES: Record<
  */
 const CONNECTION_STYLES_SPOTLIGHT = { stroke: "#f59e0b" }; // amber-500
 
+/** Indigo glow for the active remote-control "string" + its travelling light. */
+const CONTROL_EDGE_STYLE = { stroke: "#6366f1", light: "#a5b4fc" }; // indigo-500 / indigo-300
+
+/**
+ * Component-scoped CSS injected once via a <style> element. Two effects:
+ *   • `lab-float` — a slow ~4s vertical bob applied to each avatar's INNER
+ *     content (never the absolutely-positioned seat wrapper, so it never fights
+ *     the seat coordinates); avatars stagger via an inline `animationDelay`.
+ *   • `lab-control-dash` — a subtle travelling dash on the active control string.
+ * Both honour `prefers-reduced-motion`.
+ */
+const LAB_MAP_CSS = `
+@keyframes lab-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.lab-float { animation: lab-float 4s ease-in-out infinite; will-change: transform; }
+@keyframes lab-control-dash {
+  to { stroke-dashoffset: -24; }
+}
+.lab-control-dash { animation: lab-control-dash 1.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .lab-float { animation: none; }
+  .lab-control-dash { animation: none; }
+}
+`;
+
 // ─────────────────────────────────────────────────────────────────────
 // Seat geometry
 // ─────────────────────────────────────────────────────────────────────
@@ -182,7 +218,13 @@ function seatPosition(participant: LabParticipant, studentIndex: number): Seat {
 // Component
 // ─────────────────────────────────────────────────────────────────────
 
-export function LabMap({ state, actions, className = "", allowPeerShare = false }: LabMapProps) {
+export function LabMap({
+    state,
+    actions,
+    className = "",
+    allowPeerShare = false,
+    controlEdge = null,
+}: LabMapProps) {
     const isTeacher = state.you.role === "teacher";
     // The avatar action menu: which participant + where to anchor the popover.
     // Clicking an avatar opens it; the menu lists the actions available to YOU
@@ -193,16 +235,41 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
     // the amber glow on the spotlit avatar + its connection lines, and a rail row.
     const spotlightUid = state.spotlightUid ?? null;
 
-    // Index participants by uid and pre-compute every avatar's seat position
-    // once per render; the SVG layer and the rail both read from this.
+    // ONE AVATAR PER STUDENT. A student's desktop AGENT joins as a SEPARATE
+    // participant (uid + agent suffix); we never draw it as its own avatar.
+    // Instead we index only the HUMAN participants for the map/rail, and remember
+    // which humans have an agent present so their single avatar can show a
+    // "Desktop connected" badge.
+    const humans = useMemo(
+        () => state.participants.filter((p) => !isLabAgentIdentity(p.uid)),
+        [state.participants]
+    );
+
+    // Base uids of every student whose desktop agent is in the room. Built off
+    // the agent identities so the single human avatar can carry the indicator.
+    // We confirm via `labAgentIdentity` that the present identity is exactly the
+    // base uid's agent (not a coincidental suffix), then store the base uid.
+    const desktopUids = useMemo(() => {
+        const present = new Set(state.participants.map((p) => p.uid));
+        const set = new Set<string>();
+        for (const p of state.participants) {
+            if (!isLabAgentIdentity(p.uid)) continue;
+            const base = labBaseUid(p.uid);
+            if (present.has(labAgentIdentity(base))) set.add(base);
+        }
+        return set;
+    }, [state.participants]);
+
+    // Index human participants by uid and pre-compute every avatar's seat
+    // position once per render; the SVG layer and the rail both read from this.
     const { positions, byUid, ordered } = useMemo(() => {
         const byUid = new Map<string, LabParticipant>();
-        for (const p of state.participants) byUid.set(p.uid, p);
+        for (const p of humans) byUid.set(p.uid, p);
 
         // Teacher first, then students ordered by their stable seat index so
         // the grid is reproducible regardless of array order.
-        const teacher = state.participants.find((p) => p.role === "teacher");
-        const students = state.participants
+        const teacher = humans.find((p) => p.role === "teacher");
+        const students = humans
             .filter((p) => p.role !== "teacher")
             .sort((a, b) => a.seat - b.seat);
         const ordered = teacher ? [teacher, ...students] : students;
@@ -214,30 +281,56 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
             if (p.role !== "teacher") studentIndex += 1;
         }
         return { positions, byUid, ordered };
-    }, [state.participants]);
+    }, [humans]);
 
-    // Only draw connections whose endpoints we can place (defensive against a
-    // line referencing someone who already left the roster).
-    const drawableConnections = useMemo(
-        () =>
-            state.connections.filter(
-                (c) => positions.has(c.fromUid) && positions.has(c.toUid)
-            ),
-        [state.connections, positions]
-    );
+    // REMAP connections onto the human avatars: an agent endpoint collapses onto
+    // its student (so "agent → teacher" reads as "student → teacher"). Drop
+    // self-loops + endpoints we can't place, then de-dupe by from>to:kind.
+    const drawableConnections = useMemo(() => {
+        const out: LabConnection[] = [];
+        const seen = new Set<string>();
+        for (const c of state.connections) {
+            const fromUid = isLabAgentIdentity(c.fromUid) ? labBaseUid(c.fromUid) : c.fromUid;
+            const toUid = isLabAgentIdentity(c.toUid) ? labBaseUid(c.toUid) : c.toUid;
+            if (fromUid === toUid) continue; // self-loop after remap
+            if (!positions.has(fromUid) || !positions.has(toUid)) continue;
+            const key = `${fromUid}>${toUid}:${c.kind}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ ...c, fromUid, toUid });
+        }
+        return out;
+    }, [state.connections, positions]);
+
+    // The active remote-control edge, base-uid-remapped and only kept when both
+    // ends are placed on the map (controller → controllee).
+    const drawableControlEdge = useMemo(() => {
+        if (!controlEdge) return null;
+        const fromUid = isLabAgentIdentity(controlEdge.fromUid)
+            ? labBaseUid(controlEdge.fromUid)
+            : controlEdge.fromUid;
+        const toUid = isLabAgentIdentity(controlEdge.toUid)
+            ? labBaseUid(controlEdge.toUid)
+            : controlEdge.toUid;
+        if (fromUid === toUid) return null;
+        if (!positions.has(fromUid) || !positions.has(toUid)) return null;
+        return { fromUid, toUid };
+    }, [controlEdge, positions]);
 
     // The raised-hand queue — oldest hand first (what the teacher answers).
+    // Humans only, so an agent presence never sneaks into the queue.
     const handQueue = useMemo(
         () =>
-            state.participants
+            humans
                 .filter((p) => typeof p.handRaisedAt === "number")
                 .sort((a, b) => (a.handRaisedAt as number) - (b.handRaisedAt as number)),
-        [state.participants]
+        [humans]
     );
 
     // The active shares, summarised for the rail (one row per connection, with
     // the broadcast collapsed into a single "to the room" line, and the
-    // spotlight floated to the top when one is active).
+    // spotlight floated to the top when one is active). Reads `drawableConnections`,
+    // which is already base-uid-remapped, so the rail names students not agents.
     const liveShares = useMemo(
         () => summariseShares(drawableConnections, byUid, spotlightUid),
         [drawableConnections, byUid, spotlightUid]
@@ -245,6 +338,11 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
 
     return (
         <div className={`flex flex-col gap-4 lg:flex-row ${className}`}>
+            {/* Local keyframes for the gentle avatar "float" (a slow vertical
+                bob), the travelling control-light dash, and a reduced-motion
+                escape hatch. Scoped by the `lab-float` / `lab-control` class
+                names so they don't leak into the rest of the app. */}
+            <style>{LAB_MAP_CSS}</style>
             {/* ── The map ─────────────────────────────────────────────── */}
             <section className="min-w-0 flex-1">
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white shadow-soft-sm dark:border-slate-700 dark:from-slate-900 dark:to-surface">
@@ -287,13 +385,14 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
                             connections={drawableConnections}
                             positions={positions}
                             spotlightUid={spotlightUid}
+                            controlEdge={drawableControlEdge}
                         />
 
                         {/* Avatars. Clicking one views that participant's screen
                             (the shell gates who may actually see whom), so every
                             avatar but your own is selectable — not just for the
                             teacher. The spotlit avatar gets an amber glow. */}
-                        {ordered.map((p) => {
+                        {ordered.map((p, i) => {
                             const pos = positions.get(p.uid)!;
                             const selectable = p.uid !== state.you.uid;
                             return (
@@ -301,8 +400,10 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
                                     key={p.uid}
                                     participant={p}
                                     pos={pos}
+                                    index={i}
                                     isYou={p.uid === state.you.uid}
                                     spotlit={p.uid === spotlightUid}
+                                    hasDesktop={desktopUids.has(p.uid)}
                                     menuOpen={menu?.uid === p.uid}
                                     onOpenMenu={
                                         selectable
@@ -327,7 +428,7 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
                     <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-700/70">
                         <h3 className="font-display text-sm font-bold text-gray-900">Live in this lab</h3>
                         <p className="mt-0.5 text-[11px] text-slate-500">
-                            {state.participants.length} in the room
+                            {humans.length} in the room
                         </p>
                     </div>
 
@@ -417,7 +518,11 @@ export function LabMap({ state, actions, className = "", allowPeerShare = false 
                     participant={byUid.get(menu.uid)}
                     anchor={{ x: menu.x, y: menu.y }}
                     isTeacher={isTeacher}
-                    isSharing={state.connections.some((c) => c.fromUid === menu.uid)}
+                    isSharing={state.connections.some(
+                        (c) =>
+                            (isLabAgentIdentity(c.fromUid) ? labBaseUid(c.fromUid) : c.fromUid) ===
+                            menu.uid
+                    )}
                     isSpotlit={spotlightUid === menu.uid}
                     allowPeerShare={allowPeerShare}
                     actions={actions}
@@ -435,20 +540,53 @@ export default LabMap;
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * The SVG layer of connection lines drawn between avatar seats. A line that
- * TOUCHES the spotlit participant (either end) is thickened, fully opaque, and
- * given an amber glow so the room-wide pin reads at a glance over the ordinary
- * peer/view/broadcast traffic.
+ * The quadratic-bézier path between two seats that reads as a soft hanging
+ * string: the control point is the segment midpoint pushed PERPENDICULAR to the
+ * segment so the curve sags/droops gently (a catenary, not a hard line). The
+ * sag is a fixed amount of the normalized 0..100 space, scaled down a touch for
+ * very short segments so neighbours don't billow.
+ */
+function stringPath(a: Seat, b: Seat): string {
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    // Unit perpendicular to the segment.
+    const px = -dy / len;
+    const py = dx / len;
+    // Gentle droop (~6–10 units), eased down for short hops, with a consistent
+    // downward bias (+py side) so strings sag toward the floor like real rope.
+    const sag = Math.min(9, 5 + len * 0.06);
+    const bias = py >= 0 ? 1 : -1; // always push the curve downward on screen
+    const cx = mx + px * sag * bias;
+    const cy = my + py * sag * bias + 1.5; // a hair extra downward droop
+    return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
+}
+
+/**
+ * The SVG layer of connection "strings" drawn between avatar seats. A string
+ * that TOUCHES the spotlit participant (either end) is thickened, fully opaque,
+ * and given an amber glow so the room-wide pin reads at a glance over the
+ * ordinary peer/view/broadcast traffic. When a remote-control edge is active it
+ * is drawn most prominently of all (indigo glow) with a light pulse travelling
+ * controller → controllee so the direction of control is unmistakable.
  */
 function ConnectionLayer({
     connections,
     positions,
     spotlightUid,
+    controlEdge,
 }: {
     connections: LabConnection[];
     positions: Map<string, Seat>;
     spotlightUid: string | null;
+    controlEdge: { fromUid: string; toUid: string } | null;
 }) {
+    const controlPath = controlEdge
+        ? stringPath(positions.get(controlEdge.fromUid)!, positions.get(controlEdge.toUid)!)
+        : null;
+
     return (
         <svg
             aria-hidden
@@ -456,10 +594,17 @@ function ConnectionLayer({
             preserveAspectRatio="none"
             viewBox="0 0 100 100"
         >
-            {/* Soft amber glow used by spotlight-touching lines. */}
+            {/* Soft amber glow (spotlight) + indigo glow (control). */}
             <defs>
                 <filter id="lab-spotlight-glow" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur stdDeviation="1.4" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+                <filter id="lab-control-glow" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur stdDeviation="1.8" result="blur" />
                     <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
@@ -470,15 +615,14 @@ function ConnectionLayer({
                 const a = positions.get(c.fromUid)!;
                 const b = positions.get(c.toUid)!;
                 const style = CONNECTION_STYLES[c.kind];
+                const d = stringPath(a, b);
                 const touchesSpotlight =
                     !!spotlightUid && (c.fromUid === spotlightUid || c.toUid === spotlightUid);
                 return (
-                    <line
+                    <path
                         key={`${c.fromUid}-${c.toUid}-${c.kind}-${i}`}
-                        x1={a.x}
-                        y1={a.y}
-                        x2={b.x}
-                        y2={b.y}
+                        d={d}
+                        fill="none"
                         stroke={touchesSpotlight ? CONNECTION_STYLES_SPOTLIGHT.stroke : style.stroke}
                         strokeWidth={touchesSpotlight ? style.width + 1 : style.width}
                         strokeLinecap="round"
@@ -490,8 +634,8 @@ function ConnectionLayer({
                         opacity={touchesSpotlight ? 1 : c.kind === "broadcast" ? 0.5 : 0.75}
                     >
                         {c.kind === "broadcast" && (
-                            // Gently animate the broadcast dots outward so the
-                            // teacher's one-to-many link reads as "flowing".
+                            // Gently animate the broadcast dots along the string so
+                            // the teacher's one-to-many link reads as "flowing".
                             <animate
                                 attributeName="stroke-dashoffset"
                                 from="16"
@@ -500,9 +644,48 @@ function ConnectionLayer({
                                 repeatCount="indefinite"
                             />
                         )}
-                    </line>
+                    </path>
                 );
             })}
+
+            {/* The ACTIVE remote-control string — drawn last so it sits on top.
+                Brighter + thicker indigo with a glow, a slow travelling dash, and
+                a glowing dot that repeatedly runs controller → controllee. */}
+            {controlEdge && controlPath && (
+                <g filter="url(#lab-control-glow)">
+                    {/* The prominent string itself. */}
+                    <path
+                        d={controlPath}
+                        fill="none"
+                        stroke={CONTROL_EDGE_STYLE.stroke}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                        opacity={0.9}
+                    />
+                    {/* A subtle dash crawling controller → controllee. */}
+                    <path
+                        className="lab-control-dash"
+                        d={controlPath}
+                        fill="none"
+                        stroke={CONTROL_EDGE_STYLE.light}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeDasharray="2 6"
+                        vectorEffect="non-scaling-stroke"
+                        opacity={0.95}
+                    />
+                    {/* The travelling light: a glowing dot that runs FROM the
+                        controller end TO the controllee along the exact same
+                        curve, so the direction reads unmistakably. */}
+                    <circle r={1.7} fill="#ffffff" opacity={0.95}>
+                        <animateMotion dur="1.4s" repeatCount="indefinite" path={controlPath} />
+                    </circle>
+                    <circle r={3} fill={CONTROL_EDGE_STYLE.light} opacity={0.4}>
+                        <animateMotion dur="1.4s" repeatCount="indefinite" path={controlPath} />
+                    </circle>
+                </g>
+            )}
         </svg>
     );
 }
@@ -511,16 +694,22 @@ function ConnectionLayer({
 function AvatarNode({
     participant,
     pos,
+    index,
     isYou,
     spotlit = false,
+    hasDesktop = false,
     menuOpen = false,
     onOpenMenu,
 }: {
     participant: LabParticipant;
     pos: Seat;
+    /** Seat index in render order — staggers the float so avatars bob out of sync. */
+    index: number;
     isYou: boolean;
     /** True when this is the teacher's room-wide spotlit participant (amber glow). */
     spotlit?: boolean;
+    /** True when this student's desktop AGENT is in the room (shows a monitor badge). */
+    hasDesktop?: boolean;
     /** True while this avatar's action menu is open (keeps it visually active). */
     menuOpen?: boolean;
     /** Open the action menu for this avatar, anchored at the given viewport point. */
@@ -528,7 +717,6 @@ function AvatarNode({
 }) {
     const style = STATUS_STYLES[participant.status];
     const isTeacher = participant.role === "teacher";
-    const isAgent = isLabAgentIdentity(participant.uid);
     const handUp = typeof participant.handRaisedAt === "number";
     const clickable = !!onOpenMenu;
 
@@ -536,10 +724,16 @@ function AvatarNode({
 
     return (
         <div
+            // The absolutely-positioned SEAT wrapper. It only owns the seat
+            // coordinates — never animated — so the float never fights geometry.
             className="absolute -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
         >
-            <div className="flex flex-col items-center gap-1">
+            {/* INNER float wrapper: a gentle, staggered vertical bob. */}
+            <div
+                className="lab-float flex flex-col items-center gap-1"
+                style={{ animationDelay: `${(index % 6) * 0.5}s` }}
+            >
                 <div className="relative">
                     {/* Hand-raise flag floats above. */}
                     {handUp && (
@@ -601,11 +795,24 @@ function AvatarNode({
                     >
                         {initials(participant.displayName)}
                     </button>
-                    {/* Status dot. */}
+                    {/* Status dot (bottom-right). */}
                     <span
                         className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-surface ${style.dot}`}
                         aria-hidden
                     />
+                    {/* Desktop-connected indicator (bottom-LEFT, indigo): the
+                        student's desktop agent is in the room, so they can be
+                        remote-controlled. This is a BADGE on the single avatar,
+                        not a second "Desktop" avatar. */}
+                    {hasDesktop && (
+                        <span
+                            className="absolute -bottom-0.5 -left-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-white shadow-soft-sm dark:border-surface"
+                            title="Desktop connected"
+                            aria-hidden
+                        >
+                            <MonitorIcon className="h-2.5 w-2.5" />
+                        </span>
+                    )}
                 </div>
 
                 {/* Name + "you" / teacher tag. */}
@@ -613,17 +820,15 @@ function AvatarNode({
                     <p className="truncate text-[11px] font-medium leading-tight text-gray-900">
                         {firstName(participant.displayName)}
                     </p>
-                    {(isTeacher || isYou || isAgent) && (
+                    {(isTeacher || isYou) && (
                         <span
                             className={`mt-0.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold ${
                                 isTeacher
                                     ? "bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300"
-                                    : isAgent
-                                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
-                                      : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                                    : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                             }`}
                         >
-                            {isTeacher ? "Teacher" : isAgent ? "Desktop" : "You"}
+                            {isTeacher ? "Teacher" : "You"}
                         </span>
                     )}
                 </div>
@@ -663,10 +868,9 @@ function AvatarActionMenu({
     if (!participant) return null;
     const uid = participant.uid;
     const targetIsTeacher = participant.role === "teacher";
-    const isAgent = isLabAgentIdentity(uid);
-    // A connected desktop agent is always sharing its screen (that's its whole
-    // job), even though it doesn't announce a `sharingTo` to derive a connection.
-    const sharing = isSharing || isAgent;
+    // The menu now always acts on the (human) student — agent identities never
+    // render their own avatar, so there is no separate "Desktop agent" target.
+    const sharing = isSharing;
 
     type Item = {
         key: string;
@@ -703,13 +907,14 @@ function AvatarActionMenu({
                 run: run(() => actions?.onSpotlight?.(isSpotlit ? null : uid)),
             });
         }
-        // Remote control needs the DESKTOP AGENT (a browser tab can't be
-        // OS-controlled). On the "Desktop" avatar it controls directly; on a
-        // student's browser avatar it ASKS them to connect their desktop first.
+        // Remote control needs the student's DESKTOP AGENT (a browser tab can't
+        // be OS-controlled). We always show "Request remote control" on the
+        // student; the control plane prompts them to connect their desktop if it
+        // isn't already, or arms control directly if it is.
         if (!targetIsTeacher && actions?.onRemoteControl) {
             items.push({
                 key: "control",
-                label: isAgent ? "Remote control" : "Request remote control",
+                label: "Request remote control",
                 icon: <CursorIcon className="h-4 w-4" />,
                 run: run(() => actions?.onRemoteControl?.(uid)),
             });
@@ -754,7 +959,7 @@ function AvatarActionMenu({
                     </p>
                     <p className="text-[10px] text-slate-500">
                         {STATUS_STYLES[participant.status].label}
-                        {targetIsTeacher ? " · Teacher" : isAgent ? " · Desktop agent" : ""}
+                        {targetIsTeacher ? " · Teacher" : ""}
                     </p>
                 </div>
                 <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
@@ -1109,6 +1314,15 @@ function RecordIcon({ className }: { className?: string }) {
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
             <circle cx="12" cy="12" r="8" strokeWidth={2} />
             <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+        </svg>
+    );
+}
+
+function MonitorIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <rect x="3" y="4" width="18" height="12" rx="1.5" strokeWidth={2.5} />
+            <path strokeLinecap="round" strokeWidth={2.5} d="M9 20h6M12 16v4" />
         </svg>
     );
 }
