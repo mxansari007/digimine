@@ -280,6 +280,14 @@ export async function POST(
                                 ? keptSources
                                 : [TrackSource.CAMERA, TrackSource.MICROPHONE],
                         canPublish: perm?.canPublish ?? true,
+                        // CRITICAL: `updateParticipant` REPLACES the permission set
+                        // atomically, so we MUST echo canUpdateMetadata + hidden —
+                        // omitting canUpdateMetadata resets it to false and the
+                        // student can no longer update their OWN metadata, which
+                        // breaks stopSharing / status / hand for the rest of their
+                        // session ("does not have permission to update own metadata").
+                        canUpdateMetadata: perm?.canUpdateMetadata ?? true,
+                        hidden: perm?.hidden ?? false,
                     },
                 });
                 if (stopped === "none") stopped = "revoked";

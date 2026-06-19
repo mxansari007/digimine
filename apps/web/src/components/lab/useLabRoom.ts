@@ -434,13 +434,16 @@ function screenSharePub(p: Participant): TrackPublication | undefined {
     );
 }
 
-/** True when the participant is currently publishing a screen-share track. */
+/** True when the participant is currently publishing a LIVE screen-share track. */
 function hasScreenShare(p: Participant): boolean {
     const pub = screenSharePub(p);
     // A publication exists from the moment it's announced; we don't require the
     // media track to be locally subscribed (the teacher may be unsubscribed from
-    // a given student, yet the share link should still draw on the map).
-    return Boolean(pub);
+    // a given student, yet the share link should still draw on the map). BUT a
+    // server-muted track (a teacher who hit "End their share") is still
+    // "published" — treat a muted publication as NOT sharing so the map +
+    // connections clear the instant a teacher ends it.
+    return Boolean(pub) && !pub!.isMuted;
 }
 
 /** Find the (first) teacher participant in the room, or undefined. */
@@ -548,7 +551,11 @@ function buildRoomState(
     }
 
     // (b) view / peer from metadata sharingTo (the sharer's declared targets).
+    // Require a LIVE (non-muted) screen track too, so a share the teacher ended
+    // (server-muted) — or a stale `sharingTo` left after the track is gone — stops
+    // drawing the link immediately rather than lingering on the map.
     for (const r of rows) {
+        if (!hasScreenShare(r.p)) continue;
         for (const targetUid of r.meta.sharingTo) {
             if (!present.has(targetUid)) continue; // target already left
             if (targetUid === r.p.identity) continue; // never self
@@ -572,6 +579,7 @@ function buildRoomState(
             if (
                 pub instanceof RemoteTrackPublicationClass &&
                 pub.isSubscribed &&
+                !pub.isMuted &&
                 present.has(s.p.identity)
             ) {
                 pushConn({ fromUid: t.p.identity, toUid: s.p.identity, kind: "view" });
@@ -1154,6 +1162,10 @@ export function useLabRoom(sessionId: string): UseLabRoomResult {
             .on(RoomEvent.ParticipantDisconnected, onChange)
             .on(RoomEvent.TrackSubscribed, onTrack)
             .on(RoomEvent.TrackUnsubscribed, onTrack)
+            // A server-mute (teacher "End their share") / unmute changes whether a
+            // share is LIVE — recompute so the map + connections reflect it at once.
+            .on(RoomEvent.TrackMuted, onChange)
+            .on(RoomEvent.TrackUnmuted, onChange)
             .on(RoomEvent.LocalTrackPublished, onChange)
             .on(RoomEvent.LocalTrackUnpublished, onChange)
             .on(RoomEvent.ParticipantMetadataChanged, onMetadata)
