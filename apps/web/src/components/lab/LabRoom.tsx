@@ -263,19 +263,23 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
         onRemoteControl: (uid) => {
             const agentId = isLabAgentIdentity(uid) ? uid : labAgentIdentity(uid);
             const studentUid = isLabAgentIdentity(uid) ? labBaseUid(uid) : uid;
-            if (state.participants.some((p) => p.uid === agentId)) {
-                // Desktop agent is connected → view it + request control of it.
+            const agentPresent = state.participants.some((p) => p.uid === agentId);
+            // ALWAYS nudge the student's BROWSER so they get visible feedback — the
+            // agent's own Allow/Deny dialog is easily hidden behind the browser.
+            actions.askControl(studentUid);
+            if (agentPresent) {
+                // Agent connected → send the real control request to it + open its screen.
                 openView(agentId);
                 actions.requestControl(agentId);
-            } else {
-                // No desktop agent yet → ASK the student to connect theirs (their
-                // browser shows a prompt). Control needs the agent.
-                actions.askControl(studentUid);
-                const name =
-                    state.participants.find((p) => p.uid === studentUid)?.displayName ||
-                    "the student";
-                setAskedNote(`Asked ${name} to connect their desktop for remote control.`);
             }
+            const name =
+                state.participants.find((p) => p.uid === studentUid)?.displayName ||
+                "the student";
+            setAskedNote(
+                agentPresent
+                    ? `Requested control of ${name} — waiting for them to tap Allow in the Lab Agent.`
+                    : `Asked ${name} to connect their desktop for remote control.`
+            );
         },
         onEndShare: (uid) => onEndShare(uid),
         onShareToPeer: (uid) => {
@@ -411,9 +415,9 @@ export function LabRoom({ sessionId, backHref, backLabel, allowPeerShare }: LabR
                                             {controlAsk.fromName} wants to control your computer
                                         </p>
                                         <p className="mt-0.5 text-xs text-primary-800/80 dark:text-primary-200/80">
-                                            Connect your desktop below to allow it — you&apos;ll still tap
-                                            <span className="font-medium"> Allow</span> in the Lab Agent
-                                            before anything happens.
+                                            Open the <span className="font-medium">Lab Agent</span> app and tap
+                                            <span className="font-medium"> Allow</span> when it asks. If you
+                                            haven&apos;t connected your desktop yet, use the panel below.
                                         </p>
                                         <button
                                             type="button"

@@ -511,6 +511,9 @@ function closeConsentDialog(): void {
 /** Show the modal consent dialog for an incoming control request. */
 function promptForControl(fromUid: string): void {
   if (!fromUid) return;
+  // Pop the agent window to the front so the student SEES the consent dialog even
+  // if the agent was hidden behind their browser.
+  window.labAgent.focusWindow();
   if (!state.nativeInputAvailable) {
     // Be honest: we can't actually control without the native backend.
     els.consentText.textContent =

@@ -607,6 +607,19 @@ function registerIpc(): void {
   // remote control up front.
   ipcMain.handle(IPC.nativeStatus, (): boolean => nativeInputAvailable);
 
+  // Bring the window to the front (the renderer calls this when a control request
+  // arrives, so the student actually SEES the Allow/Deny dialog even if the agent
+  // was hidden behind their browser).
+  ipcMain.on(IPC.focusWindow, () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
+
   // Consent changes from the renderer — reflected in the tray tooltip + logged
   // for the local audit (the durable audit lives server-side via /consent).
   ipcMain.on(

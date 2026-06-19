@@ -44,6 +44,8 @@ export interface LabAgentApi {
   nativeInputAvailable(): Promise<boolean>;
   /** Tell main the local sharing/control state changed (tray + local audit). */
   reportState(state: { sharing: boolean; controlled: boolean }): void;
+  /** Bring the agent window to the front (e.g. when a control request arrives). */
+  focusWindow(): void;
   /** Subscribe to status/log/force-stop messages from main. Returns unsubscribe. */
   onStatus(handler: (msg: StatusMessage) => void): () => void;
 }
@@ -55,6 +57,7 @@ const api: LabAgentApi = {
   injectInput: (ev) => ipcRenderer.invoke(IPC.injectInput, ev),
   nativeInputAvailable: () => ipcRenderer.invoke(IPC.nativeStatus),
   reportState: (state) => ipcRenderer.send(IPC.consentChanged, state),
+  focusWindow: () => ipcRenderer.send(IPC.focusWindow),
   onStatus: (handler) => {
     const listener = (_e: unknown, msg: StatusMessage) => handler(msg);
     ipcRenderer.on(IPC.status, listener);

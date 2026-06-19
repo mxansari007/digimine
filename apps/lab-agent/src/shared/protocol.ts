@@ -456,6 +456,8 @@ export const IPC = {
   status: "lab:status",
   /** renderer → main: a consent decision was made (for the menu/tray + audit). */
   consentChanged: "lab:consent-changed",
+  /** renderer → main: bring the agent window to the front (e.g. on a control request). */
+  focusWindow: "lab:focus-window",
 } as const;
 
 /** A capturable source returned by desktopCapturer, trimmed for the renderer. */
