@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useSyncExternalStore } from "react";
+import { useCallback, useId, useSyncExternalStore } from "react";
 
 /**
  * labWindow — a tiny global "which lab panel is maximized" store.
@@ -58,11 +58,15 @@ export function useLabWindow() {
         () => maximizedId === id,
         () => false
     );
-    return {
-        id,
-        maximized,
-        maximize: () => maximizeWindow(id),
-        restore: () => restoreWindow(id),
-        toggle: () => (maximizedId === id ? restoreWindow(id) : maximizeWindow(id)),
-    };
+    // STABLE callbacks (id never changes for an instance). They MUST be stable:
+    // panels pass `restore` as an effect dep / unmount-cleanup, and a fresh
+    // function each render would make that effect re-run every render — its
+    // cleanup would call restore() and instantly un-maximize the panel.
+    const maximize = useCallback(() => maximizeWindow(id), [id]);
+    const restore = useCallback(() => restoreWindow(id), [id]);
+    const toggle = useCallback(
+        () => (maximizedId === id ? restoreWindow(id) : maximizeWindow(id)),
+        [id]
+    );
+    return { id, maximized, maximize, restore, toggle };
 }
