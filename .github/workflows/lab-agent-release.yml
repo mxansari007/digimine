@@ -39,6 +39,12 @@ jobs:
     env:
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       STORAGE_BUCKET: digimine-1c33f.firebasestorage.app
+      # Self-signed Authenticode cert (base64 .pfx) + its password. Signs the
+      # Windows installer so it carries a publisher identity (no "Unknown
+      # Publisher") and can be trusted org-wide. NOT CA-trusted, so SmartScreen
+      # still warns for the public — see docs.
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: apps/lab-agent
@@ -59,9 +65,30 @@ jobs:
       - name: Build installer
         run: npm run ${{ matrix.cmd }}
         env:
-          # Do not attempt code-signing in CI (no certs); produces unsigned
-          # installers (Gatekeeper / SmartScreen will warn — expected).
+          # macOS is ad-hoc signed by build/afterPack.js (no Developer ID);
+          # don't let electron-builder hunt the keychain for a real identity.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Sign Windows installer (self-signed)
+        # Authenticode-sign the .exe with the self-signed cert. signtool succeeds
+        # regardless of CA trust; the timestamp keeps the signature valid past
+        # the cert's life. Get-AuthenticodeSignature Status will read NotTrusted
+        # (self-signed) — expected; the signature is still present + valid-format.
+        if: ${{ matrix.os == 'windows-latest' && env.WIN_CSC_LINK != '' }}
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cs.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CSC_LINK))
+          $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                Sort-Object FullName -Descending | Select-Object -First 1
+          $exe = Get-ChildItem "release\*.exe" | Select-Object -First 1
+          Write-Host "Signing $($exe.FullName) with $($st.FullName)"
+          & $st.FullName sign /f $pfx /p $env:WIN_CSC_KEY_PASSWORD /fd sha256 `
+            /tr http://timestamp.digicert.com /td sha256 $exe.FullName
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed ($LASTEXITCODE)" }
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host "Signed -> Status=$($sig.Status) Signer=$($sig.SignerCertificate.Subject)"
+          Remove-Item $pfx -Force
 
       - name: Upload installer as a build artifact
         uses: actions/upload-artifact@v4
