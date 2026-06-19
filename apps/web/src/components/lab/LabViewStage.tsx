@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LabRoomState } from "@digimine/types";
 import { LabVideo } from "./LabVideo";
 import { LabControlSurface } from "./LabControlSurface";
@@ -89,6 +90,19 @@ export function LabViewStage({
     // guard keeps the button from double-firing before the round-trip lands.
     const [spotBusy, setSpotBusy] = useState(false);
 
+    // Window chrome — collapse to the header (minimize) or lift into a
+    // full-viewport portal overlay (maximize), like the other lab panels.
+    const [minimized, setMinimized] = useState(false);
+    const [maximized, setMaximized] = useState(false);
+    useEffect(() => {
+        if (!maximized) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setMaximized(false);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [maximized]);
+
     const viewed = useMemo(
         () => state.participants.find((p) => p.uid === viewedUid) ?? null,
         [state.participants, viewedUid]
@@ -143,16 +157,21 @@ export function LabViewStage({
         }
     };
 
-    return (
+    const ring = isControlling
+        ? "border-rose-400 ring-rose-400/50 dark:border-rose-500/50"
+        : "border-indigo-300 ring-indigo-400/40 dark:border-indigo-500/40";
+    const sectionClass = maximized
+        ? `fixed inset-3 z-[200] flex flex-col overflow-hidden rounded-2xl border bg-slate-950 shadow-2xl ring-1 ${ring}`
+        : `overflow-hidden rounded-2xl border bg-slate-950 shadow-soft-sm ring-1 ${ring}`;
+
+    const inner = (
         <section
-            className={[
-                "overflow-hidden rounded-2xl border bg-slate-950 shadow-soft-sm ring-1",
-                isControlling
-                    ? "border-rose-400 ring-rose-400/50 dark:border-rose-500/50"
-                    : "border-indigo-300 ring-indigo-400/40 dark:border-indigo-500/40",
-            ].join(" ")}
+            className={sectionClass}
+            role={maximized ? "dialog" : undefined}
+            aria-modal={maximized || undefined}
+            aria-label={maximized ? `Viewing ${name}` : undefined}
         >
-            {/* Header: who you're viewing + spotlight/control badge + close. */}
+            {/* Header: who you're viewing + spotlight/control badge + window controls. */}
             <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-slate-900/80 px-3 py-2">
                 <div className="flex min-w-0 items-center gap-2">
                     <EyeIcon className="h-4 w-4 shrink-0 text-indigo-300" />
@@ -178,17 +197,38 @@ export function LabViewStage({
                         </span>
                     )}
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close the view"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/10 px-2 py-1 text-[11px] font-medium text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-                >
-                    <CloseIcon className="h-3.5 w-3.5" />
-                    Close
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                    {!maximized && (
+                        <WinBtn
+                            title={minimized ? "Expand" : "Minimize"}
+                            onClick={() => setMinimized((m) => !m)}
+                        >
+                            {minimized ? <ChevronGlyph /> : <MinusGlyph />}
+                        </WinBtn>
+                    )}
+                    <WinBtn
+                        title={maximized ? "Restore" : "Maximize"}
+                        onClick={() => {
+                            setMaximized((m) => !m);
+                            if (!maximized) setMinimized(false);
+                        }}
+                    >
+                        {maximized ? <RestoreGlyph /> : <MaximizeGlyph />}
+                    </WinBtn>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Close the view"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/10 px-2 py-1 text-[11px] font-medium text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+                    >
+                        <CloseIcon className="h-3.5 w-3.5" />
+                        Close
+                    </button>
+                </div>
             </div>
 
+            {!minimized && (
+            <div className={maximized ? "flex min-h-0 flex-1 flex-col overflow-auto" : "contents"}>
             {/* The frame. While controlling, the LabControlSurface overlays the
                 video and captures the teacher's pointer/wheel/keyboard. */}
             <div className="relative aspect-video w-full">
@@ -327,11 +367,89 @@ export function LabViewStage({
                     )}
                 </div>
             )}
+            </div>
+            )}
         </section>
     );
+
+    // Maximized: portal the whole stage onto document.body (above the app
+    // chrome) over a dimmed backdrop; otherwise render it docked in place.
+    if (maximized && typeof document !== "undefined") {
+        return createPortal(
+            <>
+                <div
+                    className="fixed inset-0 z-[190] bg-slate-900/50 backdrop-blur-[2px]"
+                    onClick={() => setMaximized(false)}
+                    aria-hidden
+                />
+                {inner}
+            </>,
+            document.body
+        );
+    }
+
+    return inner;
 }
 
 export default LabViewStage;
+
+// ── Window chrome (min / max / restore) ──────────────────────────────────
+
+/** A small icon button matching the view stage's dark header. */
+function WinBtn({
+    title,
+    onClick,
+    children,
+}: {
+    title: string;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            aria-label={title}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+        >
+            {children}
+        </button>
+    );
+}
+
+function MinusGlyph() {
+    return (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeWidth={2.5} d="M5 12h14" />
+        </svg>
+    );
+}
+
+function ChevronGlyph() {
+    return (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 9l6 6 6-6" />
+        </svg>
+    );
+}
+
+function MaximizeGlyph() {
+    return (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth={2} />
+        </svg>
+    );
+}
+
+function RestoreGlyph() {
+    return (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+            <rect x="8" y="8" width="12" height="12" rx="1.5" strokeWidth={2} />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16V5a1 1 0 011-1h11" />
+        </svg>
+    );
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Sub-components
